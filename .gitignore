@@ -1,0 +1,15 @@
+*.so
+*.gch
+*.pyc
+*.out
+*.o
+python/*.o
+*.xcf
+*.png
+*.mol
+deps/*.d
+python/test/*xml
+python/test/*png
+*xml
+# Emacs backups:
+*~
