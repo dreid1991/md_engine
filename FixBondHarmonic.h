@@ -1,31 +1,25 @@
 #ifndef FIXBONDHARMONIC_H
 #define FIXBONDHARMONIC_H
-#include "Fix.h"
 #include "Bond.h"
-
+#include "FixBond.h"
 void export_FixBondHarmonic();
-class FixBondHarmonic : public Fix {
+class FixBondHarmonic : public FixBond<BondHarmonic, BondHarmonicGPU> {
 	public:
 		FixBondHarmonic(SHARED(State) state_, string handle);
-        vector<int2> bondAtomIds;
-        GPUArrayDevice<BondHarmonicGPU> bondsGPU;
-        GPUArrayDevice<int> bondIdxs;
-		void compute();
 		//DataSet *eng;
 		//DataSet *press;
-        bool prepareForRun();
-        bool downloadFromRun(){return true;};
+        //bool prepareForRun();
        // bool dataToDevice();
      //`   bool dataToHost();
         //HEY - NEED TO IMPLEMENT REFRESHATOMS//consider that if you do so, max bonds per block could change
-        bool refreshAtoms();
+       // bool refreshAtoms();
         //vector<pair<int, vector<int> > > neighborlistExclusions();
 
         void createBond(Atom *, Atom *, float, float);
         ~FixBondHarmonic(){};
         string restartChunk(string format);
-        int maxBondsPerBlock;
-        vector<BondVariant> bonds;
+       // int maxBondsPerBlock;
+        void compute();
         const BondHarmonic getBond(size_t i) {
             return boost::get<BondHarmonic>(bonds[i]);
         }

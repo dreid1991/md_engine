@@ -41,12 +41,21 @@ __global__ void compute_cu(int nAtoms, cudaTextureObject_t xs, float4 *forces, c
 }
 
 
-FixBondHarmonic::FixBondHarmonic(SHARED(State) state_, string handle) : Fix(state_, handle, string("None"), bondHarmType, 1), bondsGPU(1), bondIdxs(1)  {
-    forceSingle = true;
-    maxBondsPerBlock = 0;
+FixBondHarmonic::FixBondHarmonic(SHARED(State) state_, string handle) : FixBond(state_, handle, string("None"), bondHarmType, 1) {
 }
 
 
+
+//void cumulativeSum(int *data, int n);
+//okay, so the net result of this function is that two arrays (items, idxs of items) are on the gpu and we know how many bonds are in bondiest  block
+
+
+void FixBondHarmonic::createBond(Atom *a, Atom *b, float k, float rEq) {
+    vector<Atom *> atoms = {a, b};
+    validAtoms(atoms);
+    bonds.push_back(BondHarmonic(a, b, k, rEq));
+    bondAtomIds.push_back(make_int2(a->id, b->id));
+}
 void FixBondHarmonic::compute() {
     int nAtoms = state->atoms.size();
     int activeIdx = state->gpd.activeIdx;
@@ -56,78 +65,6 @@ void FixBondHarmonic::compute() {
 
 }
 
-//void cumulativeSum(int *data, int n);
-//okay, so the net result of this function is that two arrays (items, idxs of items) are on the gpu and we know how many bonds are in bondiest  block
-
-template <class SRC, class DEST>
-int copyBondsToGPU(vector<Atom> &atoms, vector<BondVariant> &src, GPUArrayDevice<DEST> *dest, GPUArrayDevice<int> *destIdxs) {
-    vector<int> idxs(atoms.size()+1, 0); //started out being used as counts
-    vector<int> numAddedPerAtom(atoms.size(), 0);
-    //so I can arbitrarily order.  I choose to do it by the the way atoms happen to be sorted currently.  Could be improved.
-    for (BondVariant &s : src) {
-        idxs[get<SRC>(s).atoms[0] - atoms.data()]++;
-        idxs[get<SRC>(s).atoms[1] - atoms.data()]++;
-    }
-    cumulativeSum(idxs.data(), atoms.size()+1);  
-    vector<DEST> destHost(idxs.back());
-    for (BondVariant &sv : src) {
-        SRC &s = get<SRC>(sv);
-        int bondAtomIds[2];
-        int bondAtomIndexes[2];
-        bondAtomIds[0] = s.atoms[0]->id;
-        bondAtomIds[1] = s.atoms[1]->id;
-        bondAtomIndexes[0] = s.atoms[0] - atoms.data();
-        bondAtomIndexes[1] = s.atoms[1] - atoms.data();
-        for (int i=0; i<2; i++) {
-            DEST a;
-            a.myId = bondAtomIds[i];
-            a.idOther = bondAtomIds[!i];
-            a.takeValues(s);
-            destHost[idxs[bondAtomIndexes[i]] + numAddedPerAtom[bondAtomIndexes[i]]] = a;
-            numAddedPerAtom[bondAtomIndexes[i]]++;
-        }
-    }
-    *dest = GPUArrayDevice<DEST>(destHost.size());
-    dest->set(destHost.data());
-    *destIdxs = GPUArrayDevice<int>(idxs.size());
-    destIdxs->set(idxs.data());
-
-    //getting max # bonds per block
-    int maxPerBlock = 0;
-    for (int i=0; i<atoms.size(); i+=PERBLOCK) {
-        maxPerBlock = fmax(maxPerBlock, idxs[fmin(i+PERBLOCK+1, idxs.size()-1)] - idxs[i]);
-    }
-    return maxPerBlock;
-
-}
-
-
-bool FixBondHarmonic::prepareForRun() {
-    vector<Atom> &atoms = state->atoms;
-    refreshAtoms();
-    maxBondsPerBlock = copyBondsToGPU<BondHarmonic, BondHarmonicGPU>(atoms, bonds, &bondsGPU, &bondIdxs);
-
-    return true;
-
-}
-
-void FixBondHarmonic::createBond(Atom *a, Atom *b, float k, float rEq) {
-    vector<Atom *> atoms = {a, b};
-    validAtoms(atoms);
-    bonds.push_back(BondHarmonic(a, b, k, rEq));
-    bondAtomIds.push_back(make_int2(a->id, b->id));
-}
-
-bool FixBondHarmonic::refreshAtoms() {
-    vector<int> idxFromIdCache = state->idxFromIdCache;
-    vector<Atom> &atoms = state->atoms;
-    for (int i=0; i<bondAtomIds.size(); i++) {
-        int2 ids = bondAtomIds[i];
-        get<BondHarmonic>(bonds[i]).atoms[0] = &atoms[idxFromIdCache[ids.x]];//state->atomFromId(ids.x);
-        get<BondHarmonic>(bonds[i]).atoms[1] = &atoms[idxFromIdCache[ids.y]];//state->atomFromId(ids.y);
-    }
-    return bondAtomIds.size() == bonds.size();
-}
 
 /*
 vector<pair<int, vector<int> > > FixBondHarmonic::neighborlistExclusions() {

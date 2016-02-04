@@ -10,7 +10,7 @@
 #include "globalDefs.h"
 #include "cutils_math.h"
 using namespace std;
-#define EPSILON .000001
+#define EPSILON .000001f
 
 #include "boost_for_export.h"
 void export_Vector();
