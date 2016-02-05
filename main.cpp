@@ -283,7 +283,7 @@ void testBondHarmonic() {
     SHARED(FixLJCut) nonbond = SHARED(FixLJCut) (new FixLJCut(state, "ljcut", "all"));
     nonbond->setParameter("sig", "handle", "handle", 1);
     nonbond->setParameter("eps", "handle", "handle", 1);
-    //state->activateFix(nonbond);
+    state->activateFix(nonbond);
     cout << state->atoms[0].id<< endl;
     SHARED(FixBondHarmonic) bond (new FixBondHarmonic(state, "bondh"));
 
@@ -294,7 +294,7 @@ void testBondHarmonic() {
     cout << bond->getBond(0).rEq << endl;
     cout << bond->getBond(1).rEq << endl;
     IntegraterRelax integraterR(state);
-    integraterR.run(5000,1e-8);
+    integraterR.run(1,1e-8);
     for (int i=0; i<3; i++) {
         cout << state->atoms[i].pos[0] << endl;
     }
@@ -316,15 +316,15 @@ void testBondHarmonicGrid() {
 
     state->activateFix(bond);
     double spacing = 1.4;
-    int n = 5;
-    state->addAtom("handle", Vector(1, 1, 0), 0);
-    state->addAtom("handle", Vector(3, 1, 0), 0);
+    int n = 50;
     
     for (int i=0; i<n; i++) {
         for (int j=0; j<n; j++) {
             state->addAtom("handle", Vector(i*spacing, j*spacing, 0), 0);
         }
     }
+  //  state->addAtom("handle", Vector(1, 1, 0), 0);
+   // state->addAtom("handle", Vector(3, 1, 0), 0);
     
     double rEq = 1.0;
     for (int i=0; i<n; i++) {
@@ -339,7 +339,7 @@ void testBondHarmonicGrid() {
         }
     }
     state->periodicInterval = 9;
-    
+   /* 
     State::ExclusionList out = state->generateExclusionList(4);
     for (auto atom : out) {
         cout << "atom id: " << atom.first << endl;
@@ -351,19 +351,20 @@ void testBondHarmonicGrid() {
             cout << endl;
         }
     }
-    return;
+    */
+    //return;
     
     SHARED(Fix2d) f2d = SHARED(Fix2d) (new Fix2d(state, "2d", 1));
     state->activateFix(f2d);
     SHARED(FixLJCut) nonbond = SHARED(FixLJCut) (new FixLJCut(state, "ljcut", "all"));
     nonbond->setParameter("sig", "handle", "handle", 1);
     nonbond->setParameter("eps", "handle", "handle", 1);
-    state->activateFix(nonbond);
+    //state->activateFix(nonbond);
     
     IntegraterRelax integraterR(state);
-    integraterR.run(5000,1e-8);
-    for (int i=0; i<3; i++) {
-        cout << state->atoms[i].pos[0] << endl;
+    integraterR.run(60000,1e-8);
+    for (Atom &a : state->atoms) {
+        cout << a.pos << endl;
     }
 
 
@@ -434,8 +435,7 @@ int main(int argc, char **argv) {
     if (argc > 1) {
         int arg = atoi(argv[1]);
         if (arg==0) {
-            cout << "hi" << endl;
-            testBondHarmonic();
+            testBondHarmonicGrid();
         } else if (arg==1) {
             //marat put your test stuff here
         } else if (arg==2) {

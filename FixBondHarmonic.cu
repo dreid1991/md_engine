@@ -17,26 +17,28 @@ __global__ void compute_cu(int nAtoms, cudaTextureObject_t xs, float4 *forces, c
         //startIdx - idxBeginCopy gives my index in shared memory
         int shr_idx = startIdx - idxBeginCopy;
         int n = endIdx - startIdx;
-        int idSelf = bonds_shr[startIdx].myId;
-        
-        int idxSelf = tex2D<int>(idToIdxs, XIDX(idSelf, sizeof(int)), YIDX(idSelf, sizeof(int)));
+        if (n>0) { //if you have atoms w/ zero bonds at the end, they will read one off the end of the bond list
+            int idSelf = bonds_shr[shr_idx].myId;
 
-        float3 pos = make_float3(tex2D<float4>(xs, XIDX(idxSelf, sizeof(float4)), YIDX(idxSelf, sizeof(float4))));
-        float3 forceSum = make_float3(0, 0, 0);
-        for (int i=0; i<n; i++) {
-            BondHarmonicGPU b = bonds_shr[shr_idx + i];
-            int idOther = b.idOther;
-            int idxOther = tex2D<int>(idToIdxs, XIDX(idOther, sizeof(int)), YIDX(idOther, sizeof(int)));
+            int idxSelf = tex2D<int>(idToIdxs, XIDX(idSelf, sizeof(int)), YIDX(idSelf, sizeof(int)));
 
-            float3 posOther = make_float3(tex2D<float4>(xs, XIDX(idxOther, sizeof(float4)), YIDX(idxOther, sizeof(float4))));
-           // printf("atom %d bond %d gets force %f\n", idx, i, harmonicForce(bounds, pos, posOther, b.k, b.rEq));
-           // printf("xs %f %f\n", pos.x, posOther.x);
-            forceSum += harmonicForce(bounds, pos, posOther, b.k, b.rEq);
+            float3 pos = make_float3(tex2D<float4>(xs, XIDX(idxSelf, sizeof(float4)), YIDX(idxSelf, sizeof(float4))));
+            float3 forceSum = make_float3(0, 0, 0);
+            for (int i=0; i<n; i++) {
+                BondHarmonicGPU b = bonds_shr[shr_idx + i];
+                int idOther = b.idOther;
+                int idxOther = tex2D<int>(idToIdxs, XIDX(idOther, sizeof(int)), YIDX(idOther, sizeof(int)));
+
+                float3 posOther = make_float3(tex2D<float4>(xs, XIDX(idxOther, sizeof(float4)), YIDX(idxOther, sizeof(float4))));
+                // printf("atom %d bond %d gets force %f\n", idx, i, harmonicForce(bounds, pos, posOther, b.k, b.rEq));
+                // printf("xs %f %f\n", pos.x, posOther.x);
+                forceSum += harmonicForce(bounds, pos, posOther, b.k, b.rEq);
+            }
+            int zero = 0;
+            float4 forceSumWhole = make_float4(forceSum);
+            forceSumWhole.w = * (float *) &zero;
+            forces[idxSelf] += forceSumWhole;
         }
-        int zero = 0;
-        float4 forceSumWhole = make_float4(forceSum);
-        forceSumWhole.w = * (float *) &zero;
-        forces[idxSelf] += forceSumWhole;
     }
 }
 
@@ -59,9 +61,8 @@ void FixBondHarmonic::createBond(Atom *a, Atom *b, float k, float rEq) {
 void FixBondHarmonic::compute() {
     int nAtoms = state->atoms.size();
     int activeIdx = state->gpd.activeIdx;
-    if (bonds.size()) {
-        compute_cu<<<NBLOCK(nAtoms), PERBLOCK, sizeof(BondHarmonicGPU) * maxBondsPerBlock>>>(nAtoms, state->gpd.xs.getTex(), state->gpd.fs(activeIdx), state->gpd.idToIdxs.getTex(), bondsGPU.ptr, bondIdxs.ptr, state->boundsGPU);
-    }
+    //cout << "Max bonds per block is " << maxBondsPerBlock << endl;
+    compute_cu<<<NBLOCK(nAtoms), PERBLOCK, sizeof(BondHarmonicGPU) * maxBondsPerBlock>>>(nAtoms, state->gpd.xs.getTex(), state->gpd.fs(activeIdx), state->gpd.idToIdxs.getTex(), bondsGPU.ptr, bondIdxs.ptr, state->boundsGPU);
 
 }
 
