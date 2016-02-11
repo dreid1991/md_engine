@@ -83,9 +83,9 @@ void IntegraterVerlet::run(int numTurns) {
         force(activeIdx);
         postForce(activeIdx);
 
-		if (state->verbose and not ((state->turn - turnInit) % state->shoutEvery)) {
-			cout << "Turn " << (int) state->turn << " " << (int) (100 * (state->turn - turnInit) / (num) numTurns) << " percent done" << endl;
-		}
+                if (state->verbose and not ((state->turn - turnInit) % state->shoutEvery)) {
+                          cout << "Turn " << (int) state->turn << " " << (int) (100 * (state->turn - turnInit) / (num) numTurns) << " percent done" << endl;
+                }
         state->turn++;
 
     }

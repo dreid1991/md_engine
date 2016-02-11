@@ -34,7 +34,7 @@ void testFire() {
     std::srand(2);
     for (int i=0; i<baseLen; i++) {
         for (int j=0; j<baseLen; j++) {
-            state->atoms.push_back(Atom(Vector(i*mult+eps*(double(std::rand())/RAND_MAX), j*mult+eps*(double(std::rand())/RAND_MAX), 0), 0, j + i*baseLen, 2, 0));
+            state->addAtom("handle",Vector(i*mult+eps*(double(std::rand())/RAND_MAX), j*mult+eps*(double(std::rand())/RAND_MAX), 0), 0);
         }
     }
 
@@ -49,13 +49,14 @@ void testFire() {
     nonbond->setParameter("eps", "handle", "handle", 1);
     state->activateFix(nonbond);
     cout << "last" << endl;
-//     cout << state->atoms[0].pos[0]<<' '<<state->atoms[0].vel[0]<<' '<<state->atoms[0].force[0]<<' '<<state->atoms[0].forceLast[0]<< endl;
+    cout << state->atoms[0].pos[0]<<' '<<state->atoms[0].vel[0]<<' '<<state->atoms[0].force[0]<<' '<<state->atoms[0].forceLast[0]<< endl;
 
     SHARED(WriteConfig) write = SHARED(WriteConfig) (new WriteConfig(state, "test", "handle", "xml", 10000));    
     state->activateWriteConfig(write);
 
     state->dt=0.003;    
-    //state->integrater.relax(400000,1.0);  
+    IntegraterRelax integraterR(state);
+    integraterR.run(400000,1.0);  
 //     cout << state->atoms[0].pos[0]<<' '<<state->atoms[0].vel[0]<<' '<<state->atoms[0].force[0]<<' '<<state->atoms[0].forceLast[0]<< endl;
     
 }
@@ -437,7 +438,8 @@ int main(int argc, char **argv) {
         if (arg==0) {
             testBondHarmonicGrid();
         } else if (arg==1) {
-            //marat put your test stuff here
+//             testPair();
+            testFire();
         } else if (arg==2) {
             testBondHarmonicGrid();
             //sean put your test stuff here

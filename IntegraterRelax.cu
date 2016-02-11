@@ -1,16 +1,18 @@
-
 #include "IntegraterRelax.h"
 #include "cutils_func.h"
 
 
 IntegraterRelax::IntegraterRelax(SHARED(State) state_) : Integrater(state_.get(), IntRelaxType) {
+    //FIRE parameters
+    alphaInit = 0.1;
+    alphaShrink = 0.99;
+    dtGrow = 1.1;
+    dtShrink = 0.5;
+    delay = 5;
+    dtMax_mult=10;
 }
 
-
-//
-
-
-//kernel for FIRE relax
+//kernels for FIRE relax
 //VDotF by hand
 __global__ void vdotF_cu (float *dest, float4 *vs,float4 *fs, int n) {
     extern __shared__ float tmp[]; //should have length of # threads in a block (PERBLOCK)
@@ -34,7 +36,7 @@ __global__ void vdotF_cu (float *dest, float4 *vs,float4 *fs, int n) {
     }
 }
 
-
+//update velocities
 __global__ void FIRE_new_vel_cu(int nAtoms, float4 *vs, float4 *fs, float scale1, float scale2) {
     int idx = GETIDX();
     if (idx < nAtoms) {
@@ -47,7 +49,7 @@ __global__ void FIRE_new_vel_cu(int nAtoms, float4 *vs, float4 *fs, float scale1
     }
 }
 
-
+//zero velocities
 __global__ void zero_vel_cu(int nAtoms, float4 *vs) {
     int idx = GETIDX();
     if (idx < nAtoms) {
@@ -56,6 +58,7 @@ __global__ void zero_vel_cu(int nAtoms, float4 *vs) {
     }
 }
 
+//MD step
 __global__ void FIRE_preForce_cu(int nAtoms, cudaSurfaceObject_t xs, float4 *vs, float4 *fs, float dt) {
     int idx = GETIDX();
     if (idx < nAtoms) {
@@ -85,26 +88,17 @@ __global__ void FIRE_preForce_cu(int nAtoms, cudaSurfaceObject_t xs, float4 *vs,
 
 
 double IntegraterRelax::run(int numTurns, num fTol) {
-    //TODO include citation
     cout << "FIRE relaxation\n";
     basicPreRunChecks();  
-
     basicPrepare(numTurns);
 
-    CUT_CHECK_ERROR("Fire init execution failed");//Debug feature, checks error code
+    CUT_CHECK_ERROR("FIRE relaxation init failed");//Debug feature, checks error code
 
-
-    //FIRE parameters
-    //TODO create interface for them
+    //initial  values
     int lastNegative = 0;
     double dt = state->dt;
-    const double alphaInit = 0.1;
     double alpha = alphaInit;
-    const double alphaShrink = 0.99;
-    const double dtGrow = 1.1;
-    const double dtShrink = 0.5;
-    const int delay = 5;
-    const double dtMax = 10 * dt;
+    const double dtMax = dtMax_mult * dt;
 
 
     //assuming constant number of atoms during run
@@ -117,7 +111,6 @@ double IntegraterRelax::run(int numTurns, num fTol) {
     //set velocity to 0
     // 	state->gpd.vs.memsetByVal(make_float3(0.0f,0.0f,0.0f);
     zero_vel_cu <<<nblock, PERBLOCK>>>(atomssize,state->gpd.vs.getDevData());
-    //this will actually print file and line
     CUT_CHECK_ERROR("zero_vel_cu kernel execution failed");
 
     //vars to store kernels outputs
@@ -127,7 +120,7 @@ double IntegraterRelax::run(int numTurns, num fTol) {
     GPUArray<float>force(1);
 
 
-    //neiblist build?
+    //neiblist build
     state->gridGPU.periodicBoundaryConditions(state->rCut + state->padding, true);
 
     for (int i=0; i<numTurns; i++) {
@@ -142,35 +135,29 @@ double IntegraterRelax::run(int numTurns, num fTol) {
         }
         asyncOperations();
 
-        vdotF_cu <<<nblock, 
-                 PERBLOCK,
-                 sizeof(float)*PERBLOCK>>>(
-                         VDotF.getDevData(),
-                         state->gpd.vs.getDevData(),
-                         state->gpd.fs.getDevData(),
-                         atomssize);
+        vdotF_cu <<<nblock,PERBLOCK,sizeof(float)*PERBLOCK>>>(
+                    VDotF.getDevData(),
+                    state->gpd.vs.getDevData(),
+                    state->gpd.fs.getDevData(),
+                    atomssize);
         CUT_CHECK_ERROR("vdotF_cu kernel execution failed");
         VDotF.dataToHost();
 
         if (VDotF.h_data[0] > 0) {
 
             //VdotV calc
-            sumVectorSqr3D<float,float4> <<<nblock,
-                PERBLOCK,
-                sizeof(float)*PERBLOCK>>>(
-                        VDotV.getDevData(),
-                        state->gpd.vs.getDevData(),
-                        atomssize);
+            sumVectorSqr3D<float,float4> <<<nblock,PERBLOCK,sizeof(float)*PERBLOCK>>>(
+                                            VDotV.getDevData(),
+                                            state->gpd.vs.getDevData(),
+                                            atomssize);
             CUT_CHECK_ERROR("vdotV_cu kernel execution failed");
             VDotV.dataToHost();
 
             //FdotF
-            sumVectorSqr3D<float,float4> <<<nblock,
-                PERBLOCK,
-                sizeof(float)*PERBLOCK>>>(
-                        FDotF.getDevData(),
-                        state->gpd.fs.getDevData(),
-                        atomssize);
+            sumVectorSqr3D<float,float4> <<<nblock,PERBLOCK,sizeof(float)*PERBLOCK>>>(
+                                            FDotF.getDevData(),
+                                            state->gpd.fs.getDevData(),
+                                            atomssize);
             CUT_CHECK_ERROR("fdotF_cu kernel execution failed");
             FDotF.dataToHost();
 
@@ -181,10 +168,12 @@ double IntegraterRelax::run(int numTurns, num fTol) {
             }
             //set velocity to
             //a.vel = a.vel * scale1 + a.force * scale2;
-            FIRE_new_vel_cu <<<nblock, PERBLOCK>>>(atomssize,
-                    state->gpd.vs.getDevData(),
-                    state->gpd.fs.getDevData(),
-                    scale1,scale2);
+            FIRE_new_vel_cu <<<nblock, PERBLOCK>>>(
+                                atomssize,
+                                state->gpd.vs.getDevData(),
+                                state->gpd.fs.getDevData(),
+                                scale1,scale2);
+            //check number of steps since negative 
             if (i - lastNegative > delay) {
                 dt = fmin(dt*dtGrow, dtMax);
                 alpha *= alphaShrink;
@@ -195,41 +184,40 @@ double IntegraterRelax::run(int numTurns, num fTol) {
             dt *= dtShrink;
             alpha = alphaInit;
             //set velocity to 0
-            // 			state->gpd.vs.memsetByVal(make_float3(0.0f,0.0f,0.0f);
+            //state->gpd.vs.memsetByVal(make_float3(0.0f,0.0f,0.0f);
             zero_vel_cu <<<nblock, PERBLOCK>>>(atomssize,state->gpd.vs.getDevData());
             CUT_CHECK_ERROR("zero_vel_cu kernel execution failed");
 
         }
 
-        FIRE_preForce_cu <<<nblock, PERBLOCK>>>
-            (atomssize,
-             state->gpd.xs.getSurf(),
-             state->gpd.vs.getDevData(),
-             state->gpd.fs.getDevData(),
-             // 				 state->gpd.fsLast.getDevData(),
-             dt);
+        FIRE_preForce_cu <<<nblock, PERBLOCK>>>(
+                            atomssize,
+                            state->gpd.xs.getSurf(),
+                            state->gpd.vs.getDevData(),
+                            state->gpd.fs.getDevData(),
+                            //state->gpd.fsLast.getDevData(),
+                            dt);
         CUT_CHECK_ERROR("FIRE_preForce_cu kernel execution failed");
 
         int activeIdx = state->gpd.activeIdx;
         Integrater::force(activeIdx);
 
         if (fTol > 0 and i > delay and not (i%delay)) { //only check every so often
+            //total force calc
             force.memsetByVal(0.0);
 
-            sumVector3D<float,float4> <<<nblock,
-                PERBLOCK,
-                sizeof(float)*PERBLOCK>>>(
-                        force.getDevData(),
-                        state->gpd.fs.getDevData(),
-                        atomssize);
+            sumVector3D<float,float4> <<<nblock,PERBLOCK,sizeof(float)*PERBLOCK>>>(
+                                        force.getDevData(),
+                                        state->gpd.fs.getDevData(),
+                                        atomssize);
             CUT_CHECK_ERROR("kernel execution failed");//Debug feature, check error code
 
             force.dataToHost();
-            // 			cout<<"Fire relax: force="<<force<<"; turns="<<i<<'\n';
+            //cout<<"Fire relax: force="<<force<<"; turns="<<i<<'\n';
 
-            if (force.h_data[0] < fTol) {
+            if (force.h_data[0] < fTol) {//tolerance achived, exting
                 basicFinish();
-
+                cout<<"FIRE relax done: force="<<force.h_data[0]<<"; turns="<<numTurns<<'\n';
                 return force.h_data[0];
             }
         } 
@@ -241,27 +229,25 @@ double IntegraterRelax::run(int numTurns, num fTol) {
         state->turn++;
 
     }
-
+    //total force calculation
     force.memsetByVal(0.0);
 
-    sumVector3D<float,float4> <<<nblock,
-        PERBLOCK,
-        sizeof(float)*PERBLOCK>>>(
-                force.getDevData(),
-                state->gpd.fs.getDevData(),
-                atomssize);
+    sumVector3D<float,float4> <<<nblock,PERBLOCK,sizeof(float)*PERBLOCK>>>(
+                                  force.getDevData(),
+                                  state->gpd.fs.getDevData(),
+                                  atomssize);
     CUT_CHECK_ERROR("kernel execution failed");//Debug feature, check error code
-
 
     basicFinish();
 
-    cout<<"Fire relax done: force="<<force.h_data[0]<<"; turns="<<numTurns<<'\n';
+    cout<<"FIRE relax done: force="<<force.h_data[0]<<"; turns="<<numTurns<<'\n';
     return force.h_data[0];
 }
 
 void export_IntegraterRelax() {
     class_<IntegraterRelax, SHARED(IntegraterRelax), bases<Integrater> > ("IntegraterRelax", init<SHARED(State)>())
         .def("run", &IntegraterRelax::run)
+        .def("set_params", &IntegraterRelax::set_params,(python::arg("alphaInit"),python::arg("alphaShrink"),python::arg("dtGrow"),python::arg("dtShrink"),python::arg("delay"),python::arg("dtMax_mult")))
         ;
 }
 

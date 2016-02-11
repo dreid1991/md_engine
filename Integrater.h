@@ -28,14 +28,14 @@ class Integrater {
         void basicPrepare(int);
         void basicFinish();
         void setActiveData();
-	public:
-		string type;
-		State *state;
-		Integrater() {};
-		Integrater(State *state_, string type_);
-       
-		//double relax(int numTurns, num fTol);
-		void forceSingle();
+        public:
+                string type;
+                State *state;
+                Integrater() {};
+                Integrater(State *state_, string type_);
+        
+                //double relax(int numTurns, num fTol);
+                void forceSingle();
 /*	void verletPreForce(vector<Atom *> &atoms, double timestep);
 	void verletPostForce(vector<Atom *> &atoms, double timestep);
 	void compute(vector<Fix *> &, int);
