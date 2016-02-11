@@ -10,7 +10,6 @@
 #include "GPUArrayTex.h"
 #include "State.h"
 #include "FixTypes.h"
-#include "Mod.h"
 #include <pugixml.hpp>
 
 

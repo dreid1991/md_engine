@@ -10,8 +10,8 @@
 #include <assert.h>
 #include <vector>
 #include <boost/shared_ptr.hpp>
-#include "Mod.h"
 #include "globalDefs.h"
+#include "Bond.h"
 #include "boost_for_export.h"
 class State;
 using namespace std;

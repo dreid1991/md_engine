@@ -1,3 +1,9 @@
+#include "Fix.h"
+#include "Bounds.h"
+#include "AtomParams.h"
+//#include "DataManager.h"
+#include "WriteConfig.h"
+#include "ReadConfig.h"
 
 /* State is where everything is sewn together. We set global options:
  *   - gpu cuda device data and options

@@ -1,5 +1,7 @@
 #include "InitializeAtoms.h"
-
+#include "State.h"
+#include "Atom.h"
+#include "list_macro.h"
 default_random_engine InitializeAtoms::generator = default_random_engine();
 /*
 make a 'ready' flag in state, which means am ready to run.  creating atoms makes false, 
@@ -39,7 +41,7 @@ void InitializeAtoms::populateOnGrid(SHARED(State) state, Bounds &bounds, string
 	}
 	state->changedAtoms = true;
 }
-void InitializeAtoms::populateRand(SHARED(State) state, Bounds &bounds, string handle, int n, num distMin) {
+void InitializeAtoms::populateRand(SHARED(State) state, Bounds &bounds, string handle, int n, double distMin) {
 	assert(n>=0);
 
 	random_device randDev;
@@ -51,12 +53,12 @@ void InitializeAtoms::populateRand(SHARED(State) state, Bounds &bounds, string h
 
 	assert(type != (int) handles.size()); //makes sure it found one
 	unsigned int n_final = atoms.size() + n;
-	uniform_real_distribution<num> dists[3];
+	uniform_real_distribution<double> dists[3];
 	for (int i=0; i<3; i++) {
-		dists[i] = uniform_real_distribution<num>(bounds.lo[i], bounds.hi[i]);
+		dists[i] = uniform_real_distribution<double>(bounds.lo[i], bounds.hi[i]);
 	}
 	if (state->is2d) {
-		dists[2] = uniform_real_distribution<num>(0, 0);
+		dists[2] = uniform_real_distribution<double>(0, 0);
 	}
 
 	int id = max_id(atoms) + 1;
@@ -86,7 +88,7 @@ void InitializeAtoms::populateRand(SHARED(State) state, Bounds &bounds, string h
 	state->changedAtoms = true;
 
 }
-void InitializeAtoms::initTemp(SHARED(State) state, string groupHandle, num temp) { //boltzmann const is 1 for reduced lj units
+void InitializeAtoms::initTemp(SHARED(State) state, string groupHandle, double temp) { //boltzmann const is 1 for reduced lj units
 //	random_device randDev;
 	generator.seed(2);//randDev());
     int groupTag = state->groupTagFromHandle(groupHandle);
@@ -94,10 +96,10 @@ void InitializeAtoms::initTemp(SHARED(State) state, string groupHandle, num temp
 	vector<Atom *> atoms = LISTMAPREFTEST(Atom, Atom *, a, state->atoms, &a, a.groupTag & groupTag);
 
     assert(atoms.size()>1);
-	map<num, normal_distribution<num> > dists;
+	map<double, normal_distribution<double> > dists;
 	for (Atom *a : atoms) {
 		if (dists.find(a->mass) == dists.end()) {
-			dists[a->mass] = normal_distribution<num> (0, sqrt(temp / a->mass));
+			dists[a->mass] = normal_distribution<double> (0, sqrt(temp / a->mass));
 		}
 	}
 	Vector sumVels;
@@ -107,7 +109,7 @@ void InitializeAtoms::initTemp(SHARED(State) state, string groupHandle, num temp
 		}
 		sumVels += a->vel;
 	}
-	sumVels /= (num) atoms.size();
+	sumVels /= (double) atoms.size();
 	double sumKe = 0;
 	for (Atom *a : atoms) {
 		a->vel -= sumVels;
@@ -115,7 +117,7 @@ void InitializeAtoms::initTemp(SHARED(State) state, string groupHandle, num temp
 	}
 	double curTemp = sumKe / 3.0 / atoms.size();
 	for (Atom *a : atoms) {
-		a->vel *= (num) sqrt(temp / curTemp);
+		a->vel *= sqrt(temp / curTemp);
 	}
 	if (state->is2d) {
 		for (Atom *a : atoms) {

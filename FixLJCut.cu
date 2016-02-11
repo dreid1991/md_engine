@@ -10,7 +10,8 @@ FixLJCut::FixLJCut(SHARED(State) state_, string handle_, string groupHandle_) : 
 
 
 
-__global__ void compute_cu(int nAtoms, cudaTextureObject_t xs, float4 *fs, int *neighborIdxs, cudaTextureObject_t neighborlist, float *sigs, float *eps, cudaTextureObject_t types, int numTypes, float rCut, BoundsGPU bounds) {
+__global__ void compute_cu(int nAtoms, cudaTextureObject_t xs, float4 *fs, int *neighborIdxs, cudaTextureObject_t neighborlist, float *sigs, float *eps, cudaTextureObject_t types, int numTypes, float rCut, BoundsGPU bounds, float oneFourStrength) {
+    float multipliers[4] = {1, 0, 0, oneFourStrength};
     extern __shared__ float paramsAll[];
     int sqrSize = numTypes*numTypes;
     float *sigs_shr = paramsAll;
@@ -32,7 +33,10 @@ __global__ void compute_cu(int nAtoms, cudaTextureObject_t xs, float4 *fs, int *
         int end = neighborIdxs[idx+1];
         //printf("start, end %d %d\n", start, end);
         for (int i=start; i<end; i++) {
-            int otherIdx = tex2D<int>(neighborlist, XIDX(i, sizeof(int)), YIDX(i, sizeof(int)));
+            uint otherIdxRaw = tex2D<uint>(neighborlist, XIDX(i, sizeof(int)), YIDX(i, sizeof(int)));
+            uint neighDist = otherIdxRaw >> 30;
+            uint otherIdx = otherIdxRaw & EXCL_MASK;
+
             int otherType = tex2D<short>(types, XIDX(otherIdx, sizeof(int)), YIDX(otherIdx, sizeof(int)));
             float3 otherPos = make_float3(tex2D<float4>(xs, XIDX(otherIdx, sizeof(float4)), YIDX(otherIdx, sizeof(float4))));
             //then wrap and compute forces!
@@ -42,12 +46,14 @@ __global__ void compute_cu(int nAtoms, cudaTextureObject_t xs, float4 *fs, int *
             float lenSqr = lengthSqr(dr);
          //   printf("dist is %f %f %f\n", dr.x, dr.y, dr.z);
             if (lenSqr < rCut*rCut) {
+                float multiplier = multipliers[neighDist];
+                //printf("mult is %f\n", multiplier);
                 float sig6 = powf(sig, 6);//compiler should optimize this 
                 float p1 = eps*48*sig6*sig6;
                 float p2 = eps*24*sig6;
                 float r2inv = 1/lenSqr;
                 float r6inv = r2inv*r2inv*r2inv;
-                double forceScalar = r6inv * r2inv * (p1 * r6inv - p2);
+                double forceScalar = r6inv * r2inv * (p1 * r6inv - p2) * multiplier;
 
                 float3 forceVec = dr * forceScalar;
                 forceSum += forceVec;
@@ -75,8 +81,8 @@ void FixLJCut::compute() {
     GridGPU &grid = state->gridGPU;
     int activeIdx = gpd.activeIdx;
     int *neighborIdxs = grid.perAtomArray.ptr;
-
-    compute_cu<<<NBLOCK(nAtoms), PERBLOCK, 2*numTypes*numTypes*sizeof(float)>>>(nAtoms, gpd.xs.getTex(), gpd.fs(activeIdx), neighborIdxs, grid.neighborlist.tex, sigmas.getDevData(), epsilons.getDevData(), gpd.types.getTex(), numTypes, state->rCut, state->boundsGPU);
+    double oneFourStrength = 0.5;
+    compute_cu<<<NBLOCK(nAtoms), PERBLOCK, 2*numTypes*numTypes*sizeof(float)>>>(nAtoms, gpd.xs.getTex(), gpd.fs(activeIdx), neighborIdxs, grid.neighborlist.tex, sigmas.getDevData(), epsilons.getDevData(), gpd.types.getTex(), numTypes, state->rCut, state->boundsGPU, oneFourStrength);
 
 
 

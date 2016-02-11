@@ -2,14 +2,14 @@
 #define GRID_GPU
 
 
-#include "Mod.h"
-#include "BoundsGPU.h"
 #include "cutils_math.h"
 #include "GPUArrayDevice.h"
 #include "GPUArrayTexDevice.h"
 #include <unordered_map>
 #include <unordered_set>
 #include <set>
+
+#define EXCL_MASK (~(3<<30));
 //okay, this is going to contain all the kernels needed to do gridding
 //can also have it contain the 3d grid for neighbor int2 s
 class State;
@@ -26,7 +26,7 @@ class GridGPU {
         float3 dsOrig;
         float3 os;
         int3 ns;
-        GPUArrayTexDevice<int> neighborlist;
+        GPUArrayTexDevice<uint> neighborlist; //make this into normal array and use shared please.  Actually, shared memory isn't big enough if you're using a not-small neighbor cutoff for like charge-DSF
         GPUArrayDevice<int> perAtomArray; //during runtime this is the starting (+1 is ending) index for each neighbor
         State *state; 
         GridGPU(State *state_, float dx, float dy, float dz);
@@ -36,13 +36,13 @@ class GridGPU {
         void prepareForRun();
         void periodicBoundaryConditions(float neighCut, bool doSort);
         //exclusion list stuff     
-		typedef unordered_map<int, vector<set<int>>> ExclusionList;
+		typedef map<int, vector<set<int>>> ExclusionList; //is ordered to make looping over by id in order easier
 		bool closerThan(const ExclusionList &exclude,
 						int atomid, int otherid, int16_t depthi);
 		ExclusionList generateExclusionList(const int16_t maxDepth);
       //  ExclusionList exclusionList;
         GPUArrayDevice<int> exclusionIndexes;
         GPUArrayDevice<uint> exclusionIds;
-        int maxExclusionsPerBlock;
+        int maxExclusionsPerAtom;
 };
 #endif

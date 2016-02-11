@@ -1,5 +1,6 @@
 #include "AtomGrid.h"
 #include "State.h"
+#include "Mod.h"
 
 
 void AtomGrid::init(double dx_, double dy_, double dz_) {

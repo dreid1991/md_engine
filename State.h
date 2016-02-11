@@ -168,11 +168,6 @@ class State {
 
 // SEANQ: is there a reason these are down below?
 //#include "AtomGrid.h"
-#include "Fix.h"
-#include "Bounds.h"
-#include "AtomParams.h"
-//#include "DataManager.h"
-#include "WriteConfig.h"
-#include "ReadConfig.h"
+
 #endif
 

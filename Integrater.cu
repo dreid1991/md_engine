@@ -1,5 +1,7 @@
 #include "Integrater.h"
 #include "cuda_call.h"
+#include "Fix.h"
+#include "WriteConfig.h"
 // #include "globalDefs.h"
 
 const string IntVerletType = "verlet";

@@ -13,8 +13,9 @@
 //     shift = erf(alpha*r_cut)/r_cut^3+2*alpha/sqrt(Pi)*exp(-alpha^2*r_cut^2)/r_cut^2
 
 
-__global__ void compute_charge_pair_DSF_cu(int nAtoms, cudaTextureObject_t xs, float4 *fs, int *neighborIdxs, cudaTextureObject_t neighborlist, cudaTextureObject_t qs, float alpha, float rCut,float A, float shift, BoundsGPU bounds) {
+__global__ void compute_charge_pair_DSF_cu(int nAtoms, cudaTextureObject_t xs, float4 *fs, int *neighborIdxs, cudaTextureObject_t neighborlist, cudaTextureObject_t qs, float alpha, float rCut,float A, float shift, BoundsGPU bounds, float oneFourStrength) {
 
+    float multipliers[4] = {1, 0, 0, oneFourStrength};
     int idx = GETIDX();
     if (idx < nAtoms) {
         float4 posWhole = tex2D<float4>(xs, XIDX(idx, sizeof(float4)), YIDX(idx, sizeof(float4)));
@@ -27,19 +28,23 @@ __global__ void compute_charge_pair_DSF_cu(int nAtoms, cudaTextureObject_t xs, f
         int end = neighborIdxs[idx+1];
         //printf("start, end %d %d\n", start, end);
         for (int i=start; i<end; i++) {
-            int otherIdx = tex2D<int>(neighborlist, XIDX(i, sizeof(int)), YIDX(i, sizeof(int)));
+
+            uint otherIdxRaw = tex2D<uint>(neighborlist, XIDX(i, sizeof(int)), YIDX(i, sizeof(int)));
+            uint neighDist = otherIdxRaw >> 30;
+            uint otherIdx = otherIdxRaw & EXCL_MASK;
             float3 otherPos = make_float3(tex2D<float4>(xs, XIDX(otherIdx, sizeof(float4)), YIDX(otherIdx, sizeof(float4))));
             //then wrap and compute forces!
             float3 dr = bounds.minImage(pos - otherPos);
             float lenSqr = lengthSqr(dr);
             //   printf("dist is %f %f %f\n", dr.x, dr.y, dr.z);
             if (lenSqr < rCut*rCut) {
+                float multiplier = multipliers[neighDist];
                 float len=sqrtf(lenSqr);
                 float qj = tex2D<float>(qs, XIDX(otherIdx, sizeof(float)), YIDX(otherIdx, sizeof(float)));
 
                 float r2inv = 1.0f/lenSqr;
                 float rinv = 1.0f/len;
-                float forceScalar = qi*qj*(erfcf((alpha*len))*r2inv+A*exp(-alpha*alpha*lenSqr)*rinv-shift)*rinv;
+                float forceScalar = qi*qj*(erfcf((alpha*len))*r2inv+A*exp(-alpha*alpha*lenSqr)*rinv-shift)*rinv * multiplier;
 
 		
                 float3 forceVec = dr * forceScalar;
@@ -60,7 +65,7 @@ void FixChargePairDSF::setParameters(float alpha_,float r_cut_)
 {
   alpha=alpha_;
   r_cut=r_cut_;
-  A=1.1283791670955125739*alpha;// 2/sqrt(pi)*alpha
+  A= 2.0/sqrt(M_PI)*alpha;
   shift=std::erfc(alpha*r_cut)/(r_cut*r_cut)+A*exp(-alpha*alpha*r_cut*r_cut)/(r_cut);
 }
 
@@ -70,7 +75,7 @@ void FixChargePairDSF::compute() {
     GridGPU &grid = state->gridGPU;
     int activeIdx = gpd.activeIdx;
     int *neighborIdxs = grid.perAtomArray.ptr;
-    compute_charge_pair_DSF_cu<<<NBLOCK(nAtoms), PERBLOCK>>>(nAtoms, gpd.xs.getTex(), gpd.fs(activeIdx), neighborIdxs, grid.neighborlist.tex, gpd.qs.getTex(), alpha,r_cut, A,shift, state->boundsGPU);
+    compute_charge_pair_DSF_cu<<<NBLOCK(nAtoms), PERBLOCK>>>(nAtoms, gpd.xs.getTex(), gpd.fs(activeIdx), neighborIdxs, grid.neighborlist.tex, gpd.qs.getTex(), alpha,r_cut, A,shift, state->boundsGPU, 0.5);
 
 
 }

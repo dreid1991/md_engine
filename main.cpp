@@ -15,6 +15,8 @@
 #include  "IntegraterRelax.h"
 #include  "IntegraterLangevin.h"
 #include "FixChargePairDSF.h"
+#include "WriteConfig.h"
+#include "ReadConfig.h"
 
 using namespace std;
 
@@ -371,6 +373,91 @@ void testBondHarmonicGrid() {
 }
 
 
+
+
+void testBondHarmonicGridToGPU() {
+    SHARED(State) state = SHARED(State) (new State());
+    state->is2d = true;
+    state->periodic[2] = false;
+    state->bounds = Bounds(state, Vector(0, 0, 0), Vector(50, 50, 10));
+    state->rCut = 3.5;
+    state->grid = AtomGrid(state.get(), 4, 4, 3);
+    state->atomParams.addSpecies("handle", 2);
+    
+    SHARED(FixBondHarmonic) bond (new FixBondHarmonic(state, "bondh"));
+
+    state->activateFix(bond);
+    double spacing = 1.4;
+    /*
+    int n = 2;
+    
+    for (int i=0; i<n; i++) {
+        for (int j=0; j<n; j++) {
+            state->addAtom("handle", Vector(i*spacing, j*spacing, 0), 0);
+        }
+    }
+  //  state->addAtom("handle", Vector(1, 1, 0), 0);
+   // state->addAtom("handle", Vector(3, 1, 0), 0);
+    
+    double rEq = 1.0;
+    for (int i=0; i<n; i++) {
+        for (int j=0; j<n; j++) {
+            if (i<n-1) {
+                bond->createBond(&state->atoms[(i+1)*n+j], &state->atoms[i*n+j], 1, rEq);
+            }
+            if (j<n-1) {
+                bond->createBond(&state->atoms[i*n+j+1], &state->atoms[i*n+j], 1, rEq);
+            }
+            
+        }
+    }
+    */
+    state->addAtom("handle", Vector(1, 1, 0), 0);
+    state->addAtom("handle", Vector(2, 1, 0), 0);
+    state->addAtom("handle", Vector(3, 1, 0), 0);
+//    state->addAtom("handle", Vector(4, 1, 0), 0);
+    bond->createBond(&state->atoms[0], &state->atoms[1], 1, 1);
+    bond->createBond(&state->atoms[2], &state->atoms[1], 1, 1);
+  //  bond->createBond(&state->atoms[2], &state->atoms[3], 1, 1);
+    state->periodicInterval = 9;
+   /* 
+    State::ExclusionList out = state->generateExclusionList(4);
+    for (auto atom : out) {
+        cout << "atom id: " << atom.first << endl;
+        int depth = 1;
+        for (auto excls : atom.second) {
+            cout << "  depth " << depth << ": ";
+            for (auto e : excls) { std::cout << e << " "; }
+            ++depth;
+            cout << endl;
+        }
+    }
+    */
+    //return;
+    
+    SHARED(Fix2d) f2d = SHARED(Fix2d) (new Fix2d(state, "2d", 1));
+    state->activateFix(f2d);
+    SHARED(FixLJCut) nonbond = SHARED(FixLJCut) (new FixLJCut(state, "ljcut", "all"));
+    state->activateFix(nonbond);
+    nonbond->setParameter("sig", "handle", "handle", 1);
+    nonbond->setParameter("eps", "handle", "handle", 1);
+    //state->activateFix(nonbond);
+    
+    IntegraterRelax integraterR(state);
+   // integraterR.run(60000,1e-8);
+    integraterR.run(1, 1e-3);
+    /*
+    for (BondVariant &bv : bond->bonds) {
+        Bond single = get<BondHarmonic>(bv);
+        cout << single.atoms[0]->pos << " " << single.atoms[1]->pos << endl;
+    }
+    */
+
+
+}
+
+
+
 void testLJ() {
     SHARED(State) state = SHARED(State) (new State());
     int baseLen = 250;
@@ -435,7 +522,7 @@ int main(int argc, char **argv) {
     if (argc > 1) {
         int arg = atoi(argv[1]);
         if (arg==0) {
-            testBondHarmonicGrid();
+            testBondHarmonicGridToGPU();
         } else if (arg==1) {
             //marat put your test stuff here
         } else if (arg==2) {
