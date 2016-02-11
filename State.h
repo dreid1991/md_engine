@@ -8,11 +8,8 @@
 #include <iostream>
 
 #include <map>
-#include <unordered_map>
-#include <unordered_set>
 #include <tuple>
 #include <vector>
-#include <set>
 #include <functional>
 #include <thread>
 
@@ -113,10 +110,6 @@ class State {
 
 		// because it's an unordered set, the elements will always be unique
 		// use atom.id values, not Atom values, to allow for map/set hashing
-		typedef unordered_map<int, vector<unordered_set<int>>> ExclusionList;
-		bool closerThan(const ExclusionList &exclude,
-						int atomid, int otherid, int16_t depthi);
-		ExclusionList generateExclusionList(const int16_t maxDepth);
 
 		int addSpecies(string handle, double mass);
 

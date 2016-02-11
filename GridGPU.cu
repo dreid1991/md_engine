@@ -2,6 +2,7 @@
 #include <set>
 #include "State.h"
 #include "helpers.h"
+#include "Bond.h"
 //for debugging
 __global__ void countNumInGridCells(cudaTextureObject_t xs, int nAtoms, int *counts, int *atomIdxs, float3 os, float3 ds, int3 ns) {
     int idx = GETIDX();
@@ -730,3 +731,124 @@ bool GridGPU::checkSorting(int gridIdx, int *gridIdxs, GPUArrayDevice<int> &grid
 
     
 }
+
+
+void GridGPU::prepareForRun() {
+/*
+
+    const ExclusionList exclList = generateExclusionList(4);
+    vector<int> idxs;
+    vector<uint> excludedById(maxIdExisting+1);
+
+    auto fillToId = [&] (int id) { //paired list is indexed by id.  Some ids could be missing, so need to fill in empty values
+        while (idxs.size() <= id) {
+            idxs.push_back(excludedById.size());
+        }
+    }
+
+    uint exclusionTags[3] = {001 << 30, 010 << 30, 011 << 30};
+    for (auto it = exclList.begin(); it!=exclList.end(); it++) { //is ordered map, so it ordered by id
+        int id = it->first;
+        const vector<unordered_set<int> > &atomExclusions = it->second;
+        fillToId(id); 
+        for (int i=0; i<atomExclusions.size(); i++) {
+            const set<int> &idsAtLevel = atomExclusions[i];
+            for (const set<int>::iterator itId=idsAtLevel.begin(); itId!=idsAtLevel.end() itId++) {
+                uint id = *itId;
+                id &= exclusionTags[i];
+                excludedById.push_back(id);
+
+
+            }
+        }
+        idxs.push_back(excludedById.size());
+    }
+*/
+}
+
+
+
+
+bool GridGPU::closerThan(const ExclusionList &exclude, 
+                       int atomid, int otherid, int16_t depthi) {
+    bool closerThan = false;
+    // because we want to check lower depths
+    --depthi;
+    while (depthi >= 0) {
+        const set<int> &closer = exclude.at(atomid)[depthi];
+        closerThan |= (closer.find(otherid) != closer.end());
+        --depthi;
+    }
+    // atoms are closer to themselves than any other depth away
+    closerThan |= (atomid == otherid);
+    return closerThan;
+}
+
+// allows us to extract any type of Bond from a BondVariant
+class bondDowncast : public boost::static_visitor<const Bond &> {
+	const BondVariant &_bv;
+	public:
+		bondDowncast(BondVariant &bv) : _bv(bv) {}
+		template <typename T>
+		const Bond &operator()(const T &b) const {
+			return boost::get<T>(_bv);
+		}
+};
+
+GridGPU::ExclusionList GridGPU::generateExclusionList(const int16_t maxDepth) {
+    
+    ExclusionList exclude;
+    // not called depth because it's really the depth index, which is one
+    // smaller than the depth
+    int16_t depthi = 0;
+    
+    // computes adjacent bonds (depth -> 1, depthi -> 0)
+    vector<vector<BondVariant> *> allBonds;
+    for (Fix *f : state->fixes) {
+        vector<BondVariant> *fixBonds = f->getBonds();
+        if (fixBonds != nullptr) {
+            allBonds.push_back(fixBonds);
+        }
+    }
+    for (Atom atom : state->atoms) {
+        exclude[atom.id].push_back(set<int>());
+    }
+
+		//typedef map<int, vector<set<int>>> ExclusionList;
+    for (vector<BondVariant> *fixBonds : allBonds) {
+        for (BondVariant &bondVariant : *fixBonds) {
+			// boost variant magic that takes any BondVariant and turns it into a Bond
+            const Bond &bond = boost::apply_visitor(bondDowncast(bondVariant), bondVariant);
+            // atoms in the same bond are 1 away from each other
+            exclude[bond.getAtomId(0)][depthi].insert(bond.getAtomId(1));
+            exclude[bond.getAtomId(1)][depthi].insert(bond.getAtomId(0));
+        }
+    }
+    depthi++;
+    
+    // compute the rest
+    while (depthi < maxDepth) {
+        for (Atom atom : state->atoms) {
+            // for every atom at the previous depth away
+            exclude[atom.id].push_back(set<int>());
+            for (int extendFrom : exclude[atom.id][depthi-1]) {
+                // extend to all atoms bonded with it
+                exclude[atom.id][depthi].insert(
+                  exclude[extendFrom][0].begin(), exclude[extendFrom][0].end());
+            }
+            // remove all atoms that are already excluded to a lower degree
+            // TODO: may be a more efficient way
+            for (auto it = exclude[atom.id][depthi].begin();
+                 it != exclude[atom.id][depthi].end(); /*blank*/ ) {
+                if (closerThan(exclude, atom.id, *it, depthi)) {
+                   exclude[atom.id][depthi].erase(it++);
+                } else {
+                    ++it;
+                }
+            }
+        }
+        depthi++;
+    }
+    return exclude;
+}
+

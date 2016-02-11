@@ -7,6 +7,9 @@
 #include "cutils_math.h"
 #include "GPUArrayDevice.h"
 #include "GPUArrayTexDevice.h"
+#include <unordered_map>
+#include <unordered_set>
+#include <set>
 //okay, this is going to contain all the kernels needed to do gridding
 //can also have it contain the 3d grid for neighbor int2 s
 class State;
@@ -30,6 +33,16 @@ class GridGPU {
         GridGPU(State *state_, float3 ds_, float3 dsOrig_, float3 os_, int3 ns_);
         GridGPU() {};
         //need set2d function
+        void prepareForRun();
         void periodicBoundaryConditions(float neighCut, bool doSort);
+        //exclusion list stuff     
+		typedef unordered_map<int, vector<set<int>>> ExclusionList;
+		bool closerThan(const ExclusionList &exclude,
+						int atomid, int otherid, int16_t depthi);
+		ExclusionList generateExclusionList(const int16_t maxDepth);
+      //  ExclusionList exclusionList;
+        GPUArrayDevice<int> exclusionIndexes;
+        GPUArrayDevice<uint> exclusionIds;
+        int maxExclusionsPerBlock;
 };
 #endif
