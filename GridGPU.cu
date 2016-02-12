@@ -338,7 +338,6 @@ __device__ int assignFromCell(float3 pos, int idx, uint myId, cudaTextureObject_
 
         if (myId != otherId && dot(distVec, distVec) < neighCutSqr/* && !(isExcluded(otherId, exclusions, numExclusions, maxExclusions))*/) {
             uint exclusionTag = addExclusion(otherId, exclusionIds_shr, exclIdxLo_shr, exclIdxHi_shr);
-   
             int xAddrNeigh = XIDX(currentNeighborIdx, sizeof(uint)) * sizeof(uint);
             int yIdxNeigh = YIDX(currentNeighborIdx, sizeof(uint));
             if (justSorted) {
@@ -388,13 +387,15 @@ __global__ void assignNeighbors(cudaTextureObject_t xs, int nAtoms, cudaTextureO
         exclIdxHi_shr = exclIdxLo_shr + numExclusions;
         for (int i=exclIdxLo; i<exclIdxHi; i++) {
             uint exclusion = exclusionIds[i];
-            exclusionIds_shr[threadIdx.x + i - exclIdxLo] = exclusion;
+            exclusionIds_shr[maxExclusionsPerAtom*threadIdx.x + i - exclIdxLo] = exclusion;
+            //printf("I am thread %d and I am copying %u from global %d to shared %d\n", threadIdx.x, exclusion, i, maxExclusionsPerAtom*threadIdx.x+i-exclIdxLo);
         }
     }
     //okay, now we have exclusions copied into shared
     __syncthreads();
     //YOU JUST NEED TO UPDATE HOW WE CHECK EXCLUSIONS (IDXS IN SHEARED)
     if (idx < nAtoms) {
+        //printf("threadid %d idx %x has lo, hi of %d, %d\n", threadIdx.x, idx, exclIdxLo_shr, exclIdxHi_shr);
 
 
 
@@ -556,8 +557,9 @@ void __global__ addExclusions(int nAtoms, cudaSurfaceObject_t nlist, int *nlistI
 */
 
 void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort) {
-
-
+    //cudaDeviceSynchronize();
+    //cout << "periodic!" << endl << endl << endl;
+    //cout << "max excl is " << maxExclusionsPerAtom << endl;
     /*
     int *exclIdx = exclusionIndexes.get((int *) NULL);
     uint *exclId = exclusionIds.get((uint *) NULL);
@@ -567,8 +569,10 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort) {
     }
     cout << "ids" << endl;
     for (int i=0; i<exclusionIds.n; i++) {
-        uint masked = exclId[i] & EXCL_MASK
-        cout << masked<< endl;
+        uint masked = exclId[i] & EXCL_MASK;
+        uint dist = exclId[i] >> 30;
+        cout << "id " << masked<< endl;
+        cout << "dist " << dist << endl;
     }
     */
     float3 ds_orig = ds;

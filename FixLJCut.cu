@@ -47,7 +47,7 @@ __global__ void compute_cu(int nAtoms, cudaTextureObject_t xs, float4 *fs, int *
          //   printf("dist is %f %f %f\n", dr.x, dr.y, dr.z);
             if (lenSqr < rCut*rCut) {
                 float multiplier = multipliers[neighDist];
-                //printf("mult is %f\n", multiplier);
+               // printf("mult is %f between idxs %d %d\n", multiplier, idx, otherIdx);
                 float sig6 = powf(sig, 6);//compiler should optimize this 
                 float p1 = eps*48*sig6*sig6;
                 float p2 = eps*24*sig6;
@@ -60,11 +60,7 @@ __global__ void compute_cu(int nAtoms, cudaTextureObject_t xs, float4 *fs, int *
             }
 
         }   
-        float4 forceSumWhole = make_float4(forceSum);
-        int zero = 0;
-        forceSumWhole.w = * (float *) &zero;
-        //printf("aqui\n");
-        fs[idx] += forceSumWhole;
+        fs[idx] += forceSum;
 
     }
 

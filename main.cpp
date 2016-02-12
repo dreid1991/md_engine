@@ -416,9 +416,14 @@ void testBondHarmonicGridToGPU() {
     state->addAtom("handle", Vector(1, 1, 0), 0);
     state->addAtom("handle", Vector(2, 1, 0), 0);
     state->addAtom("handle", Vector(3, 1, 0), 0);
+    state->addAtom("handle", Vector(4, 1, 0), 0);
+    state->addAtom("handle", Vector(4.1, 1, 0), 0);
 //    state->addAtom("handle", Vector(4, 1, 0), 0);
     bond->createBond(&state->atoms[0], &state->atoms[1], 1, 1);
     bond->createBond(&state->atoms[2], &state->atoms[1], 1, 1);
+    bond->createBond(&state->atoms[2], &state->atoms[3], 1, 1);
+    bond->createBond(&state->atoms[4], &state->atoms[3], 1, 1);
+    //bond->createBond(&state->atoms[4], &state->atoms[0], 1, 1);
   //  bond->createBond(&state->atoms[2], &state->atoms[3], 1, 1);
     state->periodicInterval = 9;
    /* 
@@ -435,7 +440,6 @@ void testBondHarmonicGridToGPU() {
     }
     */
     //return;
-    
     SHARED(Fix2d) f2d = SHARED(Fix2d) (new Fix2d(state, "2d", 1));
     state->activateFix(f2d);
     SHARED(FixLJCut) nonbond = SHARED(FixLJCut) (new FixLJCut(state, "ljcut", "all"));
@@ -446,13 +450,11 @@ void testBondHarmonicGridToGPU() {
     
     IntegraterRelax integraterR(state);
    // integraterR.run(60000,1e-8);
-    integraterR.run(1, 1e-3);
-    /*
+    integraterR.run(5000, 1e-3);
     for (BondVariant &bv : bond->bonds) {
         Bond single = get<BondHarmonic>(bv);
         cout << single.atoms[0]->pos << " " << single.atoms[1]->pos << endl;
     }
-    */
 
 
 }
@@ -517,9 +519,6 @@ void testGPUArrayTex() {
 }
 
 int main(int argc, char **argv) {
-    for (int i=0; i<argc; i++) {
-        cout << argv[i] << endl;
-    }
     if (argc > 1) {
         int arg = atoi(argv[1]);
         if (arg==0) {
