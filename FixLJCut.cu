@@ -10,7 +10,7 @@ FixLJCut::FixLJCut(SHARED(State) state_, string handle_, string groupHandle_) : 
 
 
 
-__global__ void compute_cu(int nAtoms, cudaTextureObject_t xs, float4 *fs, int *neighborIdxs, cudaTextureObject_t neighborlist, float *sigs, float *eps, cudaTextureObject_t types, int numTypes, float rCut, BoundsGPU bounds, float oneFourStrength) {
+__global__ void compute_cu(int nAtoms, float4 *xs, float4 *fs, int *neighborIdxs, cudaTextureObject_t neighborlist, float *sigs, float *eps, cudaTextureObject_t types, int numTypes, float rCut, BoundsGPU bounds, float oneFourStrength) {
     float multipliers[4] = {1, 0, 0, oneFourStrength};
     extern __shared__ float paramsAll[];
     int sqrSize = numTypes*numTypes;
@@ -23,7 +23,7 @@ __global__ void compute_cu(int nAtoms, cudaTextureObject_t xs, float4 *fs, int *
 
     int idx = GETIDX();
     if (idx < nAtoms) {
-        float4 posWhole = tex2D<float4>(xs, XIDX(idx, sizeof(float4)), YIDX(idx, sizeof(float4)));
+        float4 posWhole = xs[idx];
         float3 pos = make_float3(posWhole);
 
         float3 forceSum = make_float3(0, 0, 0);
@@ -38,7 +38,7 @@ __global__ void compute_cu(int nAtoms, cudaTextureObject_t xs, float4 *fs, int *
             uint otherIdx = otherIdxRaw & EXCL_MASK;
 
             int otherType = tex2D<short>(types, XIDX(otherIdx, sizeof(int)), YIDX(otherIdx, sizeof(int)));
-            float3 otherPos = make_float3(tex2D<float4>(xs, XIDX(otherIdx, sizeof(float4)), YIDX(otherIdx, sizeof(float4))));
+            float3 otherPos = make_float3(xs[otherIdx]);
             //then wrap and compute forces!
             float sig = squareVectorItem(sigs_shr, numTypes, type, otherType);
             float eps = squareVectorItem(eps_shr, numTypes, type, otherType);
@@ -78,7 +78,7 @@ void FixLJCut::compute() {
     int activeIdx = gpd.activeIdx;
     int *neighborIdxs = grid.perAtomArray.ptr;
     double oneFourStrength = 0.5;
-    compute_cu<<<NBLOCK(nAtoms), PERBLOCK, 2*numTypes*numTypes*sizeof(float)>>>(nAtoms, gpd.xs.getTex(), gpd.fs(activeIdx), neighborIdxs, grid.neighborlist.tex, sigmas.getDevData(), epsilons.getDevData(), gpd.types.getTex(), numTypes, state->rCut, state->boundsGPU, oneFourStrength);
+    compute_cu<<<NBLOCK(nAtoms), PERBLOCK, 2*numTypes*numTypes*sizeof(float)>>>(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx), neighborIdxs, grid.neighborlist.tex, sigmas.getDevData(), epsilons.getDevData(), gpd.types.getTex(), numTypes, state->rCut, state->boundsGPU, oneFourStrength);
 
 
 

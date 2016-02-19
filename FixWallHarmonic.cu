@@ -5,14 +5,14 @@ FixWallHarmonic::FixWallHarmonic(SHARED(State) state_, string handle_, string gr
     forceSingle = true;
 }
 
-void __global__ compute_cu(cudaTextureObject_t xs, int nAtoms, float4 *fs, float3 origin, float3 forceDir, float dist, float k, uint groupTag) {
+void __global__ compute_cu(float4 *xs, int nAtoms, float4 *fs, float3 origin, float3 forceDir, float dist, float k, uint groupTag) {
     //forceDir is normalized in constructor
     int idx = GETIDX();
     if (idx < nAtoms) {
         float4 forceWhole = fs[idx];
         uint groupTagAtom = * (uint *) &forceWhole.w;
         if (groupTagAtom & groupTag) {
-            float4 posWhole = tex2D<float4>(xs, XIDX(idx, sizeof(float4)), YIDX(idx, sizeof(float4)));
+            float4 posWhole = xs[idx];
             float3 pos = make_float3(posWhole);
             float3 particleDist = pos - origin;
             float projection = dot(particleDist, forceDir);
@@ -30,7 +30,7 @@ void FixWallHarmonic::compute() {
     GPUData &gpd = state->gpd;
     int activeIdx = gpd.activeIdx;
     int n = state->atoms.size();
-    compute_cu<<<NBLOCK(n), PERBLOCK>>>(gpd.xs.getTex(), n, gpd.fs(activeIdx), origin.asFloat3(), forceDir.asFloat3(), dist, k, groupTag);
+    compute_cu<<<NBLOCK(n), PERBLOCK>>>(gpd.xs(activeIdx), n, gpd.fs(activeIdx), origin.asFloat3(), forceDir.asFloat3(), dist, k, groupTag);
 }
 
 void export_FixWallHarmonic() {

@@ -59,27 +59,20 @@ __global__ void zero_vel_cu(int nAtoms, float4 *vs) {
 }
 
 //MD step
-__global__ void FIRE_preForce_cu(int nAtoms, cudaSurfaceObject_t xs, float4 *vs, float4 *fs, float dt) {
+__global__ void FIRE_preForce_cu(int nAtoms, float4 *xs, float4 *vs, float4 *fs, float dt) {
     int idx = GETIDX();
     if (idx < nAtoms) {
-        int xIdx = XIDX(idx, sizeof(float4));
-        int yIdx = YIDX(idx, sizeof(float4));
-        int xAddr = xIdx * sizeof(float4);
-        float4 pos = surf2Dread<float4>(xs, xAddr, yIdx);
+
 
         float4 vel = vs[idx];
         float4 force = fs[idx];
 
         float invmass = vel.w;
         float groupTag = force.w;
-        float id = pos.w;
-        pos += vel * dt;
-        pos.w = id;
-
-        surf2Dwrite(pos, xs, xAddr, yIdx);
+        xs[idx] += vel * dt;
         float4 newVel = force * dt * invmass;
         newVel.w = invmass;
-        vs[idx]=newVel;
+        vs[idx] = newVel;
         fs[idx] = make_float4(0, 0, 0, groupTag);
     }
 }
@@ -192,7 +185,7 @@ double IntegraterRelax::run(int numTurns, num fTol) {
 
         FIRE_preForce_cu <<<nblock, PERBLOCK>>>(
                             atomssize,
-                            state->gpd.xs.getSurf(),
+                            state->gpd.xs.getDevData(),
                             state->gpd.vs.getDevData(),
                             state->gpd.fs.getDevData(),
                             //state->gpd.fsLast.getDevData(),

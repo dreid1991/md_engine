@@ -2,7 +2,7 @@
 #include "helpers.h"
 #include "FixAngleHarmonic.h"
 #include "cutils_func.h"
-__global__ void compute_cu(int nAtoms, cudaTextureObject_t xs, float4 *forces, cudaTextureObject_t idToIdxs, AngleHarmonicGPU *angles, int *startstops, BoundsGPU bounds) {
+__global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureObject_t idToIdxs, AngleHarmonicGPU *angles, int *startstops, BoundsGPU bounds) {
     int idx = GETIDX();
     extern __shared__ AngleHarmonicGPU angles_shr[];
     int idxBeginCopy = startstops[blockDim.x*blockIdx.x];
@@ -21,8 +21,8 @@ __global__ void compute_cu(int nAtoms, cudaTextureObject_t xs, float4 *forces, c
             int idSelf = angles_shr[shr_idx].ids[angles_shr[shr_idx].myIdx];
 
             int idxSelf = tex2D<int>(idToIdxs, XIDX(idSelf, sizeof(int)), YIDX(idSelf, sizeof(int)));
-
-            float3 pos = make_float3(float4FromIndex(xs, idxSelf));
+            float3 pos = make_float3(xs[idxSelf]);
+            //float3 pos = make_float3(float4FromIndex(xs, idxSelf));
             float3 forceSum = make_float3(0, 0, 0);
             for (int i=0; i<n; i++) {
                 AngleHarmonicGPU angle = angles_shr[shr_idx + i];
@@ -91,7 +91,7 @@ FixAngleHarmonic::FixAngleHarmonic(SHARED(State) state_, string handle) : FixPot
 void FixAngleHarmonic::compute() {
     int nAtoms = state->atoms.size();
     int activeIdx = state->gpd.activeIdx;
-    compute_cu<<<NBLOCK(nAtoms), PERBLOCK, sizeof(AngleHarmonicGPU) * maxForcersPerBlock>>>(nAtoms, state->gpd.xs.getTex(), state->gpd.fs(activeIdx), state->gpd.idToIdxs.getTex(), forcersGPU.ptr, forcerIdxs.ptr, state->boundsGPU);
+    compute_cu<<<NBLOCK(nAtoms), PERBLOCK, sizeof(AngleHarmonicGPU) * maxForcersPerBlock>>>(nAtoms, state->gpd.xs(activeIdx), state->gpd.fs(activeIdx), state->gpd.idToIdxs.getTex(), forcersGPU.ptr, forcerIdxs.ptr, state->boundsGPU);
 
 }
 

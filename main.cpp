@@ -472,7 +472,7 @@ void testLJ() {
     state->padding = 0.5;
     state->grid = AtomGrid(state.get(), 3.0, 3.0, 3);
     state->atomParams.addSpecies("handle", 2);
-   // state->is2d = true;
+  //  state->is2d = true;
   //  state->periodic[2] = false;
     
     //state->addAtom("handle", Vector(0, 0, 0), 0);
@@ -490,7 +490,7 @@ void testLJ() {
 
     state->periodicInterval = 9;
   //  SHARED(Fix2d) f2d = SHARED(Fix2d) (new Fix2d(state, "2d", 1));
-  //  state->activateFix(f2d);
+   // state->activateFix(f2d);
     SHARED(FixLJCut) nonbond = SHARED(FixLJCut) (new FixLJCut(state, "ljcut", "all"));
     nonbond->setParameter("sig", "handle", "handle", 1);
     nonbond->setParameter("eps", "handle", "handle", 1);
@@ -498,6 +498,10 @@ void testLJ() {
     cout << "last" << endl;
     IntegraterVerlet verlet = IntegraterVerlet(state);
     cout << state->atoms[80].pos;
+<<<<<<< HEAD
+=======
+    cout << "want to run " << endl;
+>>>>>>> origin/opt
     verlet.run(2000);
     cout << state->atoms[80].pos << endl;
     cout << state->atoms[80].force << endl;
