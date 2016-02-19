@@ -2,7 +2,7 @@
 #include "FixBondHarmonic.h"
 #include "cutils_func.h"
 #include "FixHelpers.h"
-__global__ void compute_cu(int nAtoms, cudaTextureObject_t xs, float4 *forces, cudaTextureObject_t idToIdxs, BondHarmonicGPU *bonds, int *startstops, BoundsGPU bounds) {
+__global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureObject_t idToIdxs, BondHarmonicGPU *bonds, int *startstops, BoundsGPU bounds) {
     int idx = GETIDX();
     extern __shared__ BondHarmonicGPU bonds_shr[];
     int idxBeginCopy = startstops[blockDim.x*blockIdx.x];
@@ -22,22 +22,20 @@ __global__ void compute_cu(int nAtoms, cudaTextureObject_t xs, float4 *forces, c
 
             int idxSelf = tex2D<int>(idToIdxs, XIDX(idSelf, sizeof(int)), YIDX(idSelf, sizeof(int)));
 
-            float3 pos = make_float3(tex2D<float4>(xs, XIDX(idxSelf, sizeof(float4)), YIDX(idxSelf, sizeof(float4))));
+
+            float3 pos = make_float3(xs[idxSelf]);
             float3 forceSum = make_float3(0, 0, 0);
             for (int i=0; i<n; i++) {
                 BondHarmonicGPU b = bonds_shr[shr_idx + i];
                 int idOther = b.idOther;
                 int idxOther = tex2D<int>(idToIdxs, XIDX(idOther, sizeof(int)), YIDX(idOther, sizeof(int)));
 
-                float3 posOther = make_float3(tex2D<float4>(xs, XIDX(idxOther, sizeof(float4)), YIDX(idxOther, sizeof(float4))));
+                float3 posOther = make_float3(xs[idxOther]);
                 // printf("atom %d bond %d gets force %f\n", idx, i, harmonicForce(bounds, pos, posOther, b.k, b.rEq));
                 // printf("xs %f %f\n", pos.x, posOther.x);
                 forceSum += harmonicForce(bounds, pos, posOther, b.k, b.rEq);
             }
-            int zero = 0;
-            float4 forceSumWhole = make_float4(forceSum);
-            forceSumWhole.w = * (float *) &zero;
-            forces[idxSelf] += forceSumWhole;
+            forces[idxSelf] += forceSum;
         }
     }
 }
@@ -62,7 +60,7 @@ void FixBondHarmonic::compute() {
     int nAtoms = state->atoms.size();
     int activeIdx = state->gpd.activeIdx;
     //cout << "Max bonds per block is " << maxBondsPerBlock << endl;
-    compute_cu<<<NBLOCK(nAtoms), PERBLOCK, sizeof(BondHarmonicGPU) * maxBondsPerBlock>>>(nAtoms, state->gpd.xs.getTex(), state->gpd.fs(activeIdx), state->gpd.idToIdxs.getTex(), bondsGPU.ptr, bondIdxs.ptr, state->boundsGPU);
+    compute_cu<<<NBLOCK(nAtoms), PERBLOCK, sizeof(BondHarmonicGPU) * maxBondsPerBlock>>>(nAtoms, state->gpd.xs(activeIdx), state->gpd.fs(activeIdx), state->gpd.idToIdxs.getTex(), bondsGPU.ptr, bondIdxs.ptr, state->boundsGPU);
 
 }
 

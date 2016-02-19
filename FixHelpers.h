@@ -17,9 +17,9 @@ inline __device__ float3 harmonicForce(BoundsGPU bounds, float3 posSelf, float3 
 
 
 
-inline __device__ float4 perAtomFromId(cudaTextureObject_t &idToIdxs, cudaTextureObject_t &xs, int id) {
+inline __device__ float4 perAtomFromId(cudaTextureObject_t &idToIdxs, float4 *xs, int id) {
     int idx = tex2D<int>(idToIdxs, XIDX(id, sizeof(int)), YIDX(id, sizeof(int)));
-    return tex2D<float4>(xs, XIDX(idx, sizeof(float4)), YIDX(idx, sizeof(float4)));
+    return xs[idx];
 }
 
 inline __device__ float4 float4FromIndex(cudaTextureObject_t &xs, int index) {

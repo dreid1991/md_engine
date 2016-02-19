@@ -5,24 +5,21 @@
 IntegraterVerlet::IntegraterVerlet(SHARED(State) state_) : Integrater(state_.get(), IntVerletType) {
 }
 
-__global__ void preForce_cu(int nAtoms, cudaSurfaceObject_t xs, float4 *vs, float4 *fs, float4 *fsLast, float dt) {
+__global__ void preForce_cu(int nAtoms, float4 *xs, float4 *vs, float4 *fs, float4 *fsLast, float dt) {
     int idx = GETIDX();
     if (idx < nAtoms) {
-        int xIdx = XIDX(idx, sizeof(float4));
-        int yIdx = YIDX(idx, sizeof(float4));
-        int xAddr = xIdx * sizeof(float4);
-        float4 pos = surf2Dread<float4>(xs, xAddr, yIdx);
 
         float4 vel = vs[idx];
         float4 force = fs[idx];
 
         float invmass = vel.w;
         float groupTag = force.w;
-        float id = pos.w;
-        pos += vel * dt + force * dt*dt*0.5f*invmass;
-        pos.w = id;
-
-        surf2Dwrite(pos, xs, xAddr, yIdx);
+        //float id = pos.w;
+        float4 dPos = vel * dt + force * dt*dt*0.5f*invmass;
+        int zero = 0;
+        dPos.w = * (int *) &zero;
+        xs[idx] += dPos; //does this do single 16 byte transfer?
+        //xs[idx] = pos;
         fsLast[idx] = force;
         fs[idx] = make_float4(0, 0, 0, groupTag);
     }
@@ -47,7 +44,7 @@ __global__ void postForce_cu(int nAtoms, float4 *vs, float4 *fs, float4 *fsLast,
 }
 void IntegraterVerlet::preForce(uint activeIdx) {
 	//vector<Atom> &atoms = state->atoms;
-    preForce_cu<<<NBLOCK(state->atoms.size()), PERBLOCK>>>(state->atoms.size(), state->gpd.xs.getSurf(), state->gpd.vs.getDevData(), state->gpd.fs.getDevData(), state->gpd.fsLast.getDevData(), state->dt);
+    preForce_cu<<<NBLOCK(state->atoms.size()), PERBLOCK>>>(state->atoms.size(), state->gpd.xs.getDevData(), state->gpd.vs.getDevData(), state->gpd.fs.getDevData(), state->gpd.fsLast.getDevData(), state->dt);
 }
 
 

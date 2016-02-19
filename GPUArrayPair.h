@@ -75,7 +75,10 @@ class GPUArrayPair : public GPUArrayBasePair {
 
         }
         void dataToHost() {
-            CUCHECK(cudaMemcpy(h_data.data(), d_data[activeIdx].ptr, size*sizeof(T), cudaMemcpyDeviceToHost));
+            dataToHost(activeIdx);
+        }      
+        void dataToHost(int idx) {
+            CUCHECK(cudaMemcpy(h_data.data(), d_data[idx].ptr, size*sizeof(T), cudaMemcpyDeviceToHost));
         }      
         void copyToDeviceArray(void *dest) {
             CUCHECK(cudaMemcpy(dest, d_data[activeIdx].ptr, size*sizeof(T), cudaMemcpyDeviceToDevice));

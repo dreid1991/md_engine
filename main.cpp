@@ -464,41 +464,45 @@ void testBondHarmonicGridToGPU() {
 
 void testLJ() {
     SHARED(State) state = SHARED(State) (new State());
-    int baseLen = 250;
+    int baseLen = 50;
     state->shoutEvery = 100;
     double mult = 1.5;
-    state->bounds = Bounds(state, Vector(0, 0, 0), Vector(mult*baseLen, mult*baseLen, 10));
+    state->bounds = Bounds(state, Vector(0, 0, 0), Vector(mult*baseLen, mult*baseLen, mult*baseLen));
     state->rCut = 2.5;
-    state->padding = 0;
-    state->grid = AtomGrid(state.get(), 2.5, 2.5, 3);
+    state->padding = 0.5;
+    state->grid = AtomGrid(state.get(), 3.0, 3.0, 3);
     state->atomParams.addSpecies("handle", 2);
-    state->is2d = true;
-    state->periodic[2] = false;
+  //  state->is2d = true;
+  //  state->periodic[2] = false;
     
     //state->addAtom("handle", Vector(0, 0, 0), 0);
     //state->addAtom("handle", Vector(1.5, 0, 0), 0);
     for (int i=0; i<baseLen; i++) {
         for (int j=0; j<baseLen; j++) {
-
-            state->addAtom("handle", Vector(i*mult + (rand() % 20)/40.0, j*mult + (rand() % 20)/40.0, 0), 0);
+            for (int k=0; k<baseLen; k++) {
+                state->addAtom("handle", Vector(i*mult + (rand() % 20)/40.0, j*mult + (rand() % 20)/40.0, k*mult + (rand() % 20)/40.0), 0);
+            }
         }
     }
 
     
-
+  //  state->atoms.pos[0] += Vector(0.1, 0, 0);
 
     state->periodicInterval = 9;
-    SHARED(Fix2d) f2d = SHARED(Fix2d) (new Fix2d(state, "2d", 1));
-    state->activateFix(f2d);
+  //  SHARED(Fix2d) f2d = SHARED(Fix2d) (new Fix2d(state, "2d", 1));
+   // state->activateFix(f2d);
     SHARED(FixLJCut) nonbond = SHARED(FixLJCut) (new FixLJCut(state, "ljcut", "all"));
     nonbond->setParameter("sig", "handle", "handle", 1);
     nonbond->setParameter("eps", "handle", "handle", 1);
     state->activateFix(nonbond);
     cout << "last" << endl;
     IntegraterVerlet verlet = IntegraterVerlet(state);
-    cout << state->atoms[1000].pos;
+    cout << state->atoms[80].pos;
+    cout << "want to run " << endl;
     verlet.run(2000);
-    cout << state->atoms[1000].pos;
+    cout << state->atoms[80].pos << endl;
+    cout << state->atoms[80].force << endl;
+    cout.flush();
     //SHARED(FixBondHarmonic) harmonic = SHARED(FixBondHarmonic) (new FixBondHarmonic(state, "harmonic"));
     //state->activateFix(harmonic);
     //harmonic->createBond(&state->atoms[0], &state->atoms[1], 1, 2);
