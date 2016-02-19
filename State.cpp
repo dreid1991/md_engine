@@ -182,6 +182,7 @@ int State::idxFromId(int id) {
 }
 void State::updateIdxFromIdCache() {
     idxFromIdCache = vector<int>(maxIdExisting+1);
+    cout << "max id existing is " << maxIdExisting << endl;
     for (int i=0; i<atoms.size(); i++) {
         idxFromIdCache[atoms[i].id] = i;
     }

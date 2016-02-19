@@ -17,6 +17,7 @@
 #include "FixChargePairDSF.h"
 #include "WriteConfig.h"
 #include "ReadConfig.h"
+#include <stdlib.h>
 
 using namespace std;
 
@@ -467,16 +468,19 @@ void testLJ() {
     state->shoutEvery = 100;
     double mult = 1.5;
     state->bounds = Bounds(state, Vector(0, 0, 0), Vector(mult*baseLen, mult*baseLen, 10));
-    state->rCut = 3.5;
-    state->grid = AtomGrid(state.get(), 4, 4, 3);
+    state->rCut = 2.5;
+    state->padding = 0;
+    state->grid = AtomGrid(state.get(), 2.5, 2.5, 3);
     state->atomParams.addSpecies("handle", 2);
     state->is2d = true;
     state->periodic[2] = false;
     
-
+    //state->addAtom("handle", Vector(0, 0, 0), 0);
+    //state->addAtom("handle", Vector(1.5, 0, 0), 0);
     for (int i=0; i<baseLen; i++) {
         for (int j=0; j<baseLen; j++) {
-            state->atoms.push_back(Atom(Vector(i*mult, j*mult, 0), 0, j + i*baseLen, 2, 0));
+
+            state->addAtom("handle", Vector(i*mult + (rand() % 20)/40.0, j*mult + (rand() % 20)/40.0, 0), 0);
         }
     }
 
@@ -491,8 +495,10 @@ void testLJ() {
     nonbond->setParameter("eps", "handle", "handle", 1);
     state->activateFix(nonbond);
     cout << "last" << endl;
-    cout << state->atoms[0].id<< endl;
-
+    IntegraterVerlet verlet = IntegraterVerlet(state);
+    cout << state->atoms[1000].pos;
+    verlet.run(2000);
+    cout << state->atoms[1000].pos;
     //SHARED(FixBondHarmonic) harmonic = SHARED(FixBondHarmonic) (new FixBondHarmonic(state, "harmonic"));
     //state->activateFix(harmonic);
     //harmonic->createBond(&state->atoms[0], &state->atoms[1], 1, 2);
@@ -522,7 +528,8 @@ int main(int argc, char **argv) {
     if (argc > 1) {
         int arg = atoi(argv[1]);
         if (arg==0) {
-            testBondHarmonicGridToGPU();
+            testLJ();
+            //testBondHarmonicGridToGPU();
         } else if (arg==1) {
 //             testPair();
             testFire();

@@ -595,7 +595,7 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort) {
     }
     perCellArray.memset(0);
     perAtomArray.memset(0);
-    cudaDeviceSynchronize();
+  //  cudaDeviceSynchronize();
     countNumInGridCells<<<NBLOCK(nAtoms), PERBLOCK>>>(state->gpd.xs.getTex(), nAtoms, perCellArray.ptr, perAtomArray.ptr, os, ds, ns);
     int *gridCellCounts_h = perCellArray.get((int *) NULL);
     cudaDeviceSynchronize();

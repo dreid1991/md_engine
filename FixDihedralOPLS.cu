@@ -2,12 +2,11 @@
 #include "FixDihedralOPLS.h"
 #include "cutils_func.h"
 __global__ void compute_cu(int nAtoms, cudaTextureObject_t xs, float4 *forces, cudaTextureObject_t idToIdxs, DihedralOPLSGPU *dihedrals, int *startstops, BoundsGPU bounds) {
-    /*
     int idx = GETIDX();
-    extern __shared__ DihedralHarmonicGPU dihedrals_shr[];
+    extern __shared__ DihedralOPLSGPU dihedrals_shr[];
     int idxBeginCopy = startstops[blockDim.x*blockIdx.x];
     int idxEndCopy = startstops[min(nAtoms, blockDim.x*(blockIdx.x+1))];
-    copyToShared<AngleHarmonicGPU>(dihedrals + idxBeginCopy, dihedrals_shr, idxEndCopy - idxBeginCopy);
+    copyToShared<DihedralOPLSGPU>(dihedrals + idxBeginCopy, dihedrals_shr, idxEndCopy - idxBeginCopy);
     __syncthreads();
     if (idx < nAtoms) {
   //      printf("going to compute %d\n", idx);
@@ -24,29 +23,55 @@ __global__ void compute_cu(int nAtoms, cudaTextureObject_t xs, float4 *forces, c
         float3 pos = make_float3(float4FromIndex(xs, idxSelf));
         float3 forceSum = make_float3(0, 0, 0);
         for (int i=0; i<n; i++) {
-            AngleHarmonicGPU angle = dihedrals_shr[shr_idx + i];
-            float3 positions[3];
-            positions[angle.myIdx] = pos;
-            int toGet[2];
-            if (angle.myIdx==0) {
+            DihedralOPLSGPU dihedral= dihedrals_shr[shr_idx + i];
+            float3 positions[4];
+            positions[dihedral.myIdx] = pos;
+            int toGet[3];
+            if (dihedral.myIdx==0) {
                 toGet[0] = 1;
                 toGet[1] = 2;
-            } else if (angle.myIdx==1) {
+                toGet[2] = 3;
+            } else if (dihedral.myIdx==1) {
                 toGet[0] = 0;
                 toGet[1] = 2;
-            } else if (angle.myIdx==2) {
+                toGet[2] = 3;
+            } else if (dihedral.myIdx==2) {
                 toGet[0] = 0;
                 toGet[1] = 1;
+                toGet[2] = 3;
+            } else if (dihedral.myIdx==3) {
+                toGet[0] = 0;
+                toGet[1] = 1;
+                toGet[2] = 2;
             }
-            for (int i=0; i<2; i++) {
-                positions[toGet[i]] = make_float3(perAtomFromId(idToIdxs, xs, angle.ids[toGet[i]]));
+            for (int i=0; i<3; i++) {
+                positions[toGet[i]] = make_float3(perAtomFromId(idToIdxs, xs, dihedral.ids[toGet[i]]));
             }
             for (int i=1; i<3; i++) {
                 positions[i] = positions[0] + bounds.minImage(positions[i]-positions[0]);
             }
-            float3 directors[2];
+            float3 directors[3]; //vb_xyz in lammps
+            float lenSqrs[3];
+            float lens[3];
+            float invLenSqrs[3]; //sb in lammps
             directors[0] = positions[0] - positions[1];
             directors[1] = positions[2] - positions[1];
+            directors[2] = positions[3] - positions[2];
+
+            for (int i=0; i<3; i++) {
+                lenSqrs[i] = lengthSqr(directors[i]);
+                lens[i] = sqrtf(lenSqrs[i]);
+                invLenSqrs[i] = 1.0f / lenSqrs[i];
+            }
+
+            float invLenBonds13[2];
+            invLenBonds13[0] = 1.0f / lens[0];
+            invLenBonds13[1] = 1.0f / lens[2];
+
+            float c0 = dot(directors[0], directors[2]) * invLenBonds13[0] * invLenBonds13[1];
+            /*
+
+
             float distSqrs[2];
             float dists[2];
             for (int i=0; i<2; i++) {
@@ -76,10 +101,10 @@ __global__ void compute_cu(int nAtoms, cudaTextureObject_t xs, float4 *forces, c
             } else {
                 forceSum += ((directors[1] * a22) + (directors[0] * a12)) * 0.5;
             }
+            */
         }
         forces[idxSelf] += forceSum;
     }
-*/
 }
 
 
