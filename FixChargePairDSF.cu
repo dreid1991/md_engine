@@ -13,7 +13,7 @@
 //     shift = erf(alpha*r_cut)/r_cut^3+2*alpha/sqrt(Pi)*exp(-alpha^2*r_cut^2)/r_cut^2
 
 
-__global__ void compute_charge_pair_DSF_cu(int nAtoms, float4 *xs, float4 *fs, int *neighborIdxs, cudaTextureObject_t neighborlist, cudaTextureObject_t qs, float alpha, float rCut,float A, float shift, BoundsGPU bounds, float oneFourStrength) {
+__global__ void compute_charge_pair_DSF_cu(int nAtoms, float4 *xs, float4 *fs, int *neighborIdxs, cudaTextureObject_t neighborlist, float *qs, float alpha, float rCut,float A, float shift, BoundsGPU bounds, float oneFourStrength) {
 
     float multipliers[4] = {1, 0, 0, oneFourStrength};
     int idx = GETIDX();
@@ -22,7 +22,7 @@ __global__ void compute_charge_pair_DSF_cu(int nAtoms, float4 *xs, float4 *fs, i
         float3 pos = make_float3(posWhole);
 
         float3 forceSum = make_float3(0, 0, 0);
-        float qi = tex2D<float>(qs, XIDX(idx, sizeof(float)), YIDX(idx, sizeof(float)));
+        float qi = qs[idx];//tex2D<float>(qs, XIDX(idx, sizeof(float)), YIDX(idx, sizeof(float)));
 
         int start = neighborIdxs[idx];
         int end = neighborIdxs[idx+1];
@@ -40,7 +40,7 @@ __global__ void compute_charge_pair_DSF_cu(int nAtoms, float4 *xs, float4 *fs, i
             if (lenSqr < rCut*rCut) {
                 float multiplier = multipliers[neighDist];
                 float len=sqrtf(lenSqr);
-                float qj = tex2D<float>(qs, XIDX(otherIdx, sizeof(float)), YIDX(otherIdx, sizeof(float)));
+                float qj = qs[otherIdx];
 
                 float r2inv = 1.0f/lenSqr;
                 float rinv = 1.0f/len;
@@ -75,7 +75,7 @@ void FixChargePairDSF::compute() {
     GridGPU &grid = state->gridGPU;
     int activeIdx = gpd.activeIdx;
     int *neighborIdxs = grid.perAtomArray.ptr;
-    compute_charge_pair_DSF_cu<<<NBLOCK(nAtoms), PERBLOCK>>>(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx), neighborIdxs, grid.neighborlist.tex, gpd.qs.getTex(), alpha,r_cut, A,shift, state->boundsGPU, 0.5);
+    compute_charge_pair_DSF_cu<<<NBLOCK(nAtoms), PERBLOCK>>>(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx), neighborIdxs, grid.neighborlist.tex, gpd.qs(activeIdx), alpha,r_cut, A,shift, state->boundsGPU, 0.5);
 
 
 }

@@ -153,7 +153,7 @@ void Integrater::basicFinish() {
 }
 void Integrater::setActiveData() {
     activeData = vector<GPUArrayBase *>();
-    activeData.push_back((GPUArrayBase *) &state->gpd.types);
+    activeData.push_back((GPUArrayBase *) &state->gpd.ids);
     activeData.push_back((GPUArrayBase *) &state->gpd.xs);
     activeData.push_back((GPUArrayBase *) &state->gpd.vs);
     activeData.push_back((GPUArrayBase *) &state->gpd.fs);

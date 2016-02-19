@@ -10,7 +10,7 @@ FixLJCut::FixLJCut(SHARED(State) state_, string handle_, string groupHandle_) : 
 
 
 
-__global__ void compute_cu(int nAtoms, float4 *xs, float4 *fs, int *neighborIdxs, cudaTextureObject_t neighborlist, float *sigs, float *eps, cudaTextureObject_t types, int numTypes, float rCut, BoundsGPU bounds, float oneFourStrength) {
+__global__ void compute_cu(int nAtoms, float4 *xs, float4 *fs, int *neighborIdxs, cudaTextureObject_t neighborlist, float *sigs, float *eps, int numTypes, float rCut, BoundsGPU bounds, float oneFourStrength) {
     float multipliers[4] = {1, 0, 0, oneFourStrength};
     extern __shared__ float paramsAll[];
     int sqrSize = numTypes*numTypes;
@@ -24,11 +24,12 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *fs, int *neighborIdxs
     int idx = GETIDX();
     if (idx < nAtoms) {
         float4 posWhole = xs[idx];
+        int type = * (int *) &posWhole.w;
+       // printf("type is %d\n", type);
         float3 pos = make_float3(posWhole);
 
         float3 forceSum = make_float3(0, 0, 0);
 
-        int type = tex2D<short>(types, XIDX(idx, sizeof(short)), YIDX(idx, sizeof(short)));
         int start = neighborIdxs[idx];
         int end = neighborIdxs[idx+1];
         //printf("start, end %d %d\n", start, end);
@@ -36,9 +37,9 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *fs, int *neighborIdxs
             uint otherIdxRaw = tex2D<uint>(neighborlist, XIDX(i, sizeof(int)), YIDX(i, sizeof(int)));
             uint neighDist = otherIdxRaw >> 30;
             uint otherIdx = otherIdxRaw & EXCL_MASK;
-
-            int otherType = tex2D<short>(types, XIDX(otherIdx, sizeof(int)), YIDX(otherIdx, sizeof(int)));
-            float3 otherPos = make_float3(xs[otherIdx]);
+            float4 otherPosWhole = xs[otherIdx];
+            int otherType = * (int *) &otherPosWhole.w;
+            float3 otherPos = make_float3(otherPosWhole);
             //then wrap and compute forces!
             float sig = squareVectorItem(sigs_shr, numTypes, type, otherType);
             float eps = squareVectorItem(eps_shr, numTypes, type, otherType);
@@ -60,6 +61,7 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *fs, int *neighborIdxs
             }
 
         }   
+        //printf("force %f %f %f with %d atoms \n", forceSum.x, forceSum.y, forceSum.z, end-start);
         fs[idx] += forceSum;
 
     }
@@ -78,7 +80,7 @@ void FixLJCut::compute() {
     int activeIdx = gpd.activeIdx;
     int *neighborIdxs = grid.perAtomArray.ptr;
     double oneFourStrength = 0.5;
-    compute_cu<<<NBLOCK(nAtoms), PERBLOCK, 2*numTypes*numTypes*sizeof(float)>>>(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx), neighborIdxs, grid.neighborlist.tex, sigmas.getDevData(), epsilons.getDevData(), gpd.types.getTex(), numTypes, state->rCut, state->boundsGPU, oneFourStrength);
+    compute_cu<<<NBLOCK(nAtoms), PERBLOCK, 2*numTypes*numTypes*sizeof(float)>>>(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx), neighborIdxs, grid.neighborlist.tex, sigmas.getDevData(), epsilons.getDevData(), numTypes, state->rCut, state->boundsGPU, oneFourStrength);
 
 
 

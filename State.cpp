@@ -451,24 +451,24 @@ void State::setNeighborlistExclusions() {
 bool State::prepareForRun() {
     int nAtoms = atoms.size();
     vector<float4> xs_vec, vs_vec, fs_vec, fsLast_vec;
-    vector<short> types;
+    vector<uint> ids;
     vector<float> qs;
     xs_vec.reserve(nAtoms);
     vs_vec.reserve(nAtoms);
     fs_vec.reserve(nAtoms);
     fsLast_vec.reserve(nAtoms);
-    types.reserve(nAtoms);
+    ids.reserve(nAtoms);
     qs.reserve(nAtoms);
 
     for (Atom &a : atoms) {
         xs_vec.push_back(make_float4(a.pos[0], a.pos[1], a.pos[2], 
-                         *(float *)&a.id));
+                         *(float *)&a.type));
         vs_vec.push_back(make_float4(a.vel[0], a.vel[1], a.vel[2], 1/a.mass));
         fs_vec.push_back(make_float4(a.force[0], a.force[1], a.force[2], 
                          *(float *)&a.groupTag));
         fsLast_vec.push_back(
                 make_float4(a.forceLast[0], a.forceLast[1], a.forceLast[2], 0));
-        types.push_back(a.type);
+        ids.push_back(a.id);
         qs.push_back(a.q);
     }
     gpd.xs.set(xs_vec);
@@ -477,7 +477,7 @@ bool State::prepareForRun() {
     gpd.fs.set(fs_vec);
 
     gpd.fsLast.set(fsLast_vec);
-    gpd.types.set(types);
+    gpd.ids.set(ids);
     gpd.qs.set(qs);
     vector<int> id_vec = LISTMAPREF(Atom, int, a, atoms, a.id);
     vector<int> idToIdxs_vec;
@@ -562,8 +562,9 @@ bool State::downloadFromRun() {
     vector<float4> &vs = gpd.vs.h_data;
     vector<float4> &fs = gpd.fs.h_data;
     vector<float4> &fsLast = gpd.fsLast.h_data;
+    vector<uint> &ids = gpd.ids.h_data;
     for (int i=0, ii=atoms.size(); i<ii; i++) {
-        int id = *(int *) &xs[i].w;
+        int id = ids[i];
         int idxWriteTo = gpd.idToIdxsOnCopy[id];
         atoms[idxWriteTo].pos = xs[i];
         atoms[idxWriteTo].vel = vs[i];

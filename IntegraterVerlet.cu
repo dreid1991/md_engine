@@ -16,9 +16,11 @@ __global__ void preForce_cu(int nAtoms, float4 *xs, float4 *vs, float4 *fs, floa
         float groupTag = force.w;
         //float id = pos.w;
         float4 dPos = vel * dt + force * dt*dt*0.5f*invmass;
+        
         int zero = 0;
         dPos.w = * (int *) &zero;
         xs[idx] += dPos; //does this do single 16 byte transfer?
+
         //xs[idx] = pos;
         fsLast[idx] = force;
         fs[idx] = make_float4(0, 0, 0, groupTag);
