@@ -25,7 +25,10 @@ class GPUData {
         GPUArrayTex<int> nlistExclusionIdxs;
     //OMG REMEMBER TO ADD EACH NEW ARRAY TO THE ACTIVE DATA LIST IN INTEGRATER OR PAIN AWAITS
 
-        GPUData() : xs(cudaCreateChannelDesc(32, 32, 32, 32, cudaChannelFormatKindFloat)), idToIdxs(cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindSigned)), qs(cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindFloat)), types(cudaCreateChannelDesc(16, 0, 0, 0, cudaChannelFormatKindSigned)), nlistExclusions(cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindSigned)), nlistExclusionIdxs(cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindSigned)), activeIdx(0) {
+        GPUData() :
+            xs(cudaCreateChannelDesc(32, 32, 32, 32, cudaChannelFormatKindFloat)), 
+
+            idToIdxs(cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindSigned)), qs(cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindFloat)), types(cudaCreateChannelDesc(16, 0, 0, 0, cudaChannelFormatKindSigned)), nlistExclusions(cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindSigned)), nlistExclusionIdxs(cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindSigned)), activeIdx(0) {
            allPairs[0] = (GPUArrayBasePair *) &xs; //ids (ints) are bit cast into the w value of xs.  Cast as int pls
            allPairs[1] = (GPUArrayBasePair *) &vs; //mass is stored in w value of vs.  ALWAYS do arithmatic as float3s, or you will mess up id or mass
            allPairs[2] = (GPUArrayBasePair *) &fs; //groupTags (uints) are bit cast into the w value of fs

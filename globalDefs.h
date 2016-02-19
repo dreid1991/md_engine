@@ -5,6 +5,7 @@
 typedef double num;
 
 
+
 #define GPUMEMBER __host__ __device__
 #define SHARED(X) boost::shared_ptr<X>
 //some files get grumpy if this is within the if.  doesn't hurt to have it declared multiple times

@@ -602,7 +602,9 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort) {
 
     
     cumulativeSum(gridCellCounts_h, perCellArray.n);//repurposing this as starting indexes for each grid square
-
+    for (int i=0; i<perCellArray.n; i++) {
+        //cout << gridCellCounts_h[i] << endl;
+    }
     perCellArray.set(gridCellCounts_h);
     int gridIdx;
     if (doSort) {
