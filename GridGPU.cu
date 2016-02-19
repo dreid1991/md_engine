@@ -158,7 +158,6 @@ __global__ void sortPerAtomArrays(
 }
 
 
-//        gridNonSort<<<NBLOCK(nAtoms), PERBLOCK>>>(state->gpd.xs.tex[activeIdx], state->gpd.xs.surf[!activeIdx], state->gpd.ids(activeIdx), state->gpd.ids(!activeIdx), nAtoms, perCellArray.ptr, perAtomArray.ptr, os, ds, ns);
 __global__ void gridNonSort(float4 *xs, float4 *xsGrid, uint *ids, uint *idsGrid, int nAtoms, int *gridCellArrayIdxs, int *idxInGridCell, float3 os, float3 ds, int3 ns) {
     int idx = GETIDX();
     if (idx < nAtoms) {
@@ -662,7 +661,7 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort) {
     free(gridCellCounts_h);
     ds = ds_orig;
     os = os_orig;
-  //  verifyNeighborlists(neighCut);
+ //   verifyNeighborlists(neighCut);
 
     
 

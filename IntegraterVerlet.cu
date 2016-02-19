@@ -74,7 +74,7 @@ void IntegraterVerlet::run(int numTurns) {
 
     for (int i=0; i<numTurns; i++) {
         if (! ((remainder + i) % periodicInterval)) {
-            state->gridGPU.periodicBoundaryConditions(rCut + padding, true);
+            state->gridGPU.periodicBoundaryConditions(rCut + padding, false);
         }
         int activeIdx = state->gpd.activeIdx;
         asyncOperations();
