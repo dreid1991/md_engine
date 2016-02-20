@@ -539,6 +539,7 @@ void setPerBlockCounts(vector<int> &neighborCounts, vector<int> &numNeighborsInB
         int maxIdx = fmin(neighborCounts.size()-1, (i+1)*PERBLOCK);
         for (int j=i*PERBLOCK; j<maxIdx; j++) {
             int numNeigh = neighborCounts[j];
+            //cout << "summing at idx " << j << ", it has " << numNeigh << endl;
             maxNeigh = fmax(numNeigh, maxNeigh);
         }
         numNeighborsInBlocks[i+1] = numNeighborsInBlocks[i] + maxNeigh; //cumulative sum of # in block
@@ -579,7 +580,8 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort) {
     if (bounds.sides[0].y or bounds.sides[1].x) {
         Mod::unskewAtoms<<<NBLOCK(nAtoms), PERBLOCK>>>(state->gpd.xs(activeIdx), nAtoms, bounds.sides[0], bounds.sides[1], bounds.lo);
     }
-    periodicWrap<<<NBLOCK(nAtoms), PERBLOCK>>>(state->gpd.xs(activeIdx), nAtoms, boundsUnskewed);
+    //periodicWrap<<<NBLOCK(nAtoms), PERBLOCK>>>(state->gpd.xs(activeIdx), nAtoms, boundsUnskewed);
+    SAFECALL((periodicWrap<<<NBLOCK(nAtoms), PERBLOCK>>>(state->gpd.xs(activeIdx), nAtoms, boundsUnskewed)), "wrap");
  //   float4 *xs = state->gpd.xs.getDevData();
     //cout << "I am here to help" << endl;
     //printBiz<<<NBLOCK(state->atoms.size()), PERBLOCK>>>(state->gpd.xs(activeIdx), state->atoms.size());
@@ -595,8 +597,9 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort) {
     perCellArray.d_data.memset(0);
     perAtomArray.d_data.memset(0);
   //  cudaDeviceSynchronize();
-    countNumInGridCells<<<NBLOCK(nAtoms), PERBLOCK>>>(state->gpd.xs(activeIdx), nAtoms, perCellArray.d_data.ptr, perAtomArray.d_data.ptr, os, ds, ns);
-    perCellArray.dataToDevice();
+    SAFECALL((countNumInGridCells<<<NBLOCK(nAtoms), PERBLOCK>>>(state->gpd.xs(activeIdx), nAtoms, perCellArray.d_data.ptr, perAtomArray.d_data.ptr, os, ds, ns)), "NUM IN CELLS");
+    //countNumInGridCells<<<NBLOCK(nAtoms), PERBLOCK>>>(state->gpd.xs(activeIdx), nAtoms, perCellArray.d_data.ptr, perAtomArray.d_data.ptr, os, ds, ns);
+    perCellArray.dataToHost();
     cudaDeviceSynchronize();
     int *gridCellCounts_h = perCellArray.h_data.data();
     
@@ -638,7 +641,8 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort) {
     }
 
     perAtomArray.d_data.memset(0);
-    countNumNeighbors<<<NBLOCK(nAtoms), PERBLOCK>>>(state->gpd.xs(gridIdx), nAtoms, state->gpd.idToIdxs.getTex(), state->gpd.ids(gridIdx), perAtomArray.d_data.ptr, perCellArray.d_data.ptr, os, ds, ns, bounds.periodic, trace, neighCut*neighCut, doSort);//, state->gpd.nlistExclusionIdxs.getTex(), state->gpd.nlistExclusions.getTex(), state->maxExclusions);
+    SAFECALL((countNumNeighbors<<<NBLOCK(nAtoms), PERBLOCK>>>(state->gpd.xs(gridIdx), nAtoms, state->gpd.idToIdxs.getTex(), state->gpd.ids(gridIdx), perAtomArray.d_data.ptr, perCellArray.d_data.ptr, os, ds, ns, bounds.periodic, trace, neighCut*neighCut, doSort)), "NUM NEIGH");
+    //countNumNeighbors<<<NBLOCK(nAtoms), PERBLOCK>>>(state->gpd.xs(gridIdx), nAtoms, state->gpd.idToIdxs.getTex(), state->gpd.ids(gridIdx), perAtomArray.d_data.ptr, perCellArray.d_data.ptr, os, ds, ns, bounds.periodic, trace, neighCut*neighCut, doSort);//, state->gpd.nlistExclusionIdxs.getTex(), state->gpd.nlistExclusions.getTex(), state->maxExclusions);
     perAtomArray.dataToHost();
     cudaDeviceSynchronize();
     
@@ -651,6 +655,20 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort) {
     } else if (totalNumNeighbors < neighborlist.n * 0.7) {
         neighborlist = GPUArrayDevice<uint>(totalNumNeighbors*0.8);
     }
+    SAFECALL((assignNeighbors<<<NBLOCK(nAtoms), PERBLOCK, PERBLOCK*maxExclusionsPerAtom*sizeof(uint)>>>(
+            state->gpd.xs(gridIdx), 
+            nAtoms, 
+            state->gpd.idToIdxs.getTex(), 
+            state->gpd.ids(gridIdx),
+            perAtomArray.d_data.ptr, 
+            perCellArray.d_data.ptr, 
+            perBlockArray.d_data.ptr,
+            os, ds, ns, bounds.periodic, trace, neighCut*neighCut, doSort, neighborlist.ptr, warpSize,
+            exclusionIndexes.ptr, exclusionIds.ptr, maxExclusionsPerAtom
+            
+            )), "ASSIGN");//, state->gpd.nlistExclusionIdxs.getTex(), state->gpd.nlistExclusions.getTex(), state->maxExclusions);
+
+    /*
     assignNeighbors<<<NBLOCK(nAtoms), PERBLOCK, PERBLOCK*maxExclusionsPerAtom*sizeof(uint)>>>(
             state->gpd.xs(gridIdx), 
             nAtoms, 
@@ -663,6 +681,7 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort) {
             exclusionIndexes.ptr, exclusionIds.ptr, maxExclusionsPerAtom
             
             );//, state->gpd.nlistExclusionIdxs.getTex(), state->gpd.nlistExclusions.getTex(), state->maxExclusions);
+            */
 
 
     //printNeighbors<<<NBLOCK(state->atoms.size()), PERBLOCK>>>(perAtomArray.ptr, neighborlist.tex, state->atoms.size());
@@ -677,7 +696,7 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort) {
     }
     ds = ds_orig;
     os = os_orig;
- //   verifyNeighborlists(neighCut);
+    verifyNeighborlists(neighCut);
 
     
 
@@ -685,33 +704,23 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort) {
 }
 
 
-vector<int> toNeighborCounts(int *idxs, int nAtoms) {
-    vector<int> nneigh;
-    for (int i=0; i<nAtoms; i++) {
-      //  cout << idxs[i] << endl;;
-        nneigh.push_back(idxs[i+1]-idxs[i]);
-    }
-    //cout << idxs[nAtoms] << endl;
-    return nneigh;
-}
+
 
 
 bool GridGPU::verifyNeighborlists(float neighCut) {
+    cout << "going to verify" << endl;
     uint *nlist = neighborlist.get((uint *) NULL);
-    
     float cutSqr = neighCut * neighCut;
     perAtomArray.dataToHost();
-    int *neighIdxs = perAtomArray.h_data.data();
+    int *neighCounts = perAtomArray.h_data.data();
     state->gpd.xs.dataToHost();
     state->gpd.ids.dataToHost();
     cudaDeviceSynchronize();
-    vector<int> nneigh = toNeighborCounts(neighIdxs, state->atoms.size());
     vector<float4> xs = state->gpd.xs.h_data;
     vector<uint> ids = state->gpd.ids.h_data;
     state->gpd.xs.dataToHost(!state->gpd.xs.activeIdx);
     cudaDeviceSynchronize();
     vector<float4> sortedXs = state->gpd.xs.h_data;
-    
   //  int gpuId = *(int *)&sortedXs[TESTIDX].w;
 
 //    int cpuIdx = gpuId;
@@ -734,10 +743,19 @@ bool GridGPU::verifyNeighborlists(float neighCut) {
         cpu_neighbors.push_back(atom_neighbors);
     }
 //    cout << "cpu dist is " << sqrt(lengthSqr(state->boundsGPU.minImage(xs[0]-xs[1])))  << endl;
+    int warpSize = state->devManager.prop.warpSize;
     for (int i=0; i<xs.size(); i++) {
+        int blockIdx = i / PERBLOCK;
+        int warpIdx = (i - blockIdx * PERBLOCK) / warpSize;
+        int idxInWarp = i - blockIdx * PERBLOCK - warpIdx * warpSize;
+        int cumSumUpToMyBlock = perBlockArray.h_data[blockIdx];
+        int perAtomMyWarp = perBlockArray.h_data[blockIdx+1] - cumSumUpToMyBlock;
+        int baseIdx = PERBLOCK * perBlockArray.h_data[blockIdx] + perAtomMyWarp * warpIdx + idxInWarp;
         vector<int> neighIds;
     //    cout << "begin end " << neighIdxs[i] << " " << neighIdxs[i+1] << endl;
-        for (int nIdx=neighIdxs[i]; nIdx<neighIdxs[i+1]; nIdx++) {
+        for (int j=0; j<neighCounts[i]; j++) {
+            int nIdx = baseIdx + j*warpSize;
+
       //      cout << "idx " << nlist[nIdx] << endl;
             float4 atom = xs[nlist[nIdx]];
             uint id = ids[nlist[nIdx]];
@@ -801,7 +819,6 @@ bool GridGPU::verifyNeighborlists(float neighCut) {
     }
     */
     free(nlist);
-    free(neighIdxs);
     cout << "verified" << endl;
     return true;
 

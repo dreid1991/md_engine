@@ -7,7 +7,7 @@ DeviceManager::DeviceManager() {
     setDevice(0);
 }
 bool DeviceManager::setDevice(int i) {
-    if (i > 0 and i < nDevices) {
+    if (i >= 0 and i < nDevices) {
         cudaSetDevice(i);
         cudaGetDeviceProperties(&prop, i);
         cudaDeviceSetCacheConfig(cudaFuncCachePreferL1);

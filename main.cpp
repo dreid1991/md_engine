@@ -464,7 +464,7 @@ void testBondHarmonicGridToGPU() {
 
 void testLJ() {
     SHARED(State) state = SHARED(State) (new State());
-    int baseLen = 50;
+    int baseLen = 15;
     state->shoutEvery = 100;
     double mult = 1.5;
     state->bounds = Bounds(state, Vector(0, 0, 0), Vector(mult*baseLen, mult*baseLen, mult*baseLen));
@@ -475,8 +475,8 @@ void testLJ() {
   //  state->is2d = true;
   //  state->periodic[2] = false;
     
-    //state->addAtom("handle", Vector(0, 0, 0), 0);
-    //state->addAtom("handle", Vector(1.5, 0, 0), 0);
+   // state->addAtom("handle", Vector(0, 0, 0), 0);
+  //  state->addAtom("handle", Vector(1.5, 0, 0), 0);
     for (int i=0; i<baseLen; i++) {
         for (int j=0; j<baseLen; j++) {
             for (int k=0; k<baseLen; k++) {
@@ -497,11 +497,11 @@ void testLJ() {
     state->activateFix(nonbond);
     cout << "last" << endl;
     IntegraterVerlet verlet = IntegraterVerlet(state);
-    cout << state->atoms[80].pos;
+  //  cout << state->atoms[80].pos;
     cout << "want to run " << endl;
     verlet.run(2000);
-    cout << state->atoms[80].pos << endl;
-    cout << state->atoms[80].force << endl;
+  //  cout << state->atoms[80].pos << endl;
+  //  cout << state->atoms[80].force << endl;
     cout.flush();
     //SHARED(FixBondHarmonic) harmonic = SHARED(FixBondHarmonic) (new FixBondHarmonic(state, "harmonic"));
     //state->activateFix(harmonic);
