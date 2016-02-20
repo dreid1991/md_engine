@@ -38,7 +38,7 @@ class State;  //forward declaring so bond can use bounds, which includes state
 #include "DataManager.h"
 
 #include "boost_for_export.h"
-
+#include "DeviceManager.h"
 
 void export_State();
 
@@ -64,6 +64,7 @@ class State {
 		// Don't want to use pair, b/c angle has 3 :(
 		vector<int*> bondAtomIds; 
 		GPUData gpd;
+        DeviceManager devManager;
 		AtomGrid grid;
 		Bounds bounds;
 		vector<Fix *> fixes;

@@ -133,7 +133,6 @@ void Integrater::basicPrepare(int numTurns) {
         f->updateGroupTag();
         f->prepareForRun();
     }
-    state->gridGPU.prepareForRun();
     for (GPUArrayBase *dat : activeData) {
         dat->dataToDevice();
     }

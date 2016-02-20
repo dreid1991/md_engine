@@ -19,7 +19,6 @@
 #include "State.h"
 
 State::State() {
-    cudaDeviceSetCacheConfig(cudaFuncCachePreferL1);
 	groupTags["all"] = (unsigned int) 1;
 	is2d = false;
 	buildNeighborlists = true;
@@ -803,6 +802,7 @@ void export_State() {
         .def_readonly("readConfig", &State::readConfig)
         .def_readwrite("shoutEvery", &State::shoutEvery)
         .def_readwrite("verbose", &State::verbose)
+        .def_readonly("deviceManager", &State::devManager);
 
         ;
 
