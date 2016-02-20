@@ -696,7 +696,7 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort) {
     }
     ds = ds_orig;
     os = os_orig;
-    verifyNeighborlists(neighCut);
+   // verifyNeighborlists(neighCut);
 
     
 
