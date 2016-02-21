@@ -10,4 +10,5 @@ class DeviceManager {
         DeviceManager();
         cudaDeviceProp prop;
         bool setDevice(int);
+        int currentDevice;
 };

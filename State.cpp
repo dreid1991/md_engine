@@ -497,6 +497,7 @@ bool State::prepareForRun() {
     gpd.vsBuffer = GPUArray<float4>(nAtoms);
     gpd.fsBuffer = GPUArray<float4>(nAtoms);
     gpd.fsLastBuffer = GPUArray<float4>(nAtoms);
+    gpd.idsBuffer = GPUArray<uint>(nAtoms);
 
     //setNeighborlistExclusions();
     return true;
@@ -509,15 +510,18 @@ void copyAsyncWithInstruc(State *state, std::function<void (int )> cb, int turn)
     state->gpd.vsBuffer.dataToHostAsync(stream);
     state->gpd.fsBuffer.dataToHostAsync(stream);
     state->gpd.fsLastBuffer.dataToHostAsync(stream);
+    state->gpd.idsBuffer.dataToHostAsync(stream);
     CUCHECK(cudaStreamSynchronize(stream));
     vector<int> idToIdxsOnCopy = state->gpd.idToIdxsOnCopy;
     vector<float4> &xs = state->gpd.xsBuffer.h_data;
     vector<float4> &vs = state->gpd.vsBuffer.h_data;
     vector<float4> &fs = state->gpd.fsBuffer.h_data;
     vector<float4> &fsLast = state->gpd.fsLastBuffer.h_data;
+    vector<uint> &ids = state->gpd.idsBuffer.h_data;
     vector<Atom> &atoms = state->atoms;
+
     for (int i=0, ii=state->atoms.size(); i<ii; i++) {
-        int id = *(int *) &xs[i].w;
+        int id = ids[i];
         int idxWriteTo = idToIdxsOnCopy[id];
         atoms[idxWriteTo].pos = xs[i];
         atoms[idxWriteTo].vel = vs[i];
@@ -535,6 +539,7 @@ bool State::asyncHostOperation(std::function<void (int )> cb) {
     gpd.vs.copyToDeviceArray((void *) gpd.vsBuffer.getDevData());
     gpd.fs.copyToDeviceArray((void *) gpd.fsBuffer.getDevData());
     gpd.fsLast.copyToDeviceArray((void *) gpd.fsLastBuffer.getDevData());
+    gpd.ids.copyToDeviceArray((void *) gpd.idsBuffer.getDevData());
     bounds.set(boundsGPU);
     if (asyncData and asyncData->joinable()) {
         asyncData->join();

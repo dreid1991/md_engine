@@ -20,12 +20,11 @@ class GPUData {
         GPUArray<float4> vsBuffer;
         GPUArray<float4> fsBuffer;
         GPUArray<float4> fsLastBuffer;
+        GPUArray<uint> idsBuffer;
 
-        GPUArrayTex<int> nlistExclusions;
-        GPUArrayTex<int> nlistExclusionIdxs;
     //OMG REMEMBER TO ADD EACH NEW ARRAY TO THE ACTIVE DATA LIST IN INTEGRATER OR PAIN AWAITS
 
-        GPUData() : idToIdxs(cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindSigned)),  nlistExclusions(cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindSigned)), nlistExclusionIdxs(cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindSigned)), activeIdx(0) {
+        GPUData() : idToIdxs(cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindSigned)), activeIdx(0) {
            allPairs[0] = (GPUArrayBasePair *) &xs; //types (ints) are bit cast into the w value of xs.  Cast as int pls
            allPairs[1] = (GPUArrayBasePair *) &vs; //mass is stored in w value of vs.  ALWAYS do arithmatic as float3s, or you will mess up id or mass
            allPairs[2] = (GPUArrayBasePair *) &fs; //groupTags (uints) are bit cast into the w value of fs

@@ -13,6 +13,17 @@ __device__ int baseNeighlistIdx(int *cumulSumMaxPerBlock, int warpSize) {
 }
 
 template <class T>
+__device__ int baseNeighlistIdxFromIndex(int *cumulSumMaxPerBlock, int warpSize, int idx) {
+    int blockIdx = idx / blockDim.x;
+    int warpIdx = (idx - blockIdx * blockDim.x) / warpSize;
+    int idxInWarp = idx - blockIdx * blockDim.x - warpIdx * warpSize;
+    int cumSumUpToMyBlock = cumulSumMaxPerBlock[blockIdx];
+    int perAtomMyWarp = cumulSumMaxPerBlock[blockIdx+1] - cumSumUpToMyBlock;
+    int baseIdx = blockDim.x * cumSumUpToMyBlock + perAtomMyWarp * warpSize * warpIdx + idxInWarp;
+    return baseIdx;
+
+}
+template <class T>
 __device__ void copyToShared (T *src, T *dest, int n) {
     for (int i=threadIdx.x; i<n; i+=blockDim.x) {
         dest[i] = src[i];
