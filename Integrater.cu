@@ -46,6 +46,8 @@ void Integrater::data() {
 void Integrater::asyncOperations() {
     int turn = state->turn;
     auto dataAndWrite = [this] (int ts) { //well, if I try to use a local state pointer, this segfaults.  Need to capture this instead.  Little confused
+        //have to set device in each thread
+        state->devManager.setDevice(state->devManager.currentDevice);
         for (SHARED(WriteConfig) wc : state->writeConfigs) {
             if (not ((ts - wc->turnInit) % wc->writeEvery)) {
                 wc->write();
@@ -133,7 +135,6 @@ void Integrater::basicPrepare(int numTurns) {
         f->updateGroupTag();
         f->prepareForRun();
     }
-    state->gridGPU.prepareForRun();
     for (GPUArrayBase *dat : activeData) {
         dat->dataToDevice();
     }
@@ -153,7 +154,7 @@ void Integrater::basicFinish() {
 }
 void Integrater::setActiveData() {
     activeData = vector<GPUArrayBase *>();
-    activeData.push_back((GPUArrayBase *) &state->gpd.types);
+    activeData.push_back((GPUArrayBase *) &state->gpd.ids);
     activeData.push_back((GPUArrayBase *) &state->gpd.xs);
     activeData.push_back((GPUArrayBase *) &state->gpd.vs);
     activeData.push_back((GPUArrayBase *) &state->gpd.fs);

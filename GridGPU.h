@@ -3,7 +3,7 @@
 
 
 #include "cutils_math.h"
-#include "GPUArrayDevice.h"
+#include "GPUArray.h"
 #include "GPUArrayTexDevice.h"
 #include <unordered_map>
 #include <unordered_set>
@@ -18,22 +18,22 @@ class GridGPU {
     void initArrays();
     bool verifyNeighborlists(float neighCut);
 
-    vector<int> numNeighbors;
     bool checkSorting(int gridIdx, int *gridIdxs, GPUArrayDevice<int> &grid);
     public: 
-        GPUArrayDevice<int> perCellArray;
+        GPUArray<int> perCellArray;
+        GPUArray<int> perBlockArray;
+        GPUArray<int> perAtomArray; //during runtime this is the starting (+1 is ending) index for each neighbor
         float3 ds;
         float3 dsOrig;
         float3 os;
         int3 ns;
-        GPUArrayTexDevice<uint> neighborlist; //make this into normal array and use shared please.  Actually, shared memory isn't big enough if you're using a not-small neighbor cutoff for like charge-DSF
-        GPUArrayDevice<int> perAtomArray; //during runtime this is the starting (+1 is ending) index for each neighbor
+        GPUArrayDevice<uint> neighborlist;
         State *state; 
         GridGPU(State *state_, float dx, float dy, float dz);
         GridGPU(State *state_, float3 ds_, float3 dsOrig_, float3 os_, int3 ns_);
         GridGPU() {};
         //need set2d function
-        void prepareForRun();
+        void handleExclusions();
         void periodicBoundaryConditions(float neighCut, bool doSort);
         //exclusion list stuff     
 		typedef map<int, vector<set<int>>> ExclusionList; //is ordered to make looping over by id in order easier

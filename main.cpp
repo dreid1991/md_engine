@@ -464,22 +464,33 @@ void testBondHarmonicGridToGPU() {
 
 void testLJ() {
     SHARED(State) state = SHARED(State) (new State());
-    int baseLen = 50;
+    int baseLen = 40;
     state->shoutEvery = 100;
     double mult = 1.5;
     state->bounds = Bounds(state, Vector(0, 0, 0), Vector(mult*baseLen, mult*baseLen, mult*baseLen));
     state->rCut = 2.5;
     state->padding = 0.5;
-    state->grid = AtomGrid(state.get(), 3.0, 3.0, 3);
+    state->grid = AtomGrid(state.get(), 3.5, 3.5, 3);
     state->atomParams.addSpecies("handle", 2);
-  //  state->is2d = true;
-  //  state->periodic[2] = false;
-    
-    //state->addAtom("handle", Vector(0, 0, 0), 0);
-    //state->addAtom("handle", Vector(1.5, 0, 0), 0);
+    //state->is2d = true;
+    //state->periodic[2] = false;
+   // for (int i=0; i<32; i++) {
+        //state->addAtom("handle", Vector(2*i+1, 1, 0), 0);
+     //   state->addAtom("handle", Vector(2*31+1-2*i, 1, 0), 0);
+   // }
+
+  //  for (int i=0; i<32; i++) {
+   //     state->addAtom("handle", Vector(2*i+1, 5, 0), 0);
+ //   }
+    //state->addAtom("handle", Vector(1, 1, 0), 0);
+    //state->addAtom("handle", Vector(3.0, 1, 0), 0);
+
+   // state->addAtom("handle", Vector(5.0, 1, 0), 0);
+   // state->addAtom("handle", Vector(7.0, 1, 0), 0);
     for (int i=0; i<baseLen; i++) {
         for (int j=0; j<baseLen; j++) {
             for (int k=0; k<baseLen; k++) {
+               // state->addAtom("handle", Vector(i*mult + (rand() % 20)/40.0, j*mult + (rand() % 20)/40.0, 0), 0);
                 state->addAtom("handle", Vector(i*mult + (rand() % 20)/40.0, j*mult + (rand() % 20)/40.0, k*mult + (rand() % 20)/40.0), 0);
             }
         }
@@ -489,22 +500,32 @@ void testLJ() {
   //  state->atoms.pos[0] += Vector(0.1, 0, 0);
 
     state->periodicInterval = 9;
-  //  SHARED(Fix2d) f2d = SHARED(Fix2d) (new Fix2d(state, "2d", 1));
-   // state->activateFix(f2d);
+   // SHARED(Fix2d) f2d = SHARED(Fix2d) (new Fix2d(state, "2d", 1));
+  //  state->activateFix(f2d);
     SHARED(FixLJCut) nonbond = SHARED(FixLJCut) (new FixLJCut(state, "ljcut", "all"));
     nonbond->setParameter("sig", "handle", "handle", 1);
     nonbond->setParameter("eps", "handle", "handle", 1);
     state->activateFix(nonbond);
+
+    //SHARED(WriteConfig) write = SHARED(WriteConfig) (new WriteConfig(state, "test", "handley", "xml", 20));
+  //  state->activateWriteConfig(write);
+
     cout << "last" << endl;
     IntegraterVerlet verlet = IntegraterVerlet(state);
+<<<<<<< HEAD
     cout << state->atoms[80].pos;
 <<<<<<< HEAD
 =======
+=======
+    cout << state->atoms[0].pos;
+    cout << state->atoms[1].pos << endl;
+>>>>>>> opt
     cout << "want to run " << endl;
 >>>>>>> origin/opt
     verlet.run(2000);
-    cout << state->atoms[80].pos << endl;
-    cout << state->atoms[80].force << endl;
+    cout << state->atoms[0].pos << endl;
+    cout << state->atoms[1].pos << endl;
+    cout << state->atoms[0].force << endl;
     cout.flush();
     //SHARED(FixBondHarmonic) harmonic = SHARED(FixBondHarmonic) (new FixBondHarmonic(state, "harmonic"));
     //state->activateFix(harmonic);

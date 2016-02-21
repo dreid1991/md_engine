@@ -1,5 +1,6 @@
 import sys
 sys.path.append('/home/daniel/Documents/md_engine_opt/core/python')
+sys.path.append('../python')
 from Sim import *
 import matplotlib.pyplot as plt
 from math import *

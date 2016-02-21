@@ -3,8 +3,26 @@
 #ifndef CUTILS_FUNC_H
 #define CUTILS_FUNC_H
 
+template <class T>
+__device__ int baseNeighlistIdx(int *cumulSumMaxPerBlock, int warpSize) { 
+    int cumulSumUpToMe = cumulSumMaxPerBlock[blockIdx.x];
+    int maxNeighInMyBlock = cumulSumMaxPerBlock[blockIdx.x+1] - cumulSumUpToMe;
+    int myWarp = threadIdx.x / warpSize;
+    int myIdxInWarp = threadIdx.x % warpSize;
+    return blockDim.x * cumulSumMaxPerBlock[blockIdx.x] + maxNeighInMyBlock * warpSize * myWarp + myIdxInWarp;
+}
 
+template <class T>
+__device__ int baseNeighlistIdxFromIndex(int *cumulSumMaxPerBlock, int warpSize, int idx) {
+    int blockIdx = idx / blockDim.x;
+    int warpIdx = (idx - blockIdx * blockDim.x) / warpSize;
+    int idxInWarp = idx - blockIdx * blockDim.x - warpIdx * warpSize;
+    int cumSumUpToMyBlock = cumulSumMaxPerBlock[blockIdx];
+    int perAtomMyWarp = cumulSumMaxPerBlock[blockIdx+1] - cumSumUpToMyBlock;
+    int baseIdx = blockDim.x * cumSumUpToMyBlock + perAtomMyWarp * warpSize * warpIdx + idxInWarp;
+    return baseIdx;
 
+}
 template <class T>
 __device__ void copyToShared (T *src, T *dest, int n) {
     for (int i=threadIdx.x; i<n; i+=blockDim.x) {

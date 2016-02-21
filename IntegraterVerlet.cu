@@ -16,9 +16,11 @@ __global__ void preForce_cu(int nAtoms, float4 *xs, float4 *vs, float4 *fs, floa
         float groupTag = force.w;
         //float id = pos.w;
         float4 dPos = vel * dt + force * dt*dt*0.5f*invmass;
+        
         int zero = 0;
         dPos.w = * (int *) &zero;
         xs[idx] += dPos; //does this do single 16 byte transfer?
+
         //xs[idx] = pos;
         fsLast[idx] = force;
         fs[idx] = make_float4(0, 0, 0, groupTag);
@@ -69,10 +71,9 @@ void IntegraterVerlet::run(int numTurns) {
     int remainder = state->turn % periodicInterval;
     int turnInit = state->turn; 
     auto start = std::chrono::high_resolution_clock::now();
-
     for (int i=0; i<numTurns; i++) {
         if (! ((remainder + i) % periodicInterval)) {
-            state->gridGPU.periodicBoundaryConditions(rCut + padding, true);
+            state->gridGPU.periodicBoundaryConditions(rCut + padding, false);
         }
         int activeIdx = state->gpd.activeIdx;
         asyncOperations();

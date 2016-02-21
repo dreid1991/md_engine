@@ -19,7 +19,6 @@
 #include "State.h"
 
 State::State() {
-    cudaDeviceSetCacheConfig(cudaFuncCachePreferL1);
 	groupTags["all"] = (unsigned int) 1;
 	is2d = false;
 	buildNeighborlists = true;
@@ -451,24 +450,24 @@ void State::setNeighborlistExclusions() {
 bool State::prepareForRun() {
     int nAtoms = atoms.size();
     vector<float4> xs_vec, vs_vec, fs_vec, fsLast_vec;
-    vector<short> types;
+    vector<uint> ids;
     vector<float> qs;
     xs_vec.reserve(nAtoms);
     vs_vec.reserve(nAtoms);
     fs_vec.reserve(nAtoms);
     fsLast_vec.reserve(nAtoms);
-    types.reserve(nAtoms);
+    ids.reserve(nAtoms);
     qs.reserve(nAtoms);
 
     for (Atom &a : atoms) {
         xs_vec.push_back(make_float4(a.pos[0], a.pos[1], a.pos[2], 
-                         *(float *)&a.id));
+                         *(float *)&a.type));
         vs_vec.push_back(make_float4(a.vel[0], a.vel[1], a.vel[2], 1/a.mass));
         fs_vec.push_back(make_float4(a.force[0], a.force[1], a.force[2], 
                          *(float *)&a.groupTag));
         fsLast_vec.push_back(
                 make_float4(a.forceLast[0], a.forceLast[1], a.forceLast[2], 0));
-        types.push_back(a.type);
+        ids.push_back(a.id);
         qs.push_back(a.q);
     }
     gpd.xs.set(xs_vec);
@@ -477,7 +476,7 @@ bool State::prepareForRun() {
     gpd.fs.set(fs_vec);
 
     gpd.fsLast.set(fsLast_vec);
-    gpd.types.set(types);
+    gpd.ids.set(ids);
     gpd.qs.set(qs);
     vector<int> id_vec = LISTMAPREF(Atom, int, a, atoms, a.id);
     vector<int> idToIdxs_vec;
@@ -498,6 +497,7 @@ bool State::prepareForRun() {
     gpd.vsBuffer = GPUArray<float4>(nAtoms);
     gpd.fsBuffer = GPUArray<float4>(nAtoms);
     gpd.fsLastBuffer = GPUArray<float4>(nAtoms);
+    gpd.idsBuffer = GPUArray<uint>(nAtoms);
 
     //setNeighborlistExclusions();
     return true;
@@ -510,15 +510,18 @@ void copyAsyncWithInstruc(State *state, std::function<void (int )> cb, int turn)
     state->gpd.vsBuffer.dataToHostAsync(stream);
     state->gpd.fsBuffer.dataToHostAsync(stream);
     state->gpd.fsLastBuffer.dataToHostAsync(stream);
+    state->gpd.idsBuffer.dataToHostAsync(stream);
     CUCHECK(cudaStreamSynchronize(stream));
     vector<int> idToIdxsOnCopy = state->gpd.idToIdxsOnCopy;
     vector<float4> &xs = state->gpd.xsBuffer.h_data;
     vector<float4> &vs = state->gpd.vsBuffer.h_data;
     vector<float4> &fs = state->gpd.fsBuffer.h_data;
     vector<float4> &fsLast = state->gpd.fsLastBuffer.h_data;
+    vector<uint> &ids = state->gpd.idsBuffer.h_data;
     vector<Atom> &atoms = state->atoms;
+
     for (int i=0, ii=state->atoms.size(); i<ii; i++) {
-        int id = *(int *) &xs[i].w;
+        int id = ids[i];
         int idxWriteTo = idToIdxsOnCopy[id];
         atoms[idxWriteTo].pos = xs[i];
         atoms[idxWriteTo].vel = vs[i];
@@ -536,6 +539,7 @@ bool State::asyncHostOperation(std::function<void (int )> cb) {
     gpd.vs.copyToDeviceArray((void *) gpd.vsBuffer.getDevData());
     gpd.fs.copyToDeviceArray((void *) gpd.fsBuffer.getDevData());
     gpd.fsLast.copyToDeviceArray((void *) gpd.fsLastBuffer.getDevData());
+    gpd.ids.copyToDeviceArray((void *) gpd.idsBuffer.getDevData());
     bounds.set(boundsGPU);
     if (asyncData and asyncData->joinable()) {
         asyncData->join();
@@ -562,8 +566,9 @@ bool State::downloadFromRun() {
     vector<float4> &vs = gpd.vs.h_data;
     vector<float4> &fs = gpd.fs.h_data;
     vector<float4> &fsLast = gpd.fsLast.h_data;
+    vector<uint> &ids = gpd.ids.h_data;
     for (int i=0, ii=atoms.size(); i<ii; i++) {
-        int id = *(int *) &xs[i].w;
+        int id = ids[i];
         int idxWriteTo = gpd.idToIdxsOnCopy[id];
         atoms[idxWriteTo].pos = xs[i];
         atoms[idxWriteTo].vel = vs[i];
@@ -802,6 +807,7 @@ void export_State() {
         .def_readonly("readConfig", &State::readConfig)
         .def_readwrite("shoutEvery", &State::shoutEvery)
         .def_readwrite("verbose", &State::verbose)
+        .def_readonly("deviceManager", &State::devManager);
 
         ;
 
