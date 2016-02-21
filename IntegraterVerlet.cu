@@ -73,7 +73,7 @@ void IntegraterVerlet::run(int numTurns) {
     auto start = std::chrono::high_resolution_clock::now();
     for (int i=0; i<numTurns; i++) {
         if (! ((remainder + i) % periodicInterval)) {
-            state->gridGPU.periodicBoundaryConditions(rCut + padding, false);
+            state->gridGPU.periodicBoundaryConditions(rCut + padding, true);
         }
         int activeIdx = state->gpd.activeIdx;
         asyncOperations();

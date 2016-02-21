@@ -1,4 +1,5 @@
 #include "FixChargePairDSF.h"
+#include "cutils_func.h"
 // #include <cmath>
 
 //Pairwise force shifted damped Coulomb
@@ -13,7 +14,8 @@
 //     shift = erf(alpha*r_cut)/r_cut^3+2*alpha/sqrt(Pi)*exp(-alpha^2*r_cut^2)/r_cut^2
 
 
-__global__ void compute_charge_pair_DSF_cu(int nAtoms, float4 *xs, float4 *fs, int *neighborIdxs, cudaTextureObject_t neighborlist, float *qs, float alpha, float rCut,float A, float shift, BoundsGPU bounds, float oneFourStrength) {
+//    compute_cu<<<NBLOCK(nAtoms), PERBLOCK>>>(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx), neighborCounts, grid.neighborlist.ptr, grid.perBlockArray.d_data.ptr, gpd.qs(activeIdx), alpha, r_cut, A, shift, state->boundsGPU, state->devManager.prop.warpSize, 0.5);// state->devManager.prop.warpSize, sigmas.getDevData(), epsilons.getDevData(), numTypes, state->rCut, state->boundsGPU, oneFourStrength);
+__global__ void compute_charge_pair_DSF_cu(int nAtoms, float4 *xs, float4 *fs, int *neighborCounts, uint *neighborlist, int *cumulSumMaxPerBlock, float *qs, float alpha, float rCut,float A, float shift, BoundsGPU bounds, int warpSize, float oneFourStrength) {
 
     float multipliers[4] = {1, 0, 0, oneFourStrength};
     int idx = GETIDX();
@@ -24,12 +26,12 @@ __global__ void compute_charge_pair_DSF_cu(int nAtoms, float4 *xs, float4 *fs, i
         float3 forceSum = make_float3(0, 0, 0);
         float qi = qs[idx];//tex2D<float>(qs, XIDX(idx, sizeof(float)), YIDX(idx, sizeof(float)));
 
-        int start = neighborIdxs[idx];
-        int end = neighborIdxs[idx+1];
         //printf("start, end %d %d\n", start, end);
-        for (int i=start; i<end; i++) {
-
-            uint otherIdxRaw = tex2D<uint>(neighborlist, XIDX(i, sizeof(int)), YIDX(i, sizeof(int)));
+        int baseIdx = baseNeighlistIdx<void>(cumulSumMaxPerBlock, warpSize);
+        int numNeigh = neighborCounts[idx];
+        for (int i=0; i<numNeigh; i++) {
+            int nlistIdx = baseIdx + warpSize * i;
+            uint otherIdxRaw = neighborlist[nlistIdx];
             uint neighDist = otherIdxRaw >> 30;
             uint otherIdx = otherIdxRaw & EXCL_MASK;
             float3 otherPos = make_float3(xs[otherIdx]);
@@ -74,7 +76,8 @@ void FixChargePairDSF::compute() {
     GPUData &gpd = state->gpd;
     GridGPU &grid = state->gridGPU;
     int activeIdx = gpd.activeIdx;
-    int *neighborIdxs = grid.perAtomArray.d_data.ptr;
+    int *neighborCounts = grid.perAtomArray.d_data.ptr;
+    compute_charge_pair_DSF_cu<<<NBLOCK(nAtoms), PERBLOCK>>>(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx), neighborCounts, grid.neighborlist.ptr, grid.perBlockArray.d_data.ptr, gpd.qs(activeIdx), alpha, r_cut, A, shift, state->boundsGPU, state->devManager.prop.warpSize, 0.5);// state->devManager.prop.warpSize, sigmas.getDevData(), epsilons.getDevData(), numTypes, state->rCut, state->boundsGPU, oneFourStrength);
   //  compute_charge_pair_DSF_cu<<<NBLOCK(nAtoms), PERBLOCK>>>(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx), neighborIdxs, grid.neighborlist.tex, gpd.qs(activeIdx), alpha,r_cut, A,shift, state->boundsGPU, 0.5);
 
 

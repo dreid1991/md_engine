@@ -512,16 +512,7 @@ void testLJ() {
 
     cout << "last" << endl;
     IntegraterVerlet verlet = IntegraterVerlet(state);
-<<<<<<< HEAD
     cout << state->atoms[80].pos;
-<<<<<<< HEAD
-=======
-=======
-    cout << state->atoms[0].pos;
-    cout << state->atoms[1].pos << endl;
->>>>>>> opt
-    cout << "want to run " << endl;
->>>>>>> origin/opt
     verlet.run(2000);
     cout << state->atoms[0].pos << endl;
     cout << state->atoms[1].pos << endl;
