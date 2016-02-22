@@ -1,4 +1,4 @@
-FLAGS = -std=c++11 -Xcompiler -fpic -g # -Winline
+FLAGS = -std=c++11 -Xcompiler -fpic -g --fmad=true# -Winline
 CU_CC = nvcc
 DEPDIR := deps
 OBJDIR := objs
