@@ -462,6 +462,66 @@ void testBondHarmonicGridToGPU() {
 
 
 
+void hoomdBench() {
+    SHARED(State) state = SHARED(State) (new State());
+    state->shoutEvery = 100;
+    double boxLen = 55.12934875488;
+    state->bounds = Bounds(state, Vector(0, 0, 0), Vector(boxLen, boxLen, boxLen));
+    state->rCut = 3.0;
+    state->padding = 0.6;
+    state->grid = AtomGrid(state.get(), 3.6, 3.6, 3.6);
+    state->atomParams.addSpecies("handle", 1);
+    InitializeAtoms::populateRand(state, state->bounds, "handle", 6000, 0.6);
+
+    cout << "populated" << endl;
+    
+  //  state->atoms.pos[0] += Vector(0.1, 0, 0);
+
+    state->periodicInterval = 7;
+   // SHARED(Fix2d) f2d = SHARED(Fix2d) (new Fix2d(state, "2d", 1));
+  //  state->activateFix(f2d);
+    SHARED(FixLJCut) nonbond = SHARED(FixLJCut) (new FixLJCut(state, "ljcut", "all"));
+    nonbond->setParameter("sig", "handle", "handle", 1);
+    nonbond->setParameter("eps", "handle", "handle", 1);
+    state->activateFix(nonbond);
+    vector<double> intervals = {0, 1};
+    vector<double> temps = {1.2, 1.2};
+    SHARED(FixNVTRescale) thermo = SHARED(FixNVTRescale) (new FixNVTRescale(state, "thermo", "all", intervals, temps, 100));
+    //state->activateFix(thermo);
+    FILE *input = fopen("/home/daniel/Documents/hoomd_benchmarks/hoomd-benchmarks/lj-liquid/stripped.xml", "r");
+    char buf[150];
+/*
+    for (int i=0; i<64000; i++) {
+        fgets(buf, 150, input);
+        string s(buf);
+        istringstream is(s);
+        double pos[3];
+        for (int i=0; i<3; i++) {
+            is >> pos[i];
+        }
+        state->addAtom("handle", Vector(pos), 0);
+    }
+    */
+    InitializeAtoms::initTemp(state, "all", 1.2);
+    //SHARED(WriteConfig) write = SHARED(WriteConfig) (new WriteConfig(state, "test", "handley", "xml", 20));
+  //  state->activateWriteConfig(write);
+
+    IntegraterVerlet verlet = IntegraterVerlet(state);
+    verlet.run(5000);
+    cout.flush();
+    //SHARED(FixBondHarmonic) harmonic = SHARED(FixBondHarmonic) (new FixBondHarmonic(state, "harmonic"));
+    //state->activateFix(harmonic);
+    //harmonic->createBond(&state->atoms[0], &state->atoms[1], 1, 2);
+    
+    //SHARED(FixSpringStatic) springStatic = SHARED(FixSpringStatic) (new FixSpringStatic(state, "spring", "all", 1, Py_None));
+    //state->activateFix(springStatic);
+
+    //SHARED(WriteConfig) write = SHARED(WriteConfig) (new WriteConfig(state, "test", "handley", "base64", 50));
+    //state->activateWriteConfig(write);
+    //state->integrater.run(1000);
+
+}
+
 void testLJ() {
     SHARED(State) state = SHARED(State) (new State());
     int baseLen = 40;
@@ -546,7 +606,8 @@ int main(int argc, char **argv) {
     if (argc > 1) {
         int arg = atoi(argv[1]);
         if (arg==0) {
-            testLJ();
+            //testLJ();
+             hoomdBench();
             //testBondHarmonicGridToGPU();
         } else if (arg==1) {
 //             testPair();

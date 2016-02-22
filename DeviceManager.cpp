@@ -5,7 +5,7 @@
 using namespace std;
 DeviceManager::DeviceManager() {
     cudaGetDeviceCount(&nDevices);
-    setDevice(0);
+    setDevice(nDevices-1);
 }
 bool DeviceManager::setDevice(int i) {
     if (i >= 0 and i < nDevices) {

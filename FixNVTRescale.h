@@ -16,6 +16,7 @@ class FixNVTRescale : public Fix {
     public:
         bool finished;
         FixNVTRescale(SHARED(State), string handle_, string groupHandle_, boost::python::list intervals, boost::python::list temps, int applyEvery=10);
+        FixNVTRescale(SHARED(State), string handle_, string groupHandle_, vector<double> intervals, vector<double> temps, int applyEvery=10);
 
 };
 

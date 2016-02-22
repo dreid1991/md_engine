@@ -17,6 +17,16 @@ FixNVTRescale::FixNVTRescale(SHARED(State) state_, string handle_, string groupH
 
 }
 
+FixNVTRescale::FixNVTRescale(SHARED(State) state_, string handle_, string groupHandle_, vector<double> intervals_, vector<double> temps_, int applyEvery_) : Fix(state_, handle_, groupHandle_, NVTRescaleType, applyEvery_) {
+    assert(intervals.size() == temps.size());
+    intervals = intervals_;
+    temps = temps_;
+
+
+
+    
+
+}
 bool FixNVTRescale::prepareForRun() {
     return true;
 }
