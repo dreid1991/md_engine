@@ -32,7 +32,7 @@ bool FixNVTRescale::prepareForRun() {
 }
 
 void __global__ rescale(int nAtoms, uint groupTag, float4 *vs, float4 *fs, float tempSet, float *tempCurPtr) {
-    float tempCur = tempCurPtr[0] / nAtoms;
+    float tempCur = tempCurPtr[0] / nAtoms / 3.0f;
     int idx = GETIDX();
     if (idx < nAtoms) {
         uint groupTagAtom = ((uint *) (fs+idx))[3];
@@ -68,6 +68,7 @@ void FixNVTRescale::compute() {
     }
     GPUData &gpd = state->gpd;
     int activeIdx = gpd.activeIdx;
+    //NEED TO CONSIDER MASS
     sumVectorSqr3DTags<float, float4> <<<NBLOCK(nAtoms), PERBLOCK, PERBLOCK*sizeof(float)>>>(tempGPU.ptr, gpd.vs(activeIdx), nAtoms, groupTag, gpd.fs(activeIdx));
     rescale<<<NBLOCK(nAtoms), PERBLOCK>>>(nAtoms, groupTag, gpd.vs(activeIdx), gpd.fs(activeIdx), temp, tempGPU.ptr);
 }

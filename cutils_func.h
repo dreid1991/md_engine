@@ -73,7 +73,6 @@ __global__ void NAME (K *dest, T *src, int n, unsigned int groupTag, float4 *fs)
             tmp[threadIdx.x] = OPERATOR ( WRAPPER (src[blockDim.x*blockIdx.x + threadIdx.x]) ) ;\
             atomicAdd(dest+1, 1);\
         } else {\
-            printf("no");\
             tmp[threadIdx.x] = 0;\
         }\
     } else {\
