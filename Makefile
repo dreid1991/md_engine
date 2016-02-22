@@ -1,4 +1,4 @@
-FLAGS = -std=c++11 -Xcompiler -fpic -g --fmad=true# -Winline
+FLAGS = -std=c++11 -Xcompiler -fpic -g  --use_fast_math --prec-div=true# -Winline
 CU_CC = nvcc
 DEPDIR := deps
 OBJDIR := objs
