@@ -91,7 +91,7 @@ bool Bounds::isSkewed() {
 Vector Bounds::minImage(Vector v) {
     for (int i=0; i<3; i++) {
         int img = round(v[i] / trace[i]);
-        v[i] -= sides[i] * img * state->periodic[i]
+        v -= sides[i] * (state->periodic[i] * img);
     }
     return v;
 }
