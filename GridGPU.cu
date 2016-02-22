@@ -173,44 +173,7 @@ __global__ void gridNonSort(float4 *xs, float4 *xsGrid, uint *ids, uint *idsGrid
 
     }
 }
-/*
-void gridCPU(GPUArrayTexPair<float4> &xs, int activeIdx, int nAtoms, GPUArrayDevice<int> &perCellArray, GPUArrayDevice<int> &perAtomArray, float3 os, float3 ds, int3 ns) {
 
-    set<int> sortedAtoms;
-    xs.dataToHost();
-    int *gridCellArrayIdxs = perCellArray.get((int *) NULL);
-    int *idxInGridCell = perAtomArray.get((int *) NULL);
-    cudaDeviceSynchronize();
-    for (int i=0; i<nAtoms; i++) {
-        float4 posWhole = xs.h_data[i];
-        float3 pos = make_float3(posWhole);
-        if (pos.x < os.x or pos.y < os.y or pos.z < os.z or pos.x>=os.x+(ds.x*ns.x) or pos.y>=os.y+(ds.y*ns.y) or pos.z>=os.z+(ds.z*ns.z)) {
-            if (fabs(pos.x) != 0 and fabs(pos.y) != 0) {
-                cout << fabs
-                cout << "Bad position " << Vector(pos) << endl;
-            }
-        }
-        int3 sqrIdx = make_int3((pos-os)/ds);
-        int sqrLinIdx = LINEARIDX(sqrIdx, ns);
-        if (sqrLinIdx < 0 or sqrLinIdx >= perCellArray.n) {
-            cout << "bad cell array index " << sqrLinIdx << endl;
-            cout << "my pos is " << Vector(pos) << endl;
-        }
-        int sortedIdx = gridCellArrayIdxs[sqrLinIdx] + idxInGridCell[i];
-        if (sortedIdx < 0 or sortedIdx >= nAtoms) {
-            cout << "sorted index out of bounds!" << endl;
-        }
-        auto inserted = sortedAtoms.insert(sortedIdx);
-        if (!inserted.second) {
-            cout << "duplicate index!" << endl;
-        }
-
-    }
-    free(gridCellArrayIdxs);
-    free(idxInGridCell);
-
-}
-*/
 
 
 
@@ -435,13 +398,29 @@ void GridGPU::initArrays() {
     perCellArray = GPUArray<int>(prod(ns) + 1);
     perAtomArray = GPUArray<int>(state->atoms.size()+1);
     perBlockArray = GPUArray<int>(NBLOCK(state->atoms.size()) + 1); //also cumulative sum, tracking cumul. sum of max per block
+    xsLastBuild = GPUArrayDevice<float4>(state->atoms.size());
+    //in prepare for run, you make GPU grid _after_ copying xs to device
+    buildFlag = GPUArray<int>(1);
+}
+void GridGPU::initStream() {
+    cout << "initializing stream" << endl;
+    //streamCreated = true;
+    //CUCHECK(cudaStreamCreate(&rebuildCheckStream));
 }
 
+GridGPU::GridGPU() {
+    streamCreated = false;
+    //initStream();
+}
 GridGPU::GridGPU(State *state_, float3 ds_, float3 dsOrig_, float3 os_, int3 ns_) : state(state_), ds(ds_), dsOrig(dsOrig_), os(os_), ns(ns_) {
+    streamCreated = false;
     initArrays();
+    initStream();
     handleExclusions();
+    numChecksSinceLastBuild = 0;
 };
 GridGPU::GridGPU(State *state_, float dx_, float dy_, float dz_) : state(state_) {
+    streamCreated = false;
 	Vector trace = state->bounds.trace; //EEHHHHH SHOULD CHANGE TO BOUNDSGPU, but it doesn't really matter because you initialize them at the same time.  FOR NOW
 	Vector attemptDDim = Vector(dx_, dy_, dz_);
 	VectorInt nGrid = trace / attemptDDim; //so rounding to bigger grid
@@ -458,10 +437,21 @@ GridGPU::GridGPU(State *state_, float dx_, float dy_, float dz_) : state(state_)
 	}
 	dsOrig = actualDDim.asFloat3();
     initArrays();
+    initStream();
     handleExclusions();
+    numChecksSinceLastBuild = 0;
 };
+GridGPU::~GridGPU() {
+    if (streamCreated) {
+        CUCHECK(cudaStreamDestroy(rebuildCheckStream));
+    }
+}
 
+void GridGPU::copyPositionsAsync() {
 
+    state->gpd.xs.d_data[state->gpd.activeIdx].copyToDeviceArray((void *) xsLastBuild.ptr);//, rebuildCheckStream);
+
+}
 
 /*
 void printNeighborCounts(int *counts, int nAtoms) {
@@ -566,8 +556,39 @@ void setPerBlockCounts(vector<int> &neighborCounts, vector<int> &numNeighborsInB
     }
 }
 
+__global__ void setBuildFlag(float4 *xsA, float4 *xsB, int nAtoms, BoundsGPU boundsGPU, float paddingSqr, int *buildFlag, int numChecksSinceBuild) {
+    int idx = GETIDX();
+    extern __shared__ int flags_shr[];
+    if (idx < nAtoms) {
+        float3 distVector = boundsGPU.minImage(make_float3(xsA[idx] - xsB[idx]));
+        float lenSqr = lengthSqr(distVector);
+        float maxMoveRatio = fminf(0.95, (numChecksSinceBuild+1) / (float) (numChecksSinceBuild+2));
+        float maxMoveSqr = paddingSqr * maxMoveRatio * maxMoveRatio;
+        //printf("moved %f\n", sqrtf(lenSqr));
+      //  printf("max move is %f\n", maxMoveSqr);
+        flags_shr[threadIdx.x] = (int) (lenSqr > maxMoveSqr);
+    } else {
+        flags_shr[threadIdx.x] = 0;
+    }
+   __syncthreads();
+   //just took from parallel reduction in cutils_func
+    int maxLookahead = log2f(blockDim.x-1);
+    for (int i=0; i<=maxLookahead; i++) {
+        int curLookahead = powf(2, i);
+        if (! (threadIdx.x % (curLookahead*2))) {
+            flags_shr[threadIdx.x] += flags_shr[threadIdx.x + curLookahead];
+        }
+        __syncthreads();
+    }
+    if (threadIdx.x == 0) {
+        atomicAdd(buildFlag, flags_shr[0]);
+    }
+
+}
 void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort) {
     int warpSize = state->devManager.prop.warpSize;
+    
+
     //cudaDeviceSynchronize();
     //cout << "periodic!" << endl << endl << endl;
     //cout << "max excl is " << maxExclusionsPerAtom << endl;
@@ -588,141 +609,154 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort) {
     */
     float3 ds_orig = ds;
     float3 os_orig = os;
-    ds += make_float3(EPSILON, EPSILON, EPSILON); //as defined in Vector.h.  PAIN AND NUMERICAL ERROR AWAIT ALL THOSE WHO ALTER THIS LINE
+    ds += make_float3(EPSILON, EPSILON, EPSILON); //as defined in Vector.h.  PAIN AND NUMERICAL ERROR AWAIT ALL THOSE WHO ALTER THIS LINE (AND THE ONE BELOW IT)
     os -= make_float3(EPSILON, EPSILON, EPSILON);
     Vector nsV = Vector(make_float3(ns));
     int nAtoms = state->atoms.size();
-    BoundsGPU bounds = state->boundsGPU;
-    BoundsGPU boundsUnskewed = bounds.unskewed();
-    float3 trace = boundsUnskewed.trace();
     int activeIdx = state->gpd.activeIdx;
-    if (bounds.sides[0].y or bounds.sides[1].x) {
-        Mod::unskewAtoms<<<NBLOCK(nAtoms), PERBLOCK>>>(state->gpd.xs(activeIdx), nAtoms, bounds.sides[0], bounds.sides[1], bounds.lo);
-    }
-    periodicWrap<<<NBLOCK(nAtoms), PERBLOCK>>>(state->gpd.xs(activeIdx), nAtoms, boundsUnskewed);
-    //SAFECALL((periodicWrap<<<NBLOCK(nAtoms), PERBLOCK>>>(state->gpd.xs(activeIdx), nAtoms, boundsUnskewed)), "wrap");
- //   float4 *xs = state->gpd.xs.getDevData();
-    //cout << "I am here to help" << endl;
-    //printBiz<<<NBLOCK(state->atoms.size()), PERBLOCK>>>(state->gpd.xs(activeIdx), state->atoms.size());
-  //  cout << state->gpd.xs.size << endl;
-  //  cudaDeviceSynchronize();
-    //for (int i=0; i<state->atoms.size(); i++) {
-    //    cout << Vector(xs[i]) << endl;
-    //}
-    int numGridCells = prod(ns);
-    if (numGridCells + 1 != perCellArray.size) {
-        perCellArray = GPUArray<int>(numGridCells + 1);
-    }
-    perCellArray.d_data.memset(0);
-    perAtomArray.d_data.memset(0);
-  //  cudaDeviceSynchronize();
-    //SAFECALL((countNumInGridCells<<<NBLOCK(nAtoms), PERBLOCK>>>(state->gpd.xs(activeIdx), nAtoms, perCellArray.d_data.ptr, perAtomArray.d_data.ptr, os, ds, ns)), "NUM IN CELLS");
-    countNumInGridCells<<<NBLOCK(nAtoms), PERBLOCK>>>(state->gpd.xs(activeIdx), nAtoms, perCellArray.d_data.ptr, perAtomArray.d_data.ptr, os, ds, ns);
-    perCellArray.dataToHost();
+    BoundsGPU bounds = state->boundsGPU;
+    //DO ASYNC COPY TO xsLastBuild
+    //FINISH FUTURE WHICH SETS REBUILD FLAG BY NOW PLEASE
+   // CUCHECK(cudaStreamSynchronize(rebuildCheckStream));
+    setBuildFlag<<<NBLOCK(nAtoms), PERBLOCK, PERBLOCK * sizeof(int)>>>(state->gpd.xs(activeIdx), xsLastBuild.ptr, nAtoms, bounds, state->padding*state->padding, buildFlag.d_data.ptr, numChecksSinceLastBuild);
+    buildFlag.dataToHost();
     cudaDeviceSynchronize();
-    int *gridCellCounts_h = perCellArray.h_data.data();
-    
-    cumulativeSum(gridCellCounts_h, perCellArray.size);//repurposing this as starting indexes for each grid square
-    perCellArray.dataToDevice();
-    int gridIdx;
-    if (doSort) {
-        sortPerAtomArrays<<<NBLOCK(nAtoms), PERBLOCK>>>(
+    if (buildFlag.h_data[0]) {
+        //cout << "I AM BUILDING" << endl;
+        BoundsGPU boundsUnskewed = bounds.unskewed();
+        float3 trace = boundsUnskewed.trace();
+        if (bounds.sides[0].y or bounds.sides[1].x) {
+            Mod::unskewAtoms<<<NBLOCK(nAtoms), PERBLOCK>>>(state->gpd.xs(activeIdx), nAtoms, bounds.sides[0], bounds.sides[1], bounds.lo);
+        }
+        periodicWrap<<<NBLOCK(nAtoms), PERBLOCK>>>(state->gpd.xs(activeIdx), nAtoms, boundsUnskewed);
+        //SAFECALL((periodicWrap<<<NBLOCK(nAtoms), PERBLOCK>>>(state->gpd.xs(activeIdx), nAtoms, boundsUnskewed)), "wrap");
+     //   float4 *xs = state->gpd.xs.getDevData();
+        //cout << "I am here to help" << endl;
+        //printBiz<<<NBLOCK(state->atoms.size()), PERBLOCK>>>(state->gpd.xs(activeIdx), state->atoms.size());
+      //  cout << state->gpd.xs.size << endl;
+      //  cudaDeviceSynchronize();
+        //for (int i=0; i<state->atoms.size(); i++) {
+        //    cout << Vector(xs[i]) << endl;
+        //}
+        int numGridCells = prod(ns);
+        if (numGridCells + 1 != perCellArray.size) {
+            perCellArray = GPUArray<int>(numGridCells + 1);
+        }
+        perCellArray.d_data.memset(0);
+        perAtomArray.d_data.memset(0);
+      //  cudaDeviceSynchronize();
+        //SAFECALL((countNumInGridCells<<<NBLOCK(nAtoms), PERBLOCK>>>(state->gpd.xs(activeIdx), nAtoms, perCellArray.d_data.ptr, perAtomArray.d_data.ptr, os, ds, ns)), "NUM IN CELLS");
+        countNumInGridCells<<<NBLOCK(nAtoms), PERBLOCK>>>(state->gpd.xs(activeIdx), nAtoms, perCellArray.d_data.ptr, perAtomArray.d_data.ptr, os, ds, ns);
+        perCellArray.dataToHost();
+        cudaDeviceSynchronize();
+        int *gridCellCounts_h = perCellArray.h_data.data();
+        
+        cumulativeSum(gridCellCounts_h, perCellArray.size);//repurposing this as starting indexes for each grid square
+        perCellArray.dataToDevice();
+        int gridIdx;
+        if (doSort) {
+            sortPerAtomArrays<<<NBLOCK(nAtoms), PERBLOCK>>>(
 
-                state->gpd.xs(activeIdx),  
-                state->gpd.xs(!activeIdx),
+                    state->gpd.xs(activeIdx),  
+                    state->gpd.xs(!activeIdx),
 
-                state->gpd.vs(activeIdx),
-                state->gpd.vs(!activeIdx),
+                    state->gpd.vs(activeIdx),
+                    state->gpd.vs(!activeIdx),
 
-                state->gpd.fs(activeIdx),
-                state->gpd.fs(!activeIdx),
+                    state->gpd.fs(activeIdx),
+                    state->gpd.fs(!activeIdx),
 
-                state->gpd.fsLast(activeIdx),
-                state->gpd.fsLast(!activeIdx),
+                    state->gpd.fsLast(activeIdx),
+                    state->gpd.fsLast(!activeIdx),
 
-                state->gpd.ids(activeIdx),
-                state->gpd.ids(!activeIdx),
+                    state->gpd.ids(activeIdx),
+                    state->gpd.ids(!activeIdx),
 
-                state->gpd.qs(activeIdx),
-                state->gpd.qs(!activeIdx),
+                    state->gpd.qs(activeIdx),
+                    state->gpd.qs(!activeIdx),
 
-                state->gpd.idToIdxs.getSurf(),
+                    state->gpd.idToIdxs.getSurf(),
 
-                perCellArray.d_data.ptr, perAtomArray.d_data.ptr, nAtoms, os, ds, ns
-                );
-        activeIdx = state->gpd.switchIdx();
-        gridIdx = activeIdx;
-    } else { //otherwise, just use non-active xs array as grid storage
-        //gridCPU(state->gpd.xs, activeIdx, nAtoms, perCellArray, perAtomArray, os, ds, ns);
-        gridNonSort<<<NBLOCK(nAtoms), PERBLOCK>>>(state->gpd.xs(activeIdx), state->gpd.xs(!activeIdx), state->gpd.ids(activeIdx), state->gpd.ids(!activeIdx), nAtoms, perCellArray.d_data.ptr, perAtomArray.d_data.ptr, os, ds, ns);
-        gridIdx = !activeIdx;
+                    perCellArray.d_data.ptr, perAtomArray.d_data.ptr, nAtoms, os, ds, ns
+                    );
+            activeIdx = state->gpd.switchIdx();
+            gridIdx = activeIdx;
+        } else { //otherwise, just use non-active xs array as grid storage
+            //gridCPU(state->gpd.xs, activeIdx, nAtoms, perCellArray, perAtomArray, os, ds, ns);
+            gridNonSort<<<NBLOCK(nAtoms), PERBLOCK>>>(state->gpd.xs(activeIdx), state->gpd.xs(!activeIdx), state->gpd.ids(activeIdx), state->gpd.ids(!activeIdx), nAtoms, perCellArray.d_data.ptr, perAtomArray.d_data.ptr, os, ds, ns);
+            gridIdx = !activeIdx;
 
+        }
+
+        perAtomArray.d_data.memset(0);
+        //SAFECALL((countNumNeighbors<<<NBLOCK(nAtoms), PERBLOCK>>>(state->gpd.xs(gridIdx), nAtoms, state->gpd.idToIdxs.getTex(), state->gpd.ids(gridIdx), perAtomArray.d_data.ptr, perCellArray.d_data.ptr, os, ds, ns, bounds.periodic, trace, neighCut*neighCut, doSort)), "NUM NEIGH");
+        countNumNeighbors<<<NBLOCK(nAtoms), PERBLOCK>>>(state->gpd.xs(gridIdx), nAtoms, state->gpd.idToIdxs.getTex(), state->gpd.ids(gridIdx), perAtomArray.d_data.ptr, perCellArray.d_data.ptr, os, ds, ns, bounds.periodic, trace, neighCut*neighCut, doSort);//, state->gpd.nlistExclusionIdxs.getTex(), state->gpd.nlistExclusions.getTex(), state->maxExclusions);
+        perAtomArray.dataToHost();
+        cudaDeviceSynchronize();
+        
+        setPerBlockCounts(perAtomArray.h_data, perBlockArray.h_data);  //okay, now this is the start index (+1 is end index) of each atom's neighbors
+        perBlockArray.dataToDevice();
+
+        int totalNumNeighbors = perBlockArray.h_data.back() * PERBLOCK;
+        //cout << "TOTAL NUM IS " << totalNumNeighbors << endl;
+        if (totalNumNeighbors > neighborlist.n) {
+            neighborlist = GPUArrayDevice<uint>(totalNumNeighbors*1.5);
+        } else if (totalNumNeighbors < neighborlist.n * 0.5) {
+            neighborlist = GPUArrayDevice<uint>(totalNumNeighbors*0.8);
+        }
+        /*
+        SAFECALL((assignNeighbors<<<NBLOCK(nAtoms), PERBLOCK, PERBLOCK*maxExclusionsPerAtom*sizeof(uint)>>>(
+                state->gpd.xs(gridIdx), 
+                nAtoms, 
+                state->gpd.idToIdxs.getTex(), 
+                state->gpd.ids(gridIdx),
+                perAtomArray.d_data.ptr, 
+                perCellArray.d_data.ptr, 
+                perBlockArray.d_data.ptr,
+                os, ds, ns, bounds.periodic, trace, neighCut*neighCut, doSort, neighborlist.ptr, warpSize,
+                exclusionIndexes.ptr, exclusionIds.ptr, maxExclusionsPerAtom
+                
+                )), "ASSIGN");//, state->gpd.nlistExclusionIdxs.getTex(), state->gpd.nlistExclusions.getTex(), state->maxExclusions);
+
+        
+                */
+        assignNeighbors<<<NBLOCK(nAtoms), PERBLOCK, PERBLOCK*maxExclusionsPerAtom*sizeof(uint)>>>(
+                state->gpd.xs(gridIdx), 
+                nAtoms, 
+                state->gpd.idToIdxs.getTex(), 
+                state->gpd.ids(gridIdx),
+                perAtomArray.d_data.ptr, 
+                perCellArray.d_data.ptr, 
+                perBlockArray.d_data.ptr,
+                os, ds, ns, bounds.periodic, trace, neighCut*neighCut, doSort, neighborlist.ptr, warpSize,
+                exclusionIndexes.ptr, exclusionIds.ptr, maxExclusionsPerAtom
+                
+                );//, state->gpd.nlistExclusionIdxs.getTex(), state->gpd.nlistExclusions.getTex(), state->maxExclusions);
+                
+
+
+        //printNeighbors<<<NBLOCK(state->atoms.size()), PERBLOCK>>>(perAtomArray.ptr, neighborlist.tex, state->atoms.size());
+        /*
+        int *neighCounts = perAtomArray.get((int *) NULL);
+        cudaDeviceSynchronize();
+       printNeighborCounts(neighCounts, state->atoms.size());
+       free(neighCounts);
+       */
+        if (bounds.sides[0].y or bounds.sides[1].x) {
+            Mod::skewAtomsFromZero<<<NBLOCK(nAtoms), PERBLOCK>>>(state->gpd.xs(activeIdx), nAtoms, bounds.sides[0], bounds.sides[1], bounds.lo);
+        }
+        ds = ds_orig;
+        os = os_orig;
+      //  verifyNeighborlists(neighCut);
+
+        numChecksSinceLastBuild = 0; 
+        copyPositionsAsync();
+    } else {
+        //cout << "I AM NOT BUILDING" << endl;
+        numChecksSinceLastBuild++;
     }
-
-    perAtomArray.d_data.memset(0);
-    //SAFECALL((countNumNeighbors<<<NBLOCK(nAtoms), PERBLOCK>>>(state->gpd.xs(gridIdx), nAtoms, state->gpd.idToIdxs.getTex(), state->gpd.ids(gridIdx), perAtomArray.d_data.ptr, perCellArray.d_data.ptr, os, ds, ns, bounds.periodic, trace, neighCut*neighCut, doSort)), "NUM NEIGH");
-    countNumNeighbors<<<NBLOCK(nAtoms), PERBLOCK>>>(state->gpd.xs(gridIdx), nAtoms, state->gpd.idToIdxs.getTex(), state->gpd.ids(gridIdx), perAtomArray.d_data.ptr, perCellArray.d_data.ptr, os, ds, ns, bounds.periodic, trace, neighCut*neighCut, doSort);//, state->gpd.nlistExclusionIdxs.getTex(), state->gpd.nlistExclusions.getTex(), state->maxExclusions);
-    perAtomArray.dataToHost();
-    cudaDeviceSynchronize();
+    buildFlag.d_data.memset(0);
     
-    setPerBlockCounts(perAtomArray.h_data, perBlockArray.h_data);  //okay, now this is the start index (+1 is end index) of each atom's neighbors
-    perBlockArray.dataToDevice();
-
-    int totalNumNeighbors = perBlockArray.h_data.back() * PERBLOCK;
-    //cout << "TOTAL NUM IS " << totalNumNeighbors << endl;
-    if (totalNumNeighbors > neighborlist.n) {
-        neighborlist = GPUArrayDevice<uint>(totalNumNeighbors*1.5);
-    } else if (totalNumNeighbors < neighborlist.n * 0.5) {
-        neighborlist = GPUArrayDevice<uint>(totalNumNeighbors*0.8);
-    }
-    /*
-    SAFECALL((assignNeighbors<<<NBLOCK(nAtoms), PERBLOCK, PERBLOCK*maxExclusionsPerAtom*sizeof(uint)>>>(
-            state->gpd.xs(gridIdx), 
-            nAtoms, 
-            state->gpd.idToIdxs.getTex(), 
-            state->gpd.ids(gridIdx),
-            perAtomArray.d_data.ptr, 
-            perCellArray.d_data.ptr, 
-            perBlockArray.d_data.ptr,
-            os, ds, ns, bounds.periodic, trace, neighCut*neighCut, doSort, neighborlist.ptr, warpSize,
-            exclusionIndexes.ptr, exclusionIds.ptr, maxExclusionsPerAtom
-            
-            )), "ASSIGN");//, state->gpd.nlistExclusionIdxs.getTex(), state->gpd.nlistExclusions.getTex(), state->maxExclusions);
-
-    
-            */
-    assignNeighbors<<<NBLOCK(nAtoms), PERBLOCK, PERBLOCK*maxExclusionsPerAtom*sizeof(uint)>>>(
-            state->gpd.xs(gridIdx), 
-            nAtoms, 
-            state->gpd.idToIdxs.getTex(), 
-            state->gpd.ids(gridIdx),
-            perAtomArray.d_data.ptr, 
-            perCellArray.d_data.ptr, 
-            perBlockArray.d_data.ptr,
-            os, ds, ns, bounds.periodic, trace, neighCut*neighCut, doSort, neighborlist.ptr, warpSize,
-            exclusionIndexes.ptr, exclusionIds.ptr, maxExclusionsPerAtom
-            
-            );//, state->gpd.nlistExclusionIdxs.getTex(), state->gpd.nlistExclusions.getTex(), state->maxExclusions);
-            
-
-
-    //printNeighbors<<<NBLOCK(state->atoms.size()), PERBLOCK>>>(perAtomArray.ptr, neighborlist.tex, state->atoms.size());
-    /*
-    int *neighCounts = perAtomArray.get((int *) NULL);
-    cudaDeviceSynchronize();
-   printNeighborCounts(neighCounts, state->atoms.size());
-   free(neighCounts);
-   */
-    if (bounds.sides[0].y or bounds.sides[1].x) {
-        Mod::skewAtomsFromZero<<<NBLOCK(nAtoms), PERBLOCK>>>(state->gpd.xs(activeIdx), nAtoms, bounds.sides[0], bounds.sides[1], bounds.lo);
-    }
-    ds = ds_orig;
-    os = os_orig;
-  //  verifyNeighborlists(neighCut);
-
-    
-
-
 }
 
 

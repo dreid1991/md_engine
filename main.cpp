@@ -490,7 +490,7 @@ void testLJ() {
     for (int i=0; i<baseLen; i++) {
         for (int j=0; j<baseLen; j++) {
             for (int k=0; k<baseLen; k++) {
-               // state->addAtom("handle", Vector(i*mult + (rand() % 20)/40.0, j*mult + (rand() % 20)/40.0, 0), 0);
+            //    state->addAtom("handle", Vector(i*mult + (rand() % 20)/40.0, j*mult + (rand() % 20)/40.0, 0), 0);
                 state->addAtom("handle", Vector(i*mult + (rand() % 20)/40.0, j*mult + (rand() % 20)/40.0, k*mult + (rand() % 20)/40.0), 0);
             }
         }
@@ -510,9 +510,8 @@ void testLJ() {
     //SHARED(WriteConfig) write = SHARED(WriteConfig) (new WriteConfig(state, "test", "handley", "xml", 20));
   //  state->activateWriteConfig(write);
 
-    cout << "last" << endl;
     IntegraterVerlet verlet = IntegraterVerlet(state);
-    cout << state->atoms[80].pos;
+    cout << state->atoms[0].pos << endl;
     verlet.run(2000);
     cout << state->atoms[0].pos << endl;
     cout << state->atoms[1].pos << endl;

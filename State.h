@@ -142,11 +142,6 @@ class State {
 		}
         bool validAtom(Atom *);
 		bool makeReady();
-		// SEAN: maybe some typedefs could make this a little clearer
-		void setNeighborSpecialsGeneric(
-				std::function< vector<pair<int, vector<int> > > (Fix *)> processFix,
-				std::function<void (vector<int> &, vector<int> &, int) > processEnd);
-		void setNeighborlistExclusions();
 		int maxExclusions;
 		bool prepareForRun();
 		bool downloadFromRun();

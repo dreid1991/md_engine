@@ -1,7 +1,8 @@
 #include "DeviceManager.h"
 #include "boost_for_export.h"
 
-
+#include <iostream>
+using namespace std;
 DeviceManager::DeviceManager() {
     cudaGetDeviceCount(&nDevices);
     setDevice(0);
@@ -9,6 +10,7 @@ DeviceManager::DeviceManager() {
 bool DeviceManager::setDevice(int i) {
     if (i >= 0 and i < nDevices) {
         //add error handling here
+        cout << "Setting device to " << i << endl;
         cudaSetDevice(i);
         cudaGetDeviceProperties(&prop, i);
         cudaDeviceSetCacheConfig(cudaFuncCachePreferL1);

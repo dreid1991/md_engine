@@ -16,13 +16,16 @@ class State;
 class GridGPU {
     bool is2d;
     void initArrays();
+    void initStream();
     bool verifyNeighborlists(float neighCut);
-
+    bool streamCreated;
     bool checkSorting(int gridIdx, int *gridIdxs, GPUArrayDevice<int> &grid);
     public: 
         GPUArray<int> perCellArray;
         GPUArray<int> perBlockArray;
         GPUArray<int> perAtomArray; //during runtime this is the starting (+1 is ending) index for each neighbor
+        GPUArrayDevice<float4> xsLastBuild;
+        GPUArray<int> buildFlag;
         float3 ds;
         float3 dsOrig;
         float3 os;
@@ -31,7 +34,8 @@ class GridGPU {
         State *state; 
         GridGPU(State *state_, float dx, float dy, float dz);
         GridGPU(State *state_, float3 ds_, float3 dsOrig_, float3 os_, int3 ns_);
-        GridGPU() {};
+        GridGPU(); // NEED TO CREATE STREAM OR WILL BE TRYING TO DESTROY NONEXISTANT STREAM
+        ~GridGPU();
         //need set2d function
         void handleExclusions();
         void periodicBoundaryConditions(float neighCut, bool doSort);
@@ -44,5 +48,8 @@ class GridGPU {
         GPUArrayDevice<int> exclusionIndexes;
         GPUArrayDevice<uint> exclusionIds;
         int maxExclusionsPerAtom;
+        int numChecksSinceLastBuild;
+        cudaStream_t rebuildCheckStream;
+        void copyPositionsAsync();
 };
 #endif

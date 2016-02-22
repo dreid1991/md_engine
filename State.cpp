@@ -288,164 +288,6 @@ bool State::deactivateFix(SHARED(Fix) other) {
     return removeGeneric<Fix>(fixesShr, &fixes, other);
 }
 
-void State::setNeighborSpecialsGeneric(
-        std::function< vector<pair<int, vector<int> > > (Fix *)> processFix, 
-        std::function<void (vector<int> &, vector<int> &, int) > processEnd) {
-    vector<pair<int, set<int> > > exclusions;
-    int maxPerAtom = 0;
-    int nExcl = 0;
-    for (Fix *f : fixes) {
-        vector<pair<int, vector<int> > > fixExclusions = processFix(f);
-        // outer one has to be a vector b/c set elements can't be modified 
-        //f->neighborlistExclusions(); 
-        // each fix MUST return a sorted list (by id) from neighborlistExclusions
-        int exclIdx = 0;
-        for (pair<int, vector<int> > &atomExclusions : fixExclusions) {
-            int atomId = atomExclusions.first;
-            while (exclIdx < exclusions.size() and atomId > exclusions[exclIdx].first) {
-                exclIdx++;
-            }
-            if (exclIdx == exclusions.size()) {
-                pair<int, set<int> > toAdd;
-                toAdd.first = atomId;
-                toAdd.second.insert(atomExclusions.second.begin(), 
-                                    atomExclusions.second.end());
-                exclusions.push_back(toAdd);
-            } else if (atomId == exclusions[exclIdx].first) {
-                exclusions[exclIdx].second.insert(atomExclusions.second.begin(), 
-                                                  atomExclusions.second.end());
-            } else {
-                //COULD BE SLOW
-                pair<int, set<int> > toAdd;
-                toAdd.first = atomId;
-                toAdd.second.insert(atomExclusions.second.begin(), 
-                                    atomExclusions.second.end());
-                exclusions.insert(exclusions.begin() + exclIdx, toAdd);
-            }
-        }
-    }
-    
-    //exclusions are sorted by atom id by construction
-
-    //okay.  now we have them mustered.  Now let's convert to condensed list on gpu
-    /*
-    cout << "final exclusions" << endl;
-    for (pair<int, set<int> > &excl : exclusions) {
-        cout << "atom id " << excl.first << endl;
-        for (int x : excl.second) {
-            cout << x << " ";
-        }
-        cout << endl;
-    }
-    */
-    {
-        int maxId = maxIdExisting;
-        vector<int> idxs;
-        vector<int> excls;
-        idxs.reserve(maxId + 1); 
-        idxs.push_back(0);
-
-        int workingId = 0;
-        for (pair<int, set<int> > &atomExclusions : exclusions) {
-            int atomId = atomExclusions.first;
-            while (workingId < atomId) {
-                idxs.push_back(idxs.back()); //filling in blanks
-                workingId++;
-            }
-            maxPerAtom = fmax(maxPerAtom, atomExclusions.second.size());
-            excls.insert(excls.end(), atomExclusions.second.begin(), 
-                                      atomExclusions.second.end());
-            idxs.push_back(idxs.back() + atomExclusions.second.size());
-            workingId++;
-        }
-        processEnd(idxs, excls, maxPerAtom);
-        /*
-        gpd.nlistExclusions.set(excls);
-        gpd.nlistExclusionIdxs.set(idxs);
-
-        gpd.nlistExclusions.dataToDevice();
-        gpd.nlistExclusionIdxs.dataToDevice();
-        */
-
-    }
-}
-
-void State::setNeighborlistExclusions() {
-    /*
-    maxExclusions = 0;
-    auto processFix = [this] (Fix *f) {
-        return f->neighborlistExclusions();
-    };
-    auto processEnd = [this] (vector<int> &idxs, vector<int> &excls, int maxPerAtom) {
-        maxExclusions = maxPerAtom;
-        gpd.nlistExclusions.set(excls);
-        gpd.nlistExclusionIdxs.set(idxs);
-
-        gpd.nlistExclusions.dataToDevice();
-        gpd.nlistExclusionIdxs.dataToDevice();
-    };
-    setNeighborSpecialsGeneric(processFix, processEnd);
-    vector<pair<int, set<int> > > exclusions;
-    int maxPerAtom = 0;
-    int nExcl = 0;
-    for (Fix *f : fixes) {
-        vector<pair<int, vector<int> > > fixExclusions = processFix(f);
-        // outer one has to be a vector b/c set elements can't be modified 
-        //f->neighborlistExclusions(); 
-        //i each fix MUST return a sorted list (by id) from neighborlistExclusions
-        int exclIdx = 0;
-        for (pair<int, vector<int> > &atomExclusions : fixExclusions) {
-            int atomId = atomExclusions.first;
-            while (exclIdx < exclusions.size() and atomId > exclusions[exclIdx].first) {
-                exclIdx++;
-            }
-            if (exclIdx == exclusions.size()) {
-                pair<int, set<int> > toAdd;
-                toAdd.first = atomId;
-                toAdd.second.insert(atomExclusions.second.begin(), 
-                                    atomExclusions.second.end());
-                exclusions.push_back(toAdd);
-            } else if (atomId == exclusions[exclIdx].first) {
-                exclusions[exclIdx].second.insert(atomExclusions.second.begin(), 
-                                                  atomExclusions.second.end());
-            } else {
-                //COULD BE SLOW
-                pair<int, set<int> > toAdd;
-                toAdd.first = atomId;
-                toAdd.second.insert(atomExclusions.second.begin(), 
-                                    atomExclusions.second.end());
-                exclusions.insert(exclusions.begin() + exclIdx, toAdd);
-            }
-        }
-    }
-    
-    //exclusions are sorted by atom id by construction
-    //okay.  now we have them mustered.  Now let's convert to condensed list on gpu
-    {
-        int maxId = maxIdExisting;
-        vector<int> idxs;
-        vector<int> excls;
-        idxs.reserve(maxId + 1); 
-        idxs.push_back(0);
-
-        int workingId = 0;
-        for (pair<int, set<int> > &atomExclusions : exclusions) {
-            int atomId = atomExclusions.first;
-            while (workingId < atomId) {
-                idxs.push_back(idxs.back()); //filling in blanks
-                workingId++;
-            }
-            maxPerAtom = fmax(maxPerAtom, atomExclusions.second.size());
-            excls.insert(excls.end(), atomExclusions.second.begin(), 
-                                      atomExclusions.second.end());
-            idxs.push_back(idxs.back() + atomExclusions.second.size());
-
-            workingId++;
-        }
-        processEnd(idxs, excls);
-    }
-    */
-}
 
 bool State::prepareForRun() {
     int nAtoms = atoms.size();
@@ -481,7 +323,7 @@ bool State::prepareForRun() {
     vector<int> id_vec = LISTMAPREF(Atom, int, a, atoms, a.id);
     vector<int> idToIdxs_vec;
     int size = *max_element(id_vec.begin(), id_vec.end()) + 1;
-    //so... wanna keep ids tightly packed.  That'll be managed by program, not user
+    //so... wanna keep ids tightly packed.  That's managed by program, not user
     idToIdxs_vec.reserve(size);
     for (int i=0; i<size; i++) {
         idToIdxs_vec.push_back(-1);
@@ -499,7 +341,6 @@ bool State::prepareForRun() {
     gpd.fsLastBuffer = GPUArray<float4>(nAtoms);
     gpd.idsBuffer = GPUArray<uint>(nAtoms);
 
-    //setNeighborlistExclusions();
     return true;
 }
 

@@ -94,6 +94,9 @@ class GPUArrayDevice {
         void copyToDeviceArray(void *dest) {
             CUCHECK(cudaMemcpy(dest, ptr, n*sizeof(T), cudaMemcpyDeviceToDevice));
         }
+        void copyToDeviceArrayAsync(void *dest, cudaStream_t stream) {
+            CUCHECK(cudaMemcpyAsync(dest, ptr, n*sizeof(T), cudaMemcpyDeviceToDevice, stream));
+        }
         void memset(T val) {
             CUCHECK(cudaMemset(ptr, val, n*sizeof(T)));
         }
