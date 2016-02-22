@@ -88,6 +88,7 @@ class Bounds : public BoundsGeneric {
 		Bounds unskewed();
         bool isSkewed();	
         bool isSet;
+        Vector minImage(Vector v);
 };
 
 //SHARED(Bounds) BoundsCreateSkew(  figure out how to create laters

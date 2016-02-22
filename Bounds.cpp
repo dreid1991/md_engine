@@ -88,12 +88,20 @@ bool Bounds::isSkewed() {
     }
     return false;
 }
+Vector Bounds::minImage(Vector v) {
+    for (int i=0; i<3; i++) {
+        int img = round(v[i] / trace[i]);
+        v[i] -= sides[i] * img * state->periodic[i]
+    }
+    return v;
+}
 void export_Bounds() {
     class_<Bounds, SHARED(Bounds) >("Bounds", init<SHARED(State), Vector, Vector>(args("state", "lo", "hi")))
         .def("copy", &Bounds::copy)
         .def("set", &Bounds::setPython)
         .def("getSide", &Bounds::getSide)
         .def("setSide", &Bounds::setSide)
+        .def("minImage", &Bounds::minImage)
         .def_readwrite("lo", &Bounds::lo)
         .def_readwrite("hi", &Bounds::hi)
         .def_readwrite("trace", &Bounds::trace)
