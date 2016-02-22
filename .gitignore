@@ -11,6 +11,6 @@ deps/*.d
 deps/*.Td
 python/test/*xml
 python/test/*png
-*xml
+./*xml
 # Emacs backups:
 *~
