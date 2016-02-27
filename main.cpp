@@ -14,6 +14,7 @@
 #include  "IntegraterVerlet.h"
 #include  "IntegraterRelax.h"
 #include  "IntegraterLangevin.h"
+#include "FixDihedralOPLS.h"
 #include "FixChargePairDSF.h"
 #include "WriteConfig.h"
 #include "ReadConfig.h"
@@ -522,6 +523,55 @@ void hoomdBench() {
 
 }
 
+void testDihedral() {
+    SHARED(State) state = SHARED(State) (new State());
+    int baseLen = 40;
+    state->shoutEvery = 100;
+    double mult = 1.5;
+    state->bounds = Bounds(state, Vector(0, 0, 0), Vector(mult*baseLen, mult*baseLen, mult*baseLen));
+    state->rCut = 2.5;
+    state->padding = 0.5;
+    state->grid = AtomGrid(state.get(), 3.5, 3.5, 3);
+    state->atomParams.addSpecies("handle", 2);
+
+    state->addAtom("handle", Vector(0, 2, 0), 0);
+    state->addAtom("handle", Vector(1, 1, 0), 0);
+
+    state->addAtom("handle", Vector(2, 1, 0), 0);
+    state->addAtom("handle", Vector(3, 1, 1), 0);
+    
+  //  state->atoms.pos[0] += Vector(0.1, 0, 0);
+
+    state->periodicInterval = 9;
+   // SHARED(Fix2d) f2d = SHARED(Fix2d) (new Fix2d(state, "2d", 1));
+  //  state->activateFix(f2d);
+    SHARED(FixLJCut) nonbond = SHARED(FixLJCut) (new FixLJCut(state, "ljcut", "all"));
+    nonbond->setParameter("sig", "handle", "handle", 1);
+    nonbond->setParameter("eps", "handle", "handle", 1);
+    state->activateFix(nonbond);
+
+    //SHARED(WriteConfig) write = SHARED(WriteConfig) (new WriteConfig(state, "test", "handley", "xml", 20));
+  //  state->activateWriteConfig(write);
+    SHARED(FixDihedralOPLS) dihed = SHARED(FixDihedralOPLS) (new FixDihedralOPLS(state, "dihedral"));
+    state->activateFix(dihed);
+    vector<Atom> &atoms = state->atoms;
+    dihed->createDihedral(&atoms[0], &atoms[1], &atoms[2], &atoms[3], 1, 1, 1, 1);
+    IntegraterVerlet verlet = IntegraterVerlet(state);
+    verlet.run(1);
+    cout.flush();
+    //SHARED(FixBondHarmonic) harmonic = SHARED(FixBondHarmonic) (new FixBondHarmonic(state, "harmonic"));
+    //state->activateFix(harmonic);
+    //harmonic->createBond(&state->atoms[0], &state->atoms[1], 1, 2);
+    
+    //SHARED(FixSpringStatic) springStatic = SHARED(FixSpringStatic) (new FixSpringStatic(state, "spring", "all", 1, Py_None));
+    //state->activateFix(springStatic);
+
+    //SHARED(WriteConfig) write = SHARED(WriteConfig) (new WriteConfig(state, "test", "handley", "base64", 50));
+    //state->activateWriteConfig(write);
+    //state->integrater.run(1000);
+
+}
+
 void testLJ() {
     SHARED(State) state = SHARED(State) (new State());
     int baseLen = 40;
@@ -606,8 +656,9 @@ int main(int argc, char **argv) {
     if (argc > 1) {
         int arg = atoi(argv[1]);
         if (arg==0) {
-            //testLJ();
-             hoomdBench();
+            testDihedral();
+    //        testLJ();
+            // hoomdBench();
             //testBondHarmonicGridToGPU();
         } else if (arg==1) {
 //             testPair();

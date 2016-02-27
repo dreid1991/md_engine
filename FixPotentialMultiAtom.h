@@ -5,7 +5,7 @@
 #include "GPUArrayDevice.h"
 #include "State.h"
 #include "Fix.h"
-#include "FixHelpers.h"
+//#include "FixHelpers.h"
 using namespace std;
 //FixDihedralOPLS::FixDihedralOPLS(SHARED(State) state_, string handle) : Fix(state_, handle, string("None"), dihedralOPLSType, 1), dihedralsGPU(1), dihedralIdxs(1)  {
 template <class CPUMember, class GPUMember, int N>

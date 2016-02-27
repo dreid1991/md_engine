@@ -1,5 +1,6 @@
 #include "helpers.h"
 #include "FixDihedralOPLS.h"
+#include "FixHelpers.h"
 #include "cutils_func.h"
 __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureObject_t idToIdxs, DihedralOPLSGPU *dihedrals, int *startstops, BoundsGPU bounds) {
     int idx = GETIDX();
@@ -8,7 +9,7 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
     int idxEndCopy = startstops[min(nAtoms, blockDim.x*(blockIdx.x+1))];
     copyToShared<DihedralOPLSGPU>(dihedrals + idxBeginCopy, dihedrals_shr, idxEndCopy - idxBeginCopy);
     __syncthreads();
-    if (idx < nAtoms) {
+    if (idx == 0) { //HEY - THIS SHOULD BE < nAtoms
   //      printf("going to compute %d\n", idx);
         int startIdx = startstops[idx];
         int endIdx = startstops[idx+1];
@@ -22,6 +23,7 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
             int idxSelf = tex2D<int>(idToIdxs, XIDX(idSelf, sizeof(int)), YIDX(idSelf, sizeof(int)));
         
             float3 pos = make_float3(xs[idxSelf]);
+            printf("I am idx %d and I am evaluating atom with pos %f %f %f\n", idx, pos.x, pos.y, pos.z);
             float3 forceSum = make_float3(0, 0, 0);
             for (int i=0; i<n; i++) {
                 DihedralOPLSGPU dihedral = dihedrals_shr[shr_idx + i];
@@ -59,22 +61,29 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
                 directors[0] = positions[0] - positions[1];
                 directors[1] = positions[2] - positions[1];
                 directors[2] = positions[3] - positions[2];
-
                 for (int i=0; i<3; i++) {
+                    printf("directors %d is %f %f %f\n", i, directors[i].x, directors[i].y, directors[i].z);
                     lenSqrs[i] = lengthSqr(directors[i]);
                     lens[i] = sqrtf(lenSqrs[i]);
                     invLenSqrs[i] = 1.0f / lenSqrs[i];
                     invLens[i] = 1.0f / lens[i];
+                    printf("inv len sqrs %d is %f\n", i, invLenSqrs[i]);
                 }
 
 
                 float c0 = dot(directors[0], directors[2]) * invLens[0] * invLens[2];
+                printf("c0 is %f\n", c0);
                 float c12Mags[2];
                 float invMagProds[2]; //r12c1, 2 in lammps
                 for (int i=0; i<2; i++) {
                     float dotProd = dot(directors[i+1], directors[i]);
+                    if (i==1) {
+                        dotProd *= -1;
+                    }
+                    printf("ctmp is %f\n", dotProd);
                     invMagProds[i] = invLens[i] * invLens[i+1];
                     c12Mags[i] = dotProd * invMagProds[i]; //lammps variable names are opaque
+                    printf("c12 mag %d %f\n", i, c12Mags[i]);
                 }
 
                 float scValues[3]; //???, is s1, s2, s12 in lammps
@@ -85,24 +94,27 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
                 }
                 scValues[2] = scValues[0] * scValues[1];
 
+
                 for (int i=0; i<2; i++) {
                     scValues[i] *= scValues[i]; 
                 }
+                printf("sc values %f %f %f\n", scValues[0], scValues[1], scValues[2]);
                 float c = (c0 + c12Mags[0]*c12Mags[1]) * scValues[2];
 
                 float3 cVector;
                 cVector.x = directors[0].y*directors[1].z - directors[0].z*directors[1].y;
                 cVector.y = directors[0].z*directors[1].x - directors[0].x*directors[1].z;
                 cVector.z = directors[0].x*directors[1].y - directors[0].y*directors[1].x;
-
                 float cVectorLen = length(cVector);
                 float dx = dot(cVector, directors[2]) * invLens[2] / cVectorLen;
+                printf("c is %f\n", c);
                 if (c > 1.0f) {
                     c = 1.0f;
                 } else if (c < -1.0f) {
                     c = -1.0f;
                 }
                 float phi = acosf(c);
+                printf("phi is %f\n", phi);
                 if (dx < 0) {
                     phi = -phi;
                 }

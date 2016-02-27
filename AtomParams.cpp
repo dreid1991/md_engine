@@ -1,6 +1,6 @@
 #include "AtomParams.h"
 #include "State.h"
-int AtomParams::addSpecies(string handle, double mass) {
+int AtomParams::addSpecies(string handle, double mass, double atomicNum) {
     //this is wrapped by state b/c fixes may need to update to accomodate more atom types
     if (find(handles.begin(), handles.end(), handle) != handles.end()) {
         return -1;
@@ -9,6 +9,7 @@ int AtomParams::addSpecies(string handle, double mass) {
 	int id = numTypes;
 	numTypes ++;
 	masses.push_back(mass);
+    atomicNums.push_back(atomicNum);
 	return id;
 }
 

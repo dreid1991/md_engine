@@ -26,11 +26,12 @@ class AtomParams {
 		AtomParams(State *s) : state(s), numTypes(0) {};
 		vector<string> handles;
 		vector<double> masses;
+        vector<double> atomicNums; //for xyz in vmd, etc
         int typeFromHandle(string handle);
 		int numTypes;
 
 
-		int addSpecies(string handle, double mass);
+		int addSpecies(string handle, double mass, double atomicNum=6);
 		void clear();
 };
 
