@@ -30,7 +30,7 @@ int AtomParams::typeFromHandle(string handle) {
 
 void export_AtomParams() {
     class_<AtomParams >("AtomParams")
-        .def("addSpecies", &AtomParams::addSpecies, (python::arg("handle"), python::arg("mass")) )
+        .def("addSpecies", &AtomParams::addSpecies, (python::arg("handle"), python::arg("mass"), python::arg("atomicNum")=0) )
         .def_readwrite("masses", &AtomParams::masses)
         .def_readonly("handles", &AtomParams::handles)
         .def_readonly("numTypes", &AtomParams::numTypes)
