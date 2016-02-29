@@ -26,7 +26,7 @@ fixNVT = FixNVTRescale(state, 'temp', 'all', [0, 1], [1.2, 1.2], 1000)
 state.activateFix(fixNVT)
 
 integVerlet = IntegraterVerlet(state)
-integVerlet.run(200)
+integVerlet.run(50)
 sumV = 0.
 for a in state.atoms:
     sumV += a.vel.lenSqr()

@@ -150,6 +150,9 @@ void Integrater::basicFinish() {
     }
     cudaDeviceSynchronize();
     state->downloadFromRun();
+    for (Fix *f : state->fixes) {
+        f->postRun();
+    }
 
 }
 void Integrater::setActiveData() {

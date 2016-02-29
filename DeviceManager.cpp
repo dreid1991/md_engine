@@ -10,7 +10,6 @@ DeviceManager::DeviceManager() {
 bool DeviceManager::setDevice(int i) {
     if (i >= 0 and i < nDevices) {
         //add error handling here
-        cout << "Setting device to " << i << endl;
         cudaSetDevice(i);
         cudaGetDeviceProperties(&prop, i);
         cudaDeviceSetCacheConfig(cudaFuncCachePreferL1);

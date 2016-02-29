@@ -70,6 +70,7 @@ bool FixNVTRescale::prepareForRun() {
 
 void __global__ rescale(int nAtoms, uint groupTag, float4 *vs, float4 *fs, float tempSet, float *tempCurPtr) {
     float tempCur = tempCurPtr[0] / tempCurPtr[1] / 3.0f; //1th entry is #in group
+    printf("temp cur %f\n", tempCur);
     int idx = GETIDX();
     if (idx < nAtoms) {
         uint groupTagAtom = ((uint *) (fs+idx))[3];
@@ -125,7 +126,7 @@ void FixNVTRescale::compute() {
     GPUData &gpd = state->gpd;
     int activeIdx = gpd.activeIdx;
     if (usingBounds) {
-
+        cout << "using bounds" << endl;
         sumKeInBounds<<<NBLOCK(nAtoms), PERBLOCK, PERBLOCK*sizeof(float)>>>(tempGPU.ptr, gpd.vs(activeIdx), nAtoms, groupTag, gpd.fs(activeIdx), boundsGPU);
         rescaleInBounds<<<NBLOCK(nAtoms), PERBLOCK>>>(nAtoms, groupTag, gpd.xs(activeIdx), gpd.vs(activeIdx), gpd.fs(activeIdx), temp, tempGPU.ptr, boundsGPU);
     } else {
