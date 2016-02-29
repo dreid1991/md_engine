@@ -282,6 +282,10 @@ bool State::activateWriteConfig(SHARED(WriteConfig) other) {
 
 
 bool State::activateFix(SHARED(Fix) other) {
+    if (other->state != this) {
+        cout << "Trying to add fix with handle " << other->handle << ", but fix was initialized with a different State" << endl;
+    }
+    assert(other->state == this);
     return addGeneric<Fix>(fixesShr, &fixes, other);
 }
 bool State::deactivateFix(SHARED(Fix) other) {

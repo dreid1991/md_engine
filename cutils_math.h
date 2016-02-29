@@ -75,6 +75,9 @@ inline float rsqrtf(float x)
 }
 #endif
 
+inline __host__ __device__ float cu_abs(float x) {
+    return x > 0 ? x : -x;
+}
 ////////////////////////////////////////////////////////////////////////////////
 // constructors
 ////////////////////////////////////////////////////////////////////////////////
@@ -439,6 +442,10 @@ inline __host__ __device__ float4 operator+(float b, float4 a)
 inline __host__ __device__ float4 operator+(float4 a, float3 b)
 {
     return make_float4(a.x + b.x, a.y + b.y, a.z + b.z, a.w);
+}
+inline __host__ __device__ float4 operator-(float4 a, float3 b)
+{
+    return make_float4(a.x - b.x, a.y - b.y, a.z - b.z, a.w);
 }
 inline __host__ __device__ float4 operator+(float3 a, float4 b)
 {
@@ -1213,6 +1220,11 @@ inline __host__ __device__ float lengthSqr(float3 v)
 inline __host__ __device__ float lengthSqr(float4 v)
 {
     return dot(v, v);
+}
+inline __host__ __device__ float lengthSqrOverW(float4 v) 
+{
+    float3 v3 = make_float3(v);
+    return dot(v3, v3) / v.w;
 }
 ////////////////////////////////////////////////////////////////////////////////
 // normalize

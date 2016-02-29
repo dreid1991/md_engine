@@ -93,4 +93,8 @@ __global__ void NAME (K *dest, T *src, int n, unsigned int groupTag, float4 *fs)
 }\
 
 SUM_TAGS(sumVectorSqr3DTags, lengthSqr, make_float3);
+SUM_TAGS(sumVectorSqr3DTagsOverW, lengthSqrOverW, ); // for temperature
+
+
+
 #endif

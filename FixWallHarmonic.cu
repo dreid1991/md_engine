@@ -16,9 +16,16 @@ void __global__ compute_cu(float4 *xs, int nAtoms, float4 *fs, float3 origin, fl
             float3 pos = make_float3(posWhole);
             float3 particleDist = pos - origin;
             float projection = dot(particleDist, forceDir);
-            if (projection > 0 and projection <= dist) {
-                float3 force = forceDir * ((dist - projection) * k);
-                fs[idx] += force;
+            float magProj = cu_abs(projection);
+            if (magProj <= dist) {
+                float3 force = forceDir * ((dist - magProj) * k);
+                float4 f = fs[idx];
+                if (projection >= 0) {
+                    f = f + force;
+                } else {
+                    f = f - force;
+                }
+                fs[idx] = f;
             }
         }
 

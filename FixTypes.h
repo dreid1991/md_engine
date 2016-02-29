@@ -20,5 +20,6 @@ extern const string scaleBoxType;
 extern const string skewBoxType;
 extern const string wallHarmonicType;
 extern const string chargePairDSF;
+extern const string improperHarmonicType;
 extern const vector<string> FORCERTYPES;
 #endif
