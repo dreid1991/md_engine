@@ -10,7 +10,7 @@
 void export_WriteConfig();
 
 class WriteConfig {
-	void (*writeFormat)(State *, char [FN_LEN]);	
+	void (*writeFormat)(State *, string, int, bool);	
 	public:
 		State *state;
 		string fn;
@@ -18,10 +18,12 @@ class WriteConfig {
 		string format;
 		int writeEvery;
 		int turnInit;
-		void write();
-		char fnFinal[FN_LEN];
+		void write(int turn);
 		void finish();
         int orderPreference; //just there so I can use same functions as fix for adding/removing
+        bool oneFilePerWrite;
+        string getCurrentFn(int turn);
+
 		WriteConfig(SHARED(State), string fn, string handle, string format, int writeEvery);
         ~WriteConfig() {
             finish();

@@ -14,6 +14,7 @@ bool DeviceManager::setDevice(int i) {
         cudaGetDeviceProperties(&prop, i);
         cudaDeviceSetCacheConfig(cudaFuncCachePreferL1);
         currentDevice = i;
+        cout << "Switching to device " << prop.name << endl;
         return true;
     }
     return false;

@@ -3,6 +3,7 @@ sys.path.append('../python')
 from Sim import *
 
 state = State()
+state.deviceManager.setDevice(0)
 state.bounds = Bounds(state, lo = Vector(0, 0, 0), hi = Vector(55.12934875488, 55.12934875488, 55.12934875488))
 state.rCut = 3.0
 state.padding = 0.6
@@ -26,7 +27,7 @@ fixNVT = FixNVTRescale(state, 'temp', 'all', [0, 1], [1.2, 1.2], 1000)
 state.activateFix(fixNVT)
 
 integVerlet = IntegraterVerlet(state)
-integVerlet.run(50)
+integVerlet.run(30)
 sumV = 0.
 for a in state.atoms:
     sumV += a.vel.lenSqr()

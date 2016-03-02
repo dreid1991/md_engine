@@ -573,6 +573,7 @@ void testDihedral() {
 
 void testLJ() {
     SHARED(State) state = SHARED(State) (new State());
+    state->devManager.setDevice(0);
     int baseLen = 40;
     state->shoutEvery = 100;
     double mult = 1.5;
@@ -656,8 +657,8 @@ int main(int argc, char **argv) {
         int arg = atoi(argv[1]);
         if (arg==0) {
             //testDihedral();
-            testWallHarmonic();
-    //        testLJ();
+           // testWallHarmonic();
+             testLJ();
             // hoomdBench();
             //testBondHarmonicGridToGPU();
         } else if (arg==1) {

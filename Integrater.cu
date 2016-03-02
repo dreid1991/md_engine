@@ -50,7 +50,7 @@ void Integrater::asyncOperations() {
         state->devManager.setDevice(state->devManager.currentDevice);
         for (SHARED(WriteConfig) wc : state->writeConfigs) {
             if (not ((ts - wc->turnInit) % wc->writeEvery)) {
-                wc->write();
+                wc->write(ts);
             }
         }
         for (SHARED(DataSet) ds : state->data.userSets) {
@@ -101,6 +101,10 @@ __global__ void printFloats(float4 *xs, int n) {
 
 
 void Integrater::basicPreRunChecks() {
+    if (state->devManager.prop.major < 3) {
+        cout << "Device compute capability must be >= 3.0. Quitting" << endl;
+        assert(state->devManager.prop.major >= 3);
+    }
     if (not state->grid.isSet) {
         cout << "Atom grid is not set!" << endl;
         assert(state->grid.isSet);
