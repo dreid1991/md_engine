@@ -118,6 +118,32 @@ void writeXMLfileBase64(State *state, string fnFinal, int turn, bool oneFilePerW
 
 
 void writeXYZFile(State *state, string fn, int turn, bool oneFilePerWrite) {
+    vector<Atom> &atoms = state->atoms;
+    AtomParams &params = state->atomParams;
+    bool useAtomicNums = true;
+    for (int atomicNum : params.atomicNums) {
+        if (atomicNum == -1) {
+            useAtomicNums = false;
+        }
+    }
+    ofstream outFile;
+    if (oneFilePerWrite) {
+        outFile.open(fn.c_str(), ofstream::out);
+    } else {
+        outFile.open(fn.c_str(), ofstream::app);
+    }
+    outFile << atoms.size() << endl << endl;
+    for (Atom &a : atoms) {
+        int atomicNum;
+        if (useAtomicNums) {
+            atomicNum = params.atomicNums[a.type];
+        } else {
+            atomicNum = a.type;
+        }
+        outFile << atomicNum << " " << a.pos[0] << " " << a.pos[1] << " " << a.pos[2] << endl;
+    }
+    outFile << endl;
+    outFile.close();
 }
 
 void writeXMLfile(State *state, string fnFinal, int turn, bool oneFilePerWrite) {
@@ -222,10 +248,13 @@ string WriteConfig::getCurrentFn(int turn) {
     }
 
     if (oneFilePerWrite) {
-        string writeTo = string(buffer);
-        const char *asCStr = writeTo.c_str();
-        sprintf(buffer, asCStr, turn);
-        return string(buffer);
+        string asStr = string(buffer);
+        string turnStr = to_string(turn);
+        size_t pos = asStr.find("*");
+        assert(pos != string::npos);
+        string finalFn = asStr.substr(0, pos) + turnStr + asStr.substr(pos+1, asStr.size());
+        return finalFn;
+
 
 
     }
@@ -235,27 +264,31 @@ string WriteConfig::getCurrentFn(int turn) {
 WriteConfig::WriteConfig(SHARED(State) state_, string fn_, string handle_, string format_, int writeEvery_) : state(state_.get()), fn(fn_), handle(handle_), format(format_), writeEvery(writeEvery_), turnInit(state->turn) {
     if (format == "base64") {
         writeFormat = &writeXMLfileBase64;
+        isXML = true;
     } else if (format == "xyz") {
         writeFormat = &writeXYZFile;
+        isXML = false;
     } else {
         writeFormat = &writeXMLfile;
+        isXML = true;
     }
 
-    if (fn.find("\%d") != string::npos) {
+    if (fn.find("*") != string::npos) {
         oneFilePerWrite = true;
     } else {
         oneFilePerWrite = false;
         string fn = getCurrentFn(0);
         unlink(fn.c_str());
-
-        ofstream outFile;
-        outFile.open(fn.c_str(), ofstream::app);
-        outFile << "<data>\n";
+        if (isXML) {
+            ofstream outFile;
+            outFile.open(fn.c_str(), ofstream::app);
+            outFile << "<data>\n";
+        }
     }
 }
 
 void WriteConfig::finish() {
-    if ((format == "base64" or format == "xml") and not oneFilePerWrite) {
+    if (isXML and not oneFilePerWrite) {
         ofstream outFile;
         outFile.open(getCurrentFn(0), ofstream::app);
         outFile << "</data>";

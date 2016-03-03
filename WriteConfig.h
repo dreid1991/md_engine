@@ -18,6 +18,7 @@ class WriteConfig {
 		string format;
 		int writeEvery;
 		int turnInit;
+        bool isXML;
 		void write(int turn);
 		void finish();
         int orderPreference; //just there so I can use same functions as fix for adding/removing

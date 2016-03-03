@@ -403,7 +403,7 @@ void GridGPU::initArrays() {
     buildFlag = GPUArray<int>(1);
 }
 void GridGPU::initStream() {
-    cout << "initializing stream" << endl;
+    //cout << "initializing stream" << endl;
     //streamCreated = true;
     //CUCHECK(cudaStreamCreate(&rebuildCheckStream));
 }

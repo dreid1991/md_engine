@@ -47,7 +47,7 @@ void Integrater::asyncOperations() {
     int turn = state->turn;
     auto dataAndWrite = [this] (int ts) { //well, if I try to use a local state pointer, this segfaults.  Need to capture this instead.  Little confused
         //have to set device in each thread
-        state->devManager.setDevice(state->devManager.currentDevice);
+        state->devManager.setDevice(state->devManager.currentDevice, false);
         for (SHARED(WriteConfig) wc : state->writeConfigs) {
             if (not ((ts - wc->turnInit) % wc->writeEvery)) {
                 wc->write(ts);
