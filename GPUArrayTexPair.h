@@ -30,7 +30,6 @@ class GPUArrayTexPair : public GPUArrayBasePair, public GPUArrayTexBase {
             for (int i=0; i<2; i++) {
                 d_data[i] = GPUArrayTexDevice<T>(desc_);
             }
-            size = 0;
         }
         GPUArrayTexPair(vector<T> vals, cudaChannelFormatDesc desc_) {
             for (int i=0; i<2; i++) {

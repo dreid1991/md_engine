@@ -11,7 +11,7 @@ using namespace std;
 class GPUArrayBase {
     public:
         /*! \brief Constructor */
-        GPUArrayBase(){};
+        GPUArrayBase() : size(0) {};
 
         /*! \brief Send data from host to GPU device */
         virtual void dataToDevice(){};

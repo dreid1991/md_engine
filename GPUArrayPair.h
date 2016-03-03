@@ -37,7 +37,6 @@ class GPUArrayPair : public GPUArrayBasePair {
         vector<T> h_data;
         GPUArrayDevice<T> d_data[2];
         GPUArrayPair() : GPUArrayBasePair() {
-            size = 0;
         }
         GPUArrayPair(vector<T> &vals) {
             set(vals);

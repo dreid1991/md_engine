@@ -28,7 +28,6 @@ class GPUArrayTex : public GPUArrayBase, public GPUArrayTexBase {
         GPUArrayTex() {
         }
         GPUArrayTex(cudaChannelFormatDesc desc_) : d_data(desc_) {
-            size = 0;
         }
         GPUArrayTex(vector<T> vals, cudaChannelFormatDesc desc_) : d_data(vals.size(), desc_) {
             set(vals);

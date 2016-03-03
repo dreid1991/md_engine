@@ -37,7 +37,6 @@ class GPUArray : public GPUArrayBase {
         vector<T> h_data;
         GPUArray() {
             h_data = vector<T>();
-            size = 0;
         }
         GPUArray(int size_) {
             T fillVal = T();
