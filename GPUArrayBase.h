@@ -9,10 +9,11 @@ using namespace std;
  * \brief Base class for a GPUArray
  */
 class GPUArrayBase {
-    public:
+    protected:
         /*! \brief Constructor */
         GPUArrayBase() : size(0) {};
 
+    public:
         /*! \brief Send data from host to GPU device */
         virtual void dataToDevice(){};
 
@@ -21,4 +22,5 @@ class GPUArrayBase {
 
         int size; //!< Size of the array
 };
+
 #endif
