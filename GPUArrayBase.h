@@ -15,10 +15,10 @@ class GPUArrayBase {
 
     public:
         /*! \brief Send data from host to GPU device */
-        virtual void dataToDevice(){};
+        virtual void dataToDevice() = 0;
 
         /*! \brief Send data from GPU device to host */
-        virtual void dataToHost(){};
+        virtual void dataToHost() = 0;
 
         int size; //!< Size of the array
 };
