@@ -24,11 +24,6 @@ class GPUArray : public GPUArrayBase {
     void setHost(vector<T> &vals) {
         h_data = vals;
     }
-    void setHostCanFit(vector<T> &vals) {
-
-        memcpy(h_data.data(), vals.data(), sizeof(T) * vals.size());
-        //okay... may be some excess on host, device.  can deal with later if problem
-    }
     public:
 
         GPUArrayDevice<T> d_data;
@@ -50,7 +45,7 @@ class GPUArray : public GPUArrayBase {
 
         bool set(vector<T> &other) {
             if (other.size() < size()) {
-                setHostCanFit(other);
+                setHost(other);
                 return true;
             } else {
                 d_data = GPUArrayDevice<T>(other.size());
