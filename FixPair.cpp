@@ -11,8 +11,8 @@ void FixPair::prepareParameters(GPUArray<float> &array, std::function<float (flo
 void FixPair::ensureParamSize(GPUArray<float> &array) {
 
     int desiredSize = state->atomParams.numTypes;
-    if (array.size != desiredSize*desiredSize) {
-        vector<float> newVals = SquareVector::copyToSize(array.h_data, sqrt((double) array.size), state->atomParams.numTypes);
+    if (array.size() != desiredSize*desiredSize) {
+        vector<float> newVals = SquareVector::copyToSize(array.h_data, sqrt((double) array.size()), state->atomParams.numTypes);
         array.set(newVals);
     }
 }

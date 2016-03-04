@@ -639,7 +639,7 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort) {
         //    cout << Vector(xs[i]) << endl;
         //}
         int numGridCells = prod(ns);
-        if (numGridCells + 1 != perCellArray.size) {
+        if (numGridCells + 1 != perCellArray.size()) {
             perCellArray = GPUArray<int>(numGridCells + 1);
         }
         perCellArray.d_data.memset(0);
@@ -651,7 +651,7 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort) {
         cudaDeviceSynchronize();
         int *gridCellCounts_h = perCellArray.h_data.data();
         
-        cumulativeSum(gridCellCounts_h, perCellArray.size);//repurposing this as starting indexes for each grid square
+        cumulativeSum(gridCellCounts_h, perCellArray.size());//repurposing this as starting indexes for each grid square
         perCellArray.dataToDevice();
         int gridIdx;
         if (doSort) {

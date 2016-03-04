@@ -25,12 +25,10 @@ class GPUArrayPair : public GPUArrayBasePair {
 
     void setHost(vector<T> &vals) {
         h_data = vals;
-        size = vals.size();
     }
     void setHostCanFit(vector<T> &vals) {
 
         memcpy(h_data.data(), vals.data(), sizeof(T) * vals.size());
-        size = vals.size();
         //okay... may be some excess on host, device.  can deal with later if problem
     }
     public:
@@ -54,7 +52,7 @@ class GPUArrayPair : public GPUArrayBasePair {
             return getDevData(activeIdx);
         }
         bool set(vector<T> &other) {
-            if (other.size() < size) {
+            if (other.size() < size()) {
                 setHostCanFit(other);
                 return true;
             } else {
@@ -66,21 +64,24 @@ class GPUArrayPair : public GPUArrayBasePair {
             return false;
 
         }
+
+        int size() const { return h_data.size(); }
+
         T *operator ()(int n) {
             return getDevData(n);
         }
         void dataToDevice() {
-            CUCHECK(cudaMemcpy(d_data[activeIdx].ptr, h_data.data(), size*sizeof(T), cudaMemcpyHostToDevice ));
+            CUCHECK(cudaMemcpy(d_data[activeIdx].ptr, h_data.data(), size()*sizeof(T), cudaMemcpyHostToDevice ));
 
         }
         void dataToHost() {
             dataToHost(activeIdx);
         }      
         void dataToHost(int idx) {
-            CUCHECK(cudaMemcpy(h_data.data(), d_data[idx].ptr, size*sizeof(T), cudaMemcpyDeviceToHost));
+            CUCHECK(cudaMemcpy(h_data.data(), d_data[idx].ptr, size()*sizeof(T), cudaMemcpyDeviceToHost));
         }      
         void copyToDeviceArray(void *dest) {
-            CUCHECK(cudaMemcpy(dest, d_data[activeIdx].ptr, size*sizeof(T), cudaMemcpyDeviceToDevice));
+            CUCHECK(cudaMemcpy(dest, d_data[activeIdx].ptr, size()*sizeof(T), cudaMemcpyDeviceToDevice));
         }
         void memsetByVal(T val, int idx) {
             d_data[idx].memsetByVal(val);

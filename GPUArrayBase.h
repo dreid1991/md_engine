@@ -11,7 +11,7 @@ using namespace std;
 class GPUArrayBase {
     protected:
         /*! \brief Constructor */
-        GPUArrayBase() : size(0) {};
+        GPUArrayBase() {};
 
     public:
         /*! \brief Send data from host to GPU device */
@@ -20,7 +20,13 @@ class GPUArrayBase {
         /*! \brief Send data from GPU device to host */
         virtual void dataToHost() = 0;
 
-        int size; //!< Size of the array
+        /*! \brief Return number of elements of array
+         *
+         * This function returns the number of elements in the array. Note,
+         * that this is not the size in bytes. For this, use size()*sizeof(T),
+         * where T is the class used in the GPUArray.
+         */
+        virtual int size() const = 0;
 };
 
 #endif

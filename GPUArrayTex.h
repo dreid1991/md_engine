@@ -33,8 +33,7 @@ class GPUArrayTex : public GPUArrayBase, public GPUArrayTexBase {
             set(vals);
         }
         bool set(vector<T> &other) {
-            size = other.size();
-            d_data.resize(size);
+            d_data.resize(other.size());
             h_data = other;
             h_data.reserve(d_data.capacity);
             return true;
@@ -45,6 +44,9 @@ class GPUArrayTex : public GPUArrayBase, public GPUArrayTexBase {
         void dataToHost() {
             d_data.get(h_data.data());
         }
+
+        int size() const { return h_data.size(); }
+
         void ensureSize() {
             d_data.resize(h_data.size());
         }
@@ -52,7 +54,7 @@ class GPUArrayTex : public GPUArrayBase, public GPUArrayTexBase {
             d_data.getAsync(h_data.data(), stream);
         }
         void copyToDeviceArray(void *dest) { //DEST HAD BETTER BE ALLOCATED
-            int numBytes = size * sizeof(T);
+            int numBytes = size() * sizeof(T);
             copyToDeviceArrayInternal(dest, d_data.d_data, numBytes);
 
         }
