@@ -1,10 +1,6 @@
 #ifndef GPUARRAYBASE_H
 #define GPUARRAYBASE_H
 
-#include <vector>
-
-using namespace std;
-
 /*! \class GPUArrayBase
  * \brief Base class for a GPUArray
  */
