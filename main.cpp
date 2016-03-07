@@ -199,7 +199,7 @@ void test_charge_ewald() {
 
     //charge
     SHARED(FixChargeEwald) charge (new FixChargeEwald(state, "charge","all"));
-    charge->setParameters(64,2.0,3);
+    charge->setParameters(64,1.0,3);
 //     charge->setParameters(32,3.0);
     
     state->atoms[0].q=1.0;
@@ -650,15 +650,8 @@ int main(int argc, char **argv) {
     if (argc > 1) {
         int arg = atoi(argv[1]);
         if (arg==0) {
-<<<<<<< HEAD
-            //testLJ();
-             hoomdBench();
-=======
-            //testDihedral();
-           // testWallHarmonic();
              testLJ();
             // hoomdBench();
->>>>>>> e04a122579e4d4725abebe206ce87ab41ce426cc
             //testBondHarmonicGridToGPU();
         } else if (arg==1) {
 //             testPair();

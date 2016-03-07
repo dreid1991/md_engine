@@ -312,8 +312,7 @@ __global__ void compute_short_range_forces_cu(int nAtoms, float4 *xs, float4 *fs
 
                 float r2inv = 1.0f/lenSqr;
                 float rinv = 1.0f/len;                                   //1/Sqrt(Pi)
-                float forceScalar = qi*qj*(erfcf((alpha*len))*rinv+(2.0*0.5641895835477563*alpha)*exp(-alpha*alpha*lenSqr))*r2inv;
-                //* multiplier;//TODO should it be here?
+                float forceScalar = qi*qj*(erfcf((alpha*len))*rinv+(2.0*0.5641895835477563*alpha)*exp(-alpha*alpha*lenSqr))*r2inv* multiplier;
 
                 
                 float3 forceVec = dr * forceScalar;
@@ -357,7 +356,7 @@ void FixChargeEwald::setParameters(int szx_,int szy_,int szz_,float rcut_,int in
         cout<<szz_<" is not supported, sorry. Only 2^N grid size works for charge Ewald\n";
     }
     sz=make_int3(szx_,szy_,szz_);
-    r_cut=2.0;
+    r_cut=rcut_;
     cudaMalloc((void**)&FFT_Qs, sizeof(cufftComplex)*sz.x*sz.y*sz.z);
 
     cufftPlan3d(&plan, sz.x,sz.y, sz.z, CUFFT_C2C);
