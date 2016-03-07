@@ -14,7 +14,6 @@
 #include  "IntegraterVerlet.h"
 #include  "IntegraterRelax.h"
 #include  "IntegraterLangevin.h"
-#include "FixDihedralOPLS.h"
 #include "FixChargePairDSF.h"
 #include "WriteConfig.h"
 #include "ReadConfig.h"
@@ -185,6 +184,49 @@ void testPair() {
     ofs.close();
 }
 
+
+void test_charge_ewald() {
+    SHARED(State) state = SHARED(State) (new State());
+    state->shoutEvery = 1000;
+    int L = 20.0;
+
+    state->bounds = Bounds(state, Vector(0, 0, 0), Vector(L,L,L));
+    state->rCut = 5.0;
+    state->grid = AtomGrid(state.get(), L,L,L);
+    state->atomParams.addSpecies("handle", 2);
+    state->addAtom("handle",Vector(0.5*L, 0.5*L, 0.5*L), 0);
+    state->addAtom("handle",Vector(0.75*L, 0.5*L, 0.5*L), 0);
+
+    //charge
+    SHARED(FixChargeEwald) charge (new FixChargeEwald(state, "charge","all"));
+    charge->setParameters(64,2.0,3);
+//     charge->setParameters(32,3.0);
+    
+    state->atoms[0].q=1.0;
+    state->atoms[1].q=-1.0;
+    state->activateFix(charge);
+
+    
+    state->dt=0.0001;  
+    IntegraterVerlet integrater(state);
+//     charge->compute();
+    integrater.run(1);     
+
+    ofstream ofs;
+    ofs.open("test_pair.dat",ios::out );
+    for (int i=0;i<1000-10;i++){
+	state->atoms[0].pos[0]=0.5*L+i*0.25*L/1000.0;
+	state->atoms[0].vel[0]=0.0;
+	state->atoms[1].pos[0]=0.75*L;
+	state->atoms[1].vel[0]=0.0;
+	integrater.run(1);     
+// 	cout<<state->atoms[0].pos[0]<<' '<<state->atoms[1].pos[0]<<' '<<state->atoms[0].force[0]<<' '<<state->atoms[1].force[0]<<'\n';
+	ofs<<state->atoms[0].pos[0]<<' '<<state->atoms[1].pos[0]<<' '<<state->atoms[0].force[0]<<' '<<state->atoms[1].force[0]<<'\n';
+    }
+    ofs.close();
+}
+
+
 void testRead() {
     SHARED(State) state = SHARED(State) (new State());
     state->readConfig->loadFile("test.xml");
@@ -230,34 +272,38 @@ void testWallHarmonic() {
     state->rCut = 3.5;
     state->grid = AtomGrid(state.get(), 4, 4, 3);
     state->atomParams.addSpecies("handle", 2);
+    state->atomParams.addSpecies("other", 2);
     state->is2d = true;
     state->periodic[2] = false;
     
-    for (int i=0; i<100; i++) {
-        double x = 3 + 0.1*i;
-        state->addAtom("handle", Vector(x, (double) i / 2.0, 0), 0);
-        state->atoms.back().vel = Vector(1, 0, 0);
-    }
+
+    state->addAtom("handle", Vector(8, 1, 0), 0);
+    state->atoms[0].vel = Vector(-1, 0, 0);
     state->periodicInterval = 9;
     SHARED(Fix2d) f2d = SHARED(Fix2d) (new Fix2d(state, "2d", 1));
     state->activateFix(f2d);
     SHARED(FixLJCut) nonbond = SHARED(FixLJCut) (new FixLJCut(state, "ljcut", "all"));
-    nonbond->setParameter("sig", "handle", "handle", 0.3);
-    nonbond->setParameter("eps", "handle", "handle", 0.3);
+    nonbond->setParameter("sig", "handle", "handle", 1);
+    nonbond->setParameter("eps", "handle", "handle", 1);
+    nonbond->setParameter("sig", "other", "other", 1);
+    nonbond->setParameter("eps", "other", "other", 1);
     state->activateFix(nonbond);
     cout << "last" << endl;
     cout << state->atoms[0].id<< endl;
-    SHARED(FixWallHarmonic) wall (new FixWallHarmonic(state, "wally", "all", Vector(12, 0, 0), Vector(1, 0, 0), 3, -3));
+    SHARED(FixWallHarmonic) wall (new FixWallHarmonic(state, "wally", "all", Vector(4, 0, 0), Vector(1, 1, 0), 3, 10));
     state->activateFix(wall);
-    vector<double> intervals = {0, 1};
-    vector<double> temps = {0.25, 0.25};
-    SHARED(Bounds) b = SHARED(Bounds) (new Bounds(state, Vector(9, 0, 0), Vector(15, 50, 50)));
-    SHARED(FixNVTRescale) thermo = SHARED(FixNVTRescale) (new FixNVTRescale(state, "thermo", "all", intervals, temps, 50, b));
-    state->activateFix(thermo);
+    state->createGroup("sub");
+    //SHARED(FixBondHarmonic) harmonic = SHARED(FixBondHarmonic) (new FixBondHarmonic(state, "harmonic"));
+    //state->activateFix(harmonic);
+    //harmonic->createBond(&state->atoms[0], &state->atoms[1], 1, 2);
+    
+    //SHARED(FixSpringStatic) springStatic = SHARED(FixSpringStatic) (new FixSpringStatic(state, "spring", "all", 1, Py_None));
+    //state->activateFix(springStatic);
+
     SHARED(WriteConfig) write = SHARED(WriteConfig) (new WriteConfig(state, "test", "handley", "base64", 50));
-    IntegraterVerlet integ = IntegraterVerlet(state);
-    state->activateWriteConfig(write);
-    integ.run(6000);
+    //state->activateWriteConfig(write);
+    //state->integrater.run(200);
+    InitializeAtoms::populateRand(state, state->bounds, "handle", 200, 1.1);
     cout << "here" << endl;
     //state->integrater.run(2000);
 
@@ -519,58 +565,6 @@ void hoomdBench() {
 
 }
 
-
-
-
-void testDihedral() {
-    SHARED(State) state = SHARED(State) (new State());
-    int baseLen = 40;
-    state->shoutEvery = 100;
-    double mult = 1.5;
-    state->bounds = Bounds(state, Vector(0, 0, 0), Vector(mult*baseLen, mult*baseLen, mult*baseLen));
-    state->rCut = 2.5;
-    state->padding = 0.5;
-    state->grid = AtomGrid(state.get(), 3.5, 3.5, 3);
-    state->atomParams.addSpecies("handle", 2);
-
-    state->addAtom("handle", Vector(0, 2, 0), 0);
-    state->addAtom("handle", Vector(1, 1, 0), 0);
-
-    state->addAtom("handle", Vector(2, 1, 0), 0);
-    state->addAtom("handle", Vector(3, 1, 1), 0);
-    
-  //  state->atoms.pos[0] += Vector(0.1, 0, 0);
-
-    state->periodicInterval = 9;
-   // SHARED(Fix2d) f2d = SHARED(Fix2d) (new Fix2d(state, "2d", 1));
-  //  state->activateFix(f2d);
-    SHARED(FixLJCut) nonbond = SHARED(FixLJCut) (new FixLJCut(state, "ljcut", "all"));
-    nonbond->setParameter("sig", "handle", "handle", 1);
-    nonbond->setParameter("eps", "handle", "handle", 1);
-    state->activateFix(nonbond);
-
-    //SHARED(WriteConfig) write = SHARED(WriteConfig) (new WriteConfig(state, "test", "handley", "xml", 20));
-  //  state->activateWriteConfig(write);
-    SHARED(FixDihedralOPLS) dihed = SHARED(FixDihedralOPLS) (new FixDihedralOPLS(state, "dihedral"));
-    state->activateFix(dihed);
-    vector<Atom> &atoms = state->atoms;
-    dihed->createDihedral(&atoms[0], &atoms[1], &atoms[2], &atoms[3], 1, 1, 1, 1);
-    IntegraterVerlet verlet = IntegraterVerlet(state);
-    verlet.run(1);
-    cout.flush();
-    //SHARED(FixBondHarmonic) harmonic = SHARED(FixBondHarmonic) (new FixBondHarmonic(state, "harmonic"));
-    //state->activateFix(harmonic);
-    //harmonic->createBond(&state->atoms[0], &state->atoms[1], 1, 2);
-    
-    //SHARED(FixSpringStatic) springStatic = SHARED(FixSpringStatic) (new FixSpringStatic(state, "spring", "all", 1, Py_None));
-    //state->activateFix(springStatic);
-
-    //SHARED(WriteConfig) write = SHARED(WriteConfig) (new WriteConfig(state, "test", "handley", "base64", 50));
-    //state->activateWriteConfig(write);
-    //state->integrater.run(1000);
-
-}
-
 void testLJ() {
     SHARED(State) state = SHARED(State) (new State());
     int baseLen = 40;
@@ -655,14 +649,13 @@ int main(int argc, char **argv) {
     if (argc > 1) {
         int arg = atoi(argv[1]);
         if (arg==0) {
-            //testDihedral();
-            testWallHarmonic();
-    //        testLJ();
-            // hoomdBench();
+            //testLJ();
+             hoomdBench();
             //testBondHarmonicGridToGPU();
         } else if (arg==1) {
 //             testPair();
-            testFire();
+//             testFire();
+	    test_charge_ewald();
         } else if (arg==2) {
             testBondHarmonicGrid();
             //sean put your test stuff here

@@ -7,4 +7,5 @@
 #include "FixWallHarmonic.h"
 #include "FixCharge.h"
 #include "FixChargePairDSF.h"
+#include "FixChargeEwald.h"
 
