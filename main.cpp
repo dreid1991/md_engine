@@ -567,6 +567,7 @@ void hoomdBench() {
 
 void testLJ() {
     SHARED(State) state = SHARED(State) (new State());
+    state->devManager.setDevice(0);
     int baseLen = 40;
     state->shoutEvery = 100;
     double mult = 1.5;
@@ -649,8 +650,15 @@ int main(int argc, char **argv) {
     if (argc > 1) {
         int arg = atoi(argv[1]);
         if (arg==0) {
+<<<<<<< HEAD
             //testLJ();
              hoomdBench();
+=======
+            //testDihedral();
+           // testWallHarmonic();
+             testLJ();
+            // hoomdBench();
+>>>>>>> e04a122579e4d4725abebe206ce87ab41ce426cc
             //testBondHarmonicGridToGPU();
         } else if (arg==1) {
 //             testPair();

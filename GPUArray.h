@@ -23,13 +23,6 @@ template <class T>
 class GPUArray : public GPUArrayBase {
     void setHost(vector<T> &vals) {
         h_data = vals;
-        size = vals.size();
-    }
-    void setHostCanFit(vector<T> &vals) {
-
-        memcpy(h_data.data(), vals.data(), sizeof(T) * vals.size());
-        size = vals.size();
-        //okay... may be some excess on host, device.  can deal with later if problem
     }
     public:
 
@@ -37,13 +30,10 @@ class GPUArray : public GPUArrayBase {
         vector<T> h_data;
         GPUArray() {
             h_data = vector<T>();
-            size = 0;
         }
         GPUArray(int size_) {
-            T fillVal = T();
-            size = size_;
-            h_data = vector<T>(size, fillVal);
-            d_data = GPUArrayDevice<T>(size);
+            h_data = vector<T>(size_, T());
+            d_data = GPUArrayDevice<T>(size_);
 
         }
         GPUArray(vector<T> &vals) {
@@ -54,8 +44,8 @@ class GPUArray : public GPUArrayBase {
         }
 
         bool set(vector<T> &other) {
-            if (other.size() < size) {
-                setHostCanFit(other);
+            if (other.size() < size()) {
+                setHost(other);
                 return true;
             } else {
                 d_data = GPUArrayDevice<T>(other.size());
@@ -64,9 +54,12 @@ class GPUArray : public GPUArrayBase {
             return false;
 
         }
+
+        int size() const { return h_data.size(); }
+
         void ensureSize() {
             if (h_data.size() > d_data.n) { 
-                d_data = GPUArrayDevice<T>(h_data.size());
+                d_data = GPUArrayDevice<T>(size());
             }
         }
         void dataToDevice() {

@@ -3,13 +3,14 @@ sys.path.append('../python')
 from Sim import *
 
 state = State()
+state.deviceManager.setDevice(1)
 state.bounds = Bounds(state, lo = Vector(0, 0, 0), hi = Vector(55.12934875488, 55.12934875488, 55.12934875488))
 state.rCut = 3.0
 state.padding = 0.6
 state.periodicInterval = 7
 
 state.grid = AtomGrid(state, 3.6, 3.6, 3.6)
-state.atomParams.addSpecies('spc1', 1)
+state.atomParams.addSpecies(handle='spc1', mass=1, atomicNum=1)
 nonbond = FixLJCut(state, 'cut', 'all')
 nonbond.setParameter('sig', 'spc1', 'spc1', 1)
 nonbond.setParameter('eps', 'spc1', 'spc1', 1)
@@ -26,7 +27,10 @@ fixNVT = FixNVTRescale(state, 'temp', 'all', [0, 1], [1.2, 1.2], 1000)
 state.activateFix(fixNVT)
 
 integVerlet = IntegraterVerlet(state)
-integVerlet.run(50)
+
+writeconfig = WriteConfig(state, fn='test_*_out', writeEvery=1000, format='xyz', handle='writer')
+state.activateWriteConfig(writeconfig)
+integVerlet.run(3000)
 sumV = 0.
 for a in state.atoms:
     sumV += a.vel.lenSqr()
