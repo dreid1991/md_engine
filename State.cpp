@@ -344,6 +344,7 @@ bool State::prepareForRun() {
     gpd.fsBuffer = GPUArray<float4>(nAtoms);
     gpd.fsLastBuffer = GPUArray<float4>(nAtoms);
     gpd.idsBuffer = GPUArray<uint>(nAtoms);
+    gpd.perParticleEng = GPUArray<float>(nAtoms);
 
     return true;
 }

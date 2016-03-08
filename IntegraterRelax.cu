@@ -1,5 +1,6 @@
 #include "IntegraterRelax.h"
 #include "cutils_func.h"
+#include "State.h"
 
 
 IntegraterRelax::IntegraterRelax(SHARED(State) state_) : Integrater(state_.get(), IntRelaxType) {
@@ -238,7 +239,7 @@ double IntegraterRelax::run(int numTurns, num fTol) {
 }
 
 void export_IntegraterRelax() {
-    class_<IntegraterRelax, SHARED(IntegraterRelax), bases<Integrater> > ("IntegraterRelax", init<SHARED(State)>())
+    class_<IntegraterRelax, SHARED(IntegraterRelax), bases<Integrater>, boost::noncopyable > ("IntegraterRelax", init<SHARED(State)>())
         .def("run", &IntegraterRelax::run)
         .def("set_params", &IntegraterRelax::set_params,(python::arg("alphaInit"),python::arg("alphaShrink"),python::arg("dtGrow"),python::arg("dtShrink"),python::arg("delay"),python::arg("dtMax_mult")))
         ;

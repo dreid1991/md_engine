@@ -7,9 +7,9 @@
 #include "GPUArray.h"
 #include "GPUArrayTex.h"
 #include "boost_for_export.h"
+#include <future>
 void export_Integrater();
 class State;
-using namespace std;
 
 
 extern const string IntVerletType;
@@ -23,11 +23,13 @@ class Integrater {
         //virtual void postForce(uint);
         virtual void data();
         void asyncOperations();
-        vector<GPUArrayBase *> activeData;
+        std::vector<GPUArrayBase *> activeData;
         void basicPreRunChecks();
         void basicPrepare(int);
         void basicFinish();
         void setActiveData();
+        void doDataCollection();
+        std::future<void> dataGather;
         public:
                 string type;
                 State *state;
@@ -47,5 +49,4 @@ class Integrater {
 };
 
 
-#include "State.h"
 #endif

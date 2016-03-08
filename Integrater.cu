@@ -42,7 +42,11 @@ void Integrater::data() {
     */
 
 }
-
+void Integrator::doDataCollection() {
+    if ((state->turn % state->dataManager.dataInterval) == 0) {
+        state->dataManager.collectData();
+    }
+}
 void Integrater::asyncOperations() {
     int turn = state->turn;
     auto dataAndWrite = [this] (int ts) { //well, if I try to use a local state pointer, this segfaults.  Need to capture this instead.  Little confused
@@ -168,7 +172,7 @@ Integrater::Integrater(State *state_, string type_) : state(state_), type(type_)
 }
 
 void export_Integrater() {
-    class_<Integrater> ("Integrater")
+    class_<Integrater, boost::noncopyable> ("Integrater")
         //.def("run", &Integrater::run)
         ;
 }

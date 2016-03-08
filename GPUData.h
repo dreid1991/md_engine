@@ -22,6 +22,8 @@ class GPUData {
         GPUArray<float4> fsLastBuffer;
         GPUArray<uint> idsBuffer;
 
+        GPUArray<float> perParticleEng;
+
     //OMG REMEMBER TO ADD EACH NEW ARRAY TO THE ACTIVE DATA LIST IN INTEGRATER OR PAIN AWAITS
 
         GPUData() : idToIdxs(cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindSigned)), activeIdx(0) {

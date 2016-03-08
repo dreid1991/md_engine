@@ -1,42 +1,43 @@
 #include "DataManager.h"
 #include "State.h"
 DataManager::DataManager(State * state_) : state(state_) {
-    //eng = DataSetAvg(state, "eng", 1, state->dataIntervalStd);
-   // vol = DataSetVol(state, "vol", state->dataIntervalStd);
-   // press = DataSetPress(state, "press", 1, state->dataIntervalStd);
-   // sets.push_back((DataSet *) &eng);
-   // sets.push_back((DataSet *) &vol);
-   // sets.push_back((DataSet *) &press);
 
 	
 }
-/*
-//HEY, YOU'LL HAVE TO MANUALLY CHANGE accumulateEvery IF YOU'RE USING FUNKY TIMESTEPS ON FORCING THINGS
-SHARED(DataSet) DataManager::createVol(string handle, int processEvery) {
-	SHARED(DataSet) set ((DataSet *) new DataSetVol(state, handle, processEvery));
-	setMap[handle] = set;
-	sets.push_back(set);
-	return set;
-}
 
-SHARED(DataSet) DataManager::createAvg(string handle, int accumulateEvery, int processEvery) {
-	SHARED(DataSet) set ((DataSet *) new DataSetAvg(state, handle, accumulateEvery, processEvery));
-	setMap[handle] = set;
-	sets.push_back(set);
-	return set;
-}
 
-SHARED(DataSet) DataManager::createPress(string handle, int accumulateEvery, int processEvery) {
-	SHARED(DataSet) set ((DataSet *) new DataSetPress(state, handle, accumulateEvery, processEvery));
-	setMap[handle] = set;
-	sets.push_back(set);
-	return set;
-}
-*/
 SHARED(DataSet) DataManager::createPython(string handle, int processEvery, PyObject *py) {
 	SHARED(DataSet) set ((DataSet *) new DataSetPython(state, handle, processEvery, py));
 	userSets.push_back(set);
 	return set;
+}
+
+bool DataManager::recordEng(string groupHandle) {
+    uint groupTag = state->groupTagFromHandle(groupHandle); //will assert false if handle doesn't exist
+    if (find(activeEngTags.begin(), activeEngTags.end(), groupTag) == activeEngTags.end()) {
+        activeEngTags.push_back(groupTag);
+        activeEngHandles.push_back(groupHandle);
+        if (engData.find(groupHandle) == engData.end()) {
+            engData[groupHandle] = vector<DataPoint>();
+        }
+
+        return true;
+    }
+    return false;
+}
+bool DataManager::stopRecordEng(string groupHandle) {
+    uint groupTag = state->groupTagFromHandle(groupHandle); //will assert false if handle doesn't exist
+    auto it = find(activeEngTags.begin(), activeEngTags.end(), groupTag);
+    if (it != activeEngTags.end()) {
+        int idx = it - activeEngTags.begin();
+        activeEngTags.erase(activeEngTags.begin()+idx, activeEngTags.begin()+idx+1);
+        activeEngHandles.erase(activeEngHandles.begin()+idx, activeEngHandles.begin()+idx+1);
+        return true;
+    }
+    return false;
+}
+//called by integrater
+void DataManager::collectData() {
 }
 
 
