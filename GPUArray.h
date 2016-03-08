@@ -32,9 +32,7 @@ public:
      *
      * Constructor creating empty host CPU data vector.
      */
-    GPUArray() {
-        h_data = vector<T>();
-    }
+    GPUArray() {}
 
     /*! \brief Constructor
      *
@@ -43,11 +41,8 @@ public:
      * Constructor creating empty arrays of the specified size on the CPU
      * and the GPU.
      */
-    GPUArray(int size_) {
-        h_data = vector<T>(size_, T());
-        d_data = GPUArrayDevice<T>(size_);
-
-    }
+    GPUArray(int size_)
+        : h_data(vector<T>(size_,T())), d_data(GPUArrayDevice<T>(size_)) {}
 
     /*! \brief Constructor
      *
