@@ -69,7 +69,7 @@ class State {
 		Bounds bounds;
 		vector<Fix *> fixes;
 		vector<SHARED(Fix)> fixesShr;
-		DataManager data;
+		DataManager dataManager;
 		vector<SHARED(WriteConfig) > writeConfigs;
 		map<string, unsigned int> groupTags;
 		bool is2d;

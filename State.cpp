@@ -41,7 +41,7 @@ State::State() {
 	verbose = true;
 	initData();
     readConfig = SHARED(ReadConfig) (new ReadConfig(this));
-    data = DataManager(this);
+    dataManager = DataManager(this);
     atomParams = AtomParams(this);
 }
 
@@ -643,7 +643,7 @@ void export_State() {
         .def_readwrite("rCut", &State::rCut)
         .def_readwrite("padding", &State::padding)
         .def_readonly("groupTags", &State::groupTags)
-        .def_readonly("data", &State::data)
+        .def_readonly("dataManager", &State::dataManager)
         //shared ptrs
         .def_readwrite("grid", &State::grid)
         .def_readwrite("bounds", &State::bounds)

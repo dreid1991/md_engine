@@ -650,12 +650,9 @@ int main(int argc, char **argv) {
     if (argc > 1) {
         int arg = atoi(argv[1]);
         if (arg==0) {
-<<<<<<< HEAD
     //        testDihedral();
             testLJ();
-=======
-             testLJ();
->>>>>>> 0570198cf9798fab500fea1cc3ac4f14aac2cf5d
+            // testLJ();
             // hoomdBench();
             //testBondHarmonicGridToGPU();
         } else if (arg==1) {

@@ -42,7 +42,7 @@ void Integrater::data() {
     */
 
 }
-void Integrator::doDataCollection() {
+void Integrater::doDataCollection() {
     if ((state->turn % state->dataManager.dataInterval) == 0) {
         state->dataManager.collectData();
     }
@@ -57,7 +57,7 @@ void Integrater::asyncOperations() {
                 wc->write(ts);
             }
         }
-        for (SHARED(DataSet) ds : state->data.userSets) {
+        for (SHARED(DataSet) ds : state->dataManager.userSets) {
             if (not ((ts - ds->turnInit) % ds->computeEvery)) {
                 ds->process(ts);
             }
@@ -71,7 +71,7 @@ void Integrater::asyncOperations() {
 		}
     }
     if (not needAsync) {
-        for (SHARED(DataSet) ds : state->data.userSets) {
+        for (SHARED(DataSet) ds : state->dataManager.userSets) {
             if (not ((turn - ds->turnInit) % ds->computeEvery)) {
                 needAsync = true;
                 break;
