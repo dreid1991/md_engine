@@ -10,6 +10,9 @@ class GPUArrayBase {
         GPUArrayBase() {};
 
     public:
+        /*! \brief Destructor */
+        virtual ~GPUArrayBase() {};
+
         /*! \brief Send data from host to GPU device */
         virtual void dataToDevice() = 0;
 
