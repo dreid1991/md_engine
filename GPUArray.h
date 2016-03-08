@@ -24,7 +24,7 @@ using namespace std;
  * GPU array stores data on the host CPU and the GPU device and is able to
  * move the data from the CPU to the GPU and back again.
  */
-template <class T>
+template <typename T>
 class GPUArray : public GPUArrayBase {
     /*! \brief Set the host data
      *
