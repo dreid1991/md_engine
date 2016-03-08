@@ -42,7 +42,7 @@ BOOST_PYTHON_MODULE(Sim) {
     export_FixSpringStatic();
     export_FixLJCut(); //make there be a pair base class in boost!
     export_Fix2d();
-
+    
     export_FixCharge();
     export_FixChargePairDSF();
     
@@ -60,6 +60,7 @@ BOOST_PYTHON_MODULE(Sim) {
         
 
     export_State(); 	
+    export_DeviceManager();
 
     /*
 	class_<ModPythonWrap> ("Mod")

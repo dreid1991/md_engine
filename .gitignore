@@ -11,6 +11,9 @@ deps/*.d
 deps/*.Td
 python/test/*xml
 python/test/*png
+benchmark/*xyz
 ./*xml
 # Emacs backups:
 *~
+# Documentation:
+doc/

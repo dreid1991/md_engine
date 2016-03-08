@@ -25,7 +25,7 @@ PYTHON_VERSION=2.7
 PYTHON_INC=/usr/include/python$(PYTHON_VERSION)
 
 main: $(C_OBJS) $(CU_OBJS) 
-	$(CU_CC) $(FLAGS) $(C_OBJS) $(CU_OBJS) -o a.out -lpython2.7 -lpugixml -lboost_python
+	$(CU_CC) $(FLAGS) $(C_OBJS) $(CU_OBJS) -o a.out -lpython2.7 -lpugixml -lboost_python -lcufft
 
 %.o: %.cpp ./$(DEPDIR)/%.d
 	$(CU_CC) $(FLAGS) $(DEBUG) -I$(PYTHON_INC) -I$(BOOST_INC) --output-file $(DEPDIR)/$*.Td -M $< -lboost_python -lpython2.7 -lpugixml

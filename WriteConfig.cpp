@@ -47,12 +47,17 @@ void writeAtomParams(ofstream &outFile, AtomParams &params) {
 
 }
 
-void writeXMLfileBase64(State *state, char fnFinal[FN_LEN]) {
+void writeXMLfileBase64(State *state, string fnFinal, int turn, bool oneFilePerWrite) {
 	vector<Atom> &atoms = state->atoms;
 	vector<Bond> &bonds = state->bonds;
 	ofstream outFile;
 	Bounds b = state->bounds;
-	outFile.open(fnFinal, ofstream::app);
+    if (oneFilePerWrite) {
+        outFile.open(fnFinal.c_str(), ofstream::out);
+        outFile << "<data>" << endl;
+    } else {
+        outFile.open(fnFinal.c_str(), ofstream::app);
+    }
 	char buffer[BUFFERLEN];
 	int ndims = state->is2d ? 2 : 3;	
 
@@ -65,7 +70,7 @@ void writeXMLfileBase64(State *state, char fnFinal[FN_LEN]) {
     for (int i=0; i<12; i++) {
         b64[i] = base64_encode((const unsigned char *) (dims + i), 8);
     }
-	sprintf(buffer, "<configuration turn=\"%d\" numAtoms=\"%d\" dimension=\"%d\" periodic=\"%d%d%d\">\n", state->turn, (int) atoms.size(), ndims, state->periodic[0], state->periodic[1], state->periodic[2]);
+	sprintf(buffer, "<configuration turn=\"%d\" numAtoms=\"%d\" dimension=\"%d\" periodic=\"%d%d%d\">\n", turn, (int) atoms.size(), ndims, state->periodic[0], state->periodic[1], state->periodic[2]);
 	outFile << buffer;
 	sprintf(buffer, "<bounds base64=\"1\" xlo=\"%s\" ylo=\"%s\" zlo=\"%s\" sxx=\"%s\" sxy=\"%s\" sxz=\"%s\" syx=\"%s\" syy=\"%s\" syz=\"%s\" szx=\"%s\" szy=\"%s\" szz=\"%s\"/>\n", b64[0].c_str(), b64[1].c_str(), b64[2].c_str(), b64[3].c_str(), b64[4].c_str(), b64[5].c_str(), b64[6].c_str(), b64[7].c_str(), b64[8].c_str(), b64[9].c_str(), b64[10].c_str(), b64[11].c_str());
 	outFile << buffer;
@@ -103,17 +108,55 @@ void writeXMLfileBase64(State *state, char fnFinal[FN_LEN]) {
 
 	sprintf(buffer, "</configuration>\n");
 	outFile << buffer;
+    if (oneFilePerWrite) {
+        outFile << "/<data>" << endl;
+    }
 	outFile.close();
 
 
 }
 
-void writeXMLfile(State *state, char fnFinal[FN_LEN]) {
+
+void writeXYZFile(State *state, string fn, int turn, bool oneFilePerWrite) {
+    vector<Atom> &atoms = state->atoms;
+    AtomParams &params = state->atomParams;
+    bool useAtomicNums = true;
+    for (int atomicNum : params.atomicNums) {
+        if (atomicNum == -1) {
+            useAtomicNums = false;
+        }
+    }
+    ofstream outFile;
+    if (oneFilePerWrite) {
+        outFile.open(fn.c_str(), ofstream::out);
+    } else {
+        outFile.open(fn.c_str(), ofstream::app);
+    }
+    outFile << atoms.size() << endl << endl;
+    for (Atom &a : atoms) {
+        int atomicNum;
+        if (useAtomicNums) {
+            atomicNum = params.atomicNums[a.type];
+        } else {
+            atomicNum = a.type;
+        }
+        outFile << atomicNum << " " << a.pos[0] << " " << a.pos[1] << " " << a.pos[2] << endl;
+    }
+    outFile << endl;
+    outFile.close();
+}
+
+void writeXMLfile(State *state, string fnFinal, int turn, bool oneFilePerWrite) {
 	vector<Atom> &atoms = state->atoms;
 	vector<Bond> &bonds = state->bonds;
 	ofstream outFile;
 	Bounds b = state->bounds;
-	outFile.open(fnFinal, ofstream::app);
+    if (oneFilePerWrite) {
+        outFile.open(fnFinal.c_str(), ofstream::out);
+        outFile << "<data>" << endl;
+    } else {
+        outFile.open(fnFinal.c_str(), ofstream::app);
+    }
 	char buffer[BUFFERLEN];
 	int ndims = state->is2d ? 2 : 3;	
 	double s[9];
@@ -122,7 +165,7 @@ void writeXMLfile(State *state, char fnFinal[FN_LEN]) {
 			s[i*3 + j] = (double) b.sides[i][j];
 		}
 	}
-	sprintf(buffer, "<configuration turn=\"%d\" numAtoms=\"%d\" dimension=\"%d\" periodic=\"%d%d%d\">\n", state->turn, (int) atoms.size(), ndims, state->periodic[0], state->periodic[1], state->periodic[2]);
+	sprintf(buffer, "<configuration turn=\"%d\" numAtoms=\"%d\" dimension=\"%d\" periodic=\"%d%d%d\">\n", turn, (int) atoms.size(), ndims, state->periodic[0], state->periodic[1], state->periodic[2]);
 	outFile << buffer;
 	sprintf(buffer, "<bounds base64=\"0\" xlo=\"%f\" ylo=\"%f\" zlo=\"%f\" sxx=\"%f\" sxy=\"%f\" sxz=\"%f\" syx=\"%f\" syy=\"%f\" syz=\"%f\" szx=\"%f\" szy=\"%f\" szz=\"%f\"/>\n", (double) b.lo[0], (double) b.lo[1], (double) b.lo[2], s[0], s[1], s[2], s[3], s[4], s[5], s[6], s[7], s[8]);
 	outFile << buffer;
@@ -166,6 +209,9 @@ void writeXMLfile(State *state, char fnFinal[FN_LEN]) {
 			);
 	sprintf(buffer, "</configuration>\n");
 	outFile << buffer;
+    if (oneFilePerWrite) {
+        outFile << "/<data>" << endl;
+    }
 	outFile.close();
 
 	/*
@@ -190,26 +236,66 @@ void writeXMLfile(State *state, char fnFinal[FN_LEN]) {
 
 
 
+
+string WriteConfig::getCurrentFn(int turn) {
+    char buffer[200];
+    if (format == "base64") {
+        sprintf(buffer, "%s.xml", fn.c_str());
+    } else if (format == "xyz" ) {
+        sprintf(buffer, "%s.xyz", fn.c_str());
+    } else {
+        sprintf(buffer, "%s.xml", fn.c_str());
+    }
+
+    if (oneFilePerWrite) {
+        string asStr = string(buffer);
+        string turnStr = to_string(turn);
+        size_t pos = asStr.find("*");
+        assert(pos != string::npos);
+        string finalFn = asStr.substr(0, pos) + turnStr + asStr.substr(pos+1, asStr.size());
+        return finalFn;
+
+
+
+    }
+    return string(buffer);
+}
+
 WriteConfig::WriteConfig(SHARED(State) state_, string fn_, string handle_, string format_, int writeEvery_) : state(state_.get()), fn(fn_), handle(handle_), format(format_), writeEvery(writeEvery_), turnInit(state->turn) {
     if (format == "base64") {
         writeFormat = &writeXMLfileBase64;
+        isXML = true;
+    } else if (format == "xyz") {
+        writeFormat = &writeXYZFile;
+        isXML = false;
     } else {
         writeFormat = &writeXMLfile;
+        isXML = true;
     }
-	sprintf(fnFinal, "%s.xml", fn.c_str());
-	unlink(fnFinal);
-	ofstream outFile;
-	outFile.open(fnFinal, ofstream::app);
-	outFile << "<data>\n";
+
+    if (fn.find("*") != string::npos) {
+        oneFilePerWrite = true;
+    } else {
+        oneFilePerWrite = false;
+        string fn = getCurrentFn(0);
+        unlink(fn.c_str());
+        if (isXML) {
+            ofstream outFile;
+            outFile.open(fn.c_str(), ofstream::app);
+            outFile << "<data>\n";
+        }
+    }
 }
 
 void WriteConfig::finish() {
-	ofstream outFile;
-	outFile.open(fnFinal, ofstream::app);
-	outFile << "</data>";
+    if (isXML and not oneFilePerWrite) {
+        ofstream outFile;
+        outFile.open(getCurrentFn(0), ofstream::app);
+        outFile << "</data>";
+    }
 }
-void WriteConfig::write() {
-	writeFormat(state, fnFinal);
+void WriteConfig::write(int turn) {
+	writeFormat(state, getCurrentFn(turn), turn, oneFilePerWrite);
 }
 
 

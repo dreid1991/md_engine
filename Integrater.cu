@@ -51,10 +51,10 @@ void Integrater::asyncOperations() {
     int turn = state->turn;
     auto dataAndWrite = [this] (int ts) { //well, if I try to use a local state pointer, this segfaults.  Need to capture this instead.  Little confused
         //have to set device in each thread
-        state->devManager.setDevice(state->devManager.currentDevice);
+        state->devManager.setDevice(state->devManager.currentDevice, false);
         for (SHARED(WriteConfig) wc : state->writeConfigs) {
             if (not ((ts - wc->turnInit) % wc->writeEvery)) {
-                wc->write();
+                wc->write(ts);
             }
         }
         for (SHARED(DataSet) ds : state->data.userSets) {
@@ -105,6 +105,10 @@ __global__ void printFloats(float4 *xs, int n) {
 
 
 void Integrater::basicPreRunChecks() {
+    if (state->devManager.prop.major < 3) {
+        cout << "Device compute capability must be >= 3.0. Quitting" << endl;
+        assert(state->devManager.prop.major >= 3);
+    }
     if (not state->grid.isSet) {
         cout << "Atom grid is not set!" << endl;
         assert(state->grid.isSet);
@@ -154,6 +158,9 @@ void Integrater::basicFinish() {
     }
     cudaDeviceSynchronize();
     state->downloadFromRun();
+    for (Fix *f : state->fixes) {
+        f->postRun();
+    }
 
 }
 void Integrater::setActiveData() {
