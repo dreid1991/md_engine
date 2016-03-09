@@ -1,16 +1,8 @@
 #ifndef GPUARRAY_H
 #define GPUARRAY_H
 
-#include <assert.h>
-#include <cuda_runtime.h>
-#include <iostream>
-#include <stdio.h>
-#include <stdlib.h>
 #include <vector>
 
-#include "Python.h"
-#include "cutils_math.h"
-#include "globalDefs.h"
 #include "GPUArrayBase.h"
 #include "GPUArrayDevice.h"
 
