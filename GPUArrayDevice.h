@@ -15,7 +15,7 @@ void MEMSETFUNC(void *, void *, int, int);
  *
  * Array storing data on the GPU device.
  */
-template <class T>
+template <typename T>
 class GPUArrayDevice {
     public:
         T *ptr; //!< Pointer to the data
