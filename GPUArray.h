@@ -33,7 +33,7 @@ public:
      * Constructor creating empty arrays of the specified size on the CPU
      * and the GPU.
      */
-    GPUArray(int size_)
+    explicit GPUArray(int size_)
         : h_data(vector<T>(size_,T())), d_data(GPUArrayDevice<T>(size_)) {}
 
     /*! \brief Constructor
@@ -42,7 +42,7 @@ public:
      *
      * Constructor setting the CPU data array with the specified vector.
      */
-    GPUArray(vector<T> &vals) {
+    explicit GPUArray(vector<T> &vals) {
         set(vals);
         if (!vals.size()) {
             d_data = GPUArrayDevice<T>(vals.size());
