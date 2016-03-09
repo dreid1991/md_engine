@@ -8,7 +8,7 @@
 
 using namespace std;
 
-/* \class GPUArray
+/*! \class GPUArray
  * \brief Array storing data on the CPU and the GPU
  *
  * \tparam T Data type stored in the array
