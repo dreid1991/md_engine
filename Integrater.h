@@ -29,6 +29,7 @@ class Integrater {
         void basicFinish();
         void setActiveData();
         void doDataCollection();
+        void singlePointEng(); //make a python-wrapped version
         std::future<void> dataGather;
         public:
                 string type;

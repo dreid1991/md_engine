@@ -47,9 +47,9 @@ clean:
 
 
 Sim:
-	$(CU_CC) -I. -I$(BOOST_INC) -I$(PYTHON_INC) $(FLAGS)  -c python/Sim.cpp -o python/Sim.o
+	$(CU_CC) -I. -I$(BOOST_INC) -I$(PYTHON_INC) $(FLAGS)  -c python/Sim.cpp -o python/Sim.o 
 lib: 
-	$(CU_CC) -shared -L$(BOOST_LIB) -o python/Sim.so $(CU_OBJS) $(C_OBJS) python/Sim.o -lboost_python -lpython2.7 -lpugixml
+	$(CU_CC) -shared -L$(BOOST_LIB) -o python/Sim.so $(CU_OBJS) $(C_OBJS) python/Sim.o -lboost_python -lpython2.7 -lpugixml -lcufft
 dist:
 	cp python/Sim.so lib/
 

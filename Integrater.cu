@@ -42,9 +42,22 @@ void Integrater::data() {
     */
 
 }
+
+
+void Integrater::singlePointEng() {
+    GPUArray<float> &perParticleEng = state->gpd.perParticleEng;
+    perParticleEng.d_data.memset(0);
+	for (Fix *f : state->fixes) {
+        f->singlePointEng(perParticleEng.getDevData());
+    }
+
+}
 void Integrater::doDataCollection() {
-    if ((state->turn % state->dataManager.dataInterval) == 0) {
-        state->dataManager.collectData();
+    DataManager &dm = state->dataManager;
+    if ((state->turn % dm.dataInterval) == 0) {
+        if (dm.recordingEng()) {
+            singlePointEng(); 
+        }
     }
 }
 void Integrater::asyncOperations() {

@@ -22,7 +22,7 @@ class GPUData {
         GPUArray<float4> fsLastBuffer;
         GPUArray<uint> idsBuffer;
 
-        GPUArray<float> perParticleEng;
+        GPUArray<float> perParticleEng; //for data collection.  If we re-use per-particle arrays, we can't do async kernels to do per-group sums.  Would use less memory though
 
     //OMG REMEMBER TO ADD EACH NEW ARRAY TO THE ACTIVE DATA LIST IN INTEGRATER OR PAIN AWAITS
 

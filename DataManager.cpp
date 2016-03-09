@@ -41,6 +41,10 @@ void DataManager::collectData() {
 }
 
 
+bool DataManager::recordingEng() {
+    return activeEngTags.size();
+}
+
 SHARED(DataSet) DataManager::getDataSet(string handle) {
     for (SHARED(DataSet) d : userSets) {
         if (d->handle == handle) {

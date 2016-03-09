@@ -28,8 +28,8 @@ state.activateFix(fixNVT)
 
 integVerlet = IntegraterVerlet(state)
 
-writeconfig = WriteConfig(state, fn='test_*_out', writeEvery=1000, format='xyz', handle='writer')
-state.activateWriteConfig(writeconfig)
+#writeconfig = WriteConfig(state, fn='test_*_out', writeEvery=1000, format='xyz', handle='writer')
+#state.activateWriteConfig(writeconfig)
 integVerlet.run(3000)
 sumV = 0.
 for a in state.atoms:

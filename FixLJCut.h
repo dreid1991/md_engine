@@ -20,7 +20,8 @@ class FixLJCut : public FixPair {
 
         //! Compute forces
         void compute();
-
+        //! Compute single point energy
+        void singlePointEng(float *);
         /*! \brief Prepare Fix
          *
          * \returns Always returns True

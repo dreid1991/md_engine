@@ -25,6 +25,7 @@ class DataManager {
         void collectData();
         bool recordEng(string groupHandle);
         bool stopRecordEng(string groupHandle);
+        bool recordingEng();
         vector<string> activeEngHandles;
         vector<uint> activeEngTags;
         map<string, vector<DataPoint> > engData;         
