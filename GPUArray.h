@@ -63,15 +63,11 @@ public:
      *
      * Set the CPU data to to data specified in the given vector.
      */
-    bool set(vector<T> &other) {
-        if (other.size() < size()) {
-            setHost(other);
-            return true;
-        } else {
+    void set(vector<T> &other) {
+        if (other.size() > size()) {
             d_data = GPUArrayDevice<T>(other.size());
-            setHost(other);
         }
-        return false;
+        setHost(other);
 
     }
 
@@ -88,7 +84,6 @@ public:
     /*! \brief Send data from CPU to GPU */
     void dataToDevice() {
         d_data.set(h_data.data());
-
     }
 
     /*! \brief Send data from GPU to CPU asynchronously */
