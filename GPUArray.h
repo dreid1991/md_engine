@@ -119,8 +119,8 @@ private:
 
 public:
 
-    GPUArrayDevice<T> d_data; //!< Array storing data on the GPU
     vector<T> h_data; //!< Array storing data on the CPU
+    GPUArrayDevice<T> d_data; //!< Array storing data on the GPU
 };
 
 #endif
