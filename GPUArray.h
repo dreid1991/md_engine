@@ -59,7 +59,7 @@ public:
         if (other.size() > size()) {
             d_data = GPUArrayDevice<T>(other.size());
         }
-        setHost(other);
+        h_data = other;
 
     }
 
@@ -104,17 +104,6 @@ public:
     /*! \brief Set Memory by value */
     void memsetByVal(T val) {
         d_data.memsetByVal(val);
-    }
-
-private:
-    /*! \brief Set the host data
-     *
-     * \param vals Vector with the data to be stored in the CPU data vector.
-     *
-     * Set the host data.
-     */
-    void setHost(vector<T> &vals) {
-        h_data = vals;
     }
 
 public:
