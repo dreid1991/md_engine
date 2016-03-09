@@ -25,7 +25,7 @@ class GPUArrayBase {
          * that this is not the size in bytes. For this, use size()*sizeof(T),
          * where T is the class used in the GPUArray.
          */
-        virtual int size() const = 0;
+        virtual size_t size() const = 0;
 };
 
 #endif

@@ -64,7 +64,7 @@ public:
     }
 
     /*! \brief Return size of data array */
-    int size() const { return h_data.size(); }
+    size_t size() const { return h_data.size(); }
 
     /*! \brief Ensure that the GPU data array is large enough */
     void ensureSize() {

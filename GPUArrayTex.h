@@ -45,7 +45,7 @@ class GPUArrayTex : public GPUArrayBase, public GPUArrayTexBase {
             d_data.get(h_data.data());
         }
 
-        int size() const { return h_data.size(); }
+        size_t size() const { return h_data.size(); }
 
         void ensureSize() {
             d_data.resize(h_data.size());

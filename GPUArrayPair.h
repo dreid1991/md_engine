@@ -60,7 +60,7 @@ class GPUArrayPair : public GPUArrayBasePair {
 
         }
 
-        int size() const { return h_data.size(); }
+        size_t size() const { return h_data.size(); }
 
         T *operator ()(int n) {
             return getDevData(n);
