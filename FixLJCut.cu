@@ -12,27 +12,29 @@ FixLJCut::FixLJCut(SHARED(State) state_, string handle_, string groupHandle_) : 
 
 __global__ void compute_cu(int nAtoms, float4 *xs, float4 *fs, int *neighborCounts, uint *neighborlist, int *cumulSumMaxPerBlock, int warpSize, float *sigs, float *eps, int numTypes, float rCut, BoundsGPU bounds, float oneFourStrength) {
     float multipliers[4] = {1, 0, 0, oneFourStrength};
-    extern __shared__ float paramsAll[];
+    extern __shared__ float shrAll[];
     int sqrSize = numTypes*numTypes;
-    float *sigs_shr = paramsAll;
-    float *eps_shr = paramsAll + sqrSize;
+    float *sigs_shr = shrAll;
+    float *eps_shr = shrAll + sqrSize;
+    float3 *fs_shr = (float3 *) (shrAll + 2*sqrSize);
     copyToShared<float>(eps, eps_shr, sqrSize);
     copyToShared<float>(eps, sigs_shr, sqrSize);
     __syncthreads();
 
     int idx = GETIDX();
+    float3 forceSum = make_float3(0, 0, 0);
     if (idx < nAtoms * ATOMTEAMSIZE) {
         int baseIdx = baseNeighlistIdx(cumulSumMaxPerBlock, warpSize);
+        int myIdxInAtomTeam = threadIdx.x % ATOMTEAMSIZE;
         float4 posWhole = xs[idx / ATOMTEAMSIZE];
         int type = * (int *) &posWhole.w;
        // printf("type is %d\n", type);
         float3 pos = make_float3(posWhole);
 
-        float3 forceSum = make_float3(0, 0, 0);
 
         int numNeigh = neighborCounts[idx / ATOMTEAMSIZE];
         //printf("start, end %d %d\n", start, end);
-        for (int i=0; i<numNeigh; i++) {
+        for (int i=myIdxInAtomTeam; i<numNeigh; i+=ATOMTEAMSIZE) {
             int nlistIdx = baseIdx + warpSize * i;
             uint otherIdxRaw = neighborlist[nlistIdx];
             uint neighDist = otherIdxRaw >> 30;
@@ -62,21 +64,25 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *fs, int *neighborCoun
 
         }   
         //printf("force %f %f %f with %d atoms \n", forceSum.x, forceSum.y, forceSum.z, end-start);
-        float4 forceCur = fs[idx];
-        forceCur += forceSum;
-        fs[idx] = forceCur;
         //fs[idx] += forceSum;
 
+    }
+    fs_shr[threadIdx.x] = forceSum;
+    __syncthreads();
+    reduceByN<float3>(fs_shr, ATOMTEAMSIZE);
+    if (! (threadIdx.x % ATOMTEAMSIZE)) {
+        fs[idx / ATOMTEAMSIZE] += fs_shr[threadIdx.x];
     }
 
 }
 
 __global__ void computeEng_cu(int nAtoms, float4 *xs, float *perParticleEng, int *neighborCounts, uint *neighborlist, int *cumulSumMaxPerBlock, int warpSize, float *sigs, float *eps, int numTypes, float rCut, BoundsGPU bounds, float oneFourStrength) {
     float multipliers[4] = {1, 0, 0, oneFourStrength};
-    extern __shared__ float paramsAll[];
+    extern __shared__ float shrAll[];
     int sqrSize = numTypes*numTypes;
-    float *sigs_shr = paramsAll;
-    float *eps_shr = paramsAll + sqrSize;
+    float *sigs_shr = shrAll;
+    float *eps_shr = shrAll + sqrSize;
+    //float3 fs_shr =  //IMPLEMENT THIS
     copyToShared<float>(eps, eps_shr, sqrSize);
     copyToShared<float>(eps, sigs_shr, sqrSize);
     __syncthreads();
@@ -136,7 +142,7 @@ void FixLJCut::compute() {
     int *neighborCounts = grid.perAtomArray.d_data.ptr;
     double oneFourStrength = 0.5;
 
-    compute_cu<<<NBLOCK(nAtoms * ATOMTEAMSIZE), PERBLOCK, 2*numTypes*numTypes*sizeof(float)>>>(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx), neighborCounts, grid.neighborlist.ptr, grid.perBlockArray.d_data.ptr, state->devManager.prop.warpSize, sigmas.getDevData(), epsilons.getDevData(), numTypes, state->rCut, state->boundsGPU, oneFourStrength);
+    compute_cu<<<NBLOCKTEAM(nAtoms, ATOMTEAMSIZE), PERBLOCK, 2*numTypes*numTypes*sizeof(float) + PERBLOCK * sizeof(float3)>>>(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx), neighborCounts, grid.neighborlist.ptr, grid.perBlockArray.d_data.ptr, state->devManager.prop.warpSize, sigmas.getDevData(), epsilons.getDevData(), numTypes, state->rCut, state->boundsGPU, oneFourStrength);
 
 
 
