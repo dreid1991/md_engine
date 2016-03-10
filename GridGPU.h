@@ -26,6 +26,7 @@ class GridGPU {
         GPUArray<int> perAtomArray; //during runtime this is the starting (+1 is ending) index for each neighbor
         GPUArrayDevice<float4> xsLastBuild;
         GPUArray<int> buildFlag;
+        GPUArrayDevice<short> teamMemberNeighborCounts;
         float3 ds;
         float3 dsOrig;
         float3 os;

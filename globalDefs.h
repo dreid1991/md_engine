@@ -49,7 +49,7 @@ typedef double num;
 #define YIDX(y, SIZE) (y / (PERLINE / SIZE))
 #define PERBLOCK 256
 #define NBLOCK(x) ((int) (ceil(x / (float) PERBLOCK)))
-#define NBLOCKTEAM(x, threadsPerAtom) (threadsPerAtom * (int) (ceil(x / (float) PERBLOCK)))
+#define NBLOCKTEAM(x, threadsPerAtom) ((int) (ceil(x / (float) (PERBLOCK/threadsPerAtom))))
 
 #define LINEARIDX(idx, ns) (ns.z*ns.y*idx.x + ns.z*idx.y + idx.z)
 #endif

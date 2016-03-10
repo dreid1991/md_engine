@@ -633,6 +633,75 @@ void testLJ() {
     //state->integrater.run(1000);
 
 }
+
+
+
+
+void testNeighboring() {
+    SHARED(State) state = SHARED(State) (new State());
+    state->devManager.setDevice(0);
+    int baseLen = 40;
+    state->shoutEvery = 100;
+    double mult = 1.5;
+    state->bounds = Bounds(state, Vector(0, 0, 0), Vector(mult*baseLen, mult*baseLen, mult*baseLen));
+    state->rCut = 2.5;
+    state->padding = 0.5;
+    state->grid = AtomGrid(state.get(), 3.5, 3.5, 3);
+    state->atomParams.addSpecies("handle", 2);
+    //state->is2d = true;
+    //state->periodic[2] = false;
+   // for (int i=0; i<32; i++) {
+        //state->addAtom("handle", Vector(2*i+1, 1, 0), 0);
+     //   state->addAtom("handle", Vector(2*31+1-2*i, 1, 0), 0);
+   // }
+
+  //  for (int i=0; i<32; i++) {
+   //     state->addAtom("handle", Vector(2*i+1, 5, 0), 0);
+ //   }
+    state->addAtom("handle", Vector(1, 1, 0), 0);
+    state->addAtom("handle", Vector(3.0, 1, 0), 0);
+
+   // state->addAtom("handle", Vector(5.0, 1, 0), 0);
+   // state->addAtom("handle", Vector(7.0, 1, 0), 0);
+    for (int i=0; i<baseLen; i++) {
+        for (int j=0; j<baseLen; j++) {
+            for (int k=0; k<baseLen; k++) {
+            //    state->addAtom("handle", Vector(i*mult + (rand() % 20)/40.0, j*mult + (rand() % 20)/40.0, 0), 0);
+    //            state->addAtom("handle", Vector(i*mult + (rand() % 20)/40.0, j*mult + (rand() % 20)/40.0, k*mult + (rand() % 20)/40.0), 0);
+            }
+        }
+    }
+
+    
+  //  state->atoms.pos[0] += Vector(0.1, 0, 0);
+
+    state->periodicInterval = 9;
+   // SHARED(Fix2d) f2d = SHARED(Fix2d) (new Fix2d(state, "2d", 1));
+  //  state->activateFix(f2d);
+    SHARED(FixLJCut) nonbond = SHARED(FixLJCut) (new FixLJCut(state, "ljcut", "all"));
+    nonbond->setParameter("sig", "handle", "handle", 1);
+    nonbond->setParameter("eps", "handle", "handle", 1);
+    state->activateFix(nonbond);
+
+    //SHARED(WriteConfig) write = SHARED(WriteConfig) (new WriteConfig(state, "test", "handley", "xml", 20));
+  //  state->activateWriteConfig(write);
+
+    IntegraterVerlet verlet = IntegraterVerlet(state);
+    verlet.run(0);
+    cout.flush();
+    //SHARED(FixBondHarmonic) harmonic = SHARED(FixBondHarmonic) (new FixBondHarmonic(state, "harmonic"));
+    //state->activateFix(harmonic);
+    //harmonic->createBond(&state->atoms[0], &state->atoms[1], 1, 2);
+    
+    //SHARED(FixSpringStatic) springStatic = SHARED(FixSpringStatic) (new FixSpringStatic(state, "spring", "all", 1, Py_None));
+    //state->activateFix(springStatic);
+
+    //SHARED(WriteConfig) write = SHARED(WriteConfig) (new WriteConfig(state, "test", "handley", "base64", 50));
+    //state->activateWriteConfig(write);
+    //state->integrater.run(1000);
+
+}
+
 void testGPUArrayTex() {
 
     GPUArrayTexDevice<int> xs(10, cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindSigned));
@@ -651,7 +720,8 @@ int main(int argc, char **argv) {
         int arg = atoi(argv[1]);
         if (arg==0) {
     //        testDihedral();
-            testLJ();
+            testNeighboring();
+           // testLJ();
             // testLJ();
             // hoomdBench();
             //testBondHarmonicGridToGPU();

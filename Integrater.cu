@@ -118,9 +118,9 @@ __global__ void printFloats(float4 *xs, int n) {
 
 
 void Integrater::basicPreRunChecks() {
-    if (state->devManager.prop.major < 3 or (state->devManager.prop.major==3 and state->devManager.prop.minor < 5)) {
-        cout << "Device compute capability must be >= 3.5. Quitting" << endl;
-        assert((state->devManager.prop.major == 3 and state->devManager.prop.minor >= 5) or state->devManager.prop.major > 3);
+    if (state->devManager.prop.major < 3) {
+        cout << "Device compute capability must be >= 3.0. Quitting" << endl;
+        assert(state->devManager.prop.major >= 3);
     }
     if (not state->grid.isSet) {
         cout << "Atom grid is not set!" << endl;
