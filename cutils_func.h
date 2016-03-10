@@ -2,7 +2,7 @@
 #include "cutils_math.h"
 #ifndef CUTILS_FUNC_H
 #define CUTILS_FUNC_H
-#define THREADSPERATOM 4
+#define ATOMTEAMSIZE 4
 inline __device__ int baseNeighlistIdx(int *cumulSumMaxPerBlock, int warpSize) {
     int cumulSumUpToMe = cumulSumMaxPerBlock[blockIdx.x]; //okay, so moving to groups neighs, just going to have fewer atoms per block
     int maxNeighInMyBlock = cumulSumMaxPerBlock[blockIdx.x+1] - cumulSumUpToMe;
