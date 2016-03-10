@@ -549,7 +549,7 @@ void hoomdBench() {
     //SHARED(WriteConfig) write = SHARED(WriteConfig) (new WriteConfig(state, "test", "handley", "xml", 20));
   //  state->activateWriteConfig(write);
 
-    IntegraterVerlet verlet = IntegraterVerlet(state);
+    IntegraterVerlet verlet(state);
     verlet.run(5000);
     cout.flush();
     //SHARED(FixBondHarmonic) harmonic = SHARED(FixBondHarmonic) (new FixBondHarmonic(state, "harmonic"));
@@ -614,7 +614,7 @@ void testLJ() {
     //SHARED(WriteConfig) write = SHARED(WriteConfig) (new WriteConfig(state, "test", "handley", "xml", 20));
   //  state->activateWriteConfig(write);
 
-    IntegraterVerlet verlet = IntegraterVerlet(state);
+    IntegraterVerlet verlet(state);
     cout << state->atoms[0].pos << endl;
     verlet.run(2000);
     cout << state->atoms[0].pos << endl;
