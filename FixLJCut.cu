@@ -21,16 +21,16 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *fs, int *neighborCoun
     __syncthreads();
 
     int idx = GETIDX();
-    if (idx < nAtoms) {
-        int baseIdx = baseNeighlistIdx<void>(cumulSumMaxPerBlock, warpSize);
-        float4 posWhole = xs[idx];
+    if (idx < nAtoms * NLISTGROUPSIZE) {
+        int baseIdx = baseNeighlistIdx(cumulSumMaxPerBlock, warpSize);
+        float4 posWhole = xs[idx / NLISTGROUPSIZE];
         int type = * (int *) &posWhole.w;
        // printf("type is %d\n", type);
         float3 pos = make_float3(posWhole);
 
         float3 forceSum = make_float3(0, 0, 0);
 
-        int numNeigh = neighborCounts[idx];
+        int numNeigh = neighborCounts[idx / NLISTGROUPSIZE];
         //printf("start, end %d %d\n", start, end);
         for (int i=0; i<numNeigh; i++) {
             int nlistIdx = baseIdx + warpSize * i;
@@ -83,7 +83,7 @@ __global__ void computeEng_cu(int nAtoms, float4 *xs, float *perParticleEng, int
 
     int idx = GETIDX();
     if (idx < nAtoms) {
-        int baseIdx = baseNeighlistIdx<void>(cumulSumMaxPerBlock, warpSize);
+        int baseIdx = baseNeighlistIdx(cumulSumMaxPerBlock, warpSize);
         float4 posWhole = xs[idx];
         int type = * (int *) &posWhole.w;
        // printf("type is %d\n", type);
@@ -136,7 +136,7 @@ void FixLJCut::compute() {
     int *neighborCounts = grid.perAtomArray.d_data.ptr;
     double oneFourStrength = 0.5;
 
-    compute_cu<<<NBLOCK(nAtoms), PERBLOCK, 2*numTypes*numTypes*sizeof(float)>>>(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx), neighborCounts, grid.neighborlist.ptr, grid.perBlockArray.d_data.ptr, state->devManager.prop.warpSize, sigmas.getDevData(), epsilons.getDevData(), numTypes, state->rCut, state->boundsGPU, oneFourStrength);
+    compute_cu<<<NBLOCK(nAtoms * NLISTGROUPSIZE), PERBLOCK, 2*numTypes*numTypes*sizeof(float)>>>(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx), neighborCounts, grid.neighborlist.ptr, grid.perBlockArray.d_data.ptr, state->devManager.prop.warpSize, sigmas.getDevData(), epsilons.getDevData(), numTypes, state->rCut, state->boundsGPU, oneFourStrength);
 
 
 

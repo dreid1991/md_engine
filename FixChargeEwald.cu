@@ -293,7 +293,7 @@ __global__ void compute_short_range_forces_cu(int nAtoms, float4 *xs, float4 *fs
         float qi = qs[idx];//tex2D<float>(qs, XIDX(idx, sizeof(float)), YIDX(idx, sizeof(float)));
 
         //printf("start, end %d %d\n", start, end);
-        int baseIdx = baseNeighlistIdx<void>(cumulSumMaxPerBlock, warpSize);
+        int baseIdx = baseNeighlistIdx(cumulSumMaxPerBlock, warpSize);
         int numNeigh = neighborCounts[idx];
         for (int i=0; i<numNeigh; i++) {
             int nlistIdx = baseIdx + warpSize * i;

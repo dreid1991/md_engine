@@ -2,18 +2,16 @@
 #include "cutils_math.h"
 #ifndef CUTILS_FUNC_H
 #define CUTILS_FUNC_H
-
-template <class T>
-__device__ int baseNeighlistIdx(int *cumulSumMaxPerBlock, int warpSize) { 
-    int cumulSumUpToMe = cumulSumMaxPerBlock[blockIdx.x];
+#define THREADSPERATOM 4
+inline __device__ int baseNeighlistIdx(int *cumulSumMaxPerBlock, int warpSize) {
+    int cumulSumUpToMe = cumulSumMaxPerBlock[blockIdx.x]; //okay, so moving to groups neighs, just going to have fewer atoms per block
     int maxNeighInMyBlock = cumulSumMaxPerBlock[blockIdx.x+1] - cumulSumUpToMe;
-    int myWarp = threadIdx.x / warpSize;
+    int myWarp =  threadIdx.x / warpSize;
     int myIdxInWarp = threadIdx.x % warpSize;
     return blockDim.x * cumulSumMaxPerBlock[blockIdx.x] + maxNeighInMyBlock * warpSize * myWarp + myIdxInWarp;
 }
 
-template <class T>
-__device__ int baseNeighlistIdxFromIndex(int *cumulSumMaxPerBlock, int warpSize, int idx) {
+inline __device__ int baseNeighlistIdxFromIndex(int *cumulSumMaxPerBlock, int warpSize, int idx) {
     int blockIdx = idx / blockDim.x;
     int warpIdx = (idx - blockIdx * blockDim.x) / warpSize;
     int idxInWarp = idx - blockIdx * blockDim.x - warpIdx * warpSize;
@@ -29,6 +27,23 @@ __device__ void copyToShared (T *src, T *dest, int n) {
         dest[i] = src[i];
     }
 }
+
+template <class T>
+inline __device__ void reduceByN(T *src, int span) { // where span is how many elements you're reducing over.  src had better be shared memory
+    int maxLookahead = span / 2;
+    int curLookahead = 1;
+    while (curLookahead <= maxLookahead) {
+        if (! (threadIdx.x % (curLookahead*2))) {
+            src[threadIdx.x] += src[threadIdx.x + curLookahead];
+        }
+        curLookahead *= 2;
+        __syncthreads();
+    }
+
+
+}
+//HEY - COULD OPTIMIZE BELOW BY STARTING curLookahead at 1 AND JUST MULTIPLYING BY 2 EACH TIME
+
 #define SUM(NAME, OPERATOR, WRAPPER) \
 template <class K, class T>\
 __global__ void NAME (K *dest, T *src, int n) {\
@@ -40,12 +55,13 @@ __global__ void NAME (K *dest, T *src, int n) {\
        tmp[threadIdx.x] = 0;\
     }\
     __syncthreads();\
+    int curLookahead = 1;\
     int maxLookahead = log2f(blockDim.x-1);\
     for (int i=0; i<=maxLookahead; i++) {\
-        int curLookahead = powf(2, i);\
         if (! (threadIdx.x % (curLookahead*2))) {\
             tmp[threadIdx.x] += tmp[threadIdx.x + curLookahead];\
         }\
+        curLookahead *= 2;\
         __syncthreads();\
     }\
     if (threadIdx.x == 0) {\
@@ -79,12 +95,13 @@ __global__ void NAME (K *dest, T *src, int n, unsigned int groupTag, float4 *fs)
         tmp[threadIdx.x] = 0;\
     }\
     __syncthreads();\
+    int curLookahead = 1;\
     int maxLookahead = log2f(blockDim.x-1);\
     for (int i=0; i<=maxLookahead; i++) {\
-        int curLookahead = powf(2, i);\
         if (! (threadIdx.x % (curLookahead*2))) {\
             tmp[threadIdx.x] += tmp[threadIdx.x + curLookahead];\
         }\
+        curLookahead *= 2;\
         __syncthreads();\
     }\
     if (threadIdx.x == 0) {\
