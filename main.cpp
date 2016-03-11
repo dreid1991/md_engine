@@ -645,7 +645,7 @@ void testNeighboring() {
     double mult = 1.5;
     state->bounds = Bounds(state, Vector(0, 0, 0), Vector(mult*baseLen, mult*baseLen, mult*baseLen));
     state->rCut = 2.5;
-    state->padding = 0.5;
+    state->padding = 0.0;
     state->grid = AtomGrid(state.get(), 3.5, 3.5, 3);
     state->atomParams.addSpecies("handle", 2);
     //state->is2d = true;
@@ -658,8 +658,11 @@ void testNeighboring() {
   //  for (int i=0; i<32; i++) {
    //     state->addAtom("handle", Vector(2*i+1, 5, 0), 0);
  //   }
-    state->addAtom("handle", Vector(1, 1, 0), 0);
-    state->addAtom("handle", Vector(3.0, 1, 0), 0);
+    state->addAtom("handle", Vector(5, 5, 0), 0);
+    state->addAtom("handle", Vector(3.0, 5, 0), 0);
+    state->addAtom("handle", Vector(7.0, 5, 0), 0);
+    state->addAtom("handle", Vector(5.0, 3, 0), 0);
+    //state->addAtom("handle", Vector(5.0, 7, 0), 0);
 
    // state->addAtom("handle", Vector(5.0, 1, 0), 0);
    // state->addAtom("handle", Vector(7.0, 1, 0), 0);
