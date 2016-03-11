@@ -616,12 +616,14 @@ __global__ void compactNeighborlist(int nAtoms, short *teamMemberNeighborCounts,
 
     int idx = GETIDX();
     if (idx < nAtoms) {
+        printf("going to compact, I am tid %d\n", threadIdx.x);
         short currentCounts[ATOMTEAMSIZE];
         for (int i=0; i<ATOMTEAMSIZE; i++) {
             currentCounts[i] = teamMemberNeighborCounts[idx/ATOMTEAMSIZE + i]; //this value is coming out wrong for some reason
             printf("threadIdx %d current count %d\n", threadIdx.x, currentCounts[i]);
         }
-        while (true) {
+        return;
+        //while (true) {
             bool inOrder = true;
             //halting condition.  no voids
             for (int i=0; i<ATOMTEAMSIZE-1; i++) {
@@ -632,7 +634,7 @@ __global__ void compactNeighborlist(int nAtoms, short *teamMemberNeighborCounts,
                 }
             }
             if (inOrder) {
-                break;
+            //    break;
             }
             int firstVacancyIdx = 0;
             int lastValidIdx = 0;
@@ -650,7 +652,7 @@ __global__ void compactNeighborlist(int nAtoms, short *teamMemberNeighborCounts,
             printf("moving %d to %d\n", lastValidNlist, firstVacancyNlist);
             currentCounts[firstVacancyIdx] ++;
             currentCounts[lastValidIdx] --;
-        }
+    //    }
     }
 
 
@@ -823,6 +825,7 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort) {
         if (bounds.sides[0].y or bounds.sides[1].x) {
             Mod::skewAtomsFromZero<<<NBLOCK(nAtoms), PERBLOCK>>>(state->gpd.xs(activeIdx), nAtoms, bounds.sides[0], bounds.sides[1], bounds.lo);
         }
+        return;
         ds = ds_orig;
         os = os_orig;
         //verifyNeighborlists(neighCut);
