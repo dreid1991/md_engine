@@ -5,6 +5,7 @@
 #include "Atom.h"
 using namespace std;
 void cumulativeSum(int *data, int n);
+int cumulativeSumMaxVal(int *data, int n);
 
 template <class SRC, class DEST, int N>
 int copyMultiAtomToGPU(vector<Atom> &atoms, vector<SRC> &src, GPUArrayDevice<DEST> *dest, GPUArrayDevice<int> *destIdxs) {
