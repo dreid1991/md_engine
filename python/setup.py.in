@@ -4,7 +4,8 @@ module1 = Extension('${MD_ENGINE_LIB_NAME}',
                     sources = ['${SIM_SOURCES}'],
                     library_dirs = ["${CMAKE_BINARY_DIR}"],
                     libraries = ["${MD_ENGINE_LIB_NAME}"],
-                    include_dirs = ["${CMAKE_SOURCE_DIR}"],
+                    include_dirs = ["${CMAKE_SOURCE_DIR}",
+                                    "${CUDA_INCLUDE_DIRS}"],
                     runtime_library_dirs = ["${CMAKE_INSTALL_PREFIX}/lib"],
                     extra_compile_args = "${CMAKE_CXX_FLAGS}".split()
                     )
