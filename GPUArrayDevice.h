@@ -19,11 +19,8 @@ template <typename T>
 class GPUArrayDevice {
 public:
     /*! \brief Default constructor */
-    GPUArrayDevice() {
-        ptr = (T *) NULL;
-        n = 0;
-        Tsize = sizeof(T);
-    }
+    GPUArrayDevice()
+        : ptr((T*)NULL), n(0), Tsize(sizeof(T)) {}
 
     /*! \brief Constructor
      *
@@ -32,27 +29,24 @@ public:
      * This constructor creates the array on the GPU device and allocates
      * enough memory to store n_ elements.
      */
-    GPUArrayDevice(int n_) : n(n_) {
-        allocate();
-        Tsize = sizeof(T);
-    }
+    GPUArrayDevice(int n_)
+        : n(n_), Tsize(sizeof(T)) { allocate(); }
 
     /*! \brief Copy constructor */
-    GPUArrayDevice(const GPUArrayDevice<T> &other) {
-        n = other.n;
+    GPUArrayDevice(const GPUArrayDevice<T> &other)
+        : n(other.n), Tsize(sizeof(T))
+    {
         allocate();
         CUCHECK(cudaMemcpy(ptr, other.ptr, n*sizeof(T),
                                                 cudaMemcpyDeviceToDevice));
-        Tsize = sizeof(T);
     }
 
     /*! \brief Move constructor */
-    GPUArrayDevice(GPUArrayDevice<T> &&other) {
-        n = other.n;
-        ptr = other.ptr;
+    GPUArrayDevice(GPUArrayDevice<T> &&other)
+        : ptr(other.ptr), n(other.n), Tsize(sizeof(T))
+    {
         other.n = 0;
         other.ptr = (T *) NULL;
-        Tsize = sizeof(T);
     }
 
     /*! \brief Destructor */
