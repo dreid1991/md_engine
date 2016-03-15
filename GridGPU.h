@@ -20,13 +20,12 @@ class GridGPU {
     bool verifyNeighborlists(float neighCut);
     bool streamCreated;
     bool checkSorting(int gridIdx, int *gridIdxs, GPUArrayDevice<int> &grid);
+    GPUArrayDevice<float4> xsLastBuild;
+    GPUArray<int> buildFlag;
     public: 
         GPUArray<int> perCellArray;
         GPUArray<int> perBlockArray;
         GPUArray<int> perAtomArray; //during runtime this is the starting (+1 is ending) index for each neighbor
-        GPUArrayDevice<float4> xsLastBuild;
-        GPUArray<int> buildFlag;
-        GPUArrayDevice<short> teamMemberNeighborCounts;
         float3 ds;
         float3 dsOrig;
         float3 os;

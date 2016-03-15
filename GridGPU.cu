@@ -456,7 +456,6 @@ void GridGPU::initArrays() {
     perAtomArray = GPUArray<int>(state->atoms.size()+1);
     perBlockArray = GPUArray<int>(NBLOCKTEAM(state->atoms.size(), ATOMTEAMSIZE) + 1); //also cumulative sum, tracking cumul. sum of max per block
     xsLastBuild = GPUArrayDevice<float4>(state->atoms.size());
-    teamMemberNeighborCounts = GPUArrayDevice<short>(ATOMTEAMSIZE * state->atoms.size());
     //in prepare for run, you make GPU grid _after_ copying xs to device
     buildFlag = GPUArray<int>(1);
 }
@@ -644,6 +643,7 @@ __global__ void setBuildFlag(float4 *xsA, float4 *xsB, int nAtoms, BoundsGPU bou
     }
     */
     if (threadIdx.x == 0) {
+        printf("val is %d\n", flags_shr[0]);
         atomicAdd(buildFlag, flags_shr[0]);
     }
 
@@ -745,7 +745,10 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort) {
     setBuildFlag<<<NBLOCK(nAtoms), PERBLOCK, PERBLOCK * sizeof(int)>>>(state->gpd.xs(activeIdx), xsLastBuild.ptr, nAtoms, bounds, state->padding*state->padding, buildFlag.d_data.ptr, numChecksSinceLastBuild);
     buildFlag.dataToHost();
     cudaDeviceSynchronize();
+    cout << "hello" << endl;
+    cout << "build " << buildFlag.h_data[0] << endl;
     if (buildFlag.h_data[0]) {
+        cout << "hello" << endl;
         //teamMemberNeighborCounts.memset(0);
         //cout << "I AM BUILDING" << endl;
         BoundsGPU boundsUnskewed = bounds.unskewed();
@@ -821,9 +824,9 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort) {
         //countNumNeighbors<<<NBLOCKTEAM(nAtoms, ATOMTEAMSIZE), PERBLOCK, PERBLOCK*sizeof(int)>>>(state->gpd.xs(gridIdx), nAtoms, state->gpd.idToIdxs.getTex(), state->gpd.ids(gridIdx), perAtomArray.d_data.ptr, perCellArray.d_data.ptr, os, ds, ns, bounds.periodic, trace, neighCut*neighCut, doSort);//, state->gpd.nlistExclusionIdxs.getTex(), state->gpd.nlistExclusions.getTex(), state->maxExclusions);
         perAtomArray.dataToHost();
         cudaDeviceSynchronize();
-        for (int count : perAtomArray.h_data) {
-            cout << "per atom " << count << endl;
-        }
+       // for (int count : perAtomArray.h_data) {
+       //     cout << "per atom " << count << endl;
+       // }
    //     cout << "counts" << endl;
         for (int i : perAtomArray.h_data) {
   //          cout << i << endl;
@@ -879,9 +882,9 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort) {
      //   cout << "nlish" << endl;
         uint *nlist = neighborlist.get((uint *) NULL);
         cudaDeviceSynchronize();
-        for (int i=0; i<300; i++) {
-            cout << i << " " << nlist[i] << endl;
-        }
+       // for (int i=0; i<300; i++) {
+       //     cout << i << " " << nlist[i] << endl;
+      //  }
         free(nlist);
         cout << "end nlish" << endl;
         //short *teamCounts = teamMemberNeighborCounts.get((short *) NULL);
@@ -963,14 +966,14 @@ bool GridGPU::verifyNeighborlists(float neighCut) {
         sort(atom_neighbors.begin(), atom_neighbors.end());
         cpu_neighbors.push_back(atom_neighbors);
     }
-    cout << "nlist IN CHECK" << endl;
+//    cout << "nlist IN CHECK" << endl;
     for (int i=0; i<neighborlist.n; i++) {
    //     cout << nlist[i] << endl;
     }
 //    cout << "cpu dist is " << sqrt(lengthSqr(state->boundsGPU.minImage(xs[0]-xs[1])))  << endl;
     int warpSize = state->devManager.prop.warpSize;
 
-    cout << "xs size is " << xs.size() << endl;
+ //   cout << "xs size is " << xs.size() << endl;
     for (int i=0; i<xs.size(); i++) {
         int atomsPerBlock = PERBLOCK/ATOMTEAMSIZE;
         int atomsPerWarp = warpSize / ATOMTEAMSIZE;
@@ -980,7 +983,7 @@ bool GridGPU::verifyNeighborlists(float neighCut) {
         int idxPreviousBlocks = cumSumUpToMyBlock * atomsPerBlock;
         int teamIndex = i - blockIdx * atomsPerBlock;
         int numPreviousTeamsInBlock = teamIndex / atomsPerWarp;
-        printf("teamIdx is %d and atomsperwarp is %d and peratom my warp is %d\n", teamIndex, atomsPerWarp, perAtomMyWarp);
+      //  printf("teamIdx is %d and atomsperwarp is %d and peratom my warp is %d\n", teamIndex, atomsPerWarp, perAtomMyWarp);
         int idxPreviousWarps = numPreviousTeamsInBlock * perAtomMyWarp * atomsPerWarp;
         int idxInTeam = teamIndex % atomsPerWarp; 
         int baseIdx = idxPreviousBlocks + idxPreviousWarps + ATOMTEAMSIZE * idxInTeam;
@@ -988,15 +991,15 @@ bool GridGPU::verifyNeighborlists(float neighCut) {
         //int teamsPerWarp = warpSize / ATOMTEAMSIZE;
         //int idxInWarp = (i - blockIdx * PERBLOCK - warpIdx * warpSize) * ATOMTEAMSIZE;
         //int baseIdx = PERBLOCK * perBlockArray.h_data[blockIdx] + perAtomMyWarp * warpSize * warpIdx + idxInWarp;
-        cout << "base idx is " << baseIdx << endl;
+     //   cout << "base idx is " << baseIdx << endl;
         //cout << "i is " << i << " blockIdx is " << blockIdx << " warp idx is " << warpIdx << " and idx in that warp is " << idxInWarp << " resulting base idx is " << baseIdx << endl;
         //cout << "id is " << ids[i] << endl;
         vector<int> neighIds;
     //    cout << "begin end " << neighIdxs[i] << " " << neighIdxs[i+1] << endl;
-        printf("neigh counts is %d\n", neighCounts[i]);
+      //  printf("neigh counts is %d\n", neighCounts[i]);
         for (int j=0; j<neighCounts[i]; j++) {
             int nIdx = baseIdx + j % ATOMTEAMSIZE + (j/ATOMTEAMSIZE) * warpSize;
-            cout << "nIdx is " << nIdx << endl;
+          //  cout << "nIdx is " << nIdx << endl;
             //cout << "looking at neighborlist index " << nIdx << endl;
 
       //      cout << "idx " << nlist[nIdx] << endl;
