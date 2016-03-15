@@ -29,7 +29,7 @@ public:
      * This constructor creates the array on the GPU device and allocates
      * enough memory to store n_ elements.
      */
-    GPUArrayDevice(int n_)
+    explicit GPUArrayDevice(int n_)
         : n(n_) { allocate(); }
 
     /*! \brief Copy constructor */
