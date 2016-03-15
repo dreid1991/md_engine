@@ -20,7 +20,7 @@ class GPUArrayDevice {
 public:
     /*! \brief Default constructor */
     GPUArrayDevice()
-        : ptr((T*)NULL), n(0), Tsize(sizeof(T)) {}
+        : ptr((T*)NULL), n(0) {}
 
     /*! \brief Constructor
      *
@@ -30,11 +30,11 @@ public:
      * enough memory to store n_ elements.
      */
     GPUArrayDevice(int n_)
-        : n(n_), Tsize(sizeof(T)) { allocate(); }
+        : n(n_) { allocate(); }
 
     /*! \brief Copy constructor */
     GPUArrayDevice(const GPUArrayDevice<T> &other)
-        : n(other.n), Tsize(sizeof(T))
+        : n(other.n)
     {
         allocate();
         CUCHECK(cudaMemcpy(ptr, other.ptr, n*sizeof(T),
@@ -43,7 +43,7 @@ public:
 
     /*! \brief Move constructor */
     GPUArrayDevice(GPUArrayDevice<T> &&other)
-        : ptr(other.ptr), n(other.n), Tsize(sizeof(T))
+        : ptr(other.ptr), n(other.n)
     {
         other.n = 0;
         other.ptr = (T *) NULL;
@@ -189,14 +189,14 @@ public:
      * Set all array elements to the value specified by the parameter val
      */
     void memsetByVal(T val) {
-        assert(Tsize==4 or Tsize==8 or Tsize==12 or Tsize==16);
-        MEMSETFUNC((void *) ptr, &val, n, Tsize);
+        assert(sizeof(T) == 4  || sizeof(T) == 8 ||
+               sizeof(T) == 12 || sizeof(T) == 16);
+        MEMSETFUNC((void *) ptr, &val, n, sizeof(T));
     }
 
 public:
     T *ptr; //!< Pointer to the data
     int n; //!< Number of entries stored in the device
-    int Tsize; //!< Size (in bytes) of one array element
 };
 
 #endif
