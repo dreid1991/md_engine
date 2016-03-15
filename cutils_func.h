@@ -46,7 +46,7 @@ inline __device__ int baseNeighlistIdxFromIndex(int *cumulSumMaxPerBlock, int wa
 
     int myTeamIdx = threadIdx.x % ATOMTEAMSIZE;
     
-    printf("%d %d %d %d %d %d %d %d %d %d %d\n", threadIdx.x, atomIdx, numAtomsPerBlockWhenTeams, blockIdxWhenTeams, cumulSumUpToMe, maxNeighInMyBlock, threadIdxWhenTeams, numAtomsPerWarpWhenTeams, myWarp, myIdxInWarp, myTeamIdx);
+    //printf("%d %d %d %d %d %d %d %d %d %d %d\n", threadIdx.x, atomIdx, numAtomsPerBlockWhenTeams, blockIdxWhenTeams, cumulSumUpToMe, maxNeighInMyBlock, threadIdxWhenTeams, numAtomsPerWarpWhenTeams, myWarp, myIdxInWarp, myTeamIdx);
     return numAtomsPerBlockWhenTeams * cumulSumUpToMe + myWarp * maxNeighInMyBlock * numAtomsPerWarpWhenTeams + myIdxInWarp * ATOMTEAMSIZE + myTeamIdx;
 /*
     int blockIdx = idx / blockDim.x;

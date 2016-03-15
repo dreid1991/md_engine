@@ -640,7 +640,7 @@ void testLJ() {
 void testNeighboring() {
     SHARED(State) state = SHARED(State) (new State());
     state->devManager.setDevice(0);
-    int baseLen = 40;
+    int baseLen = 10;
     state->shoutEvery = 100;
     double mult = 1.5;
     state->bounds = Bounds(state, Vector(0, 0, 0), Vector(mult*baseLen, mult*baseLen, mult*baseLen));
@@ -664,9 +664,9 @@ void testNeighboring() {
     state->addAtom("handle", Vector(5, 3, 0), 0);
     state->addAtom("handle", Vector(5, 7, 0), 0);
     state->addAtom("handle", Vector(5, 5, 2), 0);
- //   state->addAtom("handle", Vector(7.0, 5, 0), 0);
-  //  state->addAtom("handle", Vector(5.0, 3, 0), 0);
-    //state->addAtom("handle", Vector(5.0, 7, 0), 0);
+    state->addAtom("handle", Vector(7.0, 5, 0), 0);
+    state->addAtom("handle", Vector(5.0, 3, 0), 0);
+    state->addAtom("handle", Vector(5.0, 7, 0), 0);
 
    // state->addAtom("handle", Vector(5.0, 1, 0), 0);
    // state->addAtom("handle", Vector(7.0, 1, 0), 0);
@@ -674,7 +674,7 @@ void testNeighboring() {
         for (int j=0; j<baseLen; j++) {
             for (int k=0; k<baseLen; k++) {
             //    state->addAtom("handle", Vector(i*mult + (rand() % 20)/40.0, j*mult + (rand() % 20)/40.0, 0), 0);
-    //            state->addAtom("handle", Vector(i*mult + (rand() % 20)/40.0, j*mult + (rand() % 20)/40.0, k*mult + (rand() % 20)/40.0), 0);
+             //   state->addAtom("handle", Vector(i*mult + (rand() % 20)/40.0, j*mult + (rand() % 20)/40.0, k*mult + (rand() % 20)/40.0), 0);
             }
         }
     }
