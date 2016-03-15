@@ -285,16 +285,19 @@ __device__ int assignFromCell(float3 pos, int idx, bool validThread, uint myId, 
     int myIdxInAtomTeam = threadIdx.x % ATOMTEAMSIZE;
     uint neighborlistDefault = 4294967295; //2^32, so third largest bit on neighblist items is also reserved, making max num atoms 2^29.
     //printf("hello from thread bound to id %d team idx %d, tid %d currentNeighIdx is %d\n", myId, myIdxInAtomTeam, threadIdx.x, currentNeighborIdx);
-    for (int i=0; i<maxAtomsInCell; i+=ATOMTEAMSIZE) { //in ANY cell, because all threads must exec on this otherwise sync will hang
+    int iterateTo = ATOMTEAMSIZE * ceilf((float) maxAtomsInCell / ATOMTEAMSIZE);//because have to fill out defaults in all team shared memory
+
+    for (int i=myIdxInAtomTeam; i<iterateTo; i+=ATOMTEAMSIZE) { //in ANY cell, because all threads must exec on this otherwise sync will hang
         bool validAtomIdx = i < cellSpan;
         uint neighborlistItem = neighborlistDefault; //the one thing a valid neighborlist item will never be - all possible distances 
         if (validAtomIdx) { //so invalid threads will never make it in here b/c their span is zero
-            int posIdx = i + idxMin;
-            float4 otherPosWhole = xs[posIdx];
+            int atomListIdx = i + idxMin;
+            float4 otherPosWhole = xs[atomListIdx];
             float3 otherPos = make_float3(otherPosWhole);
             float3 distVec = otherPos + (offset * trace) - pos;
-            uint otherId = ids[i];
+            uint otherId = ids[atomListIdx];
 
+            printf("I am threadIdx %d and my currentNeighborIdx is %d and I am checking %d %d sqrIdx is %d and I looked up idx %d\n", threadIdx.x, currentNeighborIdx, myId, otherId, squareIdx, atomListIdx);
             if (myId != otherId && dot(distVec, distVec) < neighCutSqr/* && !(isExcluded(otherId, exclusions, numExclusions, maxExclusions))*/) {
                 uint exclusionTag = addExclusion(otherId, exclusionIds_shr, exclIdxLo_shr, exclIdxHi_shr);
 
@@ -304,7 +307,7 @@ __device__ int assignFromCell(float3 pos, int idx, bool validThread, uint myId, 
                 if (justSorted) {
 
 
-                    neighborlistItem = (i | exclusionTag);
+                    neighborlistItem = (atomListIdx | exclusionTag);
                 } else {
                     int xIdxID = XIDX(otherId, sizeof(int));
                     int yIdxID = YIDX(otherId, sizeof(int));
@@ -319,17 +322,25 @@ __device__ int assignFromCell(float3 pos, int idx, bool validThread, uint myId, 
 
             }
         }
+//        printf("tid %d with idx %d item %u\n", threadIdx.x, myIdxInAtomTeam, neighborlistItem);
         teamNlist_shr[myIdxInAtomTeam] = neighborlistItem;
         __syncthreads();
         if (validThread and myIdxInAtomTeam==0) {
-            int validNeighbors = 0;
+        //    printf("I am tid %d in writer loop, my shareds are %u %u %u %u\n", threadIdx.x, teamNlist_shr[0], teamNlist_shr[1], teamNlist_shr[2], teamNlist_shr[3]);
             for (int i=0; i<ATOMTEAMSIZE; i++) {
+
                 if (teamNlist_shr[i] != neighborlistDefault) {
-                    neighborlist[currentNeighborIdx + validNeighbors] = teamNlist_shr[i];
-                    validNeighbors++;
+                 //   printf("tid %d writing value %d to idx %d\n", threadIdx.x, teamNlist_shr[i], currentNeighborIdx);
+                    neighborlist[currentNeighborIdx] = teamNlist_shr[i];
+                    currentNeighborIdx++;
+                    if ((currentNeighborIdx % ATOMTEAMSIZE) == 0) {
+                        currentNeighborIdx += (warpSize - ATOMTEAMSIZE);
+                    }
                 }
+                //HEY - YOU NEED TO BE CAREFUL ABOUT HOW INCREMENT CURRENTNEIGHBORIDX, LIKE NEED TO COUNT IT UP ONE AT A TIME B/C MIGHT NOT HAVE ALL 4 IN A GIVEN WARP
+                //also could compact in one thread, then pass back to others to write
+                //indexing might be tricky
             }
-            currentNeighborIdx += warpSize;
         }
 
     }
@@ -339,7 +350,7 @@ __global__ void assignNeighbors(float4 *xs, int nAtoms, cudaTextureObject_t idTo
   ///  extern __shared__ int exclusions_shr[]; 
 
     extern __shared__ uint exclusionIds_shr[];
-    uint *teamNlist_shr = exclusionIds_shr + (threadIdx.x / ATOMTEAMSIZE) * ATOMTEAMSIZE; //so move forward to my block of ATOMTEAMSIZE
+    uint *teamNlist_shr = exclusionIds_shr + PERBLOCK*maxExclusionsPerAtom*sizeof(uint) + (threadIdx.x / ATOMTEAMSIZE) * ATOMTEAMSIZE; //so move forward to my block of ATOMTEAMSIZE
     /*
     int tidLo = blockIdx.x * blockDim.x;
     int tidHi = min((blockIdx.x+1) * blockDim.x, nAtoms) - 1;
@@ -359,6 +370,7 @@ __global__ void assignNeighbors(float4 *xs, int nAtoms, cudaTextureObject_t idTo
     exclIdxLo_shr = threadIdx.x * maxExclusionsPerAtom;
     bool validThread = idx < nAtoms * ATOMTEAMSIZE;
     if (validThread) {
+        printf("thread %d incrementing by %d\n", threadIdx.x, (threadIdx.x / ATOMTEAMSIZE) * ATOMTEAMSIZE);
         posWhole = xs[idx / ATOMTEAMSIZE];
         myId = ids[idx / ATOMTEAMSIZE];
         int exclIdxLo = exclusionIndexes[myId];
@@ -396,6 +408,7 @@ __global__ void assignNeighbors(float4 *xs, int nAtoms, cudaTextureObject_t idTo
             int yIdxID = YIDX(myId, sizeof(int));
             uint myIdx = tex2D<int>(idToIdxs, xIdxID, yIdxID);
             currentNeighborIdx = baseNeighlistIdxFromIndex(cumulSumMaxPerBlock, warpSize, myIdx);
+            printf("getting current for tid %d and atomId %d atomIdx %d, is %d\n", threadIdx.x, myId, myIdx, currentNeighborIdx);
 
         }
         //only idxinteam == 0 will use current neighbor idx
@@ -766,8 +779,8 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort) {
         int maxAtomsInCell = cumulativeSumMaxVal(gridCellCounts_h, perCellArray.size());//repurposing this as starting indexes for each grid square
         perCellArray.dataToDevice();
         int gridIdx;
-        doSort = false;
-        cout << "NOT SORTING" << endl;
+        doSort = true;
+        cout << "SORTING" << endl;
         if (doSort) {
             sortPerAtomArrays<<<NBLOCK(nAtoms), PERBLOCK>>>(
 
@@ -822,6 +835,8 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort) {
         } else if (totalNumNeighbors < neighborlist.n * 0.5) {
             neighborlist = GPUArrayDevice<uint>(totalNumNeighbors*0.8);
         }
+        neighborlist.memsetByVal(10000); //FOR TESTING;
+        cudaDeviceSynchronize(); // ALSO TESTING
         SAFECALL((assignNeighbors<<<NBLOCKTEAM(nAtoms, ATOMTEAMSIZE), PERBLOCK, PERBLOCK*maxExclusionsPerAtom*sizeof(uint) + PERBLOCK * sizeof(uint)>>>(
                 state->gpd.xs(gridIdx), 
                 nAtoms, 
@@ -862,7 +877,7 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort) {
         cout << "nlish" << endl;
         uint *nlist = neighborlist.get((uint *) NULL);
         cudaDeviceSynchronize();
-        for (int i=0; i<32; i++) {
+        for (int i=0; i<64; i++) {
             cout << nlist[i] << endl;
         }
         free(nlist);
@@ -881,15 +896,7 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort) {
         if (bounds.sides[0].y or bounds.sides[1].x) {
             Mod::skewAtomsFromZero<<<NBLOCK(nAtoms), PERBLOCK>>>(state->gpd.xs(activeIdx), nAtoms, bounds.sides[0], bounds.sides[1], bounds.lo);
         }
-        cudaDeviceSynchronize();
-        cout << "nlish" << endl;
-        nlist = neighborlist.get((uint *) NULL);
-        cudaDeviceSynchronize();
-        for (int i=0; i<32; i++) {
-            cout << i << " " << nlist[i] << endl;
-        }
-        free(nlist);
-        cout << "end nlish" << endl;
+
         return;
         ds = ds_orig;
         os = os_orig;

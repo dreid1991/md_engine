@@ -660,8 +660,12 @@ void testNeighboring() {
  //   }
     state->addAtom("handle", Vector(5, 5, 0), 0);
     state->addAtom("handle", Vector(3.0, 5, 0), 0);
-    state->addAtom("handle", Vector(7.0, 5, 0), 0);
-    state->addAtom("handle", Vector(5.0, 3, 0), 0);
+    state->addAtom("handle", Vector(7, 5, 0), 0);
+    state->addAtom("handle", Vector(5, 3, 0), 0);
+    state->addAtom("handle", Vector(5, 7, 0), 0);
+    state->addAtom("handle", Vector(5, 5, 2), 0);
+ //   state->addAtom("handle", Vector(7.0, 5, 0), 0);
+  //  state->addAtom("handle", Vector(5.0, 3, 0), 0);
     //state->addAtom("handle", Vector(5.0, 7, 0), 0);
 
    // state->addAtom("handle", Vector(5.0, 1, 0), 0);
