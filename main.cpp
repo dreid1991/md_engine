@@ -568,7 +568,7 @@ void hoomdBench() {
 void testLJ() {
     SHARED(State) state = SHARED(State) (new State());
     state->devManager.setDevice(0);
-    int baseLen = 40;
+    int baseLen = 20;
     state->shoutEvery = 100;
     double mult = 1.5;
     state->bounds = Bounds(state, Vector(0, 0, 0), Vector(mult*baseLen, mult*baseLen, mult*baseLen));
@@ -588,14 +588,14 @@ void testLJ() {
  //   }
     //state->addAtom("handle", Vector(1, 1, 0), 0);
     //state->addAtom("handle", Vector(3.0, 1, 0), 0);
-
-   // state->addAtom("handle", Vector(5.0, 1, 0), 0);
-   // state->addAtom("handle", Vector(7.0, 1, 0), 0);
-    for (int i=0; i<baseLen; i++) {
+    for (int i=0; i<8; i++) {
+        state->addAtom("handle", Vector(2*i + (rand()%4) / 8.0, 1, 0), 0);
+    }
+   for (int i=0; i<baseLen; i++) {
         for (int j=0; j<baseLen; j++) {
             for (int k=0; k<baseLen; k++) {
             //    state->addAtom("handle", Vector(i*mult + (rand() % 20)/40.0, j*mult + (rand() % 20)/40.0, 0), 0);
-                state->addAtom("handle", Vector(i*mult + (rand() % 20)/40.0, j*mult + (rand() % 20)/40.0, k*mult + (rand() % 20)/40.0), 0);
+             //   state->addAtom("handle", Vector(i*mult + (rand() % 20)/40.0, j*mult + (rand() % 20)/40.0, k*mult + (rand() % 20)/40.0), 0);
             }
         }
     }
@@ -611,8 +611,8 @@ void testLJ() {
     nonbond->setParameter("eps", "handle", "handle", 1);
     state->activateFix(nonbond);
 
-    //SHARED(WriteConfig) write = SHARED(WriteConfig) (new WriteConfig(state, "test", "handley", "xml", 20));
-  //  state->activateWriteConfig(write);
+    SHARED(WriteConfig) write = SHARED(WriteConfig) (new WriteConfig(state, "test", "handley", "xml", 20));
+    state->activateWriteConfig(write);
 
     IntegraterVerlet verlet = IntegraterVerlet(state);
     cout << state->atoms[0].pos << endl;
@@ -728,8 +728,8 @@ int main(int argc, char **argv) {
         int arg = atoi(argv[1]);
         if (arg==0) {
     //        testDihedral();
-            testNeighboring();
-           // testLJ();
+           // testNeighboring();
+            testLJ();
             // testLJ();
             // hoomdBench();
             //testBondHarmonicGridToGPU();

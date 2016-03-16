@@ -34,8 +34,10 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *fs, int *neighborCoun
 
         int numNeigh = neighborCounts[idx / ATOMTEAMSIZE];
         //printf("start, end %d %d\n", start, end);
-        for (int i=myIdxInAtomTeam; i<numNeigh; i+=ATOMTEAMSIZE) {
-            int nlistIdx = baseIdx + warpSize * i;
+        for (int nthNeigh = myIdxInAtomTeam; nthNeigh<numNeigh; nthNeigh+=ATOMTEAMSIZE) {
+            int nlistIdx = baseIdx + warpSize * (nthNeigh/ATOMTEAMSIZE);
+        //for (int i=0; ATOMTEAMSIZE*i+myIdxInAtomTeam<numNeigh; i++) {
+          //  int nlistIdx = baseIdx + warpSize * i + myIdxInAtomTeam;
             uint otherIdxRaw = neighborlist[nlistIdx];
             uint neighDist = otherIdxRaw >> 30;
             uint otherIdx = otherIdxRaw & EXCL_MASK;
@@ -68,8 +70,7 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *fs, int *neighborCoun
 
     }
     fs_shr[threadIdx.x] = forceSum;
-    __syncthreads();
-    reduceByN<float3>(fs_shr, ATOMTEAMSIZE);
+    reduceByN_NOSYNC<float3>(fs_shr, ATOMTEAMSIZE);
     if (! (threadIdx.x % ATOMTEAMSIZE)) {
         fs[idx / ATOMTEAMSIZE] += fs_shr[threadIdx.x];
     }

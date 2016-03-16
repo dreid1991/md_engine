@@ -80,11 +80,20 @@ inline __device__ void reduceByN(T *src, int span) { // where span is how many e
         curLookahead *= 2;
         __syncthreads();
     }
-
-
 }
-//HEY - COULD OPTIMIZE BELOW BY STARTING curLookahead at 1 AND JUST MULTIPLYING BY 2 EACH TIME
 
+//only safe to use if reducing within a warp
+template <class T>
+inline __device__ void reduceByN_NOSYNC(T *src, int span) { // where span is how many elements you're reducing over.  src had better be shared memory
+    int maxLookahead = span / 2;
+    int curLookahead = 1;
+    while (curLookahead <= maxLookahead) {
+        if (! (threadIdx.x % (curLookahead*2))) {
+            src[threadIdx.x] += src[threadIdx.x + curLookahead];
+        }
+        curLookahead *= 2;
+    }
+}
 #define SUM(NAME, OPERATOR, WRAPPER) \
 template <class K, class T>\
 __global__ void NAME (K *dest, T *src, int n) {\

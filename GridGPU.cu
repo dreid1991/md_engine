@@ -254,7 +254,7 @@ __global__ void countNumNeighbors(float4 *xs, int nAtoms, cudaTextureObject_t id
     //printf("%d %d\n", threadIdx.x, myCount);
     counts_shr[threadIdx.x] = myCount;
     //__syncthreads();
-    reduceByN<int>(counts_shr, ATOMTEAMSIZE);
+    reduceByN_NOSYNC<int>(counts_shr, ATOMTEAMSIZE);
     if (idx < nAtoms * ATOMTEAMSIZE and not (threadIdx.x % ATOMTEAMSIZE)) {
         neighborCounts[myIdx] = counts_shr[threadIdx.x];
     }
@@ -372,7 +372,6 @@ __global__ void assignNeighbors(float4 *xs, int nAtoms, cudaTextureObject_t idTo
     exclIdxLo_shr = threadIdx.x * maxExclusionsPerAtom;
     bool validThread = idx < nAtoms * ATOMTEAMSIZE;
     if (validThread) {
-    //    printf("thread %d incrementing by %d\n", threadIdx.x, (threadIdx.x / ATOMTEAMSIZE) * ATOMTEAMSIZE);
         posWhole = xs[idx / ATOMTEAMSIZE];
         myId = ids[idx / ATOMTEAMSIZE];
         int exclIdxLo = exclusionIndexes[myId];
@@ -382,7 +381,6 @@ __global__ void assignNeighbors(float4 *xs, int nAtoms, cudaTextureObject_t idTo
         for (int i=exclIdxLo; i<exclIdxHi; i++) {
             uint exclusion = exclusionIds[i];
             exclusionIds_shr[maxExclusionsPerAtom*threadIdx.x + i - exclIdxLo] = exclusion;
-            //printf("I am thread %d and I am copying %u from global %d to shared %d\n", threadIdx.x, exclusion, i, maxExclusionsPerAtom*threadIdx.x+i-exclIdxLo);
         }
     }
     //okay, now we have exclusions copied into shared
@@ -444,7 +442,6 @@ __global__ void assignNeighbors(float4 *xs, int nAtoms, cudaTextureObject_t idTo
                             int3 sqrIdxOther = make_int3(xIdxLoop, yIdxLoop, zIdxLoop);
                             int sqrIdxOtherLin = LINEARIDX(sqrIdxOther, ns);
 
-//__device__ int assignFromCell(float3 pos, int idx, uint myId, float4 *xs, uint *ids, int *gridCellArrayIdxs, cudaTextureObject_t idToIdxs, int squareIdx, float3 offset, float3 trace, float neighCutSqr, int currentNeighborIdx, cudaSurfaceObject_t neighborlist, bool justSorted, uint *exclusionIds_shr, int exclIdxLo_shr, int exclIdxHi_shr) {
                             currentNeighborIdx = assignFromCell(pos, idx, validThread, myId, xs, ids, gridCellArrayIdxs, idToIdxs, sqrIdxOtherLin, -offset, trace, neighCutSqr, currentNeighborIdx, neighborlist, justSorted, exclusionIds_shr, exclIdxLo_shr, exclIdxHi_shr, warpSize, teamNlist_shr, maxAtomsInCell);
 
                         }
@@ -563,47 +560,7 @@ void __global__ printInts(int *xs, int n) {
 */
 //nAtoms, neighborlist.surf, perAtomArray.ptr, exclusionIndexes.ptr, exclusionIds.ptr, state->gpd.xs.getTex(activeIdx));
 
-/*
-void __global__ addExclusions(int nAtoms, cudaSurfaceObject_t nlist, int *nlistIdxs, int *exclusionIndexes, uint *exclusionIds, cudaTextureObject_t xs) {
-    uint exclusionMask = ~(3 << 30);
-    extern __shared__ uint exclusionIds_shr[];
-    int tidLo = blockIdx.x * blockDim.x;
-    int tidHi = min((blockIdx.x+1) * blockDim.x, nAtoms) - 1;
-    int idLo = *(int *) &tex2D<float4>(xs, XIDX(tidLo, sizeof(float4), YIDX(tidLo, sizeof(float4)))).w;
-    int idHi = *(int *) &tex2D<float4>(xs, XIDX(tidHi, sizeof(float4), YIDX(tidHi, sizeof(float4)))).w;
-    int copyLo = exclusionIndexes[idLo];
-    int copyHi = exclusionIndexes[idHi+1];
 
-    copyToShared<uint>(exclusionIds + copyLo, exclusionIds_shr, copyHi - copyLo);
-    __syncthreads();
-    //okay, now all of the exclusions are copied into shared
-    int idx = GETIDX();
-    if (idx < nAtoms) {
-        int id = *(int *) &tex2D<float4>(xs, XIDX(idx, sizeof(float4), YIDX(idx, sizeof(float4)))).w;
-        int idxLo_shr = exclusionIndexes[id] - copyLo;
-        int idxHi_shr = exclusionIndexes[id+1] - copyLo;
-        int nlistIdxLo = nlistIdxs[idx];
-        int nlistIdxHi = nlistIdxs[idx+1];
-        for (int nlistIdx=nlistIdxLo; nlistIdx<nlistIdxHi; nlistIdx++) {
-            uint neighborId = tex2D<uint>(nlist, XIDX(nlistIdx, sizeof(uint)), YIDX(nlistIdx, sizeof(float4)));
-            for (int i=idxLo_shr; i<idxHi_shr; i++) {
-                uint excl = exclusionIds_shr[i];
-                if (neighborId == (excl & exclusionMask)) {
-                    uint dist = excl & (~exclusionMask);
-                    neighborId |= dist;
-                    surf2Dwrite(neighborId, nlist, xAddr, yIdx);
-                    break;
-
-                }
-            }
-        }
-
-
-    }
-        int3 sqrIdx = make_int3((make_float3(tex2D<float4>(xs, xIdx, yIdx)) - os) / ds);
-    __device__ void copyToShared (T *src, T *dest, int n) {
-}
-*/
 
 void setPerBlockCounts(vector<int> &neighborCounts, vector<int> &numNeighborsInBlocks) {
     numNeighborsInBlocks[0] = 0;
@@ -635,21 +592,13 @@ __global__ void setBuildFlag(float4 *xsA, float4 *xsB, int nAtoms, BoundsGPU bou
         flags_shr[threadIdx.x] = 0;
     }
    __syncthreads();
-   //just took from parallel reduction in cutils_func
     reduceByN<int>(flags_shr, blockDim.x);
-    //MAKE SURE THIS WORKS
-    /*
-    int maxLookahead = log2f(blockDim.x-1);
-    for (int i=0; i<=maxLookahead; i++) {
-        int curLookahead = powf(2, i);
-        if (! (threadIdx.x % (curLookahead*2))) {
-            flags_shr[threadIdx.x] += flags_shr[threadIdx.x + curLookahead];
-        }
-        __syncthreads();
-    }
-    */
+
     if (threadIdx.x == 0) {
-        atomicAdd(buildFlag, flags_shr[0]);
+        if (flags_shr[0]!=0) { //this way don't have to do atomic add
+            buildFlag[0] = flags_shr[0];
+        }
+        //atomicAdd(buildFlag, flags_shr[0]);
     }
 
 }
@@ -749,8 +698,9 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort, bool force
     setBuildFlag<<<NBLOCK(nAtoms), PERBLOCK, PERBLOCK * sizeof(int)>>>(state->gpd.xs(activeIdx), xsLastBuild.ptr, nAtoms, bounds, state->padding*state->padding, buildFlag.d_data.ptr, numChecksSinceLastBuild);
     buildFlag.dataToHost();
     cudaDeviceSynchronize();
+    cout << "build flag " << buildFlag.h_data[0] << endl;
     if (buildFlag.h_data[0] or forceBuild) {
-        cout << "hello" << endl;
+        cout << "ACTUALLY BUILDING" << endl;
         //teamMemberNeighborCounts.memset(0);
         //cout << "I AM BUILDING" << endl;
         BoundsGPU boundsUnskewed = bounds.unskewed();
@@ -784,8 +734,6 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort, bool force
         int maxAtomsInCell = cumulativeSumMaxVal(gridCellCounts_h, perCellArray.size());//repurposing this as starting indexes for each grid square
         perCellArray.dataToDevice();
         int gridIdx;
-        doSort = true;
-        cout << "SORTING" << endl;
         if (doSort) {
             sortPerAtomArrays<<<NBLOCK(nAtoms), PERBLOCK>>>(
 
@@ -821,7 +769,6 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort, bool force
         }
 
         perAtomArray.d_data.memset(0);
-        cout << "NUM BLOCKS" << NBLOCKTEAM(nAtoms, ATOMTEAMSIZE) << endl;
         SAFECALL((countNumNeighbors<<<NBLOCKTEAM(nAtoms, ATOMTEAMSIZE), PERBLOCK, PERBLOCK*sizeof(int)>>>(state->gpd.xs(gridIdx), nAtoms, state->gpd.idToIdxs.getTex(), state->gpd.ids(gridIdx), perAtomArray.d_data.ptr, perCellArray.d_data.ptr, os, ds, ns, bounds.periodic, trace, neighCut*neighCut, doSort)), "NUM NEIGH");
         //countNumNeighbors<<<NBLOCKTEAM(nAtoms, ATOMTEAMSIZE), PERBLOCK, PERBLOCK*sizeof(int)>>>(state->gpd.xs(gridIdx), nAtoms, state->gpd.idToIdxs.getTex(), state->gpd.ids(gridIdx), perAtomArray.d_data.ptr, perCellArray.d_data.ptr, os, ds, ns, bounds.periodic, trace, neighCut*neighCut, doSort);//, state->gpd.nlistExclusionIdxs.getTex(), state->gpd.nlistExclusions.getTex(), state->maxExclusions);
         perAtomArray.dataToHost();
@@ -837,8 +784,8 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort, bool force
         } else if (totalNumNeighbors < neighborlist.n * 0.5) {
             neighborlist = GPUArrayDevice<uint>(totalNumNeighbors*0.8);
         }
-        neighborlist.memsetByVal(10000); //FOR TESTING;
-        cudaDeviceSynchronize(); // ALSO TESTING
+        //neighborlist.memsetByVal(10000); //FOR TESTING;
+        //cudaDeviceSynchronize(); // ALSO TESTING
         SAFECALL((assignNeighbors<<<NBLOCKTEAM(nAtoms, ATOMTEAMSIZE), PERBLOCK, PERBLOCK*maxExclusionsPerAtom*sizeof(uint) + PERBLOCK * sizeof(uint)>>>(
                 state->gpd.xs(gridIdx), 
                 nAtoms, 
@@ -882,8 +829,7 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort, bool force
 
         ds = ds_orig;
         os = os_orig;
-        verifyNeighborlists(neighCut);
-        return;
+     //   verifyNeighborlists(neighCut);
 
         numChecksSinceLastBuild = 0; 
         copyPositionsAsync();
