@@ -25,11 +25,15 @@ inline __device__ int baseNeighlistIdxForAtom(int *cumulSumMaxPerBlock, int warp
 
 //ONLY TO BE CALLED WITH ATOM TEAMS
 inline __device__ int baseNeighlistIdx(int *cumulSumMaxPerBlock, int warpSize) {
-    int cumulSumUpToMe = cumulSumMaxPerBlock[blockIdx.x]; //okay, so moving to groups neighs, just going to have fewer atoms per block
-    int maxNeighInMyBlock = cumulSumMaxPerBlock[blockIdx.x+1] - cumulSumUpToMe;
-    int myWarp =  threadIdx.x / warpSize;
-    int myIdxInWarp = threadIdx.x % warpSize;
-    return blockDim.x * cumulSumMaxPerBlock[blockIdx.x] + maxNeighInMyBlock * warpSize * myWarp + myIdxInWarp;
+    int cumulSumUpToMe = cumulSumMaxPerBlock[blockIdx.x]; //0
+    int maxNeighInMyBlock = cumulSumMaxPerBlock[blockIdx.x+1] - cumulSumUpToMe; //24 or something
+    int numAtomsPerWarpWhenTeams = warpSize / ATOMTEAMSIZE; //8
+    int myWarp = threadIdx.x / warpSize; //0
+
+    //int myIdxInWarp = (threadIdx.x % warpSize) / ATOMTEAMSIZE;
+    //int myIdxInTeam = threadIdx.x % ATOMTEAMSIZE;
+
+    return (blockDim.x/ATOMTEAMSIZE) * cumulSumMaxPerBlock[blockIdx.x] + myWarp * maxNeighInMyBlock * numAtomsPerWarpWhenTeams + threadIdx.x % warpSize;
 }
 
 //ONLY TO BE CALLED WITH ATOM TEAMS
@@ -42,8 +46,8 @@ inline __device__ int baseNeighlistIdxFromIndex(int *cumulSumMaxPerBlock, int wa
     int numAtomsPerWarpWhenTeams = warpSize / ATOMTEAMSIZE; //8
 
     int myWarp = threadIdxWhenTeams / numAtomsPerWarpWhenTeams;//0
-    int myIdxInWarp = threadIdxWhenTeams % numAtomsPerWarpWhenTeams;//0
 
+    int myIdxInWarp = threadIdxWhenTeams % numAtomsPerWarpWhenTeams;//0
     int myTeamIdx = threadIdx.x % ATOMTEAMSIZE;
     
     //printf("%d %d %d %d %d %d %d %d %d %d %d\n", threadIdx.x, atomIdx, numAtomsPerBlockWhenTeams, blockIdxWhenTeams, cumulSumUpToMe, maxNeighInMyBlock, threadIdxWhenTeams, numAtomsPerWarpWhenTeams, myWarp, myIdxInWarp, myTeamIdx);

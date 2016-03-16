@@ -405,6 +405,9 @@ __global__ void assignNeighbors(float4 *xs, int nAtoms, cudaTextureObject_t idTo
         //HEY, so this is a problem, because it gets the index as if it were the index in the active list, BUT IF YOU DIDN'T SORT, THAT'S NOT TRUE.  So what you need to do is if you didn't sort, index = idxFromId, otherwise threadIdx
         if (justSorted) {
             currentNeighborIdx = baseNeighlistIdx(cumulSumMaxPerBlock, warpSize);
+            if (idx < 128) {
+                printf("heyo, I'm %d, nidx is %d\n", idx, currentNeighborIdx);
+            }
         } else {
             int xIdxID = XIDX(myId, sizeof(int));
             int yIdxID = YIDX(myId, sizeof(int));
@@ -611,10 +614,12 @@ void __global__ addExclusions(int nAtoms, cudaSurfaceObject_t nlist, int *nlistI
 void setPerBlockCounts(vector<int> &neighborCounts, vector<int> &numNeighborsInBlocks) {
     numNeighborsInBlocks[0] = 0;
     for (int i=0; i<numNeighborsInBlocks.size()-1; i++) {
+        cout << "max in block " << i << " " << numNeighborsInBlocks[i] << endl;
         int maxNeigh = 0;
         int maxIdx = fmin(neighborCounts.size()-1, (i+1)*(PERBLOCK/ATOMTEAMSIZE));
-        for (int j=i*PERBLOCK; j<maxIdx; j++) {
+        for (int j=i*(PERBLOCK/ATOMTEAMSIZE); j<maxIdx; j++) {
             int numNeigh = neighborCounts[j];
+            cout << "num neigh at idx " << j << " " << numNeigh << endl;
             //cout << "summing at idx " << j << ", it has " << numNeigh << endl;
             maxNeigh = fmax(numNeigh, maxNeigh);
         }
@@ -790,7 +795,7 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort, bool force
         int maxAtomsInCell = cumulativeSumMaxVal(gridCellCounts_h, perCellArray.size());//repurposing this as starting indexes for each grid square
         perCellArray.dataToDevice();
         int gridIdx;
-        doSort = false;
+        doSort = true;
         cout << "SORTING" << endl;
         if (doSort) {
             sortPerAtomArrays<<<NBLOCK(nAtoms), PERBLOCK>>>(
@@ -929,7 +934,7 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort, bool force
 
 
 
-bool GridGPU::verifyNeighborlists(float neighCut) {
+bool GridGPU::verifyNeighborlists(float neighCut){
     cout << "going to verify" << endl;
     uint *nlist = neighborlist.get((uint *) NULL);
     float cutSqr = neighCut * neighCut;
