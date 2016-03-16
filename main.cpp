@@ -640,7 +640,7 @@ void testLJ() {
 void testNeighboring() {
     SHARED(State) state = SHARED(State) (new State());
     state->devManager.setDevice(0);
-    int baseLen = 10;
+    int baseLen = 20;
     state->shoutEvery = 100;
     double mult = 1.5;
     state->bounds = Bounds(state, Vector(0, 0, 0), Vector(mult*baseLen, mult*baseLen, mult*baseLen));
