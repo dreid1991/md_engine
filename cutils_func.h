@@ -2,7 +2,7 @@
 #include "cutils_math.h"
 #ifndef CUTILS_FUNC_H
 #define CUTILS_FUNC_H
-#define ATOMTEAMSIZE 4
+#define ATOMTEAMSIZE 2
 
 //so this is for if you are execing one thread per atom, and you want its first entry in the neighborlist
 inline __device__ int baseNeighlistIdxForAtom(int *cumulSumMaxPerBlock, int warpSize) {

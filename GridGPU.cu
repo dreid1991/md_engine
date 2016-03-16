@@ -662,7 +662,6 @@ __global__ void compactNeighborlist(int nAtoms, short *teamMemberNeighborCounts,
 }
 */
 void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort, bool forceBuild) {
-    cout << "periodic!" << endl;
     int warpSize = state->devManager.prop.warpSize;
     
 
@@ -698,9 +697,7 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort, bool force
     setBuildFlag<<<NBLOCK(nAtoms), PERBLOCK, PERBLOCK * sizeof(int)>>>(state->gpd.xs(activeIdx), xsLastBuild.ptr, nAtoms, bounds, state->padding*state->padding, buildFlag.d_data.ptr, numChecksSinceLastBuild);
     buildFlag.dataToHost();
     cudaDeviceSynchronize();
-    cout << "build flag " << buildFlag.h_data[0] << endl;
     if (buildFlag.h_data[0] or forceBuild) {
-        cout << "ACTUALLY BUILDING" << endl;
         //teamMemberNeighborCounts.memset(0);
         //cout << "I AM BUILDING" << endl;
         BoundsGPU boundsUnskewed = bounds.unskewed();
@@ -723,7 +720,6 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort, bool force
             perCellArray = GPUArray<int>(numGridCells + 1);
         }
         perCellArray.d_data.memset(0);
-        perAtomArray.d_data.memset(0);
       //  cudaDeviceSynchronize();
         //SAFECALL((countNumInGridCells<<<NBLOCK(nAtoms), PERBLOCK>>>(state->gpd.xs(activeIdx), nAtoms, perCellArray.d_data.ptr, perAtomArray.d_data.ptr, os, ds, ns)), "NUM IN CELLS");
         countNumInGridCells<<<NBLOCK(nAtoms), PERBLOCK>>>(state->gpd.xs(activeIdx), nAtoms, perCellArray.d_data.ptr, perAtomArray.d_data.ptr, os, ds, ns);
@@ -769,8 +765,8 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort, bool force
         }
 
         perAtomArray.d_data.memset(0);
-        SAFECALL((countNumNeighbors<<<NBLOCKTEAM(nAtoms, ATOMTEAMSIZE), PERBLOCK, PERBLOCK*sizeof(int)>>>(state->gpd.xs(gridIdx), nAtoms, state->gpd.idToIdxs.getTex(), state->gpd.ids(gridIdx), perAtomArray.d_data.ptr, perCellArray.d_data.ptr, os, ds, ns, bounds.periodic, trace, neighCut*neighCut, doSort)), "NUM NEIGH");
-        //countNumNeighbors<<<NBLOCKTEAM(nAtoms, ATOMTEAMSIZE), PERBLOCK, PERBLOCK*sizeof(int)>>>(state->gpd.xs(gridIdx), nAtoms, state->gpd.idToIdxs.getTex(), state->gpd.ids(gridIdx), perAtomArray.d_data.ptr, perCellArray.d_data.ptr, os, ds, ns, bounds.periodic, trace, neighCut*neighCut, doSort);//, state->gpd.nlistExclusionIdxs.getTex(), state->gpd.nlistExclusions.getTex(), state->maxExclusions);
+        //SAFECALL((countNumNeighbors<<<NBLOCKTEAM(nAtoms, ATOMTEAMSIZE), PERBLOCK, PERBLOCK*sizeof(int)>>>(state->gpd.xs(gridIdx), nAtoms, state->gpd.idToIdxs.getTex(), state->gpd.ids(gridIdx), perAtomArray.d_data.ptr, perCellArray.d_data.ptr, os, ds, ns, bounds.periodic, trace, neighCut*neighCut, doSort)), "NUM NEIGH");
+        countNumNeighbors<<<NBLOCKTEAM(nAtoms, ATOMTEAMSIZE), PERBLOCK, PERBLOCK*sizeof(int)>>>(state->gpd.xs(gridIdx), nAtoms, state->gpd.idToIdxs.getTex(), state->gpd.ids(gridIdx), perAtomArray.d_data.ptr, perCellArray.d_data.ptr, os, ds, ns, bounds.periodic, trace, neighCut*neighCut, doSort);
         perAtomArray.dataToHost();
         cudaDeviceSynchronize();
 
@@ -786,6 +782,7 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort, bool force
         }
         //neighborlist.memsetByVal(10000); //FOR TESTING;
         //cudaDeviceSynchronize(); // ALSO TESTING
+        /*
         SAFECALL((assignNeighbors<<<NBLOCKTEAM(nAtoms, ATOMTEAMSIZE), PERBLOCK, PERBLOCK*maxExclusionsPerAtom*sizeof(uint) + PERBLOCK * sizeof(uint)>>>(
                 state->gpd.xs(gridIdx), 
                 nAtoms, 
@@ -796,24 +793,21 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort, bool force
                 os, ds, ns, bounds.periodic, trace, neighCut*neighCut, doSort, neighborlist.ptr, warpSize,
                 exclusionIndexes.ptr, exclusionIds.ptr, maxExclusionsPerAtom, maxAtomsInCell
                 
-                )), "ASSIGN");//, state->gpd.nlistExclusionIdxs.getTex(), state->gpd.nlistExclusions.getTex(), state->maxExclusions);
+                )), "ASSIGN");
 
+        */
         
-        /*
-        assignNeighbors<<<NBLOCKTEAM(nAtoms, ATOMTEAMSIZE), PERBLOCK, PERBLOCK*maxExclusionsPerAtom*sizeof(uint)>>>(
+       assignNeighbors<<<NBLOCKTEAM(nAtoms, ATOMTEAMSIZE), PERBLOCK, PERBLOCK*maxExclusionsPerAtom*sizeof(uint) + PERBLOCK * sizeof(uint)>>>(
                 state->gpd.xs(gridIdx), 
                 nAtoms, 
                 state->gpd.idToIdxs.getTex(), 
                 state->gpd.ids(gridIdx),
-                perAtomArray.d_data.ptr, 
                 perCellArray.d_data.ptr, 
                 perBlockArray.d_data.ptr,
                 os, ds, ns, bounds.periodic, trace, neighCut*neighCut, doSort, neighborlist.ptr, warpSize,
-                exclusionIndexes.ptr, exclusionIds.ptr, maxExclusionsPerAtom
+                exclusionIndexes.ptr, exclusionIds.ptr, maxExclusionsPerAtom, maxAtomsInCell
                 
-                );//, state->gpd.nlistExclusionIdxs.getTex(), state->gpd.nlistExclusions.getTex(), state->maxExclusions);
-                
-*/
+                );
 
         //printNeighbors<<<NBLOCK(state->atoms.size()), PERBLOCK>>>(perAtomArray.ptr, neighborlist.tex, state->atoms.size());
         /*

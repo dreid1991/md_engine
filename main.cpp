@@ -590,17 +590,18 @@ void testLJ() {
     //state->addAtom("handle", Vector(3.0, 1, 0), 0);
     for (int i=0; i<20; i++) {
         for (int j=0; j<20; j++) {
-            state->addAtom("handle", Vector(2*j + (rand()%4) / 8.0, i*1.4, 0), 0);
+        //    state->addAtom("handle", Vector(2*j + (rand()%4) / 8.0, i*1.4, 0), 0);
         }
     }
    for (int i=0; i<baseLen; i++) {
         for (int j=0; j<baseLen; j++) {
-            for (int k=0; k<baseLen; k++) {
-            //    state->addAtom("handle", Vector(i*mult + (rand() % 20)/40.0, j*mult + (rand() % 20)/40.0, 0), 0);
+            state->addAtom("handle", Vector(i*mult + (rand() % 20)/40.0, j*mult + (rand() % 20)/40.0, 0), 0);
+            //for (int k=0; k<baseLen; k++) {
              //   state->addAtom("handle", Vector(i*mult + (rand() % 20)/40.0, j*mult + (rand() % 20)/40.0, k*mult + (rand() % 20)/40.0), 0);
-            }
+            //}
         }
     }
+
 
     
   //  state->atoms.pos[0] += Vector(0.1, 0, 0);
@@ -618,7 +619,7 @@ void testLJ() {
 
     IntegraterVerlet verlet = IntegraterVerlet(state);
     cout << state->atoms[0].pos << endl;
-    verlet.run(2000);
+    verlet.run(20000);
     cout << state->atoms[0].pos << endl;
     cout << state->atoms[1].pos << endl;
     cout << state->atoms[0].force << endl;
