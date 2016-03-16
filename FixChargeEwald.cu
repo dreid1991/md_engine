@@ -347,13 +347,13 @@ void FixChargeEwald::setParameters(int szx_,int szy_,int szz_,float rcut_,int in
     //for now support for only 2^N sizes
     //TODO generalize for non cubic boxes
     if ((szx_!=32)||(szx_!=64)||(szx_!=128)||(szx_!=256)||(szx_!=512)||(szx_!=1024)){
-        cout<<szx_<" is not supported, sorry. Only 2^N grid size works for charge Ewald\n";
+        cout << szx_ << " is not supported, sorry. Only 2^N grid size works for charge Ewald\n";
     }
     if ((szy_!=32)||(szy_!=64)||(szy_!=128)||(szy_!=256)||(szy_!=512)||(szy_!=1024)){
-        cout<<szy_<" is not supported, sorry. Only 2^N grid size works for charge Ewald\n";
+        cout << szy_ << " is not supported, sorry. Only 2^N grid size works for charge Ewald\n";
     }
     if ((szz_!=32)||(szz_!=64)||(szz_!=128)||(szz_!=256)||(szz_!=512)||(szz_!=1024)){
-        cout<<szz_<" is not supported, sorry. Only 2^N grid size works for charge Ewald\n";
+        cout << szz_ << " is not supported, sorry. Only 2^N grid size works for charge Ewald\n";
     }
     sz=make_int3(szx_,szy_,szz_);
     r_cut=rcut_;

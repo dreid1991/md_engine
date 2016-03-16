@@ -1,22 +1,14 @@
 #ifndef GPUARRAY_H
 #define GPUARRAY_H
 
-#include <assert.h>
-#include <cuda_runtime.h>
-#include <iostream>
-#include <stdio.h>
-#include <stdlib.h>
 #include <vector>
 
-#include "Python.h"
-#include "cutils_math.h"
-#include "globalDefs.h"
 #include "GPUArrayBase.h"
 #include "GPUArrayDevice.h"
 
 using namespace std;
 
-/* \class GPUArray
+/*! \class GPUArray
  * \brief Array storing data on the CPU and the GPU
  *
  * \tparam T Data type stored in the array
@@ -41,7 +33,7 @@ public:
      * Constructor creating empty arrays of the specified size on the CPU
      * and the GPU.
      */
-    GPUArray(int size_)
+    explicit GPUArray(int size_)
         : h_data(vector<T>(size_,T())), d_data(GPUArrayDevice<T>(size_)) {}
 
     /*! \brief Constructor
@@ -50,11 +42,9 @@ public:
      *
      * Constructor setting the CPU data array with the specified vector.
      */
-    GPUArray(vector<T> &vals) {
+    explicit GPUArray(vector<T> &vals) {
         set(vals);
-        if (!vals.size()) {
-            d_data = GPUArrayDevice<T>(vals.size());
-        }
+        d_data = GPUArrayDevice<T>(vals.size());
     }
 
     /*! \brief Set CPU data
@@ -63,20 +53,16 @@ public:
      *
      * Set the CPU data to to data specified in the given vector.
      */
-    bool set(vector<T> &other) {
-        if (other.size() < size()) {
-            setHost(other);
-            return true;
-        } else {
+    void set(vector<T> &other) {
+        if (other.size() > size()) {
             d_data = GPUArrayDevice<T>(other.size());
-            setHost(other);
         }
-        return false;
+        h_data = other;
 
     }
 
     /*! \brief Return size of data array */
-    int size() const { return h_data.size(); }
+    size_t size() const { return h_data.size(); }
 
     /*! \brief Ensure that the GPU data array is large enough */
     void ensureSize() {
@@ -88,7 +74,6 @@ public:
     /*! \brief Send data from CPU to GPU */
     void dataToDevice() {
         d_data.set(h_data.data());
-
     }
 
     /*! \brief Send data from GPU to CPU asynchronously */
@@ -119,21 +104,10 @@ public:
         d_data.memsetByVal(val);
     }
 
-private:
-    /*! \brief Set the host data
-     *
-     * \param vals Vector with the data to be stored in the CPU data vector.
-     *
-     * Set the host data.
-     */
-    void setHost(vector<T> &vals) {
-        h_data = vals;
-    }
-
 public:
 
-    GPUArrayDevice<T> d_data; //!< Array storing data on the GPU
     vector<T> h_data; //!< Array storing data on the CPU
+    GPUArrayDevice<T> d_data; //!< Array storing data on the GPU
 };
 
 #endif

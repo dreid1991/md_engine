@@ -33,11 +33,8 @@ class GPUArrayPair : public GPUArrayBasePair {
         }
         GPUArrayPair(vector<T> &vals) {
             set(vals);
-            if (!vals.size()) { //should alloc anyway
-                for (int i=0; i<2; i++) {
-                    d_data[i] = GPUArrayDevice<T>(vals.size());
-                }
-
+            for (int i=0; i<2; i++) {
+                d_data[i] = GPUArrayDevice<T>(vals.size());
             }
         }
         T *getDevData(int n) {
@@ -60,7 +57,7 @@ class GPUArrayPair : public GPUArrayBasePair {
 
         }
 
-        int size() const { return h_data.size(); }
+        size_t size() const { return h_data.size(); }
 
         T *operator ()(int n) {
             return getDevData(n);
