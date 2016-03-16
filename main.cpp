@@ -570,7 +570,7 @@ void testLJ() {
     state->devManager.setDevice(0);
     int baseLen = 20;
     state->shoutEvery = 100;
-    double mult = 1.5;
+    double mult = 2.0;
     state->bounds = Bounds(state, Vector(0, 0, 0), Vector(mult*baseLen, mult*baseLen, mult*baseLen));
     state->rCut = 2.5;
     state->padding = 0.5;
@@ -588,8 +588,10 @@ void testLJ() {
  //   }
     //state->addAtom("handle", Vector(1, 1, 0), 0);
     //state->addAtom("handle", Vector(3.0, 1, 0), 0);
-    for (int i=0; i<8; i++) {
-        state->addAtom("handle", Vector(2*i + (rand()%4) / 8.0, 1, 0), 0);
+    for (int i=0; i<20; i++) {
+        for (int j=0; j<20; j++) {
+            state->addAtom("handle", Vector(2*j + (rand()%4) / 8.0, i*1.4, 0), 0);
+        }
     }
    for (int i=0; i<baseLen; i++) {
         for (int j=0; j<baseLen; j++) {
