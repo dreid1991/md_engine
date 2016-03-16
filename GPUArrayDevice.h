@@ -18,10 +18,6 @@ void MEMSETFUNC(void *, void *, int, int);
 template <typename T>
 class GPUArrayDevice {
 public:
-    /*! \brief Default constructor */
-    GPUArrayDevice()
-        : ptr((T*)NULL), n(0) {}
-
     /*! \brief Constructor
      *
      * \param n_ Size of the array (number of elements)
@@ -29,7 +25,7 @@ public:
      * This constructor creates the array on the GPU device and allocates
      * enough memory to store n_ elements.
      */
-    explicit GPUArrayDevice(int n_)
+    explicit GPUArrayDevice(int n_ = 0)
         : n(n_) { allocate(); }
 
     /*! \brief Copy constructor */
@@ -78,7 +74,11 @@ public:
 
     /*! \brief Allocate memory */
     void allocate() {
-        CUCHECK(cudaMalloc(&ptr, n * sizeof(T)));
+        if (n == 0) {
+            ptr = (T *) NULL;
+        } else {
+            CUCHECK(cudaMalloc(&ptr, n * sizeof(T)));
+        }
     }
 
     /*! \brief Deallocate memory */

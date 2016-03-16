@@ -44,9 +44,7 @@ public:
      */
     explicit GPUArray(vector<T> &vals) {
         set(vals);
-        if (!vals.size()) {
-            d_data = GPUArrayDevice<T>(vals.size());
-        }
+        d_data = GPUArrayDevice<T>(vals.size());
     }
 
     /*! \brief Set CPU data
