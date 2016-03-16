@@ -38,7 +38,7 @@ class GridGPU {
         ~GridGPU();
         //need set2d function
         void handleExclusions();
-        void periodicBoundaryConditions(float neighCut, bool doSort);
+        void periodicBoundaryConditions(float neighCut, bool doSort, bool forceBuild=false);
         //exclusion list stuff     
 		typedef map<int, vector<set<int>>> ExclusionList; //is ordered to make looping over by id in order easier
 		bool closerThan(const ExclusionList &exclude,

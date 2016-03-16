@@ -659,7 +659,7 @@ void testNeighboring() {
    //     state->addAtom("handle", Vector(2*i+1, 5, 0), 0);
  //   }
  //   
-   state->addAtom("handle", Vector(5, 5, 0), 0);
+ /*  state->addAtom("handle", Vector(5, 5, 0), 0);
     state->addAtom("handle", Vector(3.0, 5, 0), 0);
     state->addAtom("handle", Vector(7, 5, 0), 0);
     state->addAtom("handle", Vector(5, 3, 0), 0);
@@ -668,14 +668,14 @@ void testNeighboring() {
     state->addAtom("handle", Vector(7.0, 5, 0), 0);
     state->addAtom("handle", Vector(5.0, 3, 0), 0);
     state->addAtom("handle", Vector(5.0, 7, 0), 0);
-    state->addAtom("handle", Vector(6.0, 7, 0), 0);
+    state->addAtom("handle", Vector(6.0, 7, 0), 0);*/
    // state->addAtom("handle", Vector(5.0, 1, 0), 0);
    // state->addAtom("handle", Vector(7.0, 1, 0), 0);
     for (int i=0; i<baseLen; i++) {
         for (int j=0; j<baseLen; j++) {
             for (int k=0; k<baseLen; k++) {
             //    state->addAtom("handle", Vector(i*mult + (rand() % 20)/40.0, j*mult + (rand() % 20)/40.0, 0), 0);
-              //  state->addAtom("handle", Vector(i*mult + (rand() % 20)/40.0, j*mult + (rand() % 20)/40.0, k*mult + (rand() % 20)/40.0), 0);
+                state->addAtom("handle", Vector(i*mult + (rand() % 20)/40.0, j*mult + (rand() % 20)/40.0, k*mult + (rand() % 20)/40.0), 0);
             }
         }
     }

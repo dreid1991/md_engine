@@ -329,6 +329,9 @@ __device__ int assignFromCell(float3 pos, int idx, bool validThread, uint myId, 
             for (int i=0; i<ATOMTEAMSIZE; i++) {
 
                 if (teamNlist_shr[i] != neighborlistDefault) {
+                    //if (myId == 64) {
+                    //    printf("id 64 writing %d to idx %d\n", teamNlist_shr[i], currentNeighborIdx);
+                   // }
                  //   printf("tid %d writing value %d to idx %d\n", threadIdx.x, teamNlist_shr[i], currentNeighborIdx);
                     neighborlist[currentNeighborIdx] = teamNlist_shr[i];
                     currentNeighborIdx++;
@@ -407,6 +410,12 @@ __global__ void assignNeighbors(float4 *xs, int nAtoms, cudaTextureObject_t idTo
             int yIdxID = YIDX(myId, sizeof(int));
             uint myIdx = tex2D<int>(idToIdxs, xIdxID, yIdxID);
             currentNeighborIdx = baseNeighlistIdxFromIndex(cumulSumMaxPerBlock, warpSize, myIdx);
+            if (currentNeighborIdx==1536) {
+                printf("id %d and starting idx is 1536, lol\n", myId);
+            }
+            //if (myIdx==64) {
+             //   printf("myIdx is 64 and currentNeigh idx is %d, btw idx is %d and id is %d\n", currentNeighborIdx, idx, myId);
+           // }
          //   printf("getting current for tid %d and atomId %d atomIdx %d, is %d\n", threadIdx.x, myId, myIdx, currentNeighborIdx);
 
         }
@@ -458,7 +467,9 @@ void GridGPU::initArrays() {
     xsLastBuild = GPUArrayDevice<float4>(state->atoms.size());
     //in prepare for run, you make GPU grid _after_ copying xs to device
     buildFlag = GPUArray<int>(1);
+    buildFlag.d_data.memset(0);
 }
+
 void GridGPU::initStream() {
     //cout << "initializing stream" << endl;
     //streamCreated = true;
@@ -505,11 +516,10 @@ GridGPU::~GridGPU() {
 }
 
 void GridGPU::copyPositionsAsync() {
-
+    //isn't actually async, streams were being weird
     state->gpd.xs.d_data[state->gpd.activeIdx].copyToDeviceArray((void *) xsLastBuild.ptr);//, rebuildCheckStream);
 
 }
-
 /*
 void printNeighborCounts(int *counts, int nAtoms) {
     cout << "neighbor counts" << endl;
@@ -643,7 +653,6 @@ __global__ void setBuildFlag(float4 *xsA, float4 *xsB, int nAtoms, BoundsGPU bou
     }
     */
     if (threadIdx.x == 0) {
-        printf("val is %d\n", flags_shr[0]);
         atomicAdd(buildFlag, flags_shr[0]);
     }
 
@@ -707,8 +716,7 @@ __global__ void compactNeighborlist(int nAtoms, short *teamMemberNeighborCounts,
 
 }
 */
-void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort) {
-    cout << "REMOVE TEAM MEMBER LIST" << endl;
+void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort, bool forceBuild) {
     cout << "periodic!" << endl;
     int warpSize = state->devManager.prop.warpSize;
     
@@ -747,7 +755,7 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort) {
     cudaDeviceSynchronize();
     cout << "hello" << endl;
     cout << "build " << buildFlag.h_data[0] << endl;
-    if (buildFlag.h_data[0]) {
+    if (buildFlag.h_data[0] or forceBuild) {
         cout << "hello" << endl;
         //teamMemberNeighborCounts.memset(0);
         //cout << "I AM BUILDING" << endl;
@@ -966,9 +974,9 @@ bool GridGPU::verifyNeighborlists(float neighCut) {
         sort(atom_neighbors.begin(), atom_neighbors.end());
         cpu_neighbors.push_back(atom_neighbors);
     }
-//    cout << "nlist IN CHECK" << endl;
-    for (int i=0; i<neighborlist.n; i++) {
-   //     cout << nlist[i] << endl;
+    cout << "nlist IN CHECK" << endl;
+    for (int i=0; i<1600;/*neighborlist.n*/ i++) {
+        cout << "nlist " << i << " = " <<nlist[i] << endl;
     }
 //    cout << "cpu dist is " << sqrt(lengthSqr(state->boundsGPU.minImage(xs[0]-xs[1])))  << endl;
     int warpSize = state->devManager.prop.warpSize;
@@ -991,7 +999,7 @@ bool GridGPU::verifyNeighborlists(float neighCut) {
         //int teamsPerWarp = warpSize / ATOMTEAMSIZE;
         //int idxInWarp = (i - blockIdx * PERBLOCK - warpIdx * warpSize) * ATOMTEAMSIZE;
         //int baseIdx = PERBLOCK * perBlockArray.h_data[blockIdx] + perAtomMyWarp * warpSize * warpIdx + idxInWarp;
-     //   cout << "base idx is " << baseIdx << endl;
+        cout << "base idx is " << baseIdx << endl;
         //cout << "i is " << i << " blockIdx is " << blockIdx << " warp idx is " << warpIdx << " and idx in that warp is " << idxInWarp << " resulting base idx is " << baseIdx << endl;
         //cout << "id is " << ids[i] << endl;
         vector<int> neighIds;
@@ -1027,45 +1035,7 @@ bool GridGPU::verifyNeighborlists(float neighCut) {
         }
 
     }
-    /*
-    bool pass = true;
-    for (int i=0; i<xs.size(); i++) {
-        if (nneigh[i] != cpu_check[i]) {
-            vector<int> gpuIdxs, cpuIdxs;
-            for (int listIdx=neighIdxs[i]; listIdx < neighIdxs[i+1]; listIdx++) {
-                gpuIdxs.push_back(nlist[listIdx]);
-            }
-            for (int j=0; j<xs.size(); j++) {
-                if (i!=j) {
-                    float3 minImage = state->boundsGPU.minImage(xs[i] - xs[j]);
-                    if (lengthSqr(minImage) < cutSqr) {
-                        cpuIdxs.push_back(j);
-                    }
 
-                }
-            }
-            for (int nIdx : gpuIdxs) {
-                if (find(cpuIdxs.begin(), cpuIdxs.end(), nIdx) == cpuIdxs.end()) {
-                    cout << "cpu is missing neighbor with dist " << length(state->boundsGPU.minImage(xs[i]-xs[nIdx])) << endl;
-                    cout << Vector(xs[i]) << "      " << Vector(xs[nIdx]) << "    " << nIdx << endl;
-                }
-            }
-            for (int nIdx : cpuIdxs) {
-                if (find(gpuIdxs.begin(), gpuIdxs.end(), nIdx) == gpuIdxs.end()) {
-                    cout << "gpu is missing neighbor with dist " << length(state->boundsGPU.minImage(xs[i]-xs[nIdx])) << endl;
-                    cout << Vector(xs[i]) << "      " << Vector(xs[nIdx]) << "    " << nIdx << endl;
-                }
-            }
-
-            cout << nneigh[i] << " on gpu " << cpu_check[i] << " on cpu " << endl;
-            //cout << Vector(xs[i]) << endl;
-            pass = false;
-        }
-    }
-    if (pass) {
-    //    cout << "neighbor count passed" << endl;
-    }
-    */
     free(nlist);
     cout << "end verification" << endl;
     return true;

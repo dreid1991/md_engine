@@ -159,7 +159,8 @@ void Integrater::basicPrepare(int numTurns) {
     for (GPUArrayBase *dat : activeData) {
         dat->dataToDevice();
     }
-    state->gridGPU.periodicBoundaryConditions(state->rCut + state->padding, true);
+
+    state->gridGPU.periodicBoundaryConditions(state->rCut + state->padding, true, true);
 }
 
 void Integrater::basicFinish() {
