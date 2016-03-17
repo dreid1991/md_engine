@@ -70,7 +70,10 @@ void InitializeAtoms::populateRand(SHARED(State) state, Bounds &bounds, string h
 		bool is_overlap = false;
 		for (Atom &a : atoms) {
 			int typeA = a.type;
-			if (a.pos.distSqr(pos) < distMin * distMin) {
+			/*! \todo Check only for overlap across boundary if boundary
+			 * is periodic. */
+			Vector dist = state->bounds.minImage(pos - a.pos);
+			if (dist.lenSqr() < distMin * distMin) {
 				is_overlap = true;
 				break;
 			}
