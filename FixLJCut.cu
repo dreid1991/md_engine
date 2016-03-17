@@ -17,7 +17,7 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *fs, int *neighborCoun
     float *sigs_shr = paramsAll;
     float *eps_shr = paramsAll + sqrSize;
     copyToShared<float>(eps, eps_shr, sqrSize);
-    copyToShared<float>(eps, sigs_shr, sqrSize);
+    copyToShared<float>(sigs, sigs_shr, sqrSize);
     __syncthreads();
 
     int idx = GETIDX();
