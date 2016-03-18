@@ -452,7 +452,7 @@ void FixChargeEwald::compute() {
     GPUData &gpd = state->gpd;
     GridGPU &grid = state->gridGPU;
     int activeIdx = gpd.activeIdx;
-    int *neighborCounts = grid.perAtomArray.d_data.ptr;
+    int *neighborCounts = grid.perAtomArray.d_data.data();
     
     if (first_run){
         first_run=false;
@@ -594,8 +594,8 @@ void FixChargeEwald::compute() {
                                               gpd.xs(activeIdx),                                                      
                                               gpd.fs(activeIdx),
                                               neighborCounts,
-                                              grid.neighborlist.ptr,
-                                              grid.perBlockArray.d_data.ptr,
+                                              grid.neighborlist.data(),
+                                              grid.perBlockArray.d_data.data(),
                                               gpd.qs(activeIdx),
                                               alpha,
                                               r_cut,

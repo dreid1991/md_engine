@@ -72,6 +72,13 @@ public:
         return *this;
     }
 
+    /*! \brief Get size (number of elements) of array */
+    size_t size() const { return n; }
+
+    /*! \brief Access pointer to data */
+    T *data() { return ptr; }
+    const T *data() const { return ptr; }
+
     /*! \brief Copy data to given pointer
      *
      * \param copyTo Pointer to the memory to where the data will be copied
@@ -187,7 +194,7 @@ private:
         ptr = (T *) NULL;
     }
 
-public:
+private:
     T *ptr; //!< Pointer to the data
     size_t n; //!< Number of entries stored in the device
 };

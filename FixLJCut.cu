@@ -133,10 +133,10 @@ void FixLJCut::compute() {
     GPUData &gpd = state->gpd;
     GridGPU &grid = state->gridGPU;
     int activeIdx = gpd.activeIdx;
-    int *neighborCounts = grid.perAtomArray.d_data.ptr;
+    int *neighborCounts = grid.perAtomArray.d_data.data();
     double oneFourStrength = 0.5;
 
-    compute_cu<<<NBLOCK(nAtoms), PERBLOCK, 2*numTypes*numTypes*sizeof(float)>>>(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx), neighborCounts, grid.neighborlist.ptr, grid.perBlockArray.d_data.ptr, state->devManager.prop.warpSize, sigmas.getDevData(), epsilons.getDevData(), numTypes, state->rCut, state->boundsGPU, oneFourStrength);
+    compute_cu<<<NBLOCK(nAtoms), PERBLOCK, 2*numTypes*numTypes*sizeof(float)>>>(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx), neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, sigmas.getDevData(), epsilons.getDevData(), numTypes, state->rCut, state->boundsGPU, oneFourStrength);
 
 
 
@@ -148,10 +148,10 @@ void FixLJCut::singlePointEng(float *perParticleEng) {
     GPUData &gpd = state->gpd;
     GridGPU &grid = state->gridGPU;
     int activeIdx = gpd.activeIdx;
-    int *neighborCounts = grid.perAtomArray.d_data.ptr;
+    int *neighborCounts = grid.perAtomArray.d_data.data();
     double oneFourStrength = 0.5;
 
-    computeEng_cu<<<NBLOCK(nAtoms), PERBLOCK, 2*numTypes*numTypes*sizeof(float)>>>(nAtoms, gpd.xs(activeIdx), perParticleEng, neighborCounts, grid.neighborlist.ptr, grid.perBlockArray.d_data.ptr, state->devManager.prop.warpSize, sigmas.getDevData(), epsilons.getDevData(), numTypes, state->rCut, state->boundsGPU, oneFourStrength);
+    computeEng_cu<<<NBLOCK(nAtoms), PERBLOCK, 2*numTypes*numTypes*sizeof(float)>>>(nAtoms, gpd.xs(activeIdx), perParticleEng, neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, sigmas.getDevData(), epsilons.getDevData(), numTypes, state->rCut, state->boundsGPU, oneFourStrength);
 
 
 

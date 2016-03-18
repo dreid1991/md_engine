@@ -66,7 +66,7 @@ public:
 
     /*! \brief Ensure that the GPU data array is large enough */
     void ensureSize() {
-        if (h_data.size() > d_data.n) { 
+        if (h_data.size() > d_data.size()) {
             d_data = GPUArrayDevice<T>(size());
         }
     }
@@ -96,7 +96,7 @@ public:
 
     /*! \brief Return pointer to GPU data array */
     T *getDevData() {
-        return d_data.ptr;
+        return d_data.data();
     }
 
     /*! \brief Set Memory by value */

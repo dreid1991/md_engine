@@ -38,7 +38,7 @@ class GPUArrayPair : public GPUArrayBasePair {
             }
         }
         T *getDevData(int n) {
-            return d_data[n].ptr;
+            return d_data[n].data();
         }
         T *getDevData() {
             return getDevData(activeIdx);
@@ -63,17 +63,17 @@ class GPUArrayPair : public GPUArrayBasePair {
             return getDevData(n);
         }
         void dataToDevice() {
-            CUCHECK(cudaMemcpy(d_data[activeIdx].ptr, h_data.data(), size()*sizeof(T), cudaMemcpyHostToDevice ));
+            CUCHECK(cudaMemcpy(d_data[activeIdx].data(), h_data.data(), size()*sizeof(T), cudaMemcpyHostToDevice ));
 
         }
         void dataToHost() {
             dataToHost(activeIdx);
         }      
         void dataToHost(int idx) {
-            CUCHECK(cudaMemcpy(h_data.data(), d_data[idx].ptr, size()*sizeof(T), cudaMemcpyDeviceToHost));
+            CUCHECK(cudaMemcpy(h_data.data(), d_data[idx].data(), size()*sizeof(T), cudaMemcpyDeviceToHost));
         }      
         void copyToDeviceArray(void *dest) {
-            CUCHECK(cudaMemcpy(dest, d_data[activeIdx].ptr, size()*sizeof(T), cudaMemcpyDeviceToDevice));
+            CUCHECK(cudaMemcpy(dest, d_data[activeIdx].data(), size()*sizeof(T), cudaMemcpyDeviceToDevice));
         }
         void memsetByVal(T val, int idx) {
             d_data[idx].memsetByVal(val);

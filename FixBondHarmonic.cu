@@ -60,7 +60,7 @@ void FixBondHarmonic::compute() {
     int nAtoms = state->atoms.size();
     int activeIdx = state->gpd.activeIdx;
     //cout << "Max bonds per block is " << maxBondsPerBlock << endl;
-    compute_cu<<<NBLOCK(nAtoms), PERBLOCK, sizeof(BondHarmonicGPU) * maxBondsPerBlock>>>(nAtoms, state->gpd.xs(activeIdx), state->gpd.fs(activeIdx), state->gpd.idToIdxs.getTex(), bondsGPU.ptr, bondIdxs.ptr, state->boundsGPU);
+    compute_cu<<<NBLOCK(nAtoms), PERBLOCK, sizeof(BondHarmonicGPU) * maxBondsPerBlock>>>(nAtoms, state->gpd.xs(activeIdx), state->gpd.fs(activeIdx), state->gpd.idToIdxs.getTex(), bondsGPU.data(), bondIdxs.data(), state->boundsGPU);
 
 }
 
