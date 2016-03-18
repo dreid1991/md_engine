@@ -1,17 +1,17 @@
 #include "GPUArrayDevice.h"
-void MEMSETFUNC(void *ptr, void *val_, size_t n, size_t Tsize) {
+void MEMSETFUNC(void *ptr, void *val, size_t n, size_t Tsize) {
     if (Tsize == 4) {
-        int val = * (int *) val_;
-        memsetByValList_32<<<NBLOCK(n), PERBLOCK>>>((int *) ptr, val, n);
+        memsetByValList_32<<<NBLOCK(n), PERBLOCK>>>((int *) ptr,
+                                                    *(int *)val, n);
     } else if (Tsize == 8) {
-        int2 val = * (int2 *) val_;
-        memsetByValList_64<<<NBLOCK(n), PERBLOCK>>>((int2 *) ptr, val, n);
+        memsetByValList_64<<<NBLOCK(n), PERBLOCK>>>((int2 *) ptr,
+                                                    *(int2 *)val, n);
     } else if (Tsize == 12) {
-        int3 val = * (int3 *) val_;
-        memsetByValList_96<<<NBLOCK(n), PERBLOCK>>>((int3 *) ptr, val, n);
+        memsetByValList_96<<<NBLOCK(n), PERBLOCK>>>((int3 *) ptr,
+                                                    *(int3 *)val, n);
     } else if (Tsize == 16) {
-        int4 val = * (int4 *) val_;
-        memsetByValList_128<<<NBLOCK(n), PERBLOCK>>>((int4 *) ptr, val, n);
+        memsetByValList_128<<<NBLOCK(n), PERBLOCK>>>((int4 *) ptr,
+                                                     *(int4 *)val, n);
     } else {
         assert(false);
     }
