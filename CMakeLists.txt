@@ -51,7 +51,7 @@ message (STATUS "Building MD_engine Version ${VERSION_MAJOR}.${VERSION_MINOR}")
 
 # Set the source files
 file (GLOB SOURCES "*.cpp" "*.cu")
-list (REMOVE_ITEM SOURCES "main.cpp")
+list (REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp")
 
 # Create configuration file
 configure_file (
