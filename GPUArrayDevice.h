@@ -6,7 +6,7 @@
 #include "memset_defs.h"
 
 /*! \brief Global function to set the device memory */
-void MEMSETFUNC(void *, void *, int, int);
+void MEMSETFUNC(void *, void *, size_t, size_t);
 
 /*! \class GPUArrayDevice
  * \brief Array on the GPU device
@@ -25,7 +25,7 @@ public:
      * This constructor creates the array on the GPU device and allocates
      * enough memory to store n_ elements.
      */
-    explicit GPUArrayDevice(int n_ = 0)
+    explicit GPUArrayDevice(size_t n_ = 0)
         : n(n_) { allocate(); }
 
     /*! \brief Copy constructor */
@@ -188,7 +188,7 @@ public:
 
 public:
     T *ptr; //!< Pointer to the data
-    int n; //!< Number of entries stored in the device
+    size_t n; //!< Number of entries stored in the device
 };
 
 #endif

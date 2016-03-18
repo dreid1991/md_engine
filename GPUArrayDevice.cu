@@ -1,5 +1,5 @@
 #include "GPUArrayDevice.h"
-void MEMSETFUNC(void *ptr, void *val_, int n, int Tsize) {
+void MEMSETFUNC(void *ptr, void *val_, size_t n, size_t Tsize) {
     if (Tsize == 4) {
         int val = * (int *) val_;
         memsetByValList_32<<<NBLOCK(n), PERBLOCK>>>((int *) ptr, val, n);
