@@ -72,15 +72,6 @@ public:
         return *this;
     }
 
-    /*! \brief Allocate memory */
-    void allocate() { CUCHECK(cudaMalloc(&ptr, n * sizeof(T))); }
-
-    /*! \brief Deallocate memory */
-    void deallocate() {
-        CUCHECK(cudaFree(ptr));
-        ptr = (T *) NULL;
-    }
-
     /*! \brief Copy data to given pointer
      *
      * \param copyTo Pointer to the memory to where the data will be copied
@@ -184,6 +175,16 @@ public:
         assert(sizeof(T) == 4  || sizeof(T) == 8 ||
                sizeof(T) == 12 || sizeof(T) == 16);
         MEMSETFUNC((void *) ptr, &val, n, sizeof(T));
+    }
+
+private:
+    /*! \brief Allocate memory */
+    void allocate() { CUCHECK(cudaMalloc(&ptr, n * sizeof(T))); }
+
+    /*! \brief Deallocate memory */
+    void deallocate() {
+        CUCHECK(cudaFree(ptr));
+        ptr = (T *) NULL;
     }
 
 public:
