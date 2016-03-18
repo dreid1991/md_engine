@@ -73,20 +73,12 @@ public:
     }
 
     /*! \brief Allocate memory */
-    void allocate() {
-        if (n == 0) {
-            ptr = (T *) NULL;
-        } else {
-            CUCHECK(cudaMalloc(&ptr, n * sizeof(T)));
-        }
-    }
+    void allocate() { CUCHECK(cudaMalloc(&ptr, n * sizeof(T))); }
 
     /*! \brief Deallocate memory */
     void deallocate() {
-        if (ptr != (T *) NULL) {
-            CUCHECK(cudaFree(ptr));
-            ptr = (T *) NULL;
-        }
+        CUCHECK(cudaFree(ptr));
+        ptr = (T *) NULL;
     }
 
     /*! \brief Copy data to given pointer
