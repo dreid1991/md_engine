@@ -14,12 +14,12 @@ __global__ void preForce_cu(int nAtoms, float4 *xs, float4 *vs, float4 *fs, floa
 
         float invmass = vel.w;
         float groupTag = force.w;
-        //float id = pos.w;
-        float4 dPos = vel * dt + force * dt*dt*0.5f*invmass;
+
+        float3 dPos = make_float3(vel) * dt +
+                      make_float3(force) * dt*dt * 0.5f * invmass;
         
-        xs[idx].x += dPos.x;
-        xs[idx].y += dPos.y;
-        xs[idx].z += dPos.z;
+        // Only add float3 to xs and fs! (w entry is used as int or bitmask)
+        xs[idx] += dPos;
 
         //xs[idx] = pos;
         fsLast[idx] = force;
