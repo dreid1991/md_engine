@@ -18,7 +18,7 @@ class FixChargePairDSF : public FixCharge {
         void setParameters(float alpha_,float r_cut_);
         FixChargePairDSF(SHARED(State) state_, string handle_, string groupHandle_);
 
-        void compute();
+        void compute(bool);
 	
 };
 #endif

@@ -71,7 +71,7 @@ void FixChargePairDSF::setParameters(float alpha_,float r_cut_)
   shift=std::erfc(alpha*r_cut)/(r_cut*r_cut)+A*exp(-alpha*alpha*r_cut*r_cut)/(r_cut);
 }
 
-void FixChargePairDSF::compute() {
+void FixChargePairDSF::compute(bool computeVirials) {
     int nAtoms = state->atoms.size();
     GPUData &gpd = state->gpd;
     GridGPU &grid = state->gridGPU;

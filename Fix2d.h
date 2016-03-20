@@ -9,7 +9,7 @@ class Fix2d : public Fix {
             orderPreference = 999;
             forceSingle = true;
         };
-        void compute();
+        void compute(bool);
 
 };
 

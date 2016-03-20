@@ -19,7 +19,7 @@ class FixLJCut : public FixPair {
         FixLJCut(SHARED(State), string handle, string groupHandle);
 
         //! Compute forces
-        void compute();
+        void compute(bool);
         //! Compute single point energy
         void singlePointEng(float *);
         /*! \brief Prepare Fix

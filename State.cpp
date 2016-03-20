@@ -31,7 +31,6 @@ State::State() {
 	dangerousRebuilds = 0;
 	dt = .005;
 	periodicInterval = 50;
-	dataIntervalStd = 50;
 	changedAtoms = true;
 	changedGroups = true;
 	changedBonds = true;
@@ -43,6 +42,7 @@ State::State() {
 	initData();
     readConfig = SHARED(ReadConfig) (new ReadConfig(this));
     atomParams = AtomParams(this);
+    computeVirials = false; //will be set to true if a fix need it (like barostat)
 }
 
 void State::initData() {
@@ -640,7 +640,6 @@ void export_State() {
         .def("deactivatePythonOperation", &State::deactivatePythonOperation)
         .def("zeroVelocities", &State::zeroVelocities)
         .def("destroy", &State::destroy)
-        .def_readwrite("dataIntervalStd", &State::dataIntervalStd)	
         .def_readwrite("is2d", &State::is2d)
         .def_readonly("changedAtoms", &State::changedAtoms)
         .def_readonly("changedBonds", &State::changedBonds)

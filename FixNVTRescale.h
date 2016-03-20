@@ -10,7 +10,7 @@ class FixNVTRescale : public Fix {
     vector<double> temps;
     int curIdx;
     bool prepareForRun();
-    void compute();
+    void compute(bool);
     bool downloadFromRun();
     bool usingBounds;
     BoundsGPU boundsGPU;

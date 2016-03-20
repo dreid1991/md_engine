@@ -444,7 +444,7 @@ void FixChargeEwald::calc_potential(cufftComplex *phi_buf){
 
 
 
-void FixChargeEwald::compute() {
+void FixChargeEwald::compute(bool computeVirials) {
     CUT_CHECK_ERROR("before FixChargeEwald kernel execution failed");
 
     cout<<"FixChargeEwald::compute..\n";

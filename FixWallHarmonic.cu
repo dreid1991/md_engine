@@ -33,7 +33,7 @@ void __global__ compute_cu(float4 *xs, int nAtoms, float4 *fs, float3 origin, fl
 
 }
 
-void FixWallHarmonic::compute() {
+void FixWallHarmonic::compute(bool computeVirials) {
     GPUData &gpd = state->gpd;
     int activeIdx = gpd.activeIdx;
     int n = state->atoms.size();

@@ -228,7 +228,7 @@ FixDihedralOPLS::FixDihedralOPLS(SHARED(State) state_, string handle) : FixPoten
 }
 
 
-void FixDihedralOPLS::compute() {
+void FixDihedralOPLS::compute(bool computeVirials) {
     int nAtoms = state->atoms.size();
     int activeIdx = state->gpd.activeIdx;
     compute_cu<<<NBLOCK(nAtoms), PERBLOCK, sizeof(DihedralOPLSGPU) * maxForcersPerBlock>>>(nAtoms, state->gpd.xs(activeIdx), state->gpd.fs(activeIdx), state->gpd.idToIdxs.getTex(), forcersGPU.data(), forcerIdxs.data(), state->boundsGPU);

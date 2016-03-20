@@ -127,7 +127,7 @@ __global__ void computeEng_cu(int nAtoms, float4 *xs, float *perParticleEng, int
 
 }
 //__global__ void compute_cu(int nAtoms, cudaTextureObject_t xs, float4 *fs, int *neighborIdxs, cudaTextureObject_t neighborlist, float *sigs, float *eps, cudaTextureObject_t types, int numTypes, float rCut, BoundsGPU bounds) {
-void FixLJCut::compute() {
+void FixLJCut::compute(bool computeVirials) {
     int nAtoms = state->atoms.size();
     int numTypes = state->atomParams.numTypes;
     GPUData &gpd = state->gpd;

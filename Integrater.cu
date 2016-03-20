@@ -9,21 +9,21 @@ const string IntVerletType = "verlet";
 const string IntRelaxType = "relax";
 
 
-void Integrater::force(uint activeIdx) {
+void Integrater::force(bool computeVirials) {
     
 	int simTurn = state->turn;
 	vector<Fix *> &fixes = state->fixes;
 	for (Fix *f : fixes) {
 		if (! (simTurn % f->applyEvery)) {
-			f->compute();
+			f->compute(computeVirials);
 		}
 	}
 };
 
-void Integrater::forceSingle() {
+void Integrater::forceSingle(bool computeVirials) {
 	for (Fix *f : state->fixes) {
 		if (f->forceSingle) {
-			f->compute();
+			f->compute(computeVirials);
 		}
 	}
 }
@@ -40,7 +40,6 @@ void Integrater::singlePointEng() {
 
 }
 void Integrater::doDataCollection() {
-    return;
     DataManager &dm = state->dataManager;
     bool doingCollection = false;
     int64_t turn = state->turn;
@@ -51,7 +50,43 @@ void Integrater::doDataCollection() {
         }
     }
     if (doingCollection) {
-        
+        bool computeVirials = false; //this will need some thought, b/c can't compute it without going through all the fixes.  Maybe have like state flag for computing virials.  If true, just grab current virials, if false, zero forces vector and recompute it setting virials flag to true, then grab virials vector
+        bool computeEng = false;
+
+        bool needToCopyForcesBack = false;
+        for (SHARED(DataSet) ds : dm.dataSets) {
+            computeEng = fmax(computeEng, ds->requiresEng);
+            computeVirials = fmax(computeVirials, ds->requiresVirials);
+        }
+        if (computeEng) {
+            singlePointEng();
+        }
+        if (computeVirials) {
+
+            if (not state->computeVirials) {
+                GPUArrayPair<float4> &fs = state->gpd.fs;
+                fs.copyBetweenArrays(!fs.activeIdx, fs.activeIdx);
+                forceSingle(true);
+                needToCopyForcesBack = true;
+                //okay, now virials are computed
+
+
+
+            }
+
+
+        }
+        //okay, now go through all and give them their data
+        for (SHARED(DataSet) ds : dm.dataSets) {
+            //do operations!
+        }
+        if (needToCopyForcesBack) {
+            GPUArrayPair<float4> &fs = state->gpd.fs;
+            fs.copyBetweenArrays(fs.activeIdx, !fs.activeIdx);
+        }
+
+
+
     }
 }
 void Integrater::asyncOperations() {

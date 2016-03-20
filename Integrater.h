@@ -19,7 +19,7 @@ class Integrater {
 
     protected:
         //virtual void preForce(uint);
-        void force(uint);
+        void force(bool);
         //virtual void postForce(uint);
         void asyncOperations();
         std::vector<GPUArrayBase *> activeData;
@@ -37,7 +37,7 @@ class Integrater {
                 Integrater(State *state_, string type_);
         
                 //double relax(int numTurns, num fTol);
-                void forceSingle();
+                void forceSingle(bool);
 /*	void verletPreForce(vector<Atom *> &atoms, double timestep);
 	void verletPostForce(vector<Atom *> &atoms, double timestep);
 	void compute(vector<Fix *> &, int);

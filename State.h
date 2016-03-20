@@ -78,10 +78,12 @@ class State {
 		float dt;
 		int64_t turn;
 		int runningFor;
-		int runInit;
+		int64_t runInit;
 		int dangerousRebuilds;
 		int periodicInterval;
-		int dataIntervalStd;
+
+        bool computeVirials;
+
 
 		double rCut;
 		double padding;

@@ -15,6 +15,8 @@ class DataSet {
         //can't store data in here b/c is of different types, wouldn't be able to store all base pointers in a vector.  Maybe pass data with void pointers?
 		string handle;
         bool requiresVirials;
+        bool requiresKineticEng;
+        bool requiresEng;
 
 		virtual void collect(int64_t turn){};
         int64_t nextCollectTurn;
@@ -41,6 +43,8 @@ class DataSet {
             collectEvery = collectEvery_;
             collectGenerator = collectGenerator;
             setCollectMode();
+            requiresVirials = false;
+            requiresEng = false;
         };
 };
 

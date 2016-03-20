@@ -34,6 +34,6 @@ class FixChargeEwald : public FixCharge {
         void setParameters(int sz_,float alpha_,int interpolation_order_){setParameters(sz_,sz_,sz_,alpha_,interpolation_order_);};
         FixChargeEwald(SHARED(State) state_, string handle_, string groupHandle_);
         ~FixChargeEwald();
-        void compute();
+        void compute(bool);
 };
 #endif

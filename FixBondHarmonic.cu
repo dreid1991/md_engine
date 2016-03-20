@@ -56,7 +56,7 @@ void FixBondHarmonic::createBond(Atom *a, Atom *b, float k, float rEq) {
     bonds.push_back(BondHarmonic(a, b, k, rEq));
     bondAtomIds.push_back(make_int2(a->id, b->id));
 }
-void FixBondHarmonic::compute() {
+void FixBondHarmonic::compute(bool computeVirials) {
     int nAtoms = state->atoms.size();
     int activeIdx = state->gpd.activeIdx;
     //cout << "Max bonds per block is " << maxBondsPerBlock << endl;

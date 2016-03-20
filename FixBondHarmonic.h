@@ -19,7 +19,7 @@ class FixBondHarmonic : public FixBond<BondHarmonic, BondHarmonicGPU> {
         ~FixBondHarmonic(){};
         string restartChunk(string format);
        // int maxBondsPerBlock;
-        void compute();
+        void compute(bool);
         const BondHarmonic getBond(size_t i) {
             return boost::get<BondHarmonic>(bonds[i]);
         }

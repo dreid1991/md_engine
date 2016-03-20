@@ -8,7 +8,7 @@ void export_FixAngleHarmonic();
 class FixAngleHarmonic : public FixPotentialMultiAtom<AngleHarmonic, AngleHarmonicGPU, 3> {
 	public:
         FixAngleHarmonic(SHARED(State) state_, string handle);
-		void compute();
+		void compute(bool);
 		//DataSet *eng;
 		//DataSet *press;
         void createAngle(Atom *, Atom *, Atom *, float, float);

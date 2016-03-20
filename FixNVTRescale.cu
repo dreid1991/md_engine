@@ -103,10 +103,10 @@ void __global__ rescaleInBounds(int nAtoms, uint groupTag, float4 *xs, float4 *v
 }
 
 
-void FixNVTRescale::compute() {
+void FixNVTRescale::compute(bool computeVirials) {
     tempGPU.memset(0);
     int nAtoms = state->atoms.size();
-    int turn = state->turn;
+    int64_t turn = state->turn;
     double temp;
     if (finished) {
         temp = temps.back();
