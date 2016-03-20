@@ -6,6 +6,7 @@
 
 #include <assert.h>
 #include <iostream>
+#include <stdint.h>
 
 #include <map>
 #include <tuple>
@@ -41,9 +42,8 @@ class State;  //forward declaring so bond can use bounds, which includes state
 #include "DeviceManager.h"
 
 void export_State();
-
+class PythonOperation;
 class ReadConfig;
-class Atom;
 class Fix;
 //class DataManager;
 class WriteConfig;
@@ -71,12 +71,13 @@ class State {
 		vector<SHARED(Fix)> fixesShr;
 		DataManager dataManager;
 		vector<SHARED(WriteConfig) > writeConfigs;
+        vector<SHARED(PythonOperation) > pythonOperations;
 		map<string, unsigned int> groupTags;
 		bool is2d;
 		bool buildNeighborlists;
 		bool periodic[3];
 		float dt;
-		int turn;
+		int64_t turn;
 		int runningFor;
 		int runInit;
 		int dangerousRebuilds;
@@ -90,6 +91,9 @@ class State {
 		bool deactivateFix(SHARED(Fix));
 		bool activateWriteConfig(SHARED(WriteConfig));
 		bool deactivateWriteConfig(SHARED(WriteConfig));
+
+        bool activatePythonOperation(SHARED(PythonOperation));
+        bool deactivatePythonOperation(SHARED(PythonOperation));
 		//bool fixIsActive(SHARED(Fix));
 		bool changedAtoms;
 		bool changedBonds;
@@ -126,7 +130,7 @@ class State {
 		void deleteBonds();  // SEANQ: what's the difference between remove and delete?
 		void deleteAtoms();
 		bool atomInGroup(Atom &, string handle);
-		bool asyncHostOperation(std::function<void (int )> cb);
+		bool asyncHostOperation(std::function<void (int64_t )> cb);
 		SHARED(thread) asyncData;
 		SHARED(ReadConfig) readConfig;
 

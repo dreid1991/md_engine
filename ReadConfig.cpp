@@ -1,7 +1,7 @@
 #include "ReadConfig.h"
 #include "State.h"
 #include "xml_func.h"
-
+#include <boost/lexical_cast.hpp> //for case string to int64 (turn)
 
 
 vector<vector<num> > mapTo2d(vector<num> &xs, const int dim) {
@@ -135,8 +135,8 @@ bool ReadConfig::read() {
 	state->deleteBonds();
 	state->deleteAtoms();
 	vector<Atom> readAtoms;
-	int readTurn = atoi(config->attribute("turn").value());
-	int numAtoms = atoi(config->attribute("numAtoms").value());
+	int64_t readTurn = boost::lexical_cast<int64_t>(config->attribute("turn").value());
+	int numAtoms = boost::lexical_cast<int>(config->attribute("numAtoms").value());
 	bool readIs2d = !strcmp(config->attribute("dimension").value(), "2");
 	const char *periodic = config->attribute("periodic").value();
     cout << "periodic is " << periodic << endl;

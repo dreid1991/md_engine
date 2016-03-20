@@ -21,6 +21,7 @@ using namespace std;
 #include "IntegraterVerlet.h"
 #include "IntegraterRelax.h"
 #include "boost_stls.h"
+#include "PythonOperation.h"
 //#include "DataManager.h"
 //#include "DataSet.h"
 #include "ReadConfig.h"
@@ -51,9 +52,9 @@ BOOST_PYTHON_MODULE(Sim) {
     export_AtomGrid();
     export_AtomParams();
     export_DataSet();
-    export_DataSetPython();
     export_DataManager();
     export_ReadConfig();
+    export_PythonOperation();
 
     export_WriteConfig();
     export_InitializeAtoms();

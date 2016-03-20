@@ -1,4 +1,5 @@
 #include "WriteConfig.h"
+#include <inttypes.h>
 #define BUFFERLEN 700
 template <typename T>
 void writeXMLChunk(ofstream &outFile, vector<T> &vals, string tag, std::function<void (T &, char [BUFFERLEN])> getLine) {
@@ -47,7 +48,7 @@ void writeAtomParams(ofstream &outFile, AtomParams &params) {
 
 }
 
-void writeXMLfileBase64(State *state, string fnFinal, int turn, bool oneFilePerWrite) {
+void writeXMLfileBase64(State *state, string fnFinal, int64_t turn, bool oneFilePerWrite) {
 	vector<Atom> &atoms = state->atoms;
 	vector<Bond> &bonds = state->bonds;
 	ofstream outFile;
@@ -70,7 +71,7 @@ void writeXMLfileBase64(State *state, string fnFinal, int turn, bool oneFilePerW
     for (int i=0; i<12; i++) {
         b64[i] = base64_encode((const unsigned char *) (dims + i), 8);
     }
-	sprintf(buffer, "<configuration turn=\"%d\" numAtoms=\"%d\" dimension=\"%d\" periodic=\"%d%d%d\">\n", turn, (int) atoms.size(), ndims, state->periodic[0], state->periodic[1], state->periodic[2]);
+	sprintf(buffer, "<configuration turn=\"%" PRId64 "\" numAtoms=\"%d\" dimension=\"%d\" periodic=\"%d%d%d\">\n", turn, (int) atoms.size(), ndims, state->periodic[0], state->periodic[1], state->periodic[2]);
 	outFile << buffer;
 	sprintf(buffer, "<bounds base64=\"1\" xlo=\"%s\" ylo=\"%s\" zlo=\"%s\" sxx=\"%s\" sxy=\"%s\" sxz=\"%s\" syx=\"%s\" syy=\"%s\" syz=\"%s\" szx=\"%s\" szy=\"%s\" szz=\"%s\"/>\n", b64[0].c_str(), b64[1].c_str(), b64[2].c_str(), b64[3].c_str(), b64[4].c_str(), b64[5].c_str(), b64[6].c_str(), b64[7].c_str(), b64[8].c_str(), b64[9].c_str(), b64[10].c_str(), b64[11].c_str());
 	outFile << buffer;
@@ -117,7 +118,7 @@ void writeXMLfileBase64(State *state, string fnFinal, int turn, bool oneFilePerW
 }
 
 
-void writeXYZFile(State *state, string fn, int turn, bool oneFilePerWrite) {
+void writeXYZFile(State *state, string fn, int64_t turn, bool oneFilePerWrite) {
     vector<Atom> &atoms = state->atoms;
     AtomParams &params = state->atomParams;
     bool useAtomicNums = true;
@@ -146,7 +147,7 @@ void writeXYZFile(State *state, string fn, int turn, bool oneFilePerWrite) {
     outFile.close();
 }
 
-void writeXMLfile(State *state, string fnFinal, int turn, bool oneFilePerWrite) {
+void writeXMLfile(State *state, string fnFinal, int64_t turn, bool oneFilePerWrite) {
 	vector<Atom> &atoms = state->atoms;
 	vector<Bond> &bonds = state->bonds;
 	ofstream outFile;
@@ -165,7 +166,7 @@ void writeXMLfile(State *state, string fnFinal, int turn, bool oneFilePerWrite) 
 			s[i*3 + j] = (double) b.sides[i][j];
 		}
 	}
-	sprintf(buffer, "<configuration turn=\"%d\" numAtoms=\"%d\" dimension=\"%d\" periodic=\"%d%d%d\">\n", turn, (int) atoms.size(), ndims, state->periodic[0], state->periodic[1], state->periodic[2]);
+	sprintf(buffer, "<configuration turn=\"%" PRId64 "\" numAtoms=\"%d\" dimension=\"%d\" periodic=\"%d%d%d\">\n", turn, (int) atoms.size(), ndims, state->periodic[0], state->periodic[1], state->periodic[2]);
 	outFile << buffer;
 	sprintf(buffer, "<bounds base64=\"0\" xlo=\"%f\" ylo=\"%f\" zlo=\"%f\" sxx=\"%f\" sxy=\"%f\" sxz=\"%f\" syx=\"%f\" syy=\"%f\" syz=\"%f\" szx=\"%f\" szy=\"%f\" szz=\"%f\"/>\n", (double) b.lo[0], (double) b.lo[1], (double) b.lo[2], s[0], s[1], s[2], s[3], s[4], s[5], s[6], s[7], s[8]);
 	outFile << buffer;
@@ -237,7 +238,7 @@ void writeXMLfile(State *state, string fnFinal, int turn, bool oneFilePerWrite) 
 
 
 
-string WriteConfig::getCurrentFn(int turn) {
+string WriteConfig::getCurrentFn(int64_t turn) {
     char buffer[200];
     if (format == "base64") {
         sprintf(buffer, "%s.xml", fn.c_str());
@@ -261,7 +262,7 @@ string WriteConfig::getCurrentFn(int turn) {
     return string(buffer);
 }
 
-WriteConfig::WriteConfig(SHARED(State) state_, string fn_, string handle_, string format_, int writeEvery_) : state(state_.get()), fn(fn_), handle(handle_), format(format_), writeEvery(writeEvery_), turnInit(state->turn) {
+WriteConfig::WriteConfig(SHARED(State) state_, string fn_, string handle_, string format_, int writeEvery_) : state(state_.get()), fn(fn_), handle(handle_), format(format_), writeEvery(writeEvery_) {
     if (format == "base64") {
         writeFormat = &writeXMLfileBase64;
         isXML = true;
@@ -294,7 +295,7 @@ void WriteConfig::finish() {
         outFile << "</data>";
     }
 }
-void WriteConfig::write(int turn) {
+void WriteConfig::write(int64_t turn) {
 	writeFormat(state, getCurrentFn(turn), turn, oneFilePerWrite);
 }
 

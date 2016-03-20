@@ -6,12 +6,6 @@ DataManager::DataManager(State * state_) : state(state_) {
 }
 
 
-SHARED(DataSet) DataManager::createPython(string handle, int processEvery, PyObject *py) {
-	SHARED(DataSet) set ((DataSet *) new DataSetPython(state, handle, processEvery, py));
-	userSets.push_back(set);
-	return set;
-}
-
 bool DataManager::recordEng(string groupHandle) {
     uint groupTag = state->groupTagFromHandle(groupHandle); //will assert false if handle doesn't exist
     if (find(activeEngTags.begin(), activeEngTags.end(), groupTag) == activeEngTags.end()) {
@@ -63,7 +57,6 @@ SHARED(DataSet) DataManager::getDataSet(string handle) {
 
 void export_DataManager() {
     class_<DataManager, SHARED(DataManager) >("DataManager", init<>())
-        .def("createPython", &DataManager::createPython)
         .def("getDataSet", &DataManager::getDataSet)
         ;
 }

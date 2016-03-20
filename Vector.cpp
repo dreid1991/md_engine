@@ -1,5 +1,5 @@
 #include "Vector.h"
-
+using namespace boost::python;
 std::ostream &operator<<(std::ostream &os, const Vector &v) {
     os << v.asStr();
     return os;

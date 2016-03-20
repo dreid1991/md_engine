@@ -3,6 +3,7 @@
 
 #include <iostream>
 using namespace std;
+using namespace boost::python;
 DeviceManager::DeviceManager() {
     cudaGetDeviceCount(&nDevices);
     setDevice(nDevices-1);

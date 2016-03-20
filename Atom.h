@@ -6,7 +6,6 @@
 
 void export_Atom();
 void export_Neighbor();
-#include "boost_for_export.h"
 class Atom;
 typedef OffsetObj<Atom *> Neighbor;
 typedef vector<Atom *> atomlist;

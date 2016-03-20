@@ -11,7 +11,6 @@
 class State;
 using namespace std;
 void export_DataSet();
-void export_DataSetPython();
 class DataSet {
 	public:
 		State *state;
@@ -29,18 +28,5 @@ class DataSet {
 		DataSet(State *state_, string handle_, int accumulateEvery_, int computeEvery_);
 };
 
-
-
-
-class DataSetPython : public DataSet {
-	public:
-		DataSetPython(){};
-		DataSetPython(State *state_, string handle_, int computeEvery_, PyObject *pyProcess_) : DataSet(state_, handle_, -1, computeEvery_) {
-			pyProcess = pyProcess_;
-			assert(PyCallable_Check(pyProcess));
-		};
-		void process(int);
-
-};
 
 #endif

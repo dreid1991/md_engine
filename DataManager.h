@@ -30,7 +30,6 @@ class DataManager {
         vector<uint> activeEngTags;
         map<string, vector<DataPoint> > engData;         
         vector<SHARED(DataSet) > userSets;
-        SHARED(DataSet) createPython(string handle, int computeEvery, PyObject *py);
         SHARED(DataSet) getDataSet(string handle);
 };
 

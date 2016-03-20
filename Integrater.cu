@@ -3,7 +3,7 @@
 #include "Fix.h"
 #include "WriteConfig.h"
 // #include "globalDefs.h"
-
+#include "PythonOperation.h"
 const string IntVerletType = "verlet";
 const string IntRelaxType = "relax";
 
@@ -62,37 +62,37 @@ void Integrater::doDataCollection() {
 }
 void Integrater::asyncOperations() {
     int turn = state->turn;
-    auto dataAndWrite = [this] (int ts) { //well, if I try to use a local state pointer, this segfaults.  Need to capture this instead.  Little confused
+    auto writeAndPy = [this] (int64_t ts) { //well, if I try to use a local state pointer, this segfaults.  Need to capture this instead.  Little confused
         //have to set device in each thread
         state->devManager.setDevice(state->devManager.currentDevice, false);
         for (SHARED(WriteConfig) wc : state->writeConfigs) {
-            if (not ((ts - wc->turnInit) % wc->writeEvery)) {
+            if (not (ts % wc->writeEvery)) {
                 wc->write(ts);
             }
         }
-        for (SHARED(DataSet) ds : state->dataManager.userSets) {
-            if (not ((ts - ds->turnInit) % ds->computeEvery)) {
-                ds->process(ts);
+        for (SHARED(PythonOperation) po : state->pythonOperations) {
+            if (not (ts % po->operateEvery)) {
+                po->operate(ts);
             }
         }
     };
     bool needAsync = false;
     for (SHARED(WriteConfig) wc : state->writeConfigs) {
-		if (not ((turn - wc->turnInit) % wc->writeEvery)) {
+		if (not (turn % wc->writeEvery)) {
             needAsync = true;
             break;
 		}
     }
     if (not needAsync) {
-        for (SHARED(DataSet) ds : state->dataManager.userSets) {
-            if (not ((turn - ds->turnInit) % ds->computeEvery)) {
+        for (SHARED(PythonOperation) po : state->pythonOperations) {
+            if (not (turn % po->operateEvery)) {
                 needAsync = true;
                 break;
             }
         }
     }
     if (needAsync) {
-        state->asyncHostOperation(dataAndWrite);
+        state->asyncHostOperation(writeAndPy);
     }
 }
 /*

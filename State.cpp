@@ -4,6 +4,7 @@
 //#include "DataManager.h"
 #include "WriteConfig.h"
 #include "ReadConfig.h"
+#include "PythonOperation.h"
 
 /* State is where everything is sewn together. We set global options:
  *   - gpu cuda device data and options
@@ -272,12 +273,18 @@ bool addGeneric(vector<SHARED(T)> &list, vector<T *> *unshared, SHARED(T) other)
     return true;
 }
 
-bool State::deactivateWriteConfig(SHARED(WriteConfig) other) {
-    return removeGeneric<WriteConfig>(writeConfigs, (vector<WriteConfig *> *) NULL, other);
-
-}
 bool State::activateWriteConfig(SHARED(WriteConfig) other) {
     return addGeneric<WriteConfig>(writeConfigs, (vector<WriteConfig *> *) NULL, other);
+}
+bool State::deactivateWriteConfig(SHARED(WriteConfig) other) {
+    return removeGeneric<WriteConfig>(writeConfigs, (vector<WriteConfig *> *) NULL, other);
+}
+
+bool State::activatePythonOperation(SHARED(PythonOperation) other) {
+    return addGeneric<PythonOperation>(pythonOperations, (vector<PythonOperation *> *) NULL, other);
+}
+bool State::deactivatePythonOperation(SHARED(PythonOperation) other) {
+    return removeGeneric<PythonOperation>(pythonOperations, (vector<PythonOperation *> *) NULL, other);
 }
 
 
@@ -349,7 +356,7 @@ bool State::prepareForRun() {
     return true;
 }
 
-void copyAsyncWithInstruc(State *state, std::function<void (int )> cb, int turn) {
+void copyAsyncWithInstruc(State *state, std::function<void (int64_t )> cb, int64_t turn) {
     cudaStream_t stream;
     CUCHECK(cudaStreamCreate(&stream));
     state->gpd.xsBuffer.dataToHostAsync(stream);
@@ -378,7 +385,7 @@ void copyAsyncWithInstruc(State *state, std::function<void (int )> cb, int turn)
     CUCHECK(cudaStreamDestroy(stream));
 }
 
-bool State::asyncHostOperation(std::function<void (int )> cb) {
+bool State::asyncHostOperation(std::function<void (int64_t )> cb) {
     // buffers should already be allocated in prepareForRun, and num atoms
     // shouldn't have changed.
     gpd.xs.copyToDeviceArray((void *) gpd.xsBuffer.getDevData());
@@ -630,6 +637,8 @@ void export_State() {
         .def("deactivateFix", &State::deactivateFix)
         .def("activateWriteConfig", &State::activateWriteConfig)
         .def("deactivateWriteConfig", &State::deactivateWriteConfig)
+        .def("activatePythonOperation", &State::activatePythonOperation)
+        .def("deactivatePythonOperation", &State::deactivatePythonOperation)
         .def("zeroVelocities", &State::zeroVelocities)
         .def("destroy", &State::destroy)
         .def_readwrite("dataIntervalStd", &State::dataIntervalStd)	
