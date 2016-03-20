@@ -21,7 +21,6 @@ class Integrater {
         //virtual void preForce(uint);
         void force(uint);
         //virtual void postForce(uint);
-        virtual void data();
         void asyncOperations();
         std::vector<GPUArrayBase *> activeData;
         void basicPreRunChecks();

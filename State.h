@@ -35,7 +35,6 @@ class State;  //forward declaring so bond can use bounds, which includes state
 #include "GridGPU.h"
 #include "Bounds.h"
 #include "AtomGrid.h"
-#include "DataSet.h"
 #include "DataManager.h"
 
 #include "boost_for_export.h"

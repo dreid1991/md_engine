@@ -42,7 +42,6 @@ State::State() {
 	verbose = true;
 	initData();
     readConfig = SHARED(ReadConfig) (new ReadConfig(this));
-    dataManager = DataManager(this);
     atomParams = AtomParams(this);
 }
 

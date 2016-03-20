@@ -1,14 +1,17 @@
-#pragma once
-#include "DataSet.h"
+#ifndef DATA_MANAGER_H
+#define DATA_MANAGER_H
 #include "globalDefs.h"
 #include <boost/shared_ptr.hpp>
 #include "boost_for_export.h"
-class State;
+#include <vector>
+//#include "DataSet.h"
+class DataSet;
 void export_DataManager();
 //okay - energy and pressure ptrs ARE in aux, but they will always be the zeroth and first entries, respectively.  They are just seperated for easy access. 
 //
 //
 
+/*
 class DataPoint {
     public:
         int timestep;
@@ -16,8 +19,10 @@ class DataPoint {
         DataPoint(double timestep_, double value_) : timestep(timestep_), value(value_) {
         }
 };
+*/
 class DataManager {
 	public:
+        /*
 		State *state;
         int dataInterval;
 		DataManager(){};
@@ -31,6 +36,8 @@ class DataManager {
         map<string, vector<DataPoint> > engData;         
         vector<SHARED(DataSet) > userSets;
         SHARED(DataSet) getDataSet(string handle);
+        */
+        std::vector<SHARED(DataSet)> dataSets;
 };
 
 /*
@@ -46,3 +53,4 @@ class DataManager {
  *
  *
  */
+#endif

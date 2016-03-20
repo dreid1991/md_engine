@@ -1,5 +1,6 @@
 #include "DataManager.h"
 #include "State.h"
+/*
 DataManager::DataManager(State * state_) : state(state_) {
 
 	
@@ -54,9 +55,9 @@ SHARED(DataSet) DataManager::getDataSet(string handle) {
     return SHARED(DataSet) ((DataSet *) NULL);
 }
 
-
+*/
 void export_DataManager() {
     class_<DataManager, SHARED(DataManager) >("DataManager", init<>())
-        .def("getDataSet", &DataManager::getDataSet)
+ //       .def("getDataSet", &DataManager::getDataSet)
         ;
 }

@@ -29,6 +29,32 @@ __device__ void copyToShared (T *src, T *dest, int n) {
         dest[i] = src[i];
     }
 }
+template <class T>
+inline __device__ void reduceByN(T *src, int span) { // where span is how many elements you're reducing over.  src had better be shared memory
+    int maxLookahead = span / 2;
+    int curLookahead = 1;
+    while (curLookahead <= maxLookahead) {
+        if (! (threadIdx.x % (curLookahead*2))) {
+            src[threadIdx.x] += src[threadIdx.x + curLookahead];
+        }
+        curLookahead *= 2;
+        __syncthreads();
+    }
+}
+
+//only safe to use if reducing within a warp
+template <class T>
+inline __device__ void reduceByN_NOSYNC(T *src, int span) { // where span is how many elements you're reducing over.  src had better be shared memory
+    int maxLookahead = span / 2;
+    int curLookahead = 1;
+    while (curLookahead <= maxLookahead) {
+        if (! (threadIdx.x % (curLookahead*2))) {
+            src[threadIdx.x] += src[threadIdx.x + curLookahead];
+        }
+        curLookahead *= 2;
+    }
+}
+//Hey - if you pass warpsize, could avoid syncing al small lookaheads
 #define SUM(NAME, OPERATOR, WRAPPER) \
 template <class K, class T>\
 __global__ void NAME (K *dest, T *src, int n) {\
@@ -40,13 +66,14 @@ __global__ void NAME (K *dest, T *src, int n) {\
        tmp[threadIdx.x] = 0;\
     }\
     __syncthreads();\
+    int curLookahead = 1;\
     int maxLookahead = log2f(blockDim.x-1);\
     for (int i=0; i<=maxLookahead; i++) {\
-        int curLookahead = powf(2, i);\
         if (! (threadIdx.x % (curLookahead*2))) {\
             tmp[threadIdx.x] += tmp[threadIdx.x + curLookahead];\
         }\
         __syncthreads();\
+        curLookahead *= 2;\
     }\
     if (threadIdx.x == 0) {\
         atomicAdd(dest, tmp[0]);\
@@ -79,12 +106,13 @@ __global__ void NAME (K *dest, T *src, int n, unsigned int groupTag, float4 *fs)
         tmp[threadIdx.x] = 0;\
     }\
     __syncthreads();\
+    int curLookahead = 1;\
     int maxLookahead = log2f(blockDim.x-1);\
     for (int i=0; i<=maxLookahead; i++) {\
-        int curLookahead = powf(2, i);\
         if (! (threadIdx.x % (curLookahead*2))) {\
             tmp[threadIdx.x] += tmp[threadIdx.x + curLookahead];\
         }\
+        curLookahead *= 2;\
         __syncthreads();\
     }\
     if (threadIdx.x == 0) {\
@@ -94,7 +122,5 @@ __global__ void NAME (K *dest, T *src, int n, unsigned int groupTag, float4 *fs)
 
 SUM_TAGS(sumVectorSqr3DTags, lengthSqr, make_float3);
 SUM_TAGS(sumVectorSqr3DTagsOverW, lengthSqrOverW, ); // for temperature
-
-
 
 #endif

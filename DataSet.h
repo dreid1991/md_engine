@@ -8,24 +8,40 @@
 #include <boost/shared_ptr.hpp>
 #include <iostream>
 #include "boost_for_export.h"
-class State;
 using namespace std;
-void export_DataSet();
 class DataSet {
 	public:
-		State *state;
-		vector<int> turns;
-		vector<num> data;
-		int turnInit;
+		vector<int64_t> turns;
+        //can't store data in here b/c is of different types, wouldn't be able to store all base pointers in a vector.  Maybe pass data with void pointers?
 		string handle;
-		virtual void process(int turn){};
-		num accumulator;
-		int accumulateEvery;
-		int computeEvery;
-		PyObject *pyProcess;
-		
+        bool requiresVirials;
+
+		virtual void collect(int64_t turn){};
+        int64_t nextCollectTurn;
+        int collectEvery;		
+        PyObject *collectGenerator;
+        bool collectModeIsPython;
+
+        void setCollectMode() {
+            if (PyCallable_Check(collectGenerator)) {
+                collectModeIsPython = true;
+            } else {
+                collectModeIsPython = false;
+                assert(collectEvery > 0);
+            }
+        }
+        void prepareForRun() {
+            setCollectMode();
+        }
 		DataSet(){};
-		DataSet(State *state_, string handle_, int accumulateEvery_, int computeEvery_);
+        //okay, so default arguments will be set in python wrapper.  In C++, will just have to send Py_None as arg for collectGenerator
+        
+		DataSet(string handle_, int collectEvery_, PyObject *collectGenerator_) {
+            handle = handle_;
+            collectEvery = collectEvery_;
+            collectGenerator = collectGenerator;
+            setCollectMode();
+        };
 };
 
 

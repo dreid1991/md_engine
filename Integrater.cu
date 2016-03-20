@@ -4,6 +4,7 @@
 #include "WriteConfig.h"
 // #include "globalDefs.h"
 #include "PythonOperation.h"
+#include "DataSet.h"
 const string IntVerletType = "verlet";
 const string IntRelaxType = "relax";
 
@@ -28,20 +29,6 @@ void Integrater::forceSingle() {
 }
 
 
-void Integrater::data() {
-    /*
-	int turn = state->turn;
-	SHARED(DataManager) d = state->data;
-	for (SHARED(DataSet) set : d->sets) {
-		if (! ((turn - set->turnInit) % set->processEvery)) {
-			set->process();
-		}
-
-
-	}
-    */
-
-}
 
 
 void Integrater::singlePointEng() {
@@ -53,11 +40,18 @@ void Integrater::singlePointEng() {
 
 }
 void Integrater::doDataCollection() {
+    return;
     DataManager &dm = state->dataManager;
-    if ((state->turn % dm.dataInterval) == 0) {
-        if (dm.recordingEng()) {
-            singlePointEng(); 
+    bool doingCollection = false;
+    int64_t turn = state->turn;
+    for (SHARED(DataSet) ds : dm.dataSets) {
+        if (ds->nextCollectTurn == turn) {
+            doingCollection = true;
+            break;
         }
+    }
+    if (doingCollection) {
+        
     }
 }
 void Integrater::asyncOperations() {
