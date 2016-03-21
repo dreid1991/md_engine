@@ -1,10 +1,11 @@
 #ifndef GLOBAL_DEFS_H
 #define GLOBAL_DEFS_H
+
+#include "cuda_runtime.h"
 #include "Python.h"
 #include <boost/shared_ptr.hpp>
+
 typedef double num;
-
-
 
 #define GPUMEMBER __host__ __device__
 #define SHARED(X) boost::shared_ptr<X>
