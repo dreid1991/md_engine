@@ -1,7 +1,9 @@
 #include "AtomParams.h"
 #include "State.h"
-int AtomParams::addSpecies(string handle, double mass, double atomicNum) {
-    //this is wrapped by state b/c fixes may need to update to accomodate more atom types
+
+int AtomParams::addSpecies(std::string handle, double mass, double atomicNum) {
+    //this is wrapped by state b/c fixes may need to update to accomodate more
+    //atom types
     if (find(handles.begin(), handles.end(), handle) != handles.end()) {
         return -1;
     }
@@ -15,12 +17,12 @@ int AtomParams::addSpecies(string handle, double mass, double atomicNum) {
 
 
 void AtomParams::clear() {
-	handles = vector<string>();
-	masses = vector<double>();
+	handles = std::vector<std::string>();
+	masses = std::vector<double>();
 	numTypes = 0;
 }
 
-int AtomParams::typeFromHandle(string handle) {
+int AtomParams::typeFromHandle(std::string handle) {
     auto it = find(handles.begin(), handles.end(), handle);
     if (it != handles.end()) {
         return it - handles.begin();

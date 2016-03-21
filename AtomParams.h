@@ -16,9 +16,6 @@
 #include "boost_for_export.h"
 void export_AtomParams();
 
-using namespace boost;
-using namespace std;
-
 class State;
 
 /*! \class AtomParams
@@ -43,9 +40,9 @@ public:
      */
     AtomParams(State *s) : state(s), numTypes(0) {};
 
-    vector<string> handles; //!< List of handles to specify atom types
-    vector<double> masses; //!< List of masses, one for each atom type
-    vector<double> atomicNums; //!< For each atom type, this vector stores
+    std::vector<std::string> handles; //!< List of handles to specify atom types
+    std::vector<double> masses; //!< List of masses, one for each atom type
+    std::vector<double> atomicNums; //!< For each atom type, this vector stores
                                //!< its number in the periodic table
 
     /*! \brief Return atom type for a given handle
@@ -55,7 +52,7 @@ public:
      *
      * Get the atom type for a given handle.
      */
-    int typeFromHandle(string handle);
+    int typeFromHandle(std::string handle);
     int numTypes; //!< Number of atom types
 
     /*! \brief Add a new type of atoms to the system
@@ -68,7 +65,7 @@ public:
      *
      * Add a new type of atoms to the system.
      */
-    int addSpecies(string handle, double mass, double atomicNum=6);
+    int addSpecies(std::string handle, double mass, double atomicNum=6);
 
     /*! \brief Remove all atom type info
      *
