@@ -51,7 +51,6 @@ BOOST_PYTHON_MODULE(Sim) {
 
     export_AtomGrid();
     export_AtomParams();
-    export_DataSet();
     export_DataManager();
     export_ReadConfig();
     export_PythonOperation();
