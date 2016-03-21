@@ -2,7 +2,6 @@
 #define GLOBAL_DEFS_H
 
 #include "cuda_runtime.h"
-#include "Python.h"
 #include <boost/shared_ptr.hpp>
 
 typedef double num;
