@@ -1,4 +1,6 @@
 #include "GPUArrayDevice.h"
+#include "memset_defs.h"
+
 void MEMSETFUNC(void *ptr, const void *val, size_t n, size_t Tsize) {
     if (Tsize == 4) {
         memsetByValList_32<<<NBLOCK(n), PERBLOCK>>>((int *) ptr,

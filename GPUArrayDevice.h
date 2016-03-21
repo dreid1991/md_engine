@@ -1,9 +1,7 @@
 #ifndef GPUARRAYDEVICE_H
 #define GPUARRAYDEVICE_H
 
-#include "cutils_math.h"
 #include "globalDefs.h"
-#include "memset_defs.h"
 
 /*! \brief Global function to set the device memory */
 void MEMSETFUNC(void *, const void *, size_t, size_t);
