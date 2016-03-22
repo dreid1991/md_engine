@@ -70,7 +70,7 @@ __global__ void FIRE_preForce_cu(int nAtoms, float4 *xs, float4 *vs, float4 *fs,
 
         float invmass = vel.w;
         float groupTag = force.w;
-        xs[idx] += vel * dt;
+        xs[idx] = xs[idx] + make_float3(vel) * dt;
         float4 newVel = force * dt * invmass;
         newVel.w = invmass;
         vs[idx] = newVel;
