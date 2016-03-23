@@ -60,7 +60,7 @@ public:
      *
      * Get the atom type for a given handle.
      */
-    int typeFromHandle(std::string handle);
+    int typeFromHandle(const std::string &handle) const;
 
 public:
     State *state; //!< Vector to the corresponding state class

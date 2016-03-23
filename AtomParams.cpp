@@ -25,7 +25,7 @@ void AtomParams::clear() {
 	numTypes = 0;
 }
 
-int AtomParams::typeFromHandle(std::string handle) {
+int AtomParams::typeFromHandle(const std::string &handle) const {
     auto it = find(handles.begin(), handles.end(), handle);
     if (it != handles.end()) {
         return it - handles.begin();
