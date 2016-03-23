@@ -23,11 +23,10 @@ class State;
  *
  * This class stores and manages all available, general info on atoms, such as
  * the number of atom types, their masses and Number in the periodic table.
+ * This class does not store per-atom data.
  */
 class AtomParams {
 public:
-
-    State *state; //!< Vector to the corresponding state class
 
     /*! \brief Default constuctor */
     AtomParams() : numTypes(0) {};
@@ -39,21 +38,6 @@ public:
      * Constructor setting the pointer to the corresponding state.
      */
     AtomParams(State *s) : state(s), numTypes(0) {};
-
-    std::vector<std::string> handles; //!< List of handles to specify atom types
-    std::vector<double> masses; //!< List of masses, one for each atom type
-    std::vector<double> atomicNums; //!< For each atom type, this vector stores
-                               //!< its number in the periodic table
-
-    /*! \brief Return atom type for a given handle
-     *
-     * \param handle Unique identifier for the atom type
-     * \returns Integer specifying the atom type
-     *
-     * Get the atom type for a given handle.
-     */
-    int typeFromHandle(std::string handle);
-    int numTypes; //!< Number of atom types
 
     /*! \brief Add a new type of atoms to the system
      *
@@ -72,6 +56,24 @@ public:
      * Delete all info on atom types previously stored in this class.
      */
     void clear();
+
+    /*! \brief Return atom type for a given handle
+     *
+     * \param handle Unique identifier for the atom type
+     * \returns Integer specifying the atom type
+     *
+     * Get the atom type for a given handle.
+     */
+    int typeFromHandle(std::string handle);
+
+public:
+    State *state; //!< Vector to the corresponding state class
+
+    int numTypes; //!< Number of atom types
+    std::vector<std::string> handles; //!< List of handles to specify atom types
+    std::vector<double> masses; //!< List of masses, one for each atom type
+    std::vector<double> atomicNums; //!< For each atom type, this vector stores
+                                    //!< its number in the periodic table
 };
 
 #endif
