@@ -1,11 +1,8 @@
 #ifndef ATOM_PARAMS_H
 #define ATOM_PARAMS_H
 
-#include "Python.h"
-#include <math.h>
-#include <iostream>
-#include <boost/shared_ptr.hpp>
-#include <assert.h>
+#include <string>
+#include <vector>
 
 //herm, would like to allow for different force fields
 //
@@ -13,7 +10,6 @@
 //id maps to index of data in mass, sigmas, epsilons
 //
 //this class does not hold per-atom info
-#include "boost_for_export.h"
 void export_AtomParams();
 
 class State;

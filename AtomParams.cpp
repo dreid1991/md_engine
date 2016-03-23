@@ -1,4 +1,7 @@
+#include "Python.h"
+
 #include "AtomParams.h"
+#include "boost_for_export.h"
 #include "State.h"
 
 int AtomParams::addSpecies(std::string handle, double mass, double atomicNum) {
