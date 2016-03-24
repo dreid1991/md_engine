@@ -33,3 +33,10 @@ int64_t DataSet::getNextCollectTurn(int64_t turn) {
 void DataSet::setNextCollectTurn(int64_t turn) {
     nextCollectTurn = getNextCollectTurn(turn);
 }
+void export_DataSet() {
+    class_<DataSet>("DataManager")
+        .def_readonly("turns", &DataSet::turns)
+        .def_readwrite("nextCollectTurn", &DataSet::nextCollectTurn)
+ //       .def("getDataSet", &DataManager::getDataSet)
+        ;
+}

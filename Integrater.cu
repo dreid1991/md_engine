@@ -221,8 +221,15 @@ Integrater::Integrater(State *state_, string type_) : state(state_), type(type_)
     setActiveData(); 
 }
 
+void Integrater::writeOutput() {
+    for (SHARED(WriteConfig) wc : state->writeConfigs) {
+        wc->write(ts);
+    }
+}
+
 void export_Integrater() {
     class_<Integrater, boost::noncopyable> ("Integrater")
+        .def("writeOutput", &Integrater::writeOutput)
         //.def("run", &Integrater::run)
         ;
 }

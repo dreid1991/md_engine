@@ -107,7 +107,7 @@ SHARED(DataSet) DataManager::getDataSet(string handle) {
 
 */
 void export_DataManager() {
-    class_<DataManager, SHARED(DataManager) >("DataManager", init<>())
+    class_<DataManager>("DataManager", init<>())
  //       .def("getDataSet", &DataManager::getDataSet)
         ;
 }

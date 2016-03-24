@@ -10,6 +10,7 @@
 #include "boost_for_export.h"
 #include "BoundsGPU.h"
 #include "Virial.h"
+void export_DataSet();
 using namespace std;
 class DataSet {
 	public:

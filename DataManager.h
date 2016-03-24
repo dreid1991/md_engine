@@ -17,8 +17,9 @@ class DataManager {
 		DataManager(){};
 		DataManager(State *); 
         void generateSingleDataSetList();
-        
-//behavior: if you call record for something that is already being recorded, it will change collect / collect generator of the existing object and continue append to the existing object's data
+/*! \brief Record temperature 
+ *
+ * behavior: if you call record for something that is already being recorded, it will change collect / collect generator of the existing object and continue append to the existing object's data */
         SHARED(DataSetTemperature) recordTemperature(std::string groupHandle, int collectEvery, PyObject *collectGenerator); 
         void stopRecordTemperature(std::string groupHandle);
 
