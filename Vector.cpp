@@ -1,5 +1,10 @@
-#include "Vector.h"
+#include <iostream>
+#include "Python.h"
+#include "boost_for_export.h"
 using namespace boost::python;
+
+#include "Vector.h"
+
 std::ostream &operator<<(std::ostream &os, const Vector &v) {
     os << v.asStr();
     return os;

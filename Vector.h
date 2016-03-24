@@ -1,11 +1,9 @@
 #ifndef VECTOR_H
 #define VECTOR_H
 
-#include "Python.h"
-#include <math.h>
+#include <cmath>
 #include <string>
 #include <sstream>
-#include <iostream>
 #include "globalDefs.h"
 #include "cutils_math.h"
 
