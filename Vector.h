@@ -4,9 +4,7 @@
 #include "Python.h"
 #include <math.h>
 #include <string>
-#include <stdio.h>
-#include <assert.h>
-#include <string.h>
+#include <sstream>
 #include <iostream>
 #include "globalDefs.h"
 #include "cutils_math.h"
@@ -518,11 +516,9 @@ public:
 
     /*! \brief Convert vector to string for output */
     string asStr() const {
-        char buffer[100];
-        num x = vals[0], y = vals[1], z = vals[2];
-        int n = sprintf(buffer, "x: %f, y: %f, z: %f", x, y, z);
-        assert(n >= 0);
-        return string(buffer);
+        ostringstream oss;
+        oss << "x: " << vals[0] << ", y: " << vals[1] << ", z: " << vals[2];
+        return oss.str();
     }
 
     /*! \brief Assignment operator */
