@@ -77,8 +77,17 @@ void Integrater::doDataCollection() {
 
         }
         //okay, now go through all and give them their data
+        GPUData &gpd = state->gpd;
+        float4 *xs = gpd.xs.getDevData();
+        float4 *vs = gpd.vs.getDevData();
+        float4 *fs = gpd.fs.getDevData();
+        BoundsGPU &bounds = state->boundsGPU;
+        int nAtoms = state->atoms.size();
+        int64_t turn = state->turn;
+		//void collect(int64_t turn, BoundsGPU &, int nAtoms, float4 *xs, float4 *vs, float4 *fs, float *engs, Virial *);
+
         for (DataSet *ds : dm.dataSets) {
-            //do operations!
+            ds->collect(turn, bounds, nAtoms, xs, vs, fs, gpd.perParticleEng.ptr, gpd.perParticleVirial.ptr);
         }
         if (needToCopyForcesBack) {
             GPUArrayPair<float4> &fs = state->gpd.fs;

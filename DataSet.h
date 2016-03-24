@@ -21,7 +21,7 @@ class DataSet {
         bool requiresKineticEng;
         bool requiresEng;
 
-		virtual void collect(int64_t turn, BoundsGPU &, int nAtoms, float4 *vs, float *engs, Virial *){};
+		virtual void collect(int64_t turn, BoundsGPU &, int nAtoms, float4 *xs, float4 *vs, float4 *fs, float *engs, Virial *) = 0;
         int64_t nextCollectTurn;
         int collectEvery;		
         PyObject *collectGenerator;
