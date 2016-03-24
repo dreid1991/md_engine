@@ -1,11 +1,65 @@
 #include "DataManager.h"
 #include "State.h"
-/*
+#include "DataSetTemperature.h"
+using namespace std;
 DataManager::DataManager(State * state_) : state(state_) {
 
 	
 }
 
+
+template <class T>
+SHARED(T) recordGeneric(State *state, string groupHandle, vector<SHARED(T)> &dataSets, int collectEvery, PyObject *collectGenerator) {
+    uint32_t groupTag = state->groupTagFromHandle(groupHandle);
+    bool setExists = false;
+    SHARED(T) dataSet;
+    for (SHARED(T) ds : dataSets) {
+        if (ds->sameGroup(groupTag)) {
+            dataSet = ds;
+            setExists = true;
+        }
+    }
+    if (not setExists) {
+        dataSet = SHARED(T) (new T(groupTag));
+        dataSets.push_back(dataSet);
+    }
+    dataSet->takeCollectValues(collectEvery, collectGenerator);
+    dataSet->setNextCollectTurn(state->turn);
+    return dataSet;
+}
+
+template <class T>
+void stopRecordGeneric(State *state, string dataType, string groupHandle, vector<SHARED(T)> &dataSets) {
+    uint32_t groupTag = state->groupTagFromHandle(groupHandle);
+    for (int i=0; i<dataSets.size(); i++) {
+        SHARED(T) ds = dataSets[i];
+        if (ds->sameGroup(groupTag)) {
+            dataSets.erase(dataSets.begin()+i,  dataSets.begin()+i+1);
+            return;
+        }
+    }
+    cout << "Could not find data set to erase.  Type of data: " << dataType << " group handle " << groupHandle << endl;
+    assert(false);
+
+}
+
+SHARED(DataSetTemperature) DataManager::recordTemperature(string groupHandle, int collectEvery, PyObject *collectGenerator) {
+    return recordGeneric(state, groupHandle, dataSetsTemperature, collectEvery, collectGenerator);
+
+}
+void DataManager::stopRecordTemperature(string groupHandle) {
+    stopRecordGeneric(state, "temperatue", groupHandle, dataSetsTemperature);
+}
+void DataManager::generateSingleDataSetList() {
+    //template this out or something
+    dataSets = vector<DataSet *>();
+    for (SHARED(DataSetTemperature) dst : dataSetsTemperature) {
+        DataSet *ds = (DataSet *) dst.get();
+        dataSets.push_back(ds);
+
+    }
+}
+/*
 
 bool DataManager::recordEng(string groupHandle) {
     uint groupTag = state->groupTagFromHandle(groupHandle); //will assert false if handle doesn't exist
@@ -31,10 +85,6 @@ bool DataManager::stopRecordEng(string groupHandle) {
     }
     return false;
 }
-//called by integrater
-void DataManager::collectData() {
-}
-
 
 bool DataManager::recordingEng() {
     return activeEngTags.size();

@@ -71,7 +71,7 @@ class State {
 		DataManager dataManager;
 		vector<SHARED(WriteConfig) > writeConfigs;
         vector<SHARED(PythonOperation) > pythonOperations;
-		map<string, unsigned int> groupTags;
+		map<string, uint32_t> groupTags;
 		bool is2d;
 		bool buildNeighborlists;
 		bool periodic[3];
@@ -105,12 +105,11 @@ class State {
 		vector<Atom *> selectGroup(string handle);
 		bool destroyGroup(string);
 		bool createGroup(string, boost::python::list atoms=boost::python::list());
-		uint groupTagFromHandle(string handle); 
+		uint32_t groupTagFromHandle(string handle); 
 		bool addAtom(string handle, Vector pos, double q);
 		bool addAtomDirect(Atom);
 		//bool addBond(Atom *, Atom *, double k, double rEq);
 		void refreshBonds();
-		void initData();
 		bool removeAtom(Atom *);
 		bool removeBond(Bond *);
 

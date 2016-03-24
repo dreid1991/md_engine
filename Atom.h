@@ -21,7 +21,7 @@ class Atom {
         double q;
 		int type;  //do this here, since otherwise would have to get it from some other array in the heap
 		int id;
-		unsigned int groupTag;
+		uint32_t groupTag;
 		vector<Neighbor> neighbors;
 		Atom (int type_, int id_) : next((Atom *) NULL), mass(0), q(0), type(type_), id(id_), groupTag(1) {
 			mass=-1;

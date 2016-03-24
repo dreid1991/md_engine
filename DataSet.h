@@ -8,44 +8,50 @@
 #include <boost/shared_ptr.hpp>
 #include <iostream>
 #include "boost_for_export.h"
+#include "BoundsGPU.h"
+#include "Virial.h"
 using namespace std;
 class DataSet {
 	public:
 		vector<int64_t> turns;
         //can't store data in here b/c is of different types, wouldn't be able to store all base pointers in a vector.  Maybe pass data with void pointers?
-		string handle;
+		uint32_t groupTag;
         bool requiresVirials;
         bool requiresKineticEng;
         bool requiresEng;
 
-		virtual void collect(int64_t turn){};
+		virtual void collect(int64_t turn, BoundsGPU &, int nAtoms, float4 *vs, float *engs, Virial *){};
         int64_t nextCollectTurn;
         int collectEvery;		
         PyObject *collectGenerator;
         bool collectModeIsPython;
 
-        void setCollectMode() {
-            if (PyCallable_Check(collectGenerator)) {
-                collectModeIsPython = true;
-            } else {
-                collectModeIsPython = false;
-                assert(collectEvery > 0);
-            }
-        }
-        void prepareForRun() {
-            setCollectMode();
-        }
+        void setCollectMode(); 
+        void prepareForRun();
 		DataSet(){};
+		DataSet(uint32_t groupTag_){
+            groupTag = groupTag_;
+            requiresVirials = false;
+            requiresEng = false;
+            collectEvery = -1;
+        };
+        int64_t getNextCollectTurn(int64_t turn);
+        void setNextCollectTurn(int64_t turn);
         //okay, so default arguments will be set in python wrapper.  In C++, will just have to send Py_None as arg for collectGenerator
-        
-		DataSet(string handle_, int collectEvery_, PyObject *collectGenerator_) {
-            handle = handle_;
+        bool sameGroup(uint32_t other) {
+            return other == groupTag;
+        }
+        void takeCollectValues(int collectEvery_, PyObject *collectGenerator_);
+        /*
+		DataSet(uint32_t groupTag_, int collectEvery_, PyObject *collectGenerator_) {
+            groupTag = groupTag_;
             collectEvery = collectEvery_;
             collectGenerator = collectGenerator;
             setCollectMode();
             requiresVirials = false;
             requiresEng = false;
         };
+        */
 };
 
 

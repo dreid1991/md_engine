@@ -4,53 +4,31 @@
 #include <boost/shared_ptr.hpp>
 #include "boost_for_export.h"
 #include <vector>
+#include <string>
+class DataSetTemperature;
 //#include "DataSet.h"
 class DataSet;
+class State;
 void export_DataManager();
-//okay - energy and pressure ptrs ARE in aux, but they will always be the zeroth and first entries, respectively.  They are just seperated for easy access. 
-//
-//
 
-/*
-class DataPoint {
-    public:
-        int timestep;
-        double value;
-        DataPoint(double timestep_, double value_) : timestep(timestep_), value(value_) {
-        }
-};
-*/
 class DataManager {
+    State *state;
 	public:
-        /*
-		State *state;
-        int dataInterval;
 		DataManager(){};
-		DataManager(State *); //ugh, state will always be around while data manager is active.  want it internally created, no access to shared ptr that way
-        void collectData();
-        bool recordEng(string groupHandle);
+		DataManager(State *); 
+        void generateSingleDataSetList();
+        
+//behavior: if you call record for something that is already being recorded, it will change collect / collect generator of the existing object and continue append to the existing object's data
+        SHARED(DataSetTemperature) recordTemperature(std::string groupHandle, int collectEvery, PyObject *collectGenerator); 
+        void stopRecordTemperature(std::string groupHandle);
+
+        std::vector<SHARED(DataSetTemperature)> dataSetsTemperature;
+        /* 
+        void stopRecordTemp(string GroupHandle); // will fail if does not exist
+
         bool stopRecordEng(string groupHandle);
-        bool recordingEng();
-        vector<string> activeEngHandles;
-        vector<uint> activeEngTags;
-        map<string, vector<DataPoint> > engData;         
-        vector<SHARED(DataSet) > userSets;
-        SHARED(DataSet) getDataSet(string handle);
         */
-        std::vector<SHARED(DataSet)> dataSets;
+        std::vector<DataSet *> dataSets; //to be generated each time run is called
 };
 
-/*
- *
- have global data collection frequency
-
- okay... so I can say state.dataManager.recordEng(groupHandle)
- state.dataManager.recordEngPerParticle(groupHandle)
-
- *
- *
- *
- *
- *
- */
 #endif

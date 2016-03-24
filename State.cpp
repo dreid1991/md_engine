@@ -39,15 +39,12 @@ State::State() {
 		periodic[i]=true;
 	}
 	verbose = true;
-	initData();
     readConfig = SHARED(ReadConfig) (new ReadConfig(this));
     atomParams = AtomParams(this);
-    computeVirials = false; //will be set to true if a fix need it (like barostat)
+    computeVirials = false; //will be set to true if a fix need it (like barostat) during run setup
+	dataManager = DataManager(this);
 }
 
-void State::initData() {
-	//data = SHARED(DataManager) (new DataManager(this));
-}
 
 uint State::groupTagFromHandle(string handle) {
 	assert(groupTags.find(handle) != groupTags.end());

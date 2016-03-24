@@ -43,7 +43,7 @@ void Integrater::doDataCollection() {
     DataManager &dm = state->dataManager;
     bool doingCollection = false;
     int64_t turn = state->turn;
-    for (SHARED(DataSet) ds : dm.dataSets) {
+    for (DataSet *ds : dm.dataSets) {
         if (ds->nextCollectTurn == turn) {
             doingCollection = true;
             break;
@@ -54,7 +54,7 @@ void Integrater::doDataCollection() {
         bool computeEng = false;
 
         bool needToCopyForcesBack = false;
-        for (SHARED(DataSet) ds : dm.dataSets) {
+        for (DataSet *ds : dm.dataSets) {
             computeEng = fmax(computeEng, ds->requiresEng);
             computeVirials = fmax(computeVirials, ds->requiresVirials);
         }
@@ -77,7 +77,7 @@ void Integrater::doDataCollection() {
 
         }
         //okay, now go through all and give them their data
-        for (SHARED(DataSet) ds : dm.dataSets) {
+        for (DataSet *ds : dm.dataSets) {
             //do operations!
         }
         if (needToCopyForcesBack) {
@@ -189,6 +189,7 @@ void Integrater::basicPrepare(int numTurns) {
         dat->dataToDevice();
     }
     state->gridGPU.periodicBoundaryConditions(state->rCut + state->padding, true);
+    state->dataManager.generateSingleDataSetList();  
 }
 
 void Integrater::basicFinish() {
