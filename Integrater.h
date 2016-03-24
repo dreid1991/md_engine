@@ -29,7 +29,6 @@ class Integrater {
         void setActiveData();
         void doDataCollection();
         void singlePointEng(); //make a python-wrapped version
-        void writeOutput();
         std::future<void> dataGather;
         public:
                 string type;
@@ -39,6 +38,7 @@ class Integrater {
         
                 //double relax(int numTurns, num fTol);
                 void forceSingle(bool);
+                void writeOutput();
 /*	void verletPreForce(vector<Atom *> &atoms, double timestep);
 	void verletPostForce(vector<Atom *> &atoms, double timestep);
 	void compute(vector<Fix *> &, int);

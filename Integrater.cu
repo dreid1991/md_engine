@@ -232,7 +232,7 @@ Integrater::Integrater(State *state_, string type_) : state(state_), type(type_)
 
 void Integrater::writeOutput() {
     for (SHARED(WriteConfig) wc : state->writeConfigs) {
-        wc->write(ts);
+        wc->write(state->turn);
     }
 }
 
