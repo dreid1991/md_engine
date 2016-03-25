@@ -71,9 +71,8 @@ __global__ void FIRE_preForce_cu(int nAtoms, float4 *xs, float4 *vs, float4 *fs,
         float invmass = vel.w;
         float groupTag = force.w;
         xs[idx] = xs[idx] + make_float3(vel) * dt;
-        float4 newVel = force * dt * invmass;
-        newVel.w = invmass;
-        vs[idx] = newVel;
+        float3 newVel = make_float3(force) * dt * invmass;
+        vs[idx] = vel + newVel;
         fs[idx] = make_float4(0, 0, 0, groupTag);
     }
 }
@@ -200,7 +199,7 @@ double IntegraterRelax::run(int numTurns, num fTol) {
             //total force calc
             force.memsetByVal(0.0);
 
-            sumVector3D<float,float4> <<<nblock,PERBLOCK,sizeof(float)*PERBLOCK>>>(
+            sumVectorSqr3D<float,float4> <<<nblock,PERBLOCK,sizeof(float)*PERBLOCK>>>(
                                         force.getDevData(),
                                         state->gpd.fs.getDevData(),
                                         atomssize);
@@ -209,10 +208,11 @@ double IntegraterRelax::run(int numTurns, num fTol) {
             force.dataToHost();
             //cout<<"Fire relax: force="<<force<<"; turns="<<i<<'\n';
 
-            if (force.h_data[0] < fTol) {//tolerance achived, exting
+            if (force.h_data[0] < fTol*fTol) {//tolerance achived, exting
                 basicFinish();
-                cout<<"FIRE relax done: force="<<force.h_data[0]<<"; turns="<<numTurns<<'\n';
-                return force.h_data[0];
+                float finalForce = sqrt(force.h_data[0]);
+                cout<<"FIRE relax done: force="<< finalForce <<"; turns="<<i+1<<'\n';
+                return finalForce;
             }
         } 
 
@@ -226,7 +226,7 @@ double IntegraterRelax::run(int numTurns, num fTol) {
     //total force calculation
     force.memsetByVal(0.0);
 
-    sumVector3D<float,float4> <<<nblock,PERBLOCK,sizeof(float)*PERBLOCK>>>(
+    sumVectorSqr3D<float,float4> <<<nblock,PERBLOCK,sizeof(float)*PERBLOCK>>>(
                                   force.getDevData(),
                                   state->gpd.fs.getDevData(),
                                   atomssize);
@@ -234,8 +234,9 @@ double IntegraterRelax::run(int numTurns, num fTol) {
 
     basicFinish();
 
-    cout<<"FIRE relax done: force="<<force.h_data[0]<<"; turns="<<numTurns<<'\n';
-    return force.h_data[0];
+    float finalForce = sqrt(force.h_data[0]);
+    cout<<"FIRE relax done: force="<< finalForce <<"; turns="<<numTurns<<'\n';
+    return finalForce;
 }
 
 void export_IntegraterRelax() {
