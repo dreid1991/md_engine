@@ -4,17 +4,13 @@
 __global__ void sumKeInBounds (float *dest, float4 *src, int n, unsigned int groupTag, float4 *fs, BoundsGPU bounds) {
     extern __shared__ float tmp[]; /*should have length of # threads in a block (PERBLOCK) PLUS ONE for counting shared*/
     int potentialIdx = blockDim.x*blockIdx.x + threadIdx.x;
-    int *count_shr = (int *) (tmp + blockDim.x);
-    if (threadIdx.x==0) {
-        count_shr[0] = 0;
-    }
     if (potentialIdx < n) {
         unsigned int atomGroup = * (unsigned int *) &(fs[potentialIdx].w);
         if (atomGroup & groupTag) {
             float4 val = src[blockDim.x*blockIdx.x + threadIdx.x];
             if (bounds.inBounds(make_float3(val))) {
                 tmp[threadIdx.x] = lengthSqrOverW( val ) ;
-                atomicAdd(count_shr, 1);
+                atomicAdd(dest+1, 1);
             }
         } else {
             tmp[threadIdx.x] = 0;
@@ -23,17 +19,7 @@ __global__ void sumKeInBounds (float *dest, float4 *src, int n, unsigned int gro
         tmp[threadIdx.x] = 0;
     }
     __syncthreads();
-    if (threadIdx.x==0) {
-        atomicAdd(dest+1, count_shr[0]);/*copy from shared to global, PERBLOCK-1 fewer global writes*/
-    }
-    int maxLookahead = log2f(blockDim.x-1);
-    for (int i=0; i<=maxLookahead; i++) {
-        int curLookahead = powf(2, i);
-        if (! (threadIdx.x % (curLookahead*2))) {
-            tmp[threadIdx.x] += tmp[threadIdx.x + curLookahead];
-        }
-        __syncthreads();
-    }
+    reduceByN(tmp, blockDim.x);
     if (threadIdx.x == 0) {
         atomicAdd(dest, tmp[0]);
     }
@@ -84,12 +70,7 @@ bool FixNVTRescale::prepareForRun() {
 void __global__ rescale(int nAtoms, uint groupTag, float4 *vs, float4 *fs, float tempSet, float *tempCurPtr) {
     float tempCur = tempCurPtr[0] / tempCurPtr[1] / 3.0f; //1th entry is #in group
     int idx = GETIDX();
-    if (idx==0) {
-        printf("temp is %f ptr vals are %f %f\n", tempCur, tempCurPtr[0], tempCurPtr[1]);
-    }
-
     if (idx < nAtoms) {
-       // printf("cur %f %f %f\n", tempCur, tempCurPtr[0], tempCurPtr[1]);
         uint groupTagAtom = ((uint *) (fs+idx))[3];
         if (groupTag & groupTagAtom) {
             float4 vel = vs[idx];
@@ -120,49 +101,9 @@ void __global__ rescaleInBounds(int nAtoms, uint groupTag, float4 *xs, float4 *v
     }
 }
 
-#define SUM_LALA(NAME, OPERATOR, WRAPPER) \
-    template <class K, class T>\
-__global__ void NAME (K *dest, T *src, int n, unsigned int groupTag, float4 *fs) {\
-    extern __shared__ K tmp[]; /*should have length of # threads in a block (PERBLOCK) PLUS ONE for atomic add in shared */\
-    int *count_shr = (int *) (tmp + blockDim.x);\
-    if (threadIdx.x==0) {\
-        count_shr[0] = 0;\
-    }\
-    int potentialIdx = blockDim.x*blockIdx.x + threadIdx.x;\
-    if (potentialIdx < n) {\
-        unsigned int atomGroup = * (unsigned int *) &(fs[potentialIdx].w);\
-        if (atomGroup & groupTag) {\
-            tmp[threadIdx.x] = OPERATOR ( WRAPPER (src[blockDim.x*blockIdx.x + threadIdx.x]) ) ;\
-            atomicAdd(count_shr, 1);\
-        } else {\
-            tmp[threadIdx.x] = 0;\
-        }\
-    } else {\
-        tmp[threadIdx.x] = 0;\
-    }\
-    __syncthreads();\
-    if (threadIdx.x==0) {\
-      /*  printf("I am block %d and my count is %d\n", blockIdx.x, count_shr[0]);*/\
-        atomicAdd(dest+1, (float) count_shr[0]);/*copy from shared to global, PERBLOCK-1 fewer global writes*/\
-    }\
-    reduceByN(tmp, blockDim.x);\
-    /*int curLookahead = 1;\
-    int maxLookahead = log2f(blockDim.x-1);\
-    for (int i=0; i<=maxLookahead; i++) {\
-        if (! (threadIdx.x % (curLookahead*2))) {\
-            tmp[threadIdx.x] += tmp[threadIdx.x + curLookahead];\
-        }\
-        curLookahead *= 2;\
-        __syncthreads();\
-    }\*/\
-    if (threadIdx.x == 0) {\
-        atomicAdd(dest, tmp[0]);\
-    }\
-}
-SUM_LALA(myTest, lengthSqrOverW, ); // for temperature
+
 void FixNVTRescale::compute(bool computeVirials) {
-    cout << "compute!" << endl;
-    cout.flush();
+
     tempGPU.memset(0);
     int nAtoms = state->atoms.size();
     int64_t turn = state->turn;
@@ -184,10 +125,10 @@ void FixNVTRescale::compute(bool computeVirials) {
     GPUData &gpd = state->gpd;
     int activeIdx = gpd.activeIdx;
     if (usingBounds) {
-        sumKeInBounds<<<NBLOCK(nAtoms), PERBLOCK, PERBLOCK*sizeof(float)+1>>>(tempGPU.data(), gpd.vs(activeIdx), nAtoms, groupTag, gpd.fs(activeIdx), boundsGPU);
+        sumKeInBounds<<<NBLOCK(nAtoms), PERBLOCK, PERBLOCK*sizeof(float)>>>(tempGPU.data(), gpd.vs(activeIdx), nAtoms, groupTag, gpd.fs(activeIdx), boundsGPU);
         rescaleInBounds<<<NBLOCK(nAtoms), PERBLOCK>>>(nAtoms, groupTag, gpd.xs(activeIdx), gpd.vs(activeIdx), gpd.fs(activeIdx), temp, tempGPU.data(), boundsGPU);
     } else {
-        SAFECALL((myTest<float, float4> <<<NBLOCK(nAtoms), PERBLOCK, PERBLOCK*sizeof(float)+1>>>(tempGPU.data(), gpd.vs(activeIdx), nAtoms, groupTag, gpd.fs(activeIdx))), "sum");
+        SAFECALL((sumVectorSqr3DTagsOverW<float, float4> <<<NBLOCK(nAtoms), PERBLOCK, PERBLOCK*sizeof(float)>>>(tempGPU.data(), gpd.vs(activeIdx), nAtoms, groupTag, gpd.fs(activeIdx))), "sum");
         SAFECALL((rescale<<<NBLOCK(nAtoms), PERBLOCK>>>(nAtoms, groupTag, gpd.vs(activeIdx), gpd.fs(activeIdx), temp, tempGPU.data())), "rescale");
     }
 }

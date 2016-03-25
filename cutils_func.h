@@ -92,17 +92,13 @@ SUM(sumVector3D, length, make_float3);
 #define SUM_TAGS(NAME, OPERATOR, WRAPPER) \
     template <class K, class T>\
 __global__ void NAME (K *dest, T *src, int n, unsigned int groupTag, float4 *fs) {\
-    extern __shared__ K tmp[]; /*should have length of # threads in a block (PERBLOCK) PLUS ONE for atomic add in shared */\
-    int *count_shr = (int *) (tmp + blockDim.x);\
-    if (threadIdx.x==0) {\
-        count_shr[0] = 0;\
-    }\
+    extern __shared__ K tmp[]; /*should have length of # threads in a block (PERBLOCK)  */\
     int potentialIdx = blockDim.x*blockIdx.x + threadIdx.x;\
     if (potentialIdx < n) {\
         unsigned int atomGroup = * (unsigned int *) &(fs[potentialIdx].w);\
         if (atomGroup & groupTag) {\
             tmp[threadIdx.x] = OPERATOR ( WRAPPER (src[blockDim.x*blockIdx.x + threadIdx.x]) ) ;\
-            atomicAdd(count_shr, 1);\
+            atomicAdd(dest+1, 1);/*I TRIED DOING ATOMIC ADD IN SHARED MEMORY, BUT IT SET A BUNCH OF THE OTHER SHARED MEMORY VALUES TO ZERO.  VERY CONFUSING*/\
         } else {\
             tmp[threadIdx.x] = 0;\
         }\
@@ -110,9 +106,6 @@ __global__ void NAME (K *dest, T *src, int n, unsigned int groupTag, float4 *fs)
         tmp[threadIdx.x] = 0;\
     }\
     __syncthreads();\
-    if (threadIdx.x==0) {\
-        atomicAdd(dest+1, count_shr[0]);/*copy from shared to global, PERBLOCK-1 fewer global writes*/\
-    }\
     int curLookahead = 1;\
     int maxLookahead = log2f(blockDim.x-1);\
     for (int i=0; i<=maxLookahead; i++) {\
