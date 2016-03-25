@@ -94,7 +94,6 @@ void InitializeAtoms::populateRand(SHARED(State) state, Bounds &bounds, string h
 void InitializeAtoms::initTemp(SHARED(State) state, string groupHandle, double temp) { //boltzmann const is 1 for reduced lj units
 	random_device randDev;
     int seed = randDev();
-    cout << "seed " << seed << endl;
 	generator.seed(seed);
     int groupTag = state->groupTagFromHandle(groupHandle);
 	
