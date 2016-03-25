@@ -54,9 +54,7 @@ FixNVTRescale::FixNVTRescale(SHARED(State) state_, string handle_, string groupH
     temps = temps_;
     thermoBounds = thermoBounds_;
 
-
-    
-
+    forceSingle = false;
 }
 bool FixNVTRescale::prepareForRun() {
     usingBounds = thermoBounds != SHARED(Bounds) (NULL);
