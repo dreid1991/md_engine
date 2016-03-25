@@ -23,7 +23,8 @@ using namespace std;
 #include "boost_stls.h"
 #include "PythonOperation.h"
 //#include "DataManager.h"
-//#include "DataSet.h"
+#include "DataSet.h"
+#include "DataSetTemperature.h"
 #include "ReadConfig.h"
 //#include "DataTools.h"
 BOOST_PYTHON_MODULE(Sim) {
@@ -61,35 +62,7 @@ BOOST_PYTHON_MODULE(Sim) {
 
     export_State(); 	
     export_DeviceManager();
+    export_DataSet();
+    export_DataSetTemperature();
 
-    /*
-	class_<ModPythonWrap> ("Mod")
-		.def("deleteBonds", &Mod::deleteBonds, (python::arg("groupHandle")))
-		.staticmethod("deleteBonds")
-		.def("bondWithCutoff", &Mod::bondWithCutoff, (python::arg("groupHandle"), python::arg("sigMultCutoff"), python::arg("k")) )
-		.staticmethod("bondWithCutoff")
-		.def("scaleAtomCoords", &Mod::scaleAtomCoords, (python::arg("groupHandle"), python::arg("around"), python::arg("scaleBy")) )
-		.staticmethod("scaleAtomCoords")
-		.def("computeNumBonds", &Mod::computeNumBonds, (python::arg("groupHandle")) )
-		.staticmethod("computeNumBonds")
-		.def("computeBondStresses", &Mod::computeBondStresses)
-		.staticmethod("computeBondStresses")
-		.def("deleteAtomsWithSingleSideBonds", &Mod::deleteAtomsWithSingleSideBonds, (python::arg("groupHandle")) )
-		.staticmethod("deleteAtomsWithSingleSideBonds")
-		.def("deleteAtomsWithBondThreshold", &Mod::deleteAtomsWithBondThreshold, (python::arg("groupHandle"), python::arg("thresh"), python::arg("polarity")) )
-		.staticmethod("deleteAtomsWithBondThreshold")
-		.def("computeZ", &Mod::computeZ, (python::arg("groupHandle")) )
-		.staticmethod("computeZ")
-		.def("setZValue", &Mod::setZValue, (python::arg("neighThresh"), python::arg("target"), python::arg("tolerance")=.05, python::arg("kBond")=1, python::arg("display")=false))
-		.staticmethod("setZValue")
-        .def("skew", &Mod::skew, (python::arg("skewBy")))
-        .staticmethod("skew")
-		;
-        */
-/*
-	class_<DataToolsPythonWrap> ("DataTools")
-		.def("logHistogram", &DataTools::logHistogram, (python::arg("xs"), python::arg("binXs")))
-		.staticmethod("logHistogram")
-		;
-        */
 }

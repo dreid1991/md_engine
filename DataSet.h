@@ -20,13 +20,14 @@ class DataSet {
         bool requiresEng;
 
 		virtual void collect(int64_t turn, BoundsGPU &, int nAtoms, float4 *xs, float4 *vs, float4 *fs, float *engs, Virial *) = 0;
+        virtual void appendValues() = 0;
         int64_t nextCollectTurn;
         int collectEvery;		
-        PyObject *collectGenerator;
+        boost::python::object collectGenerator;
         bool collectModeIsPython;
 
         void setCollectMode(); 
-        void prepareForRun();
+        virtual void prepareForRun();
 		DataSet(){};
 		DataSet(uint32_t groupTag_){
             groupTag = groupTag_;
@@ -40,7 +41,7 @@ class DataSet {
         bool sameGroup(uint32_t other) {
             return other == groupTag;
         }
-        void takeCollectValues(int collectEvery_, PyObject *collectGenerator_);
+        void takeCollectValues(int collectEvery_, boost::python::object collectGenerator_);
         /*
 		DataSet(uint32_t groupTag_, int collectEvery_, PyObject *collectGenerator_) {
             groupTag = groupTag_;

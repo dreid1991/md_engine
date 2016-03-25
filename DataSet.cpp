@@ -1,29 +1,33 @@
 #include "DataSet.h"
 #include "State.h"
 using namespace std;
-using namespace boost::python;
+namespace py = boost::python;
 void DataSet::setCollectMode() {
-    if (PyCallable_Check(collectGenerator)) {
+    PyObject *func = collectGenerator.ptr();
+    if (PyCallable_Check(func)) {
         collectModeIsPython = true;
     } else {
         collectModeIsPython = false;
-        cout << "Data set must either have python function or valid collect interval" << endl;
-        assert(collectEvery > 0);
+        if (collectEvery <= 0) {
+            cout << "Data set must either have python function or valid collect interval" << endl;
+            assert(collectEvery > 0);
+        }
     }
 }
 void DataSet::prepareForRun() {
     setCollectMode();
 }
 
-void DataSet::takeCollectValues(int collectEvery_, PyObject *collectGenerator_) {
+void DataSet::takeCollectValues(int collectEvery_, py::object collectGenerator_) {
     collectEvery = collectEvery_;
     collectGenerator = collectGenerator;
+    cout << "TAKING" << collectEvery << endl;
     setCollectMode();
 }
 
 int64_t DataSet::getNextCollectTurn(int64_t turn) {
     if (collectModeIsPython) {
-        int64_t userPythonFunctionResult = boost::python::call<int64_t>(collectGenerator, turn);
+        int64_t userPythonFunctionResult = boost::python::call<int64_t>(collectGenerator.ptr(), turn);
         assert(userPythonFunctionResult > turn);
         return userPythonFunctionResult;
     } else {

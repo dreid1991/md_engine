@@ -15,6 +15,9 @@ void export_stls() {
         .def(vector_indexing_suite<std::vector<int> >() )
         ;
 
+    class_<std::vector<int64_t> >("vecLong")
+        .def(vector_indexing_suite<std::vector<int64_t> >() )
+        ;
     class_<std::vector<Atom> >("vecAtom")
         .def(vector_indexing_suite<std::vector<Atom> >() )
         ;

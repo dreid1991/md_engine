@@ -2,6 +2,7 @@
 #include "State.h"
 #include "DataSetTemperature.h"
 using namespace std;
+namespace py = boost::python;
 DataManager::DataManager(State * state_) : state(state_) {
 
 	
@@ -9,7 +10,7 @@ DataManager::DataManager(State * state_) : state(state_) {
 
 
 template <class T>
-SHARED(T) recordGeneric(State *state, string groupHandle, vector<SHARED(T)> &dataSets, int collectEvery, PyObject *collectGenerator) {
+SHARED(T) recordGeneric(State *state, string groupHandle, vector<SHARED(T)> &dataSets, int collectEvery, py::object collectGenerator) {
     uint32_t groupTag = state->groupTagFromHandle(groupHandle);
     bool setExists = false;
     SHARED(T) dataSet;
@@ -43,7 +44,7 @@ void stopRecordGeneric(State *state, string dataType, string groupHandle, vector
 
 }
 
-SHARED(DataSetTemperature) DataManager::recordTemperature(string groupHandle, int collectEvery, PyObject *collectGenerator) {
+SHARED(DataSetTemperature) DataManager::recordTemperature(string groupHandle, int collectEvery, py::object collectGenerator) {
     return recordGeneric(state, groupHandle, dataSetsTemperature, collectEvery, collectGenerator);
 
 }

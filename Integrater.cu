@@ -88,6 +88,11 @@ void Integrater::doDataCollection() {
 
         for (DataSet *ds : dm.dataSets) {
             ds->collect(turn, bounds, nAtoms, xs, vs, fs, gpd.perParticleEng.getDevData(), gpd.perParticleVirial.getDevData());
+            ds->setNextCollectTurn(turn);
+        }
+        cudaDeviceSynchronize();
+        for (DataSet *ds : dm.dataSets) {
+            ds->appendValues();
         }
         if (needToCopyForcesBack) {
             GPUArrayPair<float4> &fs = state->gpd.fs;
@@ -199,6 +204,9 @@ void Integrater::basicPrepare(int numTurns) {
     }
     state->gridGPU.periodicBoundaryConditions(state->rCut + state->padding, true, true);
     state->dataManager.generateSingleDataSetList();  
+    for (DataSet *ds : state->dataManager.dataSets) {
+        ds->prepareForRun();
+    }
 }
 
 void Integrater::basicFinish() {
