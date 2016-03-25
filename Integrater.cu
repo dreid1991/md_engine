@@ -87,7 +87,7 @@ void Integrater::doDataCollection() {
 		//void collect(int64_t turn, BoundsGPU &, int nAtoms, float4 *xs, float4 *vs, float4 *fs, float *engs, Virial *);
 
         for (DataSet *ds : dm.dataSets) {
-            ds->collect(turn, bounds, nAtoms, xs, vs, fs, gpd.perParticleEng.ptr, gpd.perParticleVirial.ptr);
+            ds->collect(turn, bounds, nAtoms, xs, vs, fs, gpd.perParticleEng.getDevData(), gpd.perParticleVirial.getDevData());
         }
         if (needToCopyForcesBack) {
             GPUArrayPair<float4> &fs = state->gpd.fs;
@@ -197,7 +197,7 @@ void Integrater::basicPrepare(int numTurns) {
     for (GPUArrayBase *dat : activeData) {
         dat->dataToDevice();
     }
-    state->gridGPU.periodicBoundaryConditions(state->rCut + state->padding, true);
+    state->gridGPU.periodicBoundaryConditions(state->rCut + state->padding, true, true);
     state->dataManager.generateSingleDataSetList();  
 }
 

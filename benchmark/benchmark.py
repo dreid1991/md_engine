@@ -23,14 +23,14 @@ for i in range(len(f)):
 
 InitializeAtoms.initTemp(state, 'all', 1.2)
 
-fixNVT = FixNVTRescale(state, 'temp', 'all', [0, 1], [1.2, 1.2], 1000)
-state.activateFix(fixNVT)
+fixNVT = FixNVTRescale(state, 'temp', 'all', [0, 1], [1.2, 1.2], 10)
+#state.activateFix(fixNVT)
 
 integVerlet = IntegraterVerlet(state)
 
 #writeconfig = WriteConfig(state, fn='test_*_out', writeEvery=1000, format='xyz', handle='writer')
 #state.activateWriteConfig(writeconfig)
-integVerlet.run(3000)
+integVerlet.run(1000)
 sumV = 0.
 for a in state.atoms:
     sumV += a.vel.lenSqr()

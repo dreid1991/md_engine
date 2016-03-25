@@ -507,7 +507,7 @@ void testBondHarmonicGridToGPU() {
 
 void hoomdBench() {
     SHARED(State) state = SHARED(State) (new State());
-    state->shoutEvery = 100;
+    state->shoutEvery = 10;
     double boxLen = 55.12934875488;
     state->bounds = Bounds(state, Vector(0, 0, 0), Vector(boxLen, boxLen, boxLen));
     state->rCut = 3.0;
@@ -568,14 +568,19 @@ void hoomdBench() {
 void testLJ() {
     SHARED(State) state = SHARED(State) (new State());
     state->devManager.setDevice(0);
-    int baseLen = 40;
-    state->shoutEvery = 100;
+    int baseLen = 20;
+    state->shoutEvery = 1000;
     double mult = 1.5;
     state->bounds = Bounds(state, Vector(0, 0, 0), Vector(mult*baseLen, mult*baseLen, mult*baseLen));
     state->rCut = 2.5;
     state->padding = 0.5;
     state->grid = AtomGrid(state.get(), 3.5, 3.5, 3);
     state->atomParams.addSpecies("handle", 2);
+    vector<double> intervals = {0, 1};
+    vector<double> temps = {1.2, 1.2};
+
+    SHARED(FixNVTRescale) thermo = SHARED(FixNVTRescale) (new FixNVTRescale(state, "thermo", "all", intervals, temps, 100));
+    state->activateFix(thermo);
     //state->is2d = true;
     //state->periodic[2] = false;
    // for (int i=0; i<32; i++) {
@@ -600,7 +605,7 @@ void testLJ() {
         }
     }
 
-    
+    InitializeAtoms::initTemp(state, "all", 1.2); 
   //  state->atoms.pos[0] += Vector(0.1, 0, 0);
 
     state->periodicInterval = 9;
@@ -616,11 +621,16 @@ void testLJ() {
 
     IntegraterVerlet verlet(state);
     cout << state->atoms[0].pos << endl;
-    verlet.run(2000);
+    //verlet.run();
     cout << state->atoms[0].pos << endl;
     cout << state->atoms[1].pos << endl;
     cout << state->atoms[0].force << endl;
     cout.flush();
+    double sumKe = 0;
+    for (Atom &a : state->atoms) {
+        sumKe += a.kinetic();
+    }
+    cout << "temp  is " << (sumKe*(2.0/3.0)/state->atoms.size()) << endl;
     //SHARED(FixBondHarmonic) harmonic = SHARED(FixBondHarmonic) (new FixBondHarmonic(state, "harmonic"));
     //state->activateFix(harmonic);
     //harmonic->createBond(&state->atoms[0], &state->atoms[1], 1, 2);

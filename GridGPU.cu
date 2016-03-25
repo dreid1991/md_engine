@@ -402,6 +402,7 @@ void GridGPU::initArrays() {
     xsLastBuild = GPUArrayDevice<float4>(state->atoms.size());
     //in prepare for run, you make GPU grid _after_ copying xs to device
     buildFlag = GPUArray<int>(1);
+    buildFlag.d_data.memset(0);
 }
 void GridGPU::initStream() {
     //cout << "initializing stream" << endl;
@@ -559,7 +560,7 @@ void setPerBlockCounts(vector<int> &neighborCounts, vector<int> &numNeighborsInB
 
 __global__ void setBuildFlag(float4 *xsA, float4 *xsB, int nAtoms, BoundsGPU boundsGPU, float paddingSqr, int *buildFlag, int numChecksSinceBuild) {
     int idx = GETIDX();
-    extern __shared__ int flags_shr[];
+    extern __shared__ char flags_shr[];
     if (idx < nAtoms) {
         float3 distVector = boundsGPU.minImage(make_float3(xsA[idx] - xsB[idx]));
         float lenSqr = lengthSqr(distVector);
@@ -567,26 +568,19 @@ __global__ void setBuildFlag(float4 *xsA, float4 *xsB, int nAtoms, BoundsGPU bou
         float maxMoveSqr = paddingSqr * maxMoveRatio * maxMoveRatio;
         //printf("moved %f\n", sqrtf(lenSqr));
       //  printf("max move is %f\n", maxMoveSqr);
-        flags_shr[threadIdx.x] = (int) (lenSqr > maxMoveSqr);
+        flags_shr[threadIdx.x] = (char) (lenSqr > maxMoveSqr);
     } else {
         flags_shr[threadIdx.x] = 0;
     }
    __syncthreads();
    //just took from parallel reduction in cutils_func
-    int maxLookahead = log2f(blockDim.x-1);
-    for (int i=0; i<=maxLookahead; i++) {
-        int curLookahead = powf(2, i);
-        if (! (threadIdx.x % (curLookahead*2))) {
-            flags_shr[threadIdx.x] += flags_shr[threadIdx.x + curLookahead];
-        }
-        __syncthreads();
-    }
-    if (threadIdx.x == 0) {
-        atomicAdd(buildFlag, flags_shr[0]);
+   reduceByN<char>(flags_shr, blockDim.x);
+    if (threadIdx.x == 0 and flags_shr[0] != 0) {
+        buildFlag[0] += (int) flags_shr[0];
     }
 
 }
-void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort) {
+void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort, bool forceBuild) {
     int warpSize = state->devManager.prop.warpSize;
     
 
@@ -619,10 +613,10 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort) {
     //DO ASYNC COPY TO xsLastBuild
     //FINISH FUTURE WHICH SETS REBUILD FLAG BY NOW PLEASE
    // CUCHECK(cudaStreamSynchronize(rebuildCheckStream));
-    setBuildFlag<<<NBLOCK(nAtoms), PERBLOCK, PERBLOCK * sizeof(int)>>>(state->gpd.xs(activeIdx), xsLastBuild.data(), nAtoms, bounds, state->padding*state->padding, buildFlag.d_data.data(), numChecksSinceLastBuild);
+    setBuildFlag<<<NBLOCK(nAtoms), PERBLOCK, PERBLOCK * sizeof(char)>>>(state->gpd.xs(activeIdx), xsLastBuild.data(), nAtoms, bounds, state->padding*state->padding, buildFlag.d_data.data(), numChecksSinceLastBuild);
     buildFlag.dataToHost();
     cudaDeviceSynchronize();
-    if (buildFlag.h_data[0]) {
+    if (buildFlag.h_data[0] or forceBuild) {
         //cout << "I AM BUILDING" << endl;
         BoundsGPU boundsUnskewed = bounds.unskewed();
         float3 trace = boundsUnskewed.trace();
@@ -748,7 +742,7 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort) {
         }
         ds = ds_orig;
         os = os_orig;
-      //  verifyNeighborlists(neighCut);
+        //verifyNeighborlists(neighCut);
 
         numChecksSinceLastBuild = 0; 
         copyPositionsAsync();

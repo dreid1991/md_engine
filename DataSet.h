@@ -3,7 +3,6 @@
 #include "Python.h"
 #include <vector>
 #include <map>
-#include <string>
 #include "globalDefs.h"
 #include <boost/shared_ptr.hpp>
 #include <iostream>
@@ -11,10 +10,9 @@
 #include "BoundsGPU.h"
 #include "Virial.h"
 void export_DataSet();
-using namespace std;
 class DataSet {
 	public:
-		vector<int64_t> turns;
+        std::vector<int64_t> turns;
         //can't store data in here b/c is of different types, wouldn't be able to store all base pointers in a vector.  Maybe pass data with void pointers?
 		uint32_t groupTag;
         bool requiresVirials;

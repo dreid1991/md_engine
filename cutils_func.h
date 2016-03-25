@@ -110,7 +110,9 @@ __global__ void NAME (K *dest, T *src, int n, unsigned int groupTag, float4 *fs)
         tmp[threadIdx.x] = 0;\
     }\
     __syncthreads();\
-    atomicAdd(dest+1, count_shr[0]);/*copy from shared to global, PERBLOCK-1 fewer global writes*/\
+    if (threadIdx.x==0) {\
+        atomicAdd(dest+1, count_shr[0]);/*copy from shared to global, PERBLOCK-1 fewer global writes*/\
+    }\
     int curLookahead = 1;\
     int maxLookahead = log2f(blockDim.x-1);\
     for (int i=0; i<=maxLookahead; i++) {\

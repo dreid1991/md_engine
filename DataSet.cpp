@@ -1,6 +1,7 @@
 #include "DataSet.h"
 #include "State.h"
-
+using namespace std;
+using namespace boost::python;
 void DataSet::setCollectMode() {
     if (PyCallable_Check(collectGenerator)) {
         collectModeIsPython = true;
@@ -34,7 +35,7 @@ void DataSet::setNextCollectTurn(int64_t turn) {
     nextCollectTurn = getNextCollectTurn(turn);
 }
 void export_DataSet() {
-    class_<DataSet>("DataManager")
+    class_<DataSet, boost::noncopyable>("DataSet", no_init)
         .def_readonly("turns", &DataSet::turns)
         .def_readwrite("nextCollectTurn", &DataSet::nextCollectTurn)
  //       .def("getDataSet", &DataManager::getDataSet)

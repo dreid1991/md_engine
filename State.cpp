@@ -450,7 +450,12 @@ bool State::addToGroupPy(string handle, boost::python::list toAdd) {//testF take
 	int tagBit = groupTagFromHandle(handle);  //if I remove asserts from this, could return things other than true, like if handle already exists
     int len = boost::python::len(toAdd);
     for (int i=0; i<len; i++) {
-        Atom *a = boost::python::extract<Atom *>(toAdd[i]);
+        boost::python::extract<Atom *> atomPy(toAdd[i]);
+        if (!atomPy.check()) {
+            cout << "Invalid atom found when trying to add to group" << endl;
+            assert(atomPy.check());
+        }
+        Atom *a = atomPy;
         if (not (a >= &atoms[0] and a <= &atoms.back())) {
             cout << "Tried to add atom that is not in the atoms list.  If you added or removed atoms after taking a reference to this atom, the list storing atoms may have moved in memory, making this an invalid pointer.  Consider resetting your atom variables" << endl;
             assert(false);

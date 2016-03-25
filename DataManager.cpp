@@ -107,7 +107,8 @@ SHARED(DataSet) DataManager::getDataSet(string handle) {
 
 */
 void export_DataManager() {
-    class_<DataManager>("DataManager", init<>())
+    class_<DataManager>("DataManager", no_init)
+        .def("recordTemperature", &DataManager::recordTemperature, (python::arg("handle"), python::arg("collectEvery") = 0, python::arg("collectGenerator") = boost::python::object()));
  //       .def("getDataSet", &DataManager::getDataSet)
         ;
 }

@@ -92,33 +92,39 @@ void InitializeAtoms::populateRand(SHARED(State) state, Bounds &bounds, string h
 
 }
 void InitializeAtoms::initTemp(SHARED(State) state, string groupHandle, double temp) { //boltzmann const is 1 for reduced lj units
-//	random_device randDev;
-	generator.seed(2);//randDev());
+	random_device randDev;
+    int seed = randDev();
+    cout << "seed " << seed << endl;
+	generator.seed(seed);
     int groupTag = state->groupTagFromHandle(groupHandle);
 	
 	vector<Atom *> atoms = LISTMAPREFTEST(Atom, Atom *, a, state->atoms, &a, a.groupTag & groupTag);
 
-    assert(atoms.size()>1);
+    assert(atoms.size());
 	map<double, normal_distribution<double> > dists;
 	for (Atom *a : atoms) {
 		if (dists.find(a->mass) == dists.end()) {
 			dists[a->mass] = normal_distribution<double> (0, sqrt(temp / a->mass));
 		}
 	}
-	Vector sumVels;
-	for (Atom *a : atoms) {
-		for (int i=0; i<3; i++) {
-			a->vel[i] = dists[a->mass](generator);
-		}
-		sumVels += a->vel;
-	}
-	sumVels /= (double) atoms.size();
+    Vector sumVels;
+    for (Atom *a : atoms) {
+        for (int i=0; i<3; i++) {
+            a->vel[i] = dists[a->mass](generator);
+        }
+        sumVels += a->vel;
+    }
+    if (atoms.size()>1) {
+        sumVels /= (double) atoms.size();
+        for (Atom *a : atoms) {
+            a->vel -= sumVels;
+        }
+    }
 	double sumKe = 0;
 	for (Atom *a : atoms) {
-		a->vel -= sumVels;
 		sumKe += a->kinetic();
 	}
-	double curTemp = sumKe / 3.0 / atoms.size();
+	double curTemp = sumKe / 1.5 / atoms.size();
 	for (Atom *a : atoms) {
 		a->vel *= sqrt(temp / curTemp);
 	}
