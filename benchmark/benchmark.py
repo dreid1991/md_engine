@@ -1,7 +1,7 @@
 import sys
 sys.path.append('../python')
 from Sim import *
-
+import matplotlib.pyplot as plt
 state = State()
 state.deviceManager.setDevice(1)
 state.bounds = Bounds(state, lo = Vector(0, 0, 0), hi = Vector(55.12934875488, 55.12934875488, 55.12934875488))
@@ -23,7 +23,7 @@ for i in range(len(f)):
 
 InitializeAtoms.initTemp(state, 'all', 1.2)
 
-fixNVT = FixNVTRescale(state, 'temp', 'all', [0, 1], [1.2, 1.2], 10)
+fixNVT = FixNVTRescale(state, 'temp', 'all', [0, 1], [1.0, 1.2], 10)
 state.activateFix(fixNVT)
 
 integVerlet = IntegraterVerlet(state)
@@ -38,5 +38,6 @@ sumV = 0.
 for a in state.atoms:
     sumV += a.vel.lenSqr()
 print sumV / len(state.atoms)/3.0
-plt.plot
+plt.plot(tempData.turns, tempData.vals)
+plt.show()
 #integVerlet.run(30000)

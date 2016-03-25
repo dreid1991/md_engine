@@ -8,7 +8,6 @@ DataSetTemperature::DataSetTemperature(uint32_t groupTag_) : DataSet(groupTag_) 
 }
 
 void DataSetTemperature::collect(int64_t turn, BoundsGPU &, int nAtoms, float4 *xs, float4 *vs, float4 *fs, float *engs, Virial *virials) {
-    cout << " collecting!" << endl;
     tempGPU.d_data.memset(0);
     sumVectorSqr3DTagsOverW<float, float4> <<<NBLOCK(nAtoms), PERBLOCK, PERBLOCK*sizeof(float)+1>>>(tempGPU.getDevData(), vs, nAtoms, groupTag, fs);
     tempGPU.dataToHost();
@@ -16,7 +15,6 @@ void DataSetTemperature::collect(int64_t turn, BoundsGPU &, int nAtoms, float4 *
 }
 void DataSetTemperature::appendValues() {
     double tempCur = tempGPU.h_data[0] / tempGPU.h_data[1] / 3.0; 
-    cout << "got " << tempCur  << endl;
     vals.push_back(tempCur);
     
 }
