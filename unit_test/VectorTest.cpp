@@ -156,6 +156,21 @@ TEST_F(VectorTest, VectorCopyDoubleAndInt) {
     EXPECT_EQ( 0, copyDoubleToInt2[2]);
 }
 
+TEST_F(VectorTest, TestEquality) {
+    EXPECT_FALSE(vDouble1 == vInt1);
+    EXPECT_FALSE(vDouble2 == vInt2);
+
+    flippedDouble = vDouble1;
+    flippedDouble[1] = -1*vDouble1[1];
+
+    EXPECT_FALSE(flippedDouble == vDouble1);
+
+    Vector vDouble(1.0, 2.0, 3.0);
+    VectorInt vInt(1,2,3);
+
+    EXPECT_TRUE(vDouble == vInt);
+}
+
 int main(int argc, char *argv[])
 {
     ::testing::InitGoogleTest(&argc,argv);
