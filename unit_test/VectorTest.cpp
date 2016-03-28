@@ -160,7 +160,7 @@ TEST_F(VectorTest, TestEquality) {
     EXPECT_FALSE(vDouble1 == vInt1);
     EXPECT_FALSE(vDouble2 == vInt2);
 
-    flippedDouble = vDouble1;
+    Vector flippedDouble = vDouble1;
     flippedDouble[1] = -1*vDouble1[1];
 
     EXPECT_FALSE(flippedDouble == vDouble1);
@@ -169,6 +169,21 @@ TEST_F(VectorTest, TestEquality) {
     VectorInt vInt(1,2,3);
 
     EXPECT_TRUE(vDouble == vInt);
+}
+
+TEST_F(VectorTest, TestComparison) {
+    EXPECT_TRUE(vDouble1 > vInt1);
+    EXPECT_TRUE(vDouble1 > vDouble2);
+    EXPECT_TRUE(vDouble2 < vInt2);
+
+    // We do this trying to reduce numerical accuricy
+    Vector similarDouble(1000000000001.0,1000000000002.0,1000000000003.0);
+    similarDouble -= Vector(1000000000000.0, 1000000000000.0, 1000000000000.0);
+
+    VectorInt similarInt(1,2,3);
+
+    EXPECT_FALSE(similarDouble < similarInt);
+    EXPECT_FALSE(similarDouble > similarInt);
 }
 
 int main(int argc, char *argv[])
