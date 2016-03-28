@@ -15,7 +15,7 @@ if (PYTHON_BIN)
 
     add_custom_target (PythonLib ALL DEPENDS ${OUTPUT})
 
-    install (CODE "execute_process(COMMAND ${PYTHON} ${SETUP_PY} install)")
+    install (CODE "execute_process(COMMAND ${PYTHON_BIN} ${SETUP_PY} install)")
 else (PYTHON_BIN)
     message (WARNING "Python binary not found.")
 endif (PYTHON_BIN)
