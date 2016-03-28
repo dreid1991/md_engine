@@ -14,11 +14,11 @@ using namespace std;
 void export_Vector();
 void export_VectorInt();
 
-template <typename T, typename K>
+template <typename T>
 class VectorGeneric;
 
-typedef VectorGeneric<num, int> Vector;
-typedef VectorGeneric<int, num> VectorInt;
+typedef VectorGeneric<num> Vector;
+typedef VectorGeneric<int> VectorInt;
 
 /*! \class VectorGeneric
  * \brief A three-element vector
@@ -34,13 +34,13 @@ typedef VectorGeneric<int, num> VectorInt;
  */
 //theme for these operations is that if we're operating on unlike types, switch
 //to num representation.  would like better way to do this
-template <typename T, typename K>
+template <typename T>
 class VectorGeneric {
 	T vals[3]; //!< Array storing the values
 public:
 
     /*! \brief Default constructor */
-    VectorGeneric<T, K> () {
+    VectorGeneric<T> () {
         vals[0] = vals[1] = vals[2] = 0;
     }
 
@@ -55,33 +55,20 @@ public:
      * \todo It would be much more sensible to have
      *       VectorGeneric<T, K> (T x, T y, T z)
      */
-    VectorGeneric<T, K> (num x, num y, num z) {
+    VectorGeneric<T> (T x, T y, T z) {
         vals[0] = x;
         vals[1] = y;
         vals[2] = z;
     }
 
-    /*! \brief Constructor from int pointer
+    /*! \brief Constructor from pointer
      *
      * \param vals_ Pointer to three element int array
      *
      * \todo The [3] specifier does not do anything. It is still just a
      *       pointer being passed to the function.
      */
-    VectorGeneric<T, K> (int vals_[3]) {
-        for (int i=0; i<3; i++) {
-            vals[i] = (T) vals_[i];
-        }
-    }
-
-    /*! \brief Constructor from double pointer
-     *
-     * \param vals_ Pointer to three element double array
-     *
-     * \todo The [3] specifier does nothing. It is still just a pointer being
-     *       passed to the constructor.
-     */
-    VectorGeneric<T, K> (num vals_[3]) {
+    VectorGeneric<T> (T *vals_) {
         for (int i=0; i<3; i++) {
             vals[i] = (T) vals_[i];
         }
@@ -91,7 +78,7 @@ public:
      *
      * \param other Float3 to use as values for the vector
      */
-    VectorGeneric<T, K> (float3 other) {
+    VectorGeneric<T> (float3 other) {
         vals[0] = other.x;
         vals[1] = other.y;
         vals[2] = other.z;
@@ -103,7 +90,7 @@ public:
      *
      * The forth value in the float4 will be discarded.
      */
-    VectorGeneric<T, K> (float4 other) {
+    VectorGeneric<T> (float4 other) {
         vals[0] = other.x;
         vals[1] = other.y;
         vals[2] = other.z;
@@ -180,27 +167,10 @@ public:
      *
      * \todo This is essentially (v - *this). Do we really need this function?
      */
-    VectorGeneric<T, K> VTo(const VectorGeneric<T, K> &v) {
-        return VectorGeneric<T, K>(v[0] - vals[0], v[1] - vals[1], v[2] - vals[2]);
-    }
-
-    /*! \brief Vector connecting two points
-     *
-     * \param v Other point
-     * \returns A vector storing doubles connecting the points defined by this
-     *          vector and vector v
-     *
-     * This function returns the vector from to the point vector v is pointing
-     * to the point this vector is pointing to. The returned vector stores
-     * doubles, the conversion takes place after the operation, however.
-     *
-     * \todo This is essentially (v -*this) converted to <num, int>. Do we
-     *       really need this function?
-     * \todo Why is the explicit conversion necessary? This is exactly what is
-     *       done implicitly.
-     */
-    VectorGeneric<num, int> VTo(const VectorGeneric<K, T> &v) {
-        return VectorGeneric<num, int>(v[0] - vals[0], v[1] - vals[1], v[2] - vals[2]);
+    template<typename U>
+    auto VTo(const VectorGeneric<U> &v) -> VectorGeneric< decltype(v[0]-vals[0]) > {
+        return VectorGeneric< decltype(v[0] - vals[0]) >(
+                            v[0] - vals[0], v[1] - vals[1], v[2] - vals[2]);
     }
 
     /*! \brief Sum of all entries */
@@ -232,38 +202,31 @@ public:
      *
      * \returns A new vector with the transformed elements.
      */
-    VectorGeneric<T, K> abs() {
-        return VectorGeneric<T, K>((T) fabs(vals[0]), (T) fabs(vals[1]), (T) fabs(vals[2]));
+    VectorGeneric<T> abs() {
+        return VectorGeneric<T>(std::abs(vals[0]), std::abs(vals[1]), std::abs(vals[2]));
     }
 
     /*! \brief Unary minus operator */
-    VectorGeneric<T, K> operator-()const{
-        return VectorGeneric<T, K>(-vals[0], -vals[1], -vals[2]);
+    VectorGeneric<T> operator-()const{
+        return VectorGeneric<T>(-vals[0], -vals[1], -vals[2]);
     }
 
-    /*! \brief Multiplication with double operator */
-    VectorGeneric<num, int> operator*( num scale )const{
-        return VectorGeneric<num, int>( vals[0]*scale,vals[1]*scale,vals[2]*scale );
+    /*! \brief Multiplication with generic type */
+    template<typename U>
+    auto operator*( U scale ) const -> VectorGeneric< decltype(vals[0]*scale) > {
+        return VectorGeneric< decltype(vals[0]*scale) >( vals[0]*scale,vals[1]*scale,vals[2]*scale );
     }
 
     /*! \brief Multiplication with other vector operator */
-    VectorGeneric<T, K> operator*( const VectorGeneric<T, K> &q )const{
-        return VectorGeneric<T, K>( vals[0]*q[0],vals[1]*q[1],vals[2]*q[2]);
-    }
-
-    /*! \brief Multiplication with other vector where K and T are exchanged */
-    VectorGeneric<num, int> operator*( const VectorGeneric<K, T> &q )const{
-        return VectorGeneric<num, int>( vals[0]*q[0],vals[1]*q[1],vals[2]*q[2]);
+    template<typename U>
+    auto operator*( const VectorGeneric<U> &q ) const -> VectorGeneric< decltype(vals[0]*q[0]) > {
+        return VectorGeneric< decltype(vals[0]*q[0]) >( vals[0]*q[0],vals[1]*q[1],vals[2]*q[2]);
     }
 
     /*! \brief Division with int operator */
-    VectorGeneric<T, K> operator/( int scale )const{
-        return VectorGeneric<T, K>( vals[0]/scale,vals[1]/scale,vals[2]/scale );
-    }
-
-    /*! \brief Division with double operator */
-    VectorGeneric<num, int> operator/( num scale )const{
-        return VectorGeneric<num, int>( vals[0]/scale,vals[1]/scale,vals[2]/scale );
+    template<typename U>
+    auto operator/( U scale ) const -> VectorGeneric< decltype(vals[0]/scale) > {
+        return VectorGeneric< decltype(vals[0]/scale) >( vals[0]/scale,vals[1]/scale,vals[2]/scale );
     }
 
     /*! \brief rotation in x-y plane
@@ -272,75 +235,48 @@ public:
      *
      * The z-component of the vector remains unchanged.
      */
-    VectorGeneric<num, int> rotate2d( num rotation) const {
+    VectorGeneric<num> rotate2d( num rotation) const {
         num c = cos(rotation);
         num s = sin(rotation);
-        return VectorGeneric<num, int> (c*vals[0] - s*vals[1], s*vals[0] + c*vals[1], vals[2]);
+        return VectorGeneric<num> (c*vals[0] - s*vals[1], s*vals[0] + c*vals[1], vals[2]);
     }
 
     /*! \brief Element-wise division */
-    VectorGeneric<T, K> operator/( const VectorGeneric<T, K> &q )const{
-        return VectorGeneric<T, K>( vals[0]/q[0],vals[1]/q[1],vals[2]/q[2] );
-    }
-
-    /*! \brief Element-wise division */
-    VectorGeneric<num, int> operator/( const VectorGeneric<K, T> &q )const{
-        return VectorGeneric<num, int>( vals[0]/q[0],vals[1]/q[1],vals[2]/q[2] );
+    template<typename U>
+    auto operator/( const VectorGeneric<U> &q ) const -> VectorGeneric< decltype(vals[0]/q[0]) > {
+        return VectorGeneric< decltype(vals[0]/q[0]) >( vals[0]/q[0],vals[1]/q[1],vals[2]/q[2] );
     }
 
     /*! \brief Addition of two vectors */
-    VectorGeneric<T, K> operator+( const VectorGeneric<T, K> &q )const{
-        return VectorGeneric<T, K>( vals[0]+q[0],vals[1]+q[1],vals[2]+q[2] );
-    }
-
-    /*! \brief Addition of two vectors */
-    VectorGeneric<num, int> operator+( const VectorGeneric<K, T> &q )const{
-        return VectorGeneric<num, int>( vals[0]+q[0],vals[1]+q[1],vals[2]+q[2] );
+    template<typename U>
+    auto operator+( const VectorGeneric<U> &q ) const -> VectorGeneric< decltype(vals[0]+q[0]) > {
+        return VectorGeneric< decltype(vals[0]+q[0]) >( vals[0]+q[0],vals[1]+q[1],vals[2]+q[2] );
     }
 
     /*! \brief Subtraction of two vectors */
-    VectorGeneric<T, K> operator-( const VectorGeneric<T, K> &q )const{
-        return VectorGeneric<T, K>( vals[0]-q[0],vals[1]-q[1],vals[2]-q[2] );
-    }
-
-    /*! \brief Subtraction of two vectors */
-    VectorGeneric<num, int> operator-( const VectorGeneric<K, T> &q )const{
-        return VectorGeneric<num, int>( vals[0]-q[0],vals[1]-q[1],vals[2]-q[2] );
+    template<typename U>
+    auto operator-( const VectorGeneric<U> &q ) const -> VectorGeneric< decltype(vals[0]-q[0]) > {
+        return VectorGeneric< decltype(vals[0]-q[0]) >( vals[0]-q[0],vals[1]-q[1],vals[2]-q[2] );
     }
 
     /*! \brief Multiplication-assignment operator with int */
-    VectorGeneric<T, K> &operator*=( int scale ){
+    template<typename U>
+    VectorGeneric<T> &operator*=( U scale ){
         vals[0]*=scale;vals[1]*=scale;vals[2]*=scale;return *this; // *=, /=, etc won't promote types like binary operations
-    }
-
-    /*! \brief Multiplication-assignment operator with double */
-    VectorGeneric<T, K> &operator*=( num scale ){
-        vals[0]*=scale;vals[1]*=scale;vals[2]*=scale;return *this;
     }
 
     /*! \brief Multiplication-assignment operator with other vector
      *
      * Performs element-wise multiplication.
      */
-    VectorGeneric<T, K> &operator*=( const VectorGeneric<T, K> &q ){
-        vals[0]*=q[0];vals[1]*=q[1];vals[2]*=q[2];return *this;
-    }
-
-    /*! \brief Multiplication-assignment operator
-     *
-     * Performs element-wise multiplication.
-     */
-    VectorGeneric<T, K> &operator*=( const VectorGeneric<K, T> &q ){
+    template<typename U>
+    VectorGeneric<T> &operator*=( const VectorGeneric<U> &q ){
         vals[0]*=q[0];vals[1]*=q[1];vals[2]*=q[2];return *this;
     }
 
     /*! \brief Division-assignment operator with int */
-    VectorGeneric<T, K> &operator/=( int scale ){
-        vals[0]/=scale;vals[1]/=scale;vals[2]/=scale;return *this;
-    }
-
-    /*! \brief Division-assignment operator with double */
-    VectorGeneric<T, K> &operator/=( num scale ){
+    template<typename U>
+    VectorGeneric<T> &operator/=( U scale ){
         vals[0]/=scale;vals[1]/=scale;vals[2]/=scale;return *this;
     }
 
@@ -348,113 +284,72 @@ public:
      *
      * Performs element-wise division.
      */
-    VectorGeneric<T, K> &operator/=( const VectorGeneric<T, K> &q ){
-        vals[0]/=q[0];vals[1]/=q[1];vals[2]/=q[2];return *this;
-    }
-
-    /*! \brief Division-assignment operator with other vector
-     *
-     * Performs element-wise division.
-     */
-    VectorGeneric<T, K> &operator/=( const VectorGeneric<K, T> &q ){
+    template<typename U>
+    VectorGeneric<T> &operator/=( const VectorGeneric<U> &q ){
         vals[0]/=q[0];vals[1]/=q[1];vals[2]/=q[2];return *this;
     }
 
     /*! \brief Addition-assignment operator */
-    VectorGeneric<T, K> &operator+=( const VectorGeneric<T, K> &q ){
-        vals[0]+=q[0];vals[1]+=q[1];vals[2]+=q[2];return *this;
-    }
-
-    /*! \brief Addition-assignment operator */
-    VectorGeneric<T, K> &operator+=( const VectorGeneric<K, T> &q ){
+    template<typename U>
+    VectorGeneric<T> &operator+=( const VectorGeneric<U> &q ){
         vals[0]+=q[0];vals[1]+=q[1];vals[2]+=q[2];return *this;
     }
 
     /*! \brief Subtraction-assigment operator */
-    VectorGeneric<T, K> &operator-=( const VectorGeneric<T, K> &q ){
-        vals[0]-=q[0];vals[1]-=q[1];vals[2]-=q[2];return *this;
-    }
-
-    /*! \brief Subtraction-assigment operator */
-    VectorGeneric<T, K> &operator-=( const VectorGeneric<K, T> &q ){
+    template<typename U>
+    VectorGeneric<T> &operator-=( const VectorGeneric<U> &q ){
         vals[0]-=q[0];vals[1]-=q[1];vals[2]-=q[2];return *this;
     }
 
     /*! \brief Smaller than comparison operator */
-    bool operator<( const VectorGeneric<T, K> &q )const{
-        if( fabs(vals[0]-q[0])>EPSILON ) return vals[0]<q[0] ? true : false;
-        if( fabs(vals[1]-q[1])>EPSILON ) return vals[1]<q[1] ? true : false;
-        return fabs(vals[2]-q[2])>EPSILON && vals[2]<q[2];
-    }
-
-    /*! \brief Smaller than comparison operator */
-    bool operator<( const VectorGeneric<K, T> &q )const{
-        if( fabs(vals[0]-q[0])>EPSILON ) return vals[0]<q[0] ? true : false;
-        if( fabs(vals[1]-q[1])>EPSILON ) return vals[1]<q[1] ? true : false;
-        return fabs(vals[2]-q[2])>EPSILON && vals[2]<q[2];
+    template<typename U>
+    bool operator<( const VectorGeneric<U> &q )const{
+        if( std::abs(vals[0]-q[0])>EPSILON ) return vals[0]<q[0] ? true : false;
+        if( std::abs(vals[1]-q[1])>EPSILON ) return vals[1]<q[1] ? true : false;
+        return std::abs(vals[2]-q[2])>EPSILON && vals[2]<q[2];
     }
 
     /*! \brief Larger than comparison operator */
-    bool operator>( const VectorGeneric<T, K> &q )const{
-        if( fabs(vals[0]-q[0])>EPSILON ) return vals[0]>q[0] ? true : false;
-        if( fabs(vals[1]-q[1])>EPSILON ) return vals[1]>q[1] ? true : false;
-        return fabs(vals[2]-q[2])>EPSILON && vals[2]>q[2];
-    }
-
-    /*! \brief Larger than comparison operator */
-    bool operator>( const VectorGeneric<K, T> &q )const{
-        if( fabs(vals[0]-q[0])>EPSILON ) return vals[0]>q[0] ? true : false;
-        if( fabs(vals[1]-q[1])>EPSILON ) return vals[1]>q[1] ? true : false;
-        return fabs(vals[2]-q[2])>EPSILON && vals[2]<q[2];
+    template<typename U>
+    bool operator>( const VectorGeneric<U> &q )const{
+        if( std::abs(vals[0]-q[0])>EPSILON ) return vals[0]>q[0] ? true : false;
+        if( std::abs(vals[1]-q[1])>EPSILON ) return vals[1]>q[1] ? true : false;
+        return std::abs(vals[2]-q[2])>EPSILON && vals[2]>q[2];
     }
 
     /*! \brief Equality comparison operator */
-    bool operator==( const VectorGeneric<T, K> &q )const{
-        return fabs(vals[0]-q[0])<=EPSILON && fabs(vals[1]-q[1])<=EPSILON && fabs(vals[2]-q[2])<=EPSILON;
-    }
-
-    /*! \brief Equality comparison operator */
-    bool operator==( const VectorGeneric<K, T> &q )const{
-        return fabs(vals[0]-q[0])<=EPSILON && fabs(vals[1]-q[1])<=EPSILON && fabs(vals[2]-q[2])<=EPSILON;
-    }
-
-    /*! \brief Non-equal comparison operator */
-    bool operator!=( const VectorGeneric<T, K> &q )const{
-        return fabs(vals[0]-q[0])>EPSILON || fabs(vals[1]-q[1])>EPSILON || fabs(vals[2]-q[2])>EPSILON;
+    template<typename U>
+    bool operator==( const VectorGeneric<U> &q )const{
+        return std::abs(vals[0]-q[0])<=EPSILON &&
+               std::abs(vals[1]-q[1])<=EPSILON &&
+               std::abs(vals[2]-q[2])<=EPSILON;
     }
 
     /*! \brief Non-equal comparison operator */
-    bool operator!=( const VectorGeneric<K, T> &q )const{
+    template<typename U>
+    bool operator!=( const VectorGeneric<U> &q )const{
         return fabs(vals[0]-q[0])>EPSILON || fabs(vals[1]-q[1])>EPSILON || fabs(vals[2]-q[2])>EPSILON;
     }
 
     /*! \brief Dot product with another vector */
-    num dot( const VectorGeneric<T, K> &q )const{
-        return vals[0]*q[0]+vals[1]*q[1]+vals[2]*q[2];
-    }
-
-    /*! \brief Dot product with another vector */
-    num dot( const VectorGeneric<K, T> &q )const{
+    template<typename U>
+    auto dot( const VectorGeneric<U> &q ) const -> decltype(vals[0]*q[0]+vals[1]*q[1]) {
         return vals[0]*q[0]+vals[1]*q[1]+vals[2]*q[2];
     }
 
     /*! \brief Cross product with another vector */
-    VectorGeneric<T, K> cross( const VectorGeneric<T, K> &q )const{
-        return VectorGeneric<T, K>( vals[1]*q[2]-vals[2]*q[1],vals[2]*q[0]-vals[0]*q[2],vals[0]*q[1]-vals[1]*q[0] );
-    }
-
-    /*! \brief Cross product with another vector */
-    VectorGeneric<num, int> cross( const VectorGeneric<K, T> &q )const{
-        return VectorGeneric<num, int>( vals[1]*q[2]-vals[2]*q[1],vals[2]*q[0]-vals[0]*q[2],vals[0]*q[1]-vals[1]*q[0] );
+    template<typename U>
+    auto cross( const VectorGeneric<U> &q ) const -> VectorGeneric< decltype(vals[1]*q[2] - vals[2]*q[1]) > {
+        return VectorGeneric< decltype(vals[1]*q[2] - vals[2]*q[1]) >( vals[1]*q[2]-vals[2]*q[1],vals[2]*q[0]-vals[0]*q[2],vals[0]*q[1]-vals[1]*q[0] );
     }
 
     /*! \brief Length of vector */
-    num len()const{
-        return sqrt((num) vals[0]*vals[0]+vals[1]*vals[1]+vals[2]*vals[2]);
+    auto len() const -> decltype(std::sqrt(vals[0]*vals[0]+vals[1]*vals[1])) {
+        return std::sqrt(vals[0]*vals[0]+vals[1]*vals[1]+vals[2]*vals[2]);
     }
 
     /*! \brief Squared length of vector */
-    num lenSqr()const{
+    auto lenSqr() const -> decltype(vals[0]*vals[0]+vals[1]*vals[1]) {
         return vals[0]*vals[0]+vals[1]*vals[1]+vals[2]*vals[2];
     }
 
@@ -462,54 +357,37 @@ public:
      *
      * The points are specified by this and by the q vector.
      */
-    num dist( const VectorGeneric<T, K> &q )const{
-        num dx=vals[0]-q[0],dy=vals[1]-q[1],dz=vals[2]-q[2];return sqrt(dx*dx+dy*dy+dz*dz);
-    }
-
-    /*! \brief Distance between two points
-     *
-     * The points are specified by this and by the q vector.
-     */
-    num dist( const VectorGeneric<K, T> &q )const{
-        num dx=vals[0]-q[0],dy=vals[1]-q[1],dz=vals[2]-q[2];return sqrt(dx*dx+dy*dy+dz*dz);
-    }
-
-    /*! \brief Python wrapped dist function */
-    num distPython( const VectorGeneric<T, K> &q)const{
-        num dx=vals[0]-q[0],dy=vals[1]-q[1],dz=vals[2]-q[2];return sqrt(dx*dx+dy*dy+dz*dz);
+    template<typename U>
+    auto dist( const VectorGeneric<U> &q ) const -> decltype(std::sqrt((vals[0]-q[0])*(vals[0]-q[0]))) {
+        auto dx=vals[0]-q[0];
+        auto dy=vals[1]-q[1];
+        auto dz=vals[2]-q[2];
+        return std::sqrt(dx*dx+dy*dy+dz*dz);
     }
 
     /*! \brief Squared distance between two points */
-    num distSqr( const VectorGeneric<T, K> &q) {
-        num dx=vals[0]-q[0],dy=vals[1]-q[1],dz=vals[2]-q[2];return dx*dx+dy*dy+dz*dz;
-    }
-
-    /*! \brief Squared distance between two points */
-    num distSqr( const VectorGeneric<K, T> &q) {
-        num dx=vals[0]-q[0],dy=vals[1]-q[1],dz=vals[2]-q[2];return dx*dx+dy*dy+dz*dz;
+    template<typename U>
+    auto distSqr( const VectorGeneric<U> &q) -> decltype((vals[0]-q[0])*(vals[0]-q[0])) {
+        auto dx=vals[0]-q[0];
+        auto dy=vals[1]-q[1];
+        auto dz=vals[2]-q[2];
+        return dx*dx+dy*dy+dz*dz;
     }
 
     /*! \brief Return normalized form of this vector */
-    VectorGeneric<num, int> normalized()const{
-        num l=len();return VectorGeneric<num, int>( vals[0]/l,vals[1]/l,vals[2]/l );
+    auto normalized() const -> VectorGeneric< decltype(vals[0]/std::sqrt(vals[0])) > {
+        auto l=len();
+        return VectorGeneric< decltype(vals[0]/l) >( vals[0]/l,vals[1]/l,vals[2]/l );
     }
 
     /*! \brief Normalize this vector */
     void normalize(){
-        num l=len();vals[0]/=l;vals[1]/=l;vals[2]/=l; //will not necessarily normalize int vectors
+        auto l=len();vals[0]/=l;vals[1]/=l;vals[2]/=l; //will not necessarily normalize int vectors
     }
 
     /*! \brief Mirror vector along y direction */
-    VectorGeneric<T, K> perp2d() {
-        return VectorGeneric(vals[1], -vals[0], vals[2]);
-    }
-
-    /*! \brief Set all elements zero
-     *
-     * \todo This function is identical to the zero() function
-     */
-    void clear(){
-        vals[0] = vals[1] = vals[2] = 0;
+    VectorGeneric<T> perp2d() {
+        return VectorGeneric<T>(vals[1], -vals[0], vals[2]);
     }
 
     /*! \brief Convert vector to string for output */
@@ -520,7 +398,8 @@ public:
     }
 
     /*! \brief Assignment operator */
-    VectorGeneric<T, K> &operator=(const VectorGeneric<K, T> &other) {
+    template<typename U>
+    VectorGeneric<T> &operator=(const VectorGeneric<U> &other) {
         for (int i=0; i<3; i++) {
             vals[i] = other[i];
         }
@@ -532,7 +411,7 @@ public:
      * \todo This function is already implicitly defined via the float3
      *       constructor
      */
-    VectorGeneric<T, K> &operator=(const float3 &other) {
+    VectorGeneric<T> &operator=(const float3 &other) {
         vals[0] = other.x;
         vals[1] = other.y;
         vals[2] = other.z;
@@ -544,7 +423,7 @@ public:
      * \todo This function is already implicitly defined via the float4
      *       constructor
      */
-    VectorGeneric<T, K> &operator=(const float4 &other) {
+    VectorGeneric<T> &operator=(const float4 &other) {
         vals[0] = other.x;
         vals[1] = other.y;
         vals[2] = other.z;
@@ -552,7 +431,8 @@ public:
     }
 
     /*! \brief Copy constructor */
-    VectorGeneric<T, K> (const VectorGeneric<K, T> &other) {
+    template<typename U>
+    VectorGeneric<T> (const VectorGeneric<U> &other) {
         for (int i=0; i<3; i++) {
             vals[i] = other[i];
         }
@@ -573,9 +453,9 @@ public:
      * \todo Someone explain to me what this function does? And write this
      *       documentation please.
      */
-    VectorGeneric<T, K> loopedVTo(const VectorGeneric<T, K> &other, const VectorGeneric<T, K> &trace) {
-        VectorGeneric<T, K> dist = other - *this;
-        VectorGeneric<T, K> halfTrace = trace/ (T) 2.0;
+    VectorGeneric<T> loopedVTo(const VectorGeneric<T> &other, const VectorGeneric<T> &trace) {
+        VectorGeneric<T> dist = other - *this;
+        VectorGeneric<T> halfTrace = trace/ (T) 2.0;
         for (int i=0; i<3; i++) {
             if (dist[i] > halfTrace[i]) {
                 dist[i] -= trace[i];
