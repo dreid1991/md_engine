@@ -21,6 +21,11 @@ if (DEBUG)
     set (CUDA_NVCC_DEBUG_FLAGS -Xcompiler -Wall;)
 endif (DEBUG)
 
+if (TEST)
+    find_package(GTest REQUIRED)
+    enable_testing()
+endif (TEST)
+
 if (CMAKE_BUILD_TYPE MATCHES "RELEASE")
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
 endif ()
@@ -80,3 +85,8 @@ target_link_libraries (testing ${MD_ENGINE_LIB_NAME})
 if (PYTHON)
     add_subdirectory (python)
 endif (PYTHON)
+
+# Add tests
+if (TEST)
+    add_subdirectory (unit_test)
+endif (TEST)
