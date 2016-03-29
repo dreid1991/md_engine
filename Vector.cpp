@@ -21,7 +21,7 @@ void export_Vector() {
         .def("__getitem__", &Vector::get)
         .def("__setitem__", &Vector::set)
         .def("__str__", &Vector::asStr)
-        .def("dist", &Vector::distPython)
+        .def("dist", &Vector::dist<double>)
         .def("len", &Vector::len)
         .def("lenSqr", &Vector::lenSqr)
         .def(self + self)
