@@ -50,7 +50,6 @@ void writeAtomParams(ofstream &outFile, AtomParams &params) {
 
 void writeXMLfileBase64(State *state, string fnFinal, int64_t turn, bool oneFilePerWrite) {
 	vector<Atom> &atoms = state->atoms;
-	vector<Bond> &bonds = state->bonds;
 	ofstream outFile;
 	Bounds b = state->bounds;
     if (oneFilePerWrite) {
@@ -149,7 +148,6 @@ void writeXYZFile(State *state, string fn, int64_t turn, bool oneFilePerWrite) {
 
 void writeXMLfile(State *state, string fnFinal, int64_t turn, bool oneFilePerWrite) {
 	vector<Atom> &atoms = state->atoms;
-	vector<Bond> &bonds = state->bonds;
 	ofstream outFile;
 	Bounds b = state->bounds;
     if (oneFilePerWrite) {

@@ -33,7 +33,6 @@ State::State() {
 	periodicInterval = 50;
 	changedAtoms = true;
 	changedGroups = true;
-	changedBonds = true;
 	shoutEvery = 5000;
 	for (int i=0; i<3; i++) {
 		periodic[i]=true;
@@ -49,7 +48,6 @@ State::State() {
 
 }
 
-        void setSpecialNeighborCoefs();
 
 uint State::groupTagFromHandle(string handle) {
 	assert(groupTags.find(handle) != groupTags.end());
@@ -100,26 +98,6 @@ bool State::addAtomDirect(Atom a) {
 	changedAtoms = true;
 	return true;
 }
-
-//constructor should be same
-/*
-bool State::addBond(Atom *a, Atom *b, num k, num rEq) {
-	if (a == b || 
-        !(a >= &(*atoms.begin()) && a < &(*atoms.end())) || 
-        !(b >= &(*atoms.begin()) && b < &(*atoms.end()))) {
-		return false;
-	}
-	int *ids = (int *) malloc(sizeof(int) * 2);
-	ids[0] = a->id;
-	ids[1] = b->id;
-	bondAtomIds.push_back(ids);
-	Bond bond(a, b, k, rEq);
-	bonds.push_back(bond);
-	changedBonds = true;
-	return true;
-}
-*/
-
 bool State::removeAtom(Atom *a) {
 	if (!(a >= &(*atoms.begin()) && a < &(*atoms.end()))) {
 		return false;
@@ -137,41 +115,16 @@ bool State::removeAtom(Atom *a) {
         idBuffer.push_back(id);
         sort(idBuffer.begin(), idBuffer.end());
     }
-
-	bool erasedBonds = false;
-	for (int i=bonds.size()-1; i>=0; i--) {
-		Bond &b = bonds[i];
-		if (b.hasAtom(a)) {
-			bonds.erase(bonds.begin()+i, bonds.begin()+i+1);
-			free(bondAtomIds[i]);
-			bondAtomIds.erase(bondAtomIds.begin()+i, bondAtomIds.begin()+i+1);
-			erasedBonds = true;
-		}
-	}
-
 	int idx = a - &atoms[0];
 	atoms.erase(atoms.begin()+idx, atoms.begin()+idx+1);	
 	
 	changedAtoms = true;
-	if (erasedBonds) {
-		changedBonds = true; 
-	}
+
 	redoNeighbors = true;
 
 	return true;
 }
 
-bool State::removeBond(Bond *b) {
-	if (!(b >= &(*bonds.begin()) && b < &(*bonds.end()))) {
-		return false;
-	}
-	int idx = b - &(*bonds.begin());
-	bonds.erase(bonds.begin()+idx, bonds.begin()+idx+1);
-	free(bondAtomIds[idx]);
-	bondAtomIds.erase(bondAtomIds.begin()+idx, bondAtomIds.begin()+idx+1);
-	changedBonds = true;
-	return true;
-}
 
 int State::idxFromId(int id) {
 	for (int i=0,ii=atoms.size(); i<ii; i++) {
@@ -196,20 +149,7 @@ Atom *State::atomFromId(int id) {
 	return NULL; 
 }
 
-void State::refreshBonds() {
-	assert(bondAtomIds.size() == bonds.size());
-	vector<int> ids = LISTMAPREF(Atom, int, a, atoms, a.id);
-	for (int i=0, ii=bonds.size(); i<ii; i++) {
-		int idA = bondAtomIds[i][0];
-		int idB = bondAtomIds[i][1];
-		int idxA = find(ids.begin(), ids.end(), idA) - ids.begin();
-		int idxB = find(ids.begin(), ids.end(), idB) - ids.begin();
-		assert(idxA != idxB);
-		bonds[i].atoms[0] = &atoms[idxA];
-		bonds[i].atoms[1] = &atoms[idxB];
 
-	}
-}
 
 int State::addSpecies(string handle, double mass) {
     int id = atomParams.addSpecies(handle, mass);
@@ -221,7 +161,7 @@ int State::addSpecies(string handle, double mass) {
     return id;
 }
 
-void State::setSpecialNeighborCoef(float onetwo, float onethree, float onefour) {
+void State::setSpecialNeighborCoefs(float onetwo, float onethree, float onefour) {
     specialNeighborCoefs[0] = onetwo;
     specialNeighborCoefs[1] = onethree;
     specialNeighborCoefs[2] = onefour;
@@ -445,7 +385,7 @@ bool State::makeReady() {
 		}
 	}
 	if (changedAtoms) {
-		refreshBonds();//this must go before doing pbc, otherwise atom pointers could be messed up when you get atom offsets for bonds, which happens in pbc
+	//	refreshBonds();//this must go before doing pbc, otherwise atom pointers could be messed up when you get atom offsets for bonds, which happens in pbc
 	}
 	if ((changedAtoms || redoNeighbors)) {
         //grid->periodicBoundaryConditions(); //UNCOMMENT THIS, WAS DONE FOR CUDA INITIAL STUFF
@@ -559,30 +499,7 @@ vector<Atom> State::copyAtoms() {
 	return save;
 }
 
-vector<BondSave> State::copyBonds() {
-    /*
-	vector<BondSave> save;
-	save.reserve(bonds.size());
-	for (unsigned int i=0; i<bonds.size(); i++) {
-		save.push_back(BondSave(bondAtomIds[i], bonds[i].k, bonds[i].rEq));
-	}
-	return save;
-    */
-}
 
-void State::setBonds(vector<BondSave> &saved) {
-    /*
-	deleteBonds();
-	for (BondSave &bond : saved) {
-		assert(bond.ids[0] < (int) atoms.size() and bond.ids[1] < (int) atoms.size());
-		Atom *a = &atoms[bond.ids[0]];
-		Atom *b = &atoms[bond.ids[1]];
-		num k = bond.k;
-		num rEq = bond.rEq;
-		addBond(a, b, k, rEq);	
-	}
-    */
-}
 
 bool State::validAtom(Atom *a) {
     return a >= atoms.data() and a <= &atoms.back();
@@ -592,22 +509,10 @@ void State::deleteAtoms() {
 	atoms.erase(atoms.begin(), atoms.end());
 }
 
-void State::deleteBonds() {
-    /*
-	bonds = vector<Bond>();
-	for (unsigned int i=0; i<bondAtomIds.size(); i++) {
-		free(bondAtomIds[i]);
-	}
-	bondAtomIds = vector<int *>();
-    */
-}
-
 void State::setAtoms(vector<Atom> &fromSave) {
 	changedAtoms = true;
 	changedGroups = true;
-	changedBonds = true;
 	atoms = fromSave;
-	deleteBonds();
 }
 
 
@@ -624,7 +529,6 @@ void State::destroy() {
     //}
     //UNCOMMENT
     //bounds = NULL;
-    deleteBonds();
     deleteAtoms();
 }
 
@@ -645,7 +549,7 @@ void export_State() {
         .def("copyAtoms", &State::copyAtoms)
         .def("setAtoms", &State::setAtoms)
 
-        .def("setSpecialNeighborCoef", &State::setSpecialNeighborCoef)
+        .def("setSpecialNeighborCoefs", &State::setSpecialNeighborCoefs)
 
         .def("activateFix", &State::activateFix)
         .def("deactivateFix", &State::deactivateFix)
@@ -657,7 +561,6 @@ void export_State() {
         .def("destroy", &State::destroy)
         .def_readwrite("is2d", &State::is2d)
         .def_readonly("changedAtoms", &State::changedAtoms)
-        .def_readonly("changedBonds", &State::changedBonds)
         .def_readonly("changedGroups", &State::changedGroups)
         .def_readwrite("buildNeighborlists", &State::buildNeighborlists)
         .def_readwrite("turn", &State::turn)

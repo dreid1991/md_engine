@@ -132,7 +132,7 @@ vector<Bond> buildBonds(pugi::xml_node &config, State *state, string tag, int nu
 */
 bool ReadConfig::read() {
     cout << "READING A CONFIG" << endl;
-	state->deleteBonds();
+	//state->deleteBonds();
 	state->deleteAtoms();
 	vector<Atom> readAtoms;
 	int64_t readTurn = boost::lexical_cast<int64_t>(config->attribute("turn").value());
