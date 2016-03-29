@@ -44,8 +44,6 @@ public:
      * \param y Second element as double
      * \param z Third element as double
      *
-     * \todo It would be much more sensible to have
-     *       VectorGeneric<T, K> (T x, T y, T z)
      */
     VectorGeneric<T> (T x, T y, T z) {
         vals[0] = x;
@@ -57,8 +55,6 @@ public:
      *
      * \param vals_ Pointer to three element int array
      *
-     * \todo The [3] specifier does not do anything. It is still just a
-     *       pointer being passed to the function.
      */
     VectorGeneric<T> (T *vals_) {
         for (int i=0; i<3; i++) {
@@ -180,13 +176,8 @@ public:
         return vals[n];
     }
 
-    /*! \brief Const operator accessing vector elements
-     *
-     * \todo The const int is not necessary. Returning const T & would be more
-     *       sensible (It isn't much more efficient, but more the typical
-     *       structure of access operators).
-     */
-    T operator[]( const int n )const{
+    /*! \brief Const operator accessing vector elements */
+    const T &operator[]( int n ) const {
         return vals[n];
     }
 
