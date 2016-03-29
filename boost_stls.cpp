@@ -1,5 +1,5 @@
 #include "boost_stls.h"
-
+#include "Bounds.h"
 void export_stls() {
     class_<std::map<std::string, int> >("stringInt")
         .def(map_indexing_suite<std::map<std::string, int> >())
@@ -42,5 +42,11 @@ void export_stls() {
         .def(vector_indexing_suite<std::vector<SHARED(Fix) > >() )
         //	.def("remove", &vectorRemove<Fix>)
         //	.staticmethod("remove")
+        ;
+    class_<std::vector<SHARED(Bounds)> >("vecBounds")
+        .def(vector_indexing_suite<std::vector<SHARED(Bounds)> >() )
+        ;
+    class_<std::vector<Bounds> >("vecBoundsRaw")
+        .def(vector_indexing_suite<std::vector<Bounds> >() )
         ;
 }

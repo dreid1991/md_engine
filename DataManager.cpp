@@ -1,6 +1,8 @@
 #include "DataManager.h"
 #include "State.h"
 #include "DataSetTemperature.h"
+#include "DataSetEnergy.h"
+#include "DataSetBounds.h"
 using namespace std;
 namespace py = boost::python;
 DataManager::DataManager(State * state_) : state(state_) {
@@ -49,15 +51,34 @@ SHARED(DataSetTemperature) DataManager::recordTemperature(string groupHandle, in
 
 }
 void DataManager::stopRecordTemperature(string groupHandle) {
-    stopRecordGeneric(state, "temperatue", groupHandle, dataSetsTemperature);
+    stopRecordGeneric(state, "temperature", groupHandle, dataSetsTemperature);
 }
+SHARED(DataSetEnergy) DataManager::recordEnergy(string groupHandle, int collectEvery, py::object collectGenerator) {
+    return recordGeneric(state, groupHandle, dataSetsEnergy, collectEvery, collectGenerator);
+
+}
+void DataManager::stopRecordEnergy(string groupHandle) {
+    stopRecordGeneric(state, "energy", groupHandle, dataSetsEnergy);
+}
+SHARED(DataSetBounds) DataManager::recordBounds(int collectEvery, py::object collectGenerator) {
+    return recordGeneric(state, "all", dataSetsBounds, collectEvery, collectGenerator);
+
+}
+void DataManager::stopRecordBounds() {
+    stopRecordGeneric(state, "bounds", "all", dataSetsBounds);
+}
+
 void DataManager::generateSingleDataSetList() {
     //template this out or something
     dataSets = vector<DataSet *>();
     for (SHARED(DataSetTemperature) dst : dataSetsTemperature) {
-        DataSet *ds = (DataSet *) dst.get();
-        dataSets.push_back(ds);
-
+        dataSets.push_back(dst.get());
+    }
+    for (SHARED(DataSetEnergy) dst : dataSetsEnergy) {
+        dataSets.push_back(dst.get());
+    }
+    for (SHARED(DataSetBounds) dst : dataSetsBounds) {
+        dataSets.push_back(dst.get());
     }
 }
 /*
@@ -109,7 +130,14 @@ SHARED(DataSet) DataManager::getDataSet(string handle) {
 */
 void export_DataManager() {
     class_<DataManager>("DataManager", no_init)
-        .def("recordTemperature", &DataManager::recordTemperature, (python::arg("handle"), python::arg("collectEvery") = 0, python::arg("collectGenerator") = boost::python::object()));
+        .def("recordTemperature", &DataManager::recordTemperature, (python::arg("handle") = "all", python::arg("collectEvery") = 0, python::arg("collectGenerator") = boost::python::object()))
+        .def("stopRecordTemperature", &DataManager::stopRecordTemperature, (python::arg("handle") = "all"))
+
+        .def("recordEnergy", &DataManager::recordEnergy, (python::arg("handle") = "all", python::arg("collectEvery") = 0, python::arg("collectGenerator") = boost::python::object()))
+        .def("stopRecordEnergy", &DataManager::stopRecordEnergy, (python::arg("handle") = "all"))
+
+        .def("recordBounds", &DataManager::recordBounds, (python::arg("collectEvery") = 0, python::arg("collectGenerator") = boost::python::object()))
+        .def("stopRecordBounds", &DataManager::stopRecordBounds)
  //       .def("getDataSet", &DataManager::getDataSet)
         ;
 }

@@ -14,9 +14,6 @@ void DataSet::setCollectMode() {
         }
     }
 }
-void DataSet::prepareForRun() {
-    setCollectMode();
-}
 
 void DataSet::takeCollectValues(int collectEvery_, py::object collectGenerator_) {
     collectEvery = collectEvery_;

@@ -6,11 +6,12 @@
 #include <vector>
 #include <string>
 class DataSetTemperature;
+class DataSetEnergy;
+class DataSetBounds;
 //#include "DataSet.h"
 class DataSet;
 class State;
 void export_DataManager();
-
 class DataManager {
     State *state;
 	public:
@@ -22,8 +23,15 @@ class DataManager {
  * behavior: if you call record for something that is already being recorded, it will change collect / collect generator of the existing object and continue append to the existing object's data */
         SHARED(DataSetTemperature) recordTemperature(std::string groupHandle, int collectEvery, boost::python::object collectGenerator); 
         void stopRecordTemperature(std::string groupHandle);
-
         std::vector<SHARED(DataSetTemperature)> dataSetsTemperature;
+
+        SHARED(DataSetEnergy) recordEnergy(std::string groupHandle, int collectEvery, boost::python::object collectGenerator); 
+        void stopRecordEnergy(std::string groupHandle);
+        std::vector<SHARED(DataSetEnergy)> dataSetsEnergy;
+
+        SHARED(DataSetBounds) recordBounds(int collectEvery, boost::python::object collectGenerator); 
+        void stopRecordBounds();
+        std::vector<SHARED(DataSetBounds)> dataSetsBounds;//no reason there should ever be more than one of these
         /* 
         void stopRecordTemp(string GroupHandle); // will fail if does not exist
 

@@ -27,7 +27,7 @@ class DataSet {
         bool collectModeIsPython;
 
         void setCollectMode(); 
-        virtual void prepareForRun();
+        virtual void prepareForRun(){};
 		DataSet(){};
 		DataSet(uint32_t groupTag_){
             groupTag = groupTag_;

@@ -205,6 +205,7 @@ void Integrater::basicPrepare(int numTurns) {
     state->gridGPU.periodicBoundaryConditions(state->rCut + state->padding, true, true);
     state->dataManager.generateSingleDataSetList();  
     for (DataSet *ds : state->dataManager.dataSets) {
+        ds->setCollectMode();
         ds->prepareForRun();
     }
 }

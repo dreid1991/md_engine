@@ -12,7 +12,6 @@
 void export_Bounds();
 
 class State;
-using namespace std;
 class Bounds : public BoundsGeneric {
 	public:
 		State *state;
@@ -32,13 +31,17 @@ class Bounds : public BoundsGeneric {
 		Bounds(State *state_, Vector lo_, Vector sides_[3]) : BoundsGeneric(lo_, sides_), state(state_), isSet(true) {
 			handle2d();
 		}
+        Bounds(BoundsGPU &source) : isSet(true) {
+            state = (State *) NULL; //this one is only for tabulating data
+            set(source);
+        }
         BoundsGPU makeGPU();
 		void handle2d();
 	
-		string asStr() {
+        std::string asStr() {
 			
-			string loStr = "Lower bounds " + lo.asStr();
-			string hiStr = "upper bounds " + hi.asStr();
+            std::string loStr = "Lower bounds " + lo.asStr();
+            std::string hiStr = "upper bounds " + hi.asStr();
 			return loStr + ", " + hiStr ;
 		}
 		bool atomInBounds(Atom &);

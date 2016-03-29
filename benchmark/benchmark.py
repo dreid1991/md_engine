@@ -6,6 +6,7 @@ state.bounds = Bounds(state, lo = Vector(0, 0, 0), hi = Vector(55.12934875488, 5
 state.rCut = 3.0
 state.padding = 0.6
 state.periodicInterval = 7
+state.shoutEvery = 100
 
 state.grid = AtomGrid(state, 3.6, 3.6, 3.6)
 state.atomParams.addSpecies(handle='spc1', mass=1, atomicNum=1)
@@ -27,12 +28,13 @@ state.activateFix(fixNVT)
 integVerlet = IntegraterVerlet(state)
 
 tempData = state.dataManager.recordTemperature('all', 100)
+boundsData = state.dataManager.recordBounds(100)
 
 print tempData.turns
 print tempData.vals
 #writeconfig = WriteConfig(state, fn='test_*_out', writeEvery=1000, format='xyz', handle='writer')
 #state.activateWriteConfig(writeconfig)
-integVerlet.run(3000)
+integVerlet.run(201)
 sumV = 0.
 for a in state.atoms:
     sumV += a.vel.lenSqr()
@@ -40,3 +42,9 @@ print sumV / len(state.atoms)/3.0
 print list(tempData.turns)
 print list(tempData.vals)
 #integVerlet.run(30000)
+
+biz = boundsData.vals
+print biz
+boundsData.printMe()
+v = boundsData.getValue(0)
+print v.lo
