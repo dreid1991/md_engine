@@ -36,7 +36,8 @@ void DataSet::setNextCollectTurn(int64_t turn) {
 }
 void export_DataSet() {
     class_<DataSet, boost::noncopyable>("DataSet", no_init)
-        .def_readonly("turns", &DataSet::turns)
+        .def_readonly("turns", &DataSet::turnsPy)
+        .def_readonly("vals", &DataSet::valsPy
         .def_readwrite("nextCollectTurn", &DataSet::nextCollectTurn)
  //       .def("getDataSet", &DataManager::getDataSet)
         ;

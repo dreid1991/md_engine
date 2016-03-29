@@ -42,16 +42,8 @@ class DataSet {
             return other == groupTag;
         }
         void takeCollectValues(int collectEvery_, boost::python::object collectGenerator_);
-        /*
-		DataSet(uint32_t groupTag_, int collectEvery_, PyObject *collectGenerator_) {
-            groupTag = groupTag_;
-            collectEvery = collectEvery_;
-            collectGenerator = collectGenerator;
-            setCollectMode();
-            requiresVirials = false;
-            requiresEng = false;
-        };
-        */
+        boost::python::list turnsPy;
+        boost::python::list valsPy;
 };
 
 

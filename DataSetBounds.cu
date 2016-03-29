@@ -12,10 +12,12 @@ void DataSetBounds::collect(int64_t turn, BoundsGPU &bounds, int nAtoms, float4 
 
     stored = bounds;
     turns.push_back(turn);
+    turnsPy.append(turn);
 }
 void DataSetBounds::appendValues() {
-    SHARED(Bounds) toAppend = SHARED(Bounds) (new Bounds(stored));
-    vals.push_back(toAppend);
+    Bounds processed = Bounds(stored);
+    vals.push_back(processed);
+    valsPy.append(processed);
     //vals.push_back(Bounds(stored));
     //cout << vals.back()->lo << endl;
     
@@ -24,7 +26,5 @@ void DataSetBounds::appendValues() {
 
 void export_DataSetBounds() {
     class_<DataSetBounds, SHARED(DataSetBounds), bases<DataSet>, boost::noncopyable > ("DataSetBounds", no_init)
-        .def_readwrite("vals", &DataSetBounds::vals)
-        .def("getValue", &DataSetBounds::getValue)
         ;
 }
