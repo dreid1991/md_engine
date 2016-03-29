@@ -118,8 +118,9 @@ __global__ void NAME (K *dest, T *src, int n, unsigned int groupTag, float4 *fs)
     if (threadIdx.x == 0) {\
         atomicAdd(dest, tmp[0]);\
     }\
-}\
+}
 
+SUM_TAGS(sumPlain, , );
 SUM_TAGS(sumVectorSqr3DTags, lengthSqr, make_float3);
 SUM_TAGS(sumVectorSqr3DTagsOverW, lengthSqrOverW, ); // for temperature
 

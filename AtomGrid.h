@@ -60,7 +60,6 @@ class AtomGrid : public Grid<Atom *> {
 			setNeighborSquares();
 		};
 		*/
-        void assignBondOffsets(vector<Bond> &, Bounds);
         bool adjustForChangedBounds();
 		void periodicBoundaryConditions();
 		void periodicBoundaryConditions(double);

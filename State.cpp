@@ -43,8 +43,13 @@ State::State() {
     atomParams = AtomParams(this);
     computeVirials = false; //will be set to true if a fix need it (like barostat) during run setup
 	dataManager = DataManager(this);
+    specialNeighborCoefs[0] = 0;
+    specialNeighborCoefs[0] = 0;
+    specialNeighborCoefs[0] = 0.5;
+
 }
 
+        void setSpecialNeighborCoefs();
 
 uint State::groupTagFromHandle(string handle) {
 	assert(groupTags.find(handle) != groupTags.end());
@@ -214,6 +219,12 @@ int State::addSpecies(string handle, double mass) {
         }
     }
     return id;
+}
+
+void State::setSpecialNeighborCoef(float onetwo, float onethree, float onefour) {
+    specialNeighborCoefs[0] = onetwo;
+    specialNeighborCoefs[1] = onethree;
+    specialNeighborCoefs[2] = onefour;
 }
 
 template <class T>
@@ -633,6 +644,8 @@ void export_State() {
         .def("selectGroup", &State::selectGroup)
         .def("copyAtoms", &State::copyAtoms)
         .def("setAtoms", &State::setAtoms)
+
+        .def("setSpecialNeighborCoef", &State::setSpecialNeighborCoef)
 
         .def("activateFix", &State::activateFix)
         .def("deactivateFix", &State::deactivateFix)

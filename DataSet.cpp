@@ -21,7 +21,6 @@ void DataSet::prepareForRun() {
 void DataSet::takeCollectValues(int collectEvery_, py::object collectGenerator_) {
     collectEvery = collectEvery_;
     collectGenerator = collectGenerator;
-    cout << "TAKING" << collectEvery << endl;
     setCollectMode();
 }
 

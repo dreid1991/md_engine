@@ -47,7 +47,6 @@ class Fix;
 //class DataManager;
 class WriteConfig;
 
-// TODO: MAKE DESTRUCTOR THAT CALLS FINISH IF IT HASN'T BEEN CALLED
 class State {
 	bool removeGroupTag(string handle);
 	uint addGroupTag(string handle);
@@ -57,11 +56,6 @@ class State {
 		vector<Atom> atoms;
 		GridGPU gridGPU;
 		BoundsGPU boundsGPU;
-		vector<Bond> bonds;
-		// using tuples makes boost say invalid template parameter.  Not sure why.
-		// Using int lists instead.  Also, can't have vector of static lists.
-		// Don't want to use pair, b/c angle has 3 :(
-		vector<int*> bondAtomIds; 
 		GPUData gpd;
         DeviceManager devManager;
 		AtomGrid grid;
@@ -76,6 +70,7 @@ class State {
 		bool buildNeighborlists;
 		bool periodic[3];
 		float dt;
+        float specialNeighborCoefs[3]; //as 1-2, 1-3, 1-4 neighbors
 		int64_t turn;
 		int runningFor;
 		int64_t runInit;
@@ -88,6 +83,7 @@ class State {
 		double rCut;
 		double padding;
 		
+        void setSpecialNeighborCoefs(float onetwo, float onethree, float onefour); 
 		bool activateFix(SHARED(Fix));
 		bool deactivateFix(SHARED(Fix));
 		bool activateWriteConfig(SHARED(WriteConfig));

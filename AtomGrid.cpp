@@ -215,7 +215,7 @@ void AtomGrid::buildNeighborlists(double neighCut) {
 	}
 }
 
-
+/*
 void AtomGrid::assignBondOffsets(vector<Bond> &bonds, Bounds bounds) {
     //okay, things are unskewed at this point
     cout << "STOP ASSIGNING BOND OFFSETS" << endl;
@@ -234,7 +234,7 @@ void AtomGrid::assignBondOffsets(vector<Bond> &bonds, Bounds bounds) {
     }
 
 }
-
+*/
 void AtomGrid::periodicBoundaryConditions(double neighCut) {
 	Bounds &unchanged = state->bounds;
 	Bounds b = state->bounds.unskewed();
@@ -248,7 +248,7 @@ void AtomGrid::periodicBoundaryConditions(double neighCut) {
     if (state->buildNeighborlists) {
         buildNeighborlists(neighCut);
     }
-    assignBondOffsets(state->bonds, b);
+  //  assignBondOffsets(state->bonds, b);
     if (isSkew) {
         Mod::skewAtomsFromZero(atoms, unchanged.sides[0], unchanged.sides[1]);
     }

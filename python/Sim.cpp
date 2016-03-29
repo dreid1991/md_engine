@@ -25,6 +25,7 @@ using namespace std;
 //#include "DataManager.h"
 #include "DataSet.h"
 #include "DataSetTemperature.h"
+#include "DataSetEnergy.h"
 #include "ReadConfig.h"
 //#include "DataTools.h"
 BOOST_PYTHON_MODULE(Sim) {
@@ -64,5 +65,6 @@ BOOST_PYTHON_MODULE(Sim) {
     export_DeviceManager();
     export_DataSet();
     export_DataSetTemperature();
+    export_DataSetEnergy();
 
 }
