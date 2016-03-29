@@ -10,7 +10,6 @@
 using namespace std;
 #define EPSILON .000001f
 
-#include "boost_for_export.h"
 void export_Vector();
 void export_VectorInt();
 

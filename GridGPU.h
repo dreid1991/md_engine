@@ -9,6 +9,8 @@
 #include <unordered_set>
 #include <set>
 
+#include "boost_for_export.h"
+
 #define EXCL_MASK (~(3<<30));
 //okay, this is going to contain all the kernels needed to do gridding
 //can also have it contain the 3d grid for neighbor int2 s
