@@ -31,9 +31,6 @@ class InitializeAtomsPythonWrap {};
  * them with random velocities.
  */
 namespace InitializeAtoms {
-    /*! \brief The random number generator */
-	extern default_random_engine generator;
-
     /*! \brief Add new atoms placed on a grid
      *
      * \param state Simulation to which the atoms are added.

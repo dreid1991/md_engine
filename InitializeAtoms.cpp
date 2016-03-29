@@ -2,7 +2,6 @@
 #include "State.h"
 #include "Atom.h"
 #include "list_macro.h"
-default_random_engine InitializeAtoms::generator = default_random_engine();
 /*
 make a 'ready' flag in state, which means am ready to run.  creating atoms makes false, 
 		make ready by re-doing all atom pointers 
@@ -44,8 +43,7 @@ void InitializeAtoms::populateOnGrid(SHARED(State) state, Bounds &bounds, string
 void InitializeAtoms::populateRand(SHARED(State) state, Bounds &bounds, string handle, int n, double distMin) {
 	assert(n>=0);
 
-	random_device randDev;
-	generator.seed(randDev());
+	std::mt19937 generator = state->getRNG();
 	vector<Atom> &atoms = state->atoms;
 	AtomParams &params = state->atomParams;
 	vector<string> handles = params.handles;
@@ -92,9 +90,7 @@ void InitializeAtoms::populateRand(SHARED(State) state, Bounds &bounds, string h
 
 }
 void InitializeAtoms::initTemp(SHARED(State) state, string groupHandle, double temp) { //boltzmann const is 1 for reduced lj units
-	random_device randDev;
-    int seed = randDev();
-	generator.seed(seed);
+	std::mt19937 generator = state->getRNG();
     int groupTag = state->groupTagFromHandle(groupHandle);
 	
 	vector<Atom *> atoms = LISTMAPREFTEST(Atom, Atom *, a, state->atoms, &a, a.groupTag & groupTag);

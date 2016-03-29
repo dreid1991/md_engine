@@ -12,6 +12,7 @@
 #include <tuple>
 #include <vector>
 #include <functional>
+#include <random>
 #include <thread>
 
 #include <boost/shared_ptr.hpp>
@@ -148,6 +149,13 @@ class State {
 		int maxIdExisting;
 		vector<int> idBuffer;
 		// Akay, so we declare grid, fixes, bounds, and integrator seperately
+
+		std::mt19937 &getRNG();
+		void seedRNG(unsigned int seed = 0);
+
+	private:
+		std::mt19937 randomNumberGenerator;
+		bool rng_is_seeded;
 
 	// Can't I just make the properties accessable rather than making get/set functions?
 	// yes
