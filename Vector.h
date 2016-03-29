@@ -7,7 +7,6 @@
 #include "globalDefs.h"
 #include "cutils_math.h"
 
-using namespace std;
 #define EPSILON .000001f
 
 void export_Vector();
@@ -390,8 +389,8 @@ public:
     }
 
     /*! \brief Convert vector to string for output */
-    string asStr() const {
-        ostringstream oss;
+    std::string asStr() const {
+        std::ostringstream oss;
         oss << "x: " << vals[0] << ", y: " << vals[1] << ", z: " << vals[2];
         return oss.str();
     }

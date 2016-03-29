@@ -4,6 +4,8 @@
 #include <vector>
 #include "OffsetObj.h"
 
+using namespace std;
+
 void export_Atom();
 void export_Neighbor();
 class Atom;
