@@ -549,6 +549,8 @@ void State::seedRNG(unsigned int seed) {
     rng_is_seeded = true;
 }
 
+BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(State_seedRNG_overloads,State::seedRNG,0,1)
+
 void export_State() {
     class_<State, SHARED(State) >("State", init<>())
         .def("addAtom", &State::addAtom, (python::arg("handle"), python::arg("pos"), python::arg("q")=0) )
@@ -576,7 +578,7 @@ void export_State() {
         .def("deactivatePythonOperation", &State::deactivatePythonOperation)
         .def("zeroVelocities", &State::zeroVelocities)
         .def("destroy", &State::destroy)
-        .def("seedRNG", &State::seedRNG)
+        .def("seedRNG", &State::seedRNG, State_seedRNG_overloads())
         .def_readwrite("is2d", &State::is2d)
         .def_readonly("changedAtoms", &State::changedAtoms)
         .def_readonly("changedGroups", &State::changedGroups)
