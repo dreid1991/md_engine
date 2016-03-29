@@ -12,12 +12,6 @@
 void export_Vector();
 void export_VectorInt();
 
-template <typename T>
-class VectorGeneric;
-
-typedef VectorGeneric<num> Vector;
-typedef VectorGeneric<int> VectorInt;
-
 /*! \class VectorGeneric
  * \brief A three-element vector
  *
@@ -466,6 +460,8 @@ public:
     }
 };
 
+typedef VectorGeneric<num> Vector;
+typedef VectorGeneric<int> VectorInt;
 
 std::ostream &operator<<(std::ostream &os, const Vector &v);
 std::ostream &operator<<(std::ostream &os, const float4 &v);
