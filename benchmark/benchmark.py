@@ -1,12 +1,13 @@
 import sys
 from Sim import *
+import matplotlib.pyplot as plt
 state = State()
 state.deviceManager.setDevice(1)
 state.bounds = Bounds(state, lo = Vector(0, 0, 0), hi = Vector(55.12934875488, 55.12934875488, 55.12934875488))
 state.rCut = 3.0
 state.padding = 0.6
 state.periodicInterval = 7
-state.shoutEvery = 100
+state.shoutEvery = 1000
 
 state.grid = AtomGrid(state, 3.6, 3.6, 3.6)
 state.atomParams.addSpecies(handle='spc1', mass=1, atomicNum=1)
@@ -22,29 +23,27 @@ for i in range(len(f)):
 
 InitializeAtoms.initTemp(state, 'all', 1.2)
 
-fixNVT = FixNVTRescale(state, 'temp', 'all', [0, 1], [1.0, 1.2], 100)
+fixNVT = FixNVTRescale(state, 'temp', 'all', [0, 1], [1.2, 0.1], 100)
 state.activateFix(fixNVT)
 
 integVerlet = IntegraterVerlet(state)
 
 tempData = state.dataManager.recordTemperature('all', 100)
 boundsData = state.dataManager.recordBounds(100)
+engData = state.dataManager.recordEnergy('all', 100)
 
-print tempData.turns
-print tempData.vals
 #writeconfig = WriteConfig(state, fn='test_*_out', writeEvery=1000, format='xyz', handle='writer')
 #state.activateWriteConfig(writeconfig)
-integVerlet.run(201)
+integVerlet.run(10001)
 sumV = 0.
 for a in state.atoms:
     sumV += a.vel.lenSqr()
 print sumV / len(state.atoms)/3.0
-print list(tempData.turns)
-print list(tempData.vals)
-#integVerlet.run(30000)
 
-biz = boundsData.vals
-print biz
-boundsData.printMe()
-v = boundsData.getValue(0)
-print v.lo
+print boundsData.vals[0].getSide(1)
+print engData.turns[-1]
+print 'last eng %f' % engData.vals[-1]
+print state.turn
+print integVerlet.energyAverage('all')
+perParticle = integVerlet.energyPerParticle()
+print sum(perParticle) / len(perParticle)

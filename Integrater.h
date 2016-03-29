@@ -29,16 +29,17 @@ class Integrater {
         void setActiveData();
         void doDataCollection();
         void singlePointEng(); //make a python-wrapped version
-        std::future<void> dataGather;
         public:
-                string type;
-                State *state;
-                Integrater() {};
-                Integrater(State *state_, string type_);
-        
-                //double relax(int numTurns, num fTol);
-                void forceSingle(bool);
-                void writeOutput();
+            double singlePointEngPythonAvg(string groupHandle);
+            boost::python::list singlePointEngPythonPerParticle();
+            string type;
+            State *state;
+            Integrater() {};
+            Integrater(State *state_, string type_);
+    
+            //double relax(int numTurns, num fTol);
+            void forceSingle(bool);
+            void writeOutput();
 /*	void verletPreForce(vector<Atom *> &atoms, double timestep);
 	void verletPostForce(vector<Atom *> &atoms, double timestep);
 	void compute(vector<Fix *> &, int);

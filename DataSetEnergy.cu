@@ -13,10 +13,12 @@ void DataSetEnergy::collect(int64_t turn, BoundsGPU &, int nAtoms, float4 *xs, f
     sumPlain<float, float> <<<NBLOCK(nAtoms), PERBLOCK, PERBLOCK*sizeof(float)>>>(engGPU.getDevData(), engs, nAtoms, groupTag, fs);
     engGPU.dataToHost();
     turns.push_back(turn);
+    turnsPy.append(turn);
 }
 void DataSetEnergy::appendValues() {
     double engCur = (double) engGPU.h_data[0] / (double) engGPU.h_data[1]; 
     vals.push_back(engCur);
+    valsPy.append(engCur);
     
 }
 
@@ -26,6 +28,5 @@ void DataSetEnergy::prepareForRun() {
 
 void export_DataSetEnergy() {
     class_<DataSetEnergy, SHARED(DataSetEnergy), bases<DataSet>, boost::noncopyable > ("DataSetEnergy", no_init)
-        .def_readonly("vals", &DataSetEnergy::vals)
         ;
 }

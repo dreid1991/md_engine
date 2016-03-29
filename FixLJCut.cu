@@ -114,7 +114,7 @@ __global__ void computeEng_cu(int nAtoms, float4 *xs, float *perParticleEng, int
                 float r2inv = 1/lenSqr;
                 float r6inv = r2inv*r2inv*r2inv;
                 float sig6r6inv = sig6 * r6inv;
-                sumEng += 4*eps*sig6r6inv*(sig6r6inv-1.0f) * multiplier;
+                sumEng += 0.5 * 4*eps*sig6r6inv*(sig6r6inv-1.0f) * multiplier; //0.5 b/c we need to half-count energy b/c pairs are redundant
 
             }
 

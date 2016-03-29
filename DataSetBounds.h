@@ -10,6 +10,5 @@ class DataSetBounds : public DataSet {
         DataSetBounds(uint32_t);
         std::vector<Bounds> vals;
         BoundsGPU stored;
-        void printMe();
 
 };

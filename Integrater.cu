@@ -5,6 +5,7 @@
 // #include "globalDefs.h"
 #include "PythonOperation.h"
 #include "DataSet.h"
+#include "cutils_func.h"
 const string IntVerletType = "verlet";
 const string IntRelaxType = "relax";
 
@@ -87,8 +88,10 @@ void Integrater::doDataCollection() {
 		//void collect(int64_t turn, BoundsGPU &, int nAtoms, float4 *xs, float4 *vs, float4 *fs, float *engs, Virial *);
 
         for (DataSet *ds : dm.dataSets) {
-            ds->collect(turn, bounds, nAtoms, xs, vs, fs, gpd.perParticleEng.getDevData(), gpd.perParticleVirial.getDevData());
-            ds->setNextCollectTurn(turn);
+            if (ds->nextCollectTurn == turn) {
+                ds->collect(turn, bounds, nAtoms, xs, vs, fs, gpd.perParticleEng.getDevData(), gpd.perParticleVirial.getDevData());
+                ds->setNextCollectTurn(turn);
+            }
         }
         cudaDeviceSynchronize();
         for (DataSet *ds : dm.dataSets) {
@@ -192,8 +195,7 @@ void Integrater::basicPrepare(int numTurns) {
     int nAtoms = state->atoms.size();
 	state->runningFor = numTurns;
     state->runInit = state->turn; 
-    //Add refresh atoms!
-    state->updateIdxFromIdCache(); //for updating fix atom pointers, etc
+    state->updateIdxFromIdCache();
     state->prepareForRun();
     for (Fix *f : state->fixes) {
         f->updateGroupTag();
@@ -245,9 +247,53 @@ void Integrater::writeOutput() {
     }
 }
 
+
+double Integrater::singlePointEngPythonAvg(string groupHandle) {
+    GPUArray<float> eng(2);
+    eng.d_data.memset(0);
+    basicPreRunChecks();
+    basicPrepare(0);
+    cudaDeviceSynchronize();
+
+    singlePointEng();
+    cudaDeviceSynchronize();
+    uint32_t groupTag = state->groupTagFromHandle(groupHandle);
+    sumPlain<<<NBLOCK(state->atoms.size()), PERBLOCK, sizeof(float)*PERBLOCK>>>(eng.getDevData(), state->gpd.perParticleEng.getDevData(), state->atoms.size(), groupTag, state->gpd.fs.getDevData());
+    eng.dataToHost();
+    cudaDeviceSynchronize();
+    CUT_CHECK_ERROR("Calculation of single point average energy failed");
+    return eng.h_data[0] / eng.h_data[1];
+}
+boost::python::list Integrater::singlePointEngPythonPerParticle() {
+    basicPrepare(0);
+    singlePointEng();
+    state->gpd.perParticleEng.dataToHost();
+    state->gpd.ids.dataToHost();
+    cudaDeviceSynchronize();
+    CUT_CHECK_ERROR("Calculation of single point per-particle energy failed");
+    vector<float> &engs = state->gpd.perParticleEng.h_data;
+    vector<uint> &ids = state->gpd.ids.h_data;
+    vector<int> &idToIdxsOnCopy = state->gpd.idToIdxsOnCopy;
+    vector<double> sortedEngs(ids.size());
+
+    for (int i=0, ii=state->atoms.size(); i<ii; i++) {
+        int id = ids[i];
+        int idxWriteTo = idToIdxsOnCopy[id];
+        sortedEngs[idxWriteTo] = engs[i];
+    }
+    boost::python::list asPy(sortedEngs);
+    return asPy;
+
+}
+
+
+
+
 void export_Integrater() {
     class_<Integrater, boost::noncopyable> ("Integrater")
         .def("writeOutput", &Integrater::writeOutput)
+        .def("energyAverage", &Integrater::singlePointEngPythonAvg, (python::arg("groupHandle")="all"))
+        .def("energyPerParticle", &Integrater::singlePointEngPythonPerParticle);
         //.def("run", &Integrater::run)
         ;
 }

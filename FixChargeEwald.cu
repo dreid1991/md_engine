@@ -281,9 +281,9 @@ __global__ void Ewald_long_range_forces_order_3_cu(int nAtoms, float4 *xs, float
 }
 
 
-__global__ void compute_short_range_forces_cu(int nAtoms, float4 *xs, float4 *fs, int *neighborCounts, uint *neighborlist, int *cumulSumMaxPerBlock, float *qs, float alpha, float rCut, BoundsGPU bounds, int warpSize, float oneFourStrength) {
+__global__ void compute_short_range_forces_cu(int nAtoms, float4 *xs, float4 *fs, int *neighborCounts, uint *neighborlist, int *cumulSumMaxPerBlock, float *qs, float alpha, float rCut, BoundsGPU bounds, int warpSize, float onetwoStr, float onethreeStr, float onefourStr) {
 
-    float multipliers[4] = {1, 0, 0, oneFourStrength};
+    float multipliers[4] = {1, onetwoStr, onethreeStr, onefourStr};
     int idx = GETIDX();
     if (idx < nAtoms) {
         float4 posWhole = xs[idx];
@@ -590,6 +590,7 @@ void FixChargeEwald::compute(bool computeVirials) {
     CUT_CHECK_ERROR("Ewald_long_range_forces_cu  execution failed");
     
     
+    float *neighborCoefs = state->specialNeighborCoefs;
     compute_short_range_forces_cu<<<NBLOCK(nAtoms), PERBLOCK>>>( nAtoms,
                                               gpd.xs(activeIdx),                                                      
                                               gpd.fs(activeIdx),
@@ -600,7 +601,7 @@ void FixChargeEwald::compute(bool computeVirials) {
                                               alpha,
                                               r_cut,
                                               state->boundsGPU,
-                                              state->devManager.prop.warpSize, 0.5);
+                                              state->devManager.prop.warpSize, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2]);
     CUT_CHECK_ERROR("Ewald_short_range_forces_cu  execution failed");
     
 }

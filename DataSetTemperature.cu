@@ -12,10 +12,12 @@ void DataSetTemperature::collect(int64_t turn, BoundsGPU &, int nAtoms, float4 *
     sumVectorSqr3DTagsOverW<float, float4> <<<NBLOCK(nAtoms), PERBLOCK, PERBLOCK*sizeof(float)>>>(tempGPU.getDevData(), vs, nAtoms, groupTag, fs);
     tempGPU.dataToHost();
     turns.push_back(turn);
+    turnsPy.append(turn);
 }
 void DataSetTemperature::appendValues() {
     double tempCur = (double) tempGPU.h_data[0] / (double) tempGPU.h_data[1] / 3.0; 
     vals.push_back(tempCur);
+    valsPy.append(tempCur);
     
 }
 
@@ -25,6 +27,5 @@ void DataSetTemperature::prepareForRun() {
 
 void export_DataSetTemperature() {
     class_<DataSetTemperature, SHARED(DataSetTemperature), bases<DataSet>, boost::noncopyable > ("DataSetTemperature", no_init)
-        .def_readonly("vals", &DataSetTemperature::vals)
         ;
 }
