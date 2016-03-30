@@ -84,6 +84,14 @@ public:
         vals[2] = other.z;
     }
 
+    /*! \brief Copy constructor */
+    template<typename U>
+    VectorGeneric<T> (const VectorGeneric<U> &other) {
+        for (int i=0; i<3; i++) {
+            vals[i] = other[i];
+        }
+    }
+
     /*! \brief Convert vector to float4
      *
      * The first three entries correspond to the vector elements, the forth
@@ -378,47 +386,6 @@ public:
         std::ostringstream oss;
         oss << "x: " << vals[0] << ", y: " << vals[1] << ", z: " << vals[2];
         return oss.str();
-    }
-
-    /*! \brief Assignment operator */
-    template<typename U>
-    VectorGeneric<T> &operator=(const VectorGeneric<U> &other) {
-        for (int i=0; i<3; i++) {
-            vals[i] = other[i];
-        }
-        return *this;
-    }
-
-    /*! \brief Assignment operator
-     *
-     * \todo This function is already implicitly defined via the float3
-     *       constructor
-     */
-    VectorGeneric<T> &operator=(const float3 &other) {
-        vals[0] = other.x;
-        vals[1] = other.y;
-        vals[2] = other.z;
-        return *this;
-    }
-
-    /*! \brief Assignment operator
-     *
-     * \todo This function is already implicitly defined via the float4
-     *       constructor
-     */
-    VectorGeneric<T> &operator=(const float4 &other) {
-        vals[0] = other.x;
-        vals[1] = other.y;
-        vals[2] = other.z;
-        return *this;
-    }
-
-    /*! \brief Copy constructor */
-    template<typename U>
-    VectorGeneric<T> (const VectorGeneric<U> &other) {
-        for (int i=0; i<3; i++) {
-            vals[i] = other[i];
-        }
     }
 
     /*! \brief Get a specific element */
