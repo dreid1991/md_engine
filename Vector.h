@@ -125,51 +125,6 @@ public:
         vals[0] = vals[1] = vals[2] = 0;
     }
 
-    //void skew(num cao, num sao, num cbo, num sbo, num caf, num saf, num cbf, num sbf) { // c->cos, s->sin, a->alphe, b->beta, o->orig, f->final
-    //    num x = vals[0]; //See mathematica notebook for this math.  Basically untransforming to no rotation, then transforming to new coords
-    //    num y = vals[1];
-    //    num denom = cao*cbo - sao*sbo;
-    //    vals[0] = ((cao*y-x*sao)*sbf + caf*(cbo*x-y*sbo)) / denom;
-    //    vals[1] = (cbo*x*saf + cbf * (cao*y - x*sao) - y*saf*sbo) / denom;
-    //}
-    //void skew(num ao, num bo, num af, num bf) {
-    //    skew(cos(ao), sin(ao), cos(bo), sin(bo), cos(af), sin(af), cos(bf), sin(bf));
-    //}
-    //void skewPy(num ao, num bo, num af, num bf) {
-    //    skew(ao, bo, af, bf);
-    //}
-    //void skewFromZero(num ca, num sa, num cb, num sb) {
-    //    num xo = vals[0];
-    //    num yo = vals[1];
-    //    vals[0] = xo*ca + yo*sb;
-    //    vals[1] = xo*sa + yo*cb;
-    //}
-    //void unskew(num ca, num sa, num cb, num sb) {
-    //    num denom = ca*cb - sa*sb;
-    //    num xo = vals[0];
-    //    num yo = vals[1];
-    //    vals[0] = (cb*xo - sb*yo) / denom;
-    //    vals[1] = (ca*yo - sa*xo) / denom;
-    //}
-
-    /*! \brief Vector connecting two points
-     *
-     * \param v Other point
-     * \returns A new vector connecting the points defined by this vector and
-     *          vector v
-     *
-     * This function gives the vector from the point specified by vector v to
-     * the point this vector is pointing to.
-     *
-     * \todo This is essentially (v - *this). Do we really need this function?
-     */
-    template<typename U>
-    auto VTo(const VectorGeneric<U> &v) const
-                                -> VectorGeneric< decltype(v[0]-vals[0]) > {
-        return VectorGeneric< decltype(v[0] - vals[0]) >(
-                            v[0] - vals[0], v[1] - vals[1], v[2] - vals[2]);
-    }
-
     /*! \brief Sum of all entries */
     T sum() const {
         return vals[0] + vals[1] + vals[2];
