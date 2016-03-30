@@ -17,7 +17,11 @@ class AngleHarmonic : public Angle {
     public:
         double thetaEq;
         double k;
-        AngleHarmonic(Atom *a, Atom *b, Atom *c, double k_, double thetaEq_);
+        int type;
+        AngleHarmonic(Atom *a, Atom *b, Atom *c, double k_, double thetaEq_, int type_=1);
+        AngleHarmonic(double k_, double thetaEq_, int type_=-1);
+        AngleHarmonic(){};
+        void takeValues(AngleHarmonic &);
     
 };
 

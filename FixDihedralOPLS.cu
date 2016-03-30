@@ -236,9 +236,14 @@ void FixDihedralOPLS::compute(bool computeVirials) {
 }
 
 
-void FixDihedralOPLS::createDihedral(Atom *a, Atom *b, Atom *c, Atom *d, double v1, double v2, double v3, double v4) {
+void FixDihedralOPLS::createDihedral(Atom *a, Atom *b, Atom *c, Atom *d, double v1, double v2, double v3, double v4, int type) {
     double vs[4] = {v1, v2, v3, v4};
-    forcers.push_back(DihedralOPLS(a, b, c, d, vs));
+    if (type!=-1) {
+        for (int i=0; i<4; i++) {
+            assert(vs[i] != -1);
+        }
+    }
+    forcers.push_back(DihedralOPLS(a, b, c, d, vs, type));
     std::array<int, 4> ids = {a->id, b->id, c->id, d->id};
     forcerAtomIds.push_back(ids);
 }

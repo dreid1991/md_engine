@@ -23,7 +23,6 @@ class Bond {
 			Atom *a = atoms[x];
 			return a->id;
 		}
-        Vector vectorFrom(Atom *, Vector &);
 		bool hasAtom(Atom *);
 		Atom *other(const Atom *) const;
         Atom getAtom(int i);
@@ -35,13 +34,27 @@ class BondHarmonic : public Bond {
         //offset is how you have to offset the second atom to be in the same periodic cell as the first
 		double k;
 		double rEq;
+        int type;
 		BondHarmonic (){};
-		BondHarmonic (Atom *a, Atom *b, double k_, double rEq_) {
+		BondHarmonic (double k_, double rEq_, int type_=-1) {
+            atoms[0] = (Atom *) NULL;
+            atoms[1] = (Atom *) NULL;
+			k=k_;
+			rEq=rEq_;
+            type=type_;
+        }
+		BondHarmonic (Atom *a, Atom *b, double k_, double rEq_, int type_=-1) {
 			atoms[0]=a;
 			atoms[1]=b;
 			k=k_;
 			rEq=rEq_;
+            type=type_;
+
 		}
+        void takeValues(BondHarmonic &b) {
+            k = b.k;
+            rEq = b.rEq;
+        }
 
 		//Vector vectorFrom(Atom *);
 

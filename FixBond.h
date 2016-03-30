@@ -3,6 +3,7 @@
 #include "Bond.h"
 
 #include "helpers.h" //cumulative sum
+#include <unordered_map>
 
 template <class SRC, class DEST>
 int copyBondsToGPU(vector<Atom> &atoms, vector<BondVariant> &src, GPUArrayDevice<DEST> *dest, GPUArrayDevice<int> *destIdxs) {
@@ -49,25 +50,34 @@ int copyBondsToGPU(vector<Atom> &atoms, vector<BondVariant> &src, GPUArrayDevice
 
 
 
-template <class CPUType, class GPUType>
+template <class CPUMember, class GPUMember>
 class FixBond : public Fix {
     public:
         vector<int2> bondAtomIds;
-        GPUArrayDevice<GPUType> bondsGPU;
+        GPUArrayDevice<GPUMember> bondsGPU;
         GPUArrayDevice<int> bondIdxs;
         vector<BondVariant> bonds;
         int maxBondsPerBlock;
+        std::unordered_map<int, CPUMember> forcerTypes;
         FixBond(SHARED(State) state_, string handle_, string groupHandle_, string type_, int applyEvery_) : Fix(state_, handle_, groupHandle_, type_, applyEvery_) {
             forceSingle = true;
             maxBondsPerBlock = 0;
         }
+        void setForcerType(int n, CPUMember &forcer) {
+            if (n<0) {
+                cout << "Tried to set bonded potential for invalid type " << n << endl;
+                assert(n>=0);
+            }
+            forcerTypes[n] = forcer;
+        }
+
         bool refreshAtoms() {
             vector<int> idxFromIdCache = state->idxFromIdCache;
             vector<Atom> &atoms = state->atoms;
             for (int i=0; i<bondAtomIds.size(); i++) {
                 int2 ids = bondAtomIds[i];
-                get<CPUType>(bonds[i]).atoms[0] = &atoms[idxFromIdCache[ids.x]];//state->atomFromId(ids.x);
-                get<CPUType>(bonds[i]).atoms[1] = &atoms[idxFromIdCache[ids.y]];//state->atomFromId(ids.y);
+                get<CPUMember>(bonds[i]).atoms[0] = &atoms[idxFromIdCache[ids.x]];//state->atomFromId(ids.x);
+                get<CPUMember>(bonds[i]).atoms[1] = &atoms[idxFromIdCache[ids.y]];//state->atomFromId(ids.y);
             }
             return bondAtomIds.size() == bonds.size();
         }
@@ -75,7 +85,7 @@ class FixBond : public Fix {
         bool prepareForRun() {
             vector<Atom> &atoms = state->atoms;
             refreshAtoms();
-            maxBondsPerBlock = copyBondsToGPU<CPUType, GPUType>(atoms, bonds, &bondsGPU, &bondIdxs);
+            maxBondsPerBlock = copyBondsToGPU<CPUMember, GPUMember>(atoms, bonds, &bondsGPU, &bondIdxs);
 
             return true;
 

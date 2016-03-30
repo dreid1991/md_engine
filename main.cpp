@@ -335,8 +335,8 @@ void testBondHarmonic() {
     SHARED(FixBondHarmonic) bond (new FixBondHarmonic(state, "bondh"));
 
     state->activateFix(bond);
-    bond->createBond(&state->atoms[0], &state->atoms[1], 1, 2);
-    bond->createBond(&state->atoms[1], &state->atoms[2], 1, 2);
+    bond->createBond(&state->atoms[0], &state->atoms[1], 1, 2, -1);
+    bond->createBond(&state->atoms[1], &state->atoms[2], 1, 2, -1);
     cout << "req" << endl;
     cout << bond->getBond(0).rEq << endl;
     cout << bond->getBond(1).rEq << endl;
@@ -377,10 +377,10 @@ void testBondHarmonicGrid() {
     for (int i=0; i<n; i++) {
         for (int j=0; j<n; j++) {
             if (i<n-1) {
-                bond->createBond(&state->atoms[(i+1)*n+j], &state->atoms[i*n+j], 1, rEq);
+                bond->createBond(&state->atoms[(i+1)*n+j], &state->atoms[i*n+j], 1, rEq, -1);
             }
             if (j<n-1) {
-                bond->createBond(&state->atoms[i*n+j+1], &state->atoms[i*n+j], 1, rEq);
+                bond->createBond(&state->atoms[i*n+j+1], &state->atoms[i*n+j], 1, rEq, -1);
             }
             
         }
@@ -463,10 +463,10 @@ void testBondHarmonicGridToGPU() {
     state->addAtom("handle", Vector(4, 1, 0), 0);
     state->addAtom("handle", Vector(4.1, 1, 0), 0);
 //    state->addAtom("handle", Vector(4, 1, 0), 0);
-    bond->createBond(&state->atoms[0], &state->atoms[1], 1, 1);
-    bond->createBond(&state->atoms[2], &state->atoms[1], 1, 1);
-    bond->createBond(&state->atoms[2], &state->atoms[3], 1, 1);
-    bond->createBond(&state->atoms[4], &state->atoms[3], 1, 1);
+    bond->createBond(&state->atoms[0], &state->atoms[1], 1, 1, -1);
+    bond->createBond(&state->atoms[2], &state->atoms[1], 1, 1, -1);
+    bond->createBond(&state->atoms[2], &state->atoms[3], 1, 1, -1);
+    bond->createBond(&state->atoms[4], &state->atoms[3], 1, 1, -1);
     //bond->createBond(&state->atoms[4], &state->atoms[0], 1, 1);
   //  bond->createBond(&state->atoms[2], &state->atoms[3], 1, 1);
     state->periodicInterval = 9;

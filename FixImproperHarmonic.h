@@ -9,8 +9,9 @@ class FixImproperHarmonic: public FixPotentialMultiAtom<ImproperHarmonic, Improp
 		void compute(bool);
 		//DataSet *eng;
 		//DataSet *press;
-        void createImproper(Atom *, Atom *, Atom *, Atom *, double, double);
+        void createImproper(Atom *, Atom *, Atom *, Atom *, double, double, int);
         //vector<pair<int, vector<int> > > neighborlistExclusions();
+        void setImproperTypeCoefs(int, double, double);
         string restartChunk(string format);
 
 

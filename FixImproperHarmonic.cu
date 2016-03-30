@@ -170,11 +170,17 @@ void FixImproperHarmonic::compute(bool computeVirials) {
 }
 
 
-void FixImproperHarmonic::createImproper(Atom *a, Atom *b, Atom *c, Atom *d, double k, double thetaEq) {
-    forcers.push_back(ImproperHarmonic(a, b, c, d, k, thetaEq));
+void FixImproperHarmonic::createImproper(Atom *a, Atom *b, Atom *c, Atom *d, double k, double thetaEq, int type) {
+    forcers.push_back(ImproperHarmonic(a, b, c, d, k, thetaEq, type));
     std::array<int, 4> ids = {a->id, b->id, c->id, d->id};
     forcerAtomIds.push_back(ids);
 }
+void FixImproperHarmonic::setImproperTypeCoefs(int type, double k, double rEq) {
+    assert(rEq>=0);
+    ImproperHarmonic dummy(k, rEq, type);
+    setForcerType(type, dummy);
+}
+
 
 
 

@@ -11,7 +11,8 @@ class FixAngleHarmonic : public FixPotentialMultiAtom<AngleHarmonic, AngleHarmon
 		void compute(bool);
 		//DataSet *eng;
 		//DataSet *press;
-        void createAngle(Atom *, Atom *, Atom *, float, float);
+        void createAngle(Atom *, Atom *, Atom *, double, double, int type_);
+        void setAngleTypeCoefs(int, double, double);
         string restartChunk(string format);
 
 

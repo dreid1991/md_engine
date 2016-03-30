@@ -10,7 +10,7 @@ class FixDihedralOPLS : public FixPotentialMultiAtom<DihedralOPLS, DihedralOPLSG
 		void compute(bool);
 		//DataSet *eng;
 		//DataSet *press;
-        void createDihedral(Atom *, Atom *, Atom *, Atom *, double, double, double, double);
+        void createDihedral(Atom *, Atom *, Atom *, Atom *, double, double, double, double, int);
         //vector<pair<int, vector<int> > > neighborlistExclusions();
         string restartChunk(string format);
 
