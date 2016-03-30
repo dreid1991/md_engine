@@ -45,7 +45,7 @@ public:
      * \param z Third element as double
      *
      */
-    VectorGeneric<T> (T x, T y, T z) {
+    VectorGeneric<T> (const T &x, const T &y, const T &z) {
         vals[0] = x;
         vals[1] = y;
         vals[2] = z;
@@ -97,7 +97,7 @@ public:
      * The first three entries correspond to the vector elements, the forth
      * entry will be set to zero.
      */
-    float4 asFloat4() {
+    float4 asFloat4() const {
         return make_float4(vals[0], vals[1], vals[2], 0);
     }
 
@@ -106,17 +106,17 @@ public:
      * The first three entries correspond to the vector elements, the forth
      * entry will be set to zero.
      */
-    int4 asInt4() {
+    int4 asInt4() const {
         return make_int4(vals[0], vals[1], vals[2], 0);
     }
 
     /*! \brief Convert vector to float3 */
-    float3 asFloat3() {
+    float3 asFloat3() const {
         return make_float3(vals[0], vals[1], vals[2]);
     }
 
     /*! \brief Convert vector to int3 */
-    int3 asInt3() {
+    int3 asInt3() const {
         return make_int3(vals[0], vals[1], vals[2]);
     }
 
@@ -164,23 +164,24 @@ public:
      * \todo This is essentially (v - *this). Do we really need this function?
      */
     template<typename U>
-    auto VTo(const VectorGeneric<U> &v) -> VectorGeneric< decltype(v[0]-vals[0]) > {
+    auto VTo(const VectorGeneric<U> &v) const
+                                -> VectorGeneric< decltype(v[0]-vals[0]) > {
         return VectorGeneric< decltype(v[0] - vals[0]) >(
                             v[0] - vals[0], v[1] - vals[1], v[2] - vals[2]);
     }
 
     /*! \brief Sum of all entries */
-    T sum() {
+    T sum() const {
         return vals[0] + vals[1] + vals[2];
     }
 
     /*! \brief Product of all entries */
-    T prod() {
+    T prod() const {
         return vals[0] * vals[1] * vals[2];
     }
 
     /*! \brief Operator accessing vector elements */
-    T &operator[]( int n ){
+    T &operator[]( int n ) {
         return vals[n];
     }
 
@@ -193,18 +194,18 @@ public:
      *
      * \returns A new vector with the transformed elements.
      */
-    VectorGeneric<T> abs() {
+    VectorGeneric<T> abs() const {
         return VectorGeneric<T>(std::abs(vals[0]), std::abs(vals[1]), std::abs(vals[2]));
     }
 
     /*! \brief Unary minus operator */
-    VectorGeneric<T> operator-()const{
+    VectorGeneric<T> operator-() const {
         return VectorGeneric<T>(-vals[0], -vals[1], -vals[2]);
     }
 
     /*! \brief Multiplication with generic type */
     template<typename U>
-    auto operator*( U scale ) const -> VectorGeneric< decltype(vals[0]*scale) > {
+    auto operator*( const U &scale ) const -> VectorGeneric< decltype(vals[0]*scale) > {
         return VectorGeneric< decltype(vals[0]*scale) >( vals[0]*scale,vals[1]*scale,vals[2]*scale );
     }
 
@@ -216,7 +217,7 @@ public:
 
     /*! \brief Division with int operator */
     template<typename U>
-    auto operator/( U scale ) const -> VectorGeneric< decltype(vals[0]/scale) > {
+    auto operator/( const U &scale ) const -> VectorGeneric< decltype(vals[0]/scale) > {
         return VectorGeneric< decltype(vals[0]/scale) >( vals[0]/scale,vals[1]/scale,vals[2]/scale );
     }
 
@@ -252,7 +253,7 @@ public:
 
     /*! \brief Multiplication-assignment operator with int */
     template<typename U>
-    VectorGeneric<T> &operator*=( U scale ){
+    const VectorGeneric<T> &operator*=( const U &scale ){
         vals[0]*=scale;vals[1]*=scale;vals[2]*=scale;return *this; // *=, /=, etc won't promote types like binary operations
     }
 
@@ -261,13 +262,13 @@ public:
      * Performs element-wise multiplication.
      */
     template<typename U>
-    VectorGeneric<T> &operator*=( const VectorGeneric<U> &q ){
+    const VectorGeneric<T> &operator*=( const VectorGeneric<U> &q ){
         vals[0]*=q[0];vals[1]*=q[1];vals[2]*=q[2];return *this;
     }
 
     /*! \brief Division-assignment operator with int */
     template<typename U>
-    VectorGeneric<T> &operator/=( U scale ){
+    const VectorGeneric<T> &operator/=( const U &scale ){
         vals[0]/=scale;vals[1]/=scale;vals[2]/=scale;return *this;
     }
 
@@ -276,19 +277,19 @@ public:
      * Performs element-wise division.
      */
     template<typename U>
-    VectorGeneric<T> &operator/=( const VectorGeneric<U> &q ){
+    const VectorGeneric<T> &operator/=( const VectorGeneric<U> &q ){
         vals[0]/=q[0];vals[1]/=q[1];vals[2]/=q[2];return *this;
     }
 
     /*! \brief Addition-assignment operator */
     template<typename U>
-    VectorGeneric<T> &operator+=( const VectorGeneric<U> &q ){
+    const VectorGeneric<T> &operator+=( const VectorGeneric<U> &q ){
         vals[0]+=q[0];vals[1]+=q[1];vals[2]+=q[2];return *this;
     }
 
     /*! \brief Subtraction-assigment operator */
     template<typename U>
-    VectorGeneric<T> &operator-=( const VectorGeneric<U> &q ){
+    const VectorGeneric<T> &operator-=( const VectorGeneric<U> &q ){
         vals[0]-=q[0];vals[1]-=q[1];vals[2]-=q[2];return *this;
     }
 
@@ -358,7 +359,7 @@ public:
 
     /*! \brief Squared distance between two points */
     template<typename U>
-    auto distSqr( const VectorGeneric<U> &q) -> decltype((vals[0]-q[0])*(vals[0]-q[0])) {
+    auto distSqr( const VectorGeneric<U> &q) const -> decltype((vals[0]-q[0])*(vals[0]-q[0])) {
         auto dx=vals[0]-q[0];
         auto dy=vals[1]-q[1];
         auto dz=vals[2]-q[2];
@@ -377,7 +378,7 @@ public:
     }
 
     /*! \brief Mirror vector along y direction */
-    VectorGeneric<T> perp2d() {
+    VectorGeneric<T> perp2d() const {
         return VectorGeneric<T>(vals[1], -vals[0], vals[2]);
     }
 
@@ -389,12 +390,12 @@ public:
     }
 
     /*! \brief Get a specific element */
-    T get(int i) {
+    T get(int i) const {
         return vals[i];
     }
 
     /*! \brief Set a specific element */
-    void set(int i, T val) {
+    void set(int i, const T &val) {
         vals[i] = val;
     }
 
@@ -403,7 +404,7 @@ public:
      * \todo Someone explain to me what this function does? And write this
      *       documentation please.
      */
-    VectorGeneric<T> loopedVTo(const VectorGeneric<T> &other, const VectorGeneric<T> &trace) {
+    VectorGeneric<T> loopedVTo(const VectorGeneric<T> &other, const VectorGeneric<T> &trace) const {
         VectorGeneric<T> dist = other - *this;
         VectorGeneric<T> halfTrace = trace/ (T) 2.0;
         for (int i=0; i<3; i++) {
