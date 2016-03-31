@@ -59,13 +59,17 @@ bool State::atomInGroup(Atom &a, string handle) {
     return a.groupTag & tag;
 }
 
-bool State::addAtom(string handle, Vector pos, double q) {
+int State::addAtom(string handle, Vector pos, double q) {
 	vector<string> &handles = atomParams.handles;
 	auto it = find(handles.begin(), handles.end(), handle);
 	assert(it != handles.end());
 	int idx = it - handles.begin();//okay, so index in handles is type
 	Atom a(pos, idx, -1, atomParams.masses[idx], q);
-	return addAtomDirect(a);
+    bool added = addAtomDirect(a);
+    if (added) {
+        return atoms.back().id;
+    } 
+    return -1;
 }
 
 bool State::addAtomDirect(Atom a) {

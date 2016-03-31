@@ -102,7 +102,7 @@ class State {
 		bool destroyGroup(string);
 		bool createGroup(string, boost::python::list atoms=boost::python::list());
 		uint32_t groupTagFromHandle(string handle); 
-		bool addAtom(string handle, Vector pos, double q);
+		int addAtom(string handle, Vector pos, double q);
 		bool addAtomDirect(Atom);
 		bool removeAtom(Atom *);
 

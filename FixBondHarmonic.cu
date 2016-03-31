@@ -118,7 +118,7 @@ string FixBondHarmonic::restartChunk(string format) {
 
 void export_FixBondHarmonic() {
     class_<FixBondHarmonic, SHARED(FixBondHarmonic), bases<Fix> > ("FixBondHarmonic", init<SHARED(State), string> (args("state", "handle")))
-        .def("createBond", &FixBondHarmonic::createBond, (python::arg("k")=0, python::arg("rEq")=0, python::arg("type")=-1))
+        .def("createBond", &FixBondHarmonic::createBond, (python::arg("k")=-1, python::arg("rEq")=-1, python::arg("type")=-1))
         .def("setBondTypeCoefs", &FixBondHarmonic::setBondTypeCoefs, (python::arg("type"), python::arg("k"), python::arg("rEq")))
         ;
 

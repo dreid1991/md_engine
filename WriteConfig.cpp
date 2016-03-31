@@ -132,7 +132,7 @@ void writeXYZFile(State *state, string fn, int64_t turn, bool oneFilePerWrite) {
     } else {
         outFile.open(fn.c_str(), ofstream::app);
     }
-    outFile << atoms.size() << endl << endl;
+    outFile << atoms.size() << endl;
     for (Atom &a : atoms) {
         int atomicNum;
         if (useAtomicNums) {
@@ -140,7 +140,7 @@ void writeXYZFile(State *state, string fn, int64_t turn, bool oneFilePerWrite) {
         } else {
             atomicNum = a.type;
         }
-        outFile << atomicNum << " " << a.pos[0] << " " << a.pos[1] << " " << a.pos[2] << endl;
+        outFile << endl << atomicNum << " " << a.pos[0] << " " << a.pos[1] << " " << a.pos[2];
     }
     outFile << endl;
     outFile.close();

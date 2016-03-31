@@ -85,6 +85,17 @@ class FixBond : public Fix {
         bool prepareForRun() {
             vector<Atom> &atoms = state->atoms;
             refreshAtoms();
+            for (BondVariant &bondVar: bonds) { //applying types to individual elements
+                CPUMember &bond = boost::get<CPUMember>(bondVar);
+                if (bond.type != -1) {
+                    auto it = forcerTypes.find(bond.type);
+                    if (it == forcerTypes.end()) {
+                        cout << "Invalid bonded potential type " << bond.type << endl;
+                        assert(it != forcerTypes.end());
+                    }
+                    bond.takeValues(it->second); 
+                }
+            }
             maxBondsPerBlock = copyBondsToGPU<CPUMember, GPUMember>(atoms, bonds, &bondsGPU, &bondIdxs);
 
             return true;
