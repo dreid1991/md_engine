@@ -50,10 +50,14 @@ class Bounds : public BoundsGeneric {
 			return *this;
 		}
         bool operator==(const Bounds &other) {
-            return lo==other.lo and hi==other.hi and sides[0]==other.sides[0] and sides[1]==other.sides[1] and sides[2]==other.sides[2];
+            return ((lo-other.lo).abs() < VectorEps) &&
+                   ((hi-other.hi).abs() < VectorEps) &&
+                   ((sides[0]-other.sides[0]).abs() < VectorEps) &&
+                   ((sides[1]-other.sides[1]).abs() < VectorEps) &&
+                   ((sides[2]-other.sides[2]).abs() < VectorEps);
         }
         bool operator!=(const Bounds &other) {
-            return not(lo==other.lo and hi==other.hi and sides[0]==other.sides[0] and sides[1]==other.sides[1] and sides[2]==other.sides[2]);
+            return !(*this == other);
         }
         void set(BoundsGPU &b) {
             lo = Vector(b.lo);

@@ -5,6 +5,8 @@
 #include <string>
 #include <iostream>
 
+#define EPSILON 0.00001f
+
 class BoundsGeneric {
 	public:
 		Vector lo;

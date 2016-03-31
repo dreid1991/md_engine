@@ -2,6 +2,9 @@
 #include "FixDihedralOPLS.h"
 #include "FixHelpers.h"
 #include "cutils_func.h"
+
+#define EPSILON 0.00001f
+
 __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureObject_t idToIdxs, DihedralOPLSGPU *dihedrals, int *startstops, BoundsGPU bounds) {
     int idx = GETIDX();
     extern __shared__ DihedralOPLSGPU dihedrals_shr[];

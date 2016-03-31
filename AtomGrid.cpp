@@ -58,7 +58,7 @@ bool AtomGrid::adjustForChangedBounds() {
             for (int i=0; i<3; i++) {
                 lo += b.sides[i];
             }
-            return lo==b.hi;
+            return (lo - b.hi).abs() < VectorEps;
         } 
         return true; //if not skewed, just go with lo, hi
          
@@ -66,11 +66,13 @@ bool AtomGrid::adjustForChangedBounds() {
     if (state->bounds != boundsOnGridding) {
         bool toReturn = true;
         Vector changeInTrace = (state->bounds.hi-state->bounds.lo) - (boundsOnGridding.hi-boundsOnGridding.lo);
-        if (state->bounds.lo > boundsOnGridding.lo) {
+        if ((state->bounds.lo-boundsOnGridding.lo).abs() > VectorEps &&
+             state->bounds.lo > boundsOnGridding.lo) {
             cout << "Warning - you shrank the lo vector of bounds in at least one dimension.  Gridding may fail" << endl;
             toReturn = false;
         }
-        if (state->bounds.hi < boundsOnGridding.hi) {
+        if ((state->bounds.hi-boundsOnGridding.hi).abs() > VectorEps &&
+             state->bounds.hi < boundsOnGridding.hi) {
             cout << "Warning - you shrank the hi vector of bounds in at least one dimension.  Gridding may fail" << endl;
             toReturn = false;
         }
@@ -340,7 +342,7 @@ void AtomGrid::resizeToStateBounds(bool scaleAtomCoords) {
 	}
 	os = boundsNew.lo;
 	ds = dsProposed;
-	if (ns != nsNew) {
+	if ((ns-nsNew).abs() > VectorEps) {
         //this should work with skew, since it doesn't force reneighboring
 		ns = nsNew;
 		fillVals();
