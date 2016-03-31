@@ -84,12 +84,15 @@ public:
         vals[2] = other.z;
     }
 
-    /*! \brief Copy constructor */
+    /*! \brief Conversion operator
+     *
+     * Used to convert VectorGeneric<T> into VectorGeneric<U> as in
+     * VectorInt = Vector or, more explicit v2 = (VectorInt)v1; The conversion
+     * is done by converting each of the three vector elements.
+     */
     template<typename U>
-    VectorGeneric<T> (const VectorGeneric<U> &other) {
-        for (int i=0; i<3; i++) {
-            vals[i] = other[i];
-        }
+    operator VectorGeneric<U> () {
+        return VectorGeneric<U>( (U)vals[0], (U)vals[1], (U)vals[2] );
     }
 
     /*! \brief Convert vector to float4
@@ -173,43 +176,55 @@ public:
     /*! \brief Multiplication with generic type */
     template<typename U>
     auto operator*( const U &scale ) const -> VectorGeneric< decltype(vals[0]*scale) > {
-        return VectorGeneric< decltype(vals[0]*scale) >( vals[0]*scale,vals[1]*scale,vals[2]*scale );
+        VectorGeneric< decltype(vals[0]*scale) > newVec(*this);
+        newVec *= scale;
+        return newVec;
     }
 
     /*! \brief Element-wise multiplication with other vector */
     template<typename U>
     auto operator*( const VectorGeneric<U> &q ) const -> VectorGeneric< decltype(vals[0]*q[0]) > {
-        return VectorGeneric< decltype(vals[0]*q[0]) >( vals[0]*q[0],vals[1]*q[1],vals[2]*q[2]);
+        VectorGeneric< decltype(vals[0]*q[0]) > newVec(*this);
+        newVec *= q;
+        return newVec;
     }
 
     /*! \brief Division with generic type */
     template<typename U>
     auto operator/( const U &scale ) const -> VectorGeneric< decltype(vals[0]/scale) > {
-        return VectorGeneric< decltype(vals[0]/scale) >( vals[0]/scale,vals[1]/scale,vals[2]/scale );
+        VectorGeneric< decltype(vals[0]/scale) > newVec(*this);
+        newVec /= scale;
+        return newVec;
     }
 
     /*! \brief Element-wise division with other vector */
     template<typename U>
     auto operator/( const VectorGeneric<U> &q ) const -> VectorGeneric< decltype(vals[0]/q[0]) > {
-        return VectorGeneric< decltype(vals[0]/q[0]) >( vals[0]/q[0],vals[1]/q[1],vals[2]/q[2] );
+        VectorGeneric< decltype(vals[0]/q[0]) > newVec(*this);
+        newVec /= q;
+        return newVec;
     }
 
     /*! \brief Addition of two vectors */
     template<typename U>
     auto operator+( const VectorGeneric<U> &q ) const -> VectorGeneric< decltype(vals[0]+q[0]) > {
-        return VectorGeneric< decltype(vals[0]+q[0]) >( vals[0]+q[0],vals[1]+q[1],vals[2]+q[2] );
+        VectorGeneric< decltype(vals[0]+q[0]) > newVec(*this);
+        newVec += q;
+        return newVec;
     }
 
     /*! \brief Subtraction of two vectors */
     template<typename U>
     auto operator-( const VectorGeneric<U> &q ) const -> VectorGeneric< decltype(vals[0]-q[0]) > {
-        return VectorGeneric< decltype(vals[0]-q[0]) >( vals[0]-q[0],vals[1]-q[1],vals[2]-q[2] );
+        VectorGeneric< decltype(vals[0]-q[0]) > newVec(*this);
+        newVec -= q;
+        return newVec;
     }
 
     /*! \brief Multiplication-assignment operator with int */
     template<typename U>
     const VectorGeneric<T> &operator*=( const U &scale ){
-        vals[0]*=scale;vals[1]*=scale;vals[2]*=scale;return *this; // *=, /=, etc won't promote types like binary operations
+        vals[0]*=scale;vals[1]*=scale;vals[2]*=scale;return *this;
     }
 
     /*! \brief Multiplication-assignment operator with other vector
