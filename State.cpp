@@ -43,8 +43,8 @@ State::State() {
     computeVirials = false; //will be set to true if a fix need it (like barostat) during run setup
 	dataManager = DataManager(this);
     specialNeighborCoefs[0] = 0;
-    specialNeighborCoefs[0] = 0;
-    specialNeighborCoefs[0] = 0.5;
+    specialNeighborCoefs[1] = 0;
+    specialNeighborCoefs[2] = 0.5;
     rng_is_seeded = false;
 }
 
