@@ -3,10 +3,12 @@
 #include "Atom.h"
 
 #include "cutils_math.h"
+#include <boost/variant.hpp>
 
 class Improper {
     public:
         Atom *atoms[4];
+        int type;
 };
 
 
@@ -15,7 +17,6 @@ class ImproperHarmonic : public Improper {
     public:
         double k;
         double thetaEq;
-        int type;
         ImproperHarmonic(Atom *a, Atom *b, Atom *c, Atom *d, double k, double thetaEq, int type_=-1);
         ImproperHarmonic(double k, double thetaEq, int type_=-1);
         ImproperHarmonic(){};
@@ -34,3 +35,7 @@ class ImproperHarmonicGPU {
 
 
 };
+typedef boost::variant<
+	ImproperHarmonic, 
+    Improper	
+> ImproperVariant;

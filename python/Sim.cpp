@@ -42,6 +42,9 @@ BOOST_PYTHON_MODULE(Sim) {
     export_IntegraterRelax();
     export_Fix();
     export_FixBondHarmonic();
+    export_FixAngleHarmonic();
+    export_FixImproperHarmonic();
+    export_FixDihedralOPLS();
     export_FixWallHarmonic();
     export_FixSpringStatic();
     export_FixLJCut(); //make there be a pair base class in boost!

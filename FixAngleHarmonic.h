@@ -2,10 +2,9 @@
 #define FIXANGLEHARMONIC_H
 #include "FixPotentialMultiAtom.h"
 #include "Angle.h"
-#include "FixHelpers.h"
 
 void export_FixAngleHarmonic();
-class FixAngleHarmonic : public FixPotentialMultiAtom<AngleHarmonic, AngleHarmonicGPU, 3> {
+class FixAngleHarmonic : public FixPotentialMultiAtom<AngleVariant, AngleHarmonic, AngleHarmonicGPU, 3> {
 	public:
         FixAngleHarmonic(SHARED(State) state_, string handle);
 		void compute(bool);

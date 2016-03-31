@@ -7,9 +7,12 @@
 #include "Fix.h"
 #include <unordered_map>
 #include "helpers.h"
+#include <boost/variant.hpp>
+#include <climits>
+#define COEF_DEFAULT INT_MAX //invaled coef value
 //#include "FixHelpers.h"
 //FixDihedralOPLS::FixDihedralOPLS(SHARED(State) state_, string handle) : Fix(state_, handle, string("None"), dihedralOPLSType, 1), dihedralsGPU(1), dihedralIdxs(1)  {
-template <class CPUMember, class GPUMember, int N>
+template <class CPUVariant, class CPUMember, class GPUMember, int N>
 class FixPotentialMultiAtom : public Fix {
 	public:
         FixPotentialMultiAtom (SHARED(State) state_, std::string handle_, std::string type_) : Fix(state_, handle_, "None", type_, 1), forcersGPU(1), forcerIdxs(1) {
@@ -17,7 +20,7 @@ class FixPotentialMultiAtom : public Fix {
             maxForcersPerBlock = 0;
         }
         std::vector<std::array<int, N> > forcerAtomIds;
-        std::vector<CPUMember> forcers;
+        std::vector<CPUVariant> forcers;
         std::unordered_map<int, CPUMember> forcerTypes;
         GPUArrayDevice<GPUMember> forcersGPU;
         GPUArrayDevice<int> forcerIdxs;
@@ -26,7 +29,8 @@ class FixPotentialMultiAtom : public Fix {
         bool prepareForRun() {
             std::vector<Atom> &atoms = state->atoms;
             refreshAtoms();
-            for (CPUMember &forcer : forcers) { //applying types to individual elements
+            for (CPUVariant &forcerVar : forcers) { //applying types to individual elements
+                CPUMember &forcer= boost::get<CPUMember>(forcerVar);
                 if (forcer.type != -1) {
                     auto it = forcerTypes.find(forcer.type);
                     if (it == forcerTypes.end()) {
@@ -36,7 +40,7 @@ class FixPotentialMultiAtom : public Fix {
                     forcer.takeValues(it->second); 
                 }
             }
-            maxForcersPerBlock = copyMultiAtomToGPU<CPUMember, GPUMember, N>(atoms, forcers, &forcersGPU, &forcerIdxs);
+            maxForcersPerBlock = copyMultiAtomToGPU<CPUVariant, CPUMember, GPUMember, N>(atoms, forcers, &forcersGPU, &forcerIdxs);
 
             return true;
         }
@@ -62,9 +66,10 @@ class FixPotentialMultiAtom : public Fix {
             std::vector<int> idxFromIdCache = state->idxFromIdCache;
             std::vector<Atom> &atoms = state->atoms;
             for (int i=0; i<forcerAtomIds.size(); i++) {
+                CPUMember &forcer = boost::get<CPUMember>(forcers[i]);
                 std::array<int, N> &ids = forcerAtomIds[i];
                 for (int j=0; j<N; j++) {
-                    forcers[i].atoms[j] = &atoms[idxFromIdCache[ids[j]]];
+                    forcer.atoms[j] = &atoms[idxFromIdCache[ids[j]]];
                 }
             }
             return forcerAtomIds.size() == forcers.size();

@@ -171,13 +171,18 @@ void FixImproperHarmonic::compute(bool computeVirials) {
 
 
 void FixImproperHarmonic::createImproper(Atom *a, Atom *b, Atom *c, Atom *d, double k, double thetaEq, int type) {
-    forcers.push_back(ImproperHarmonic(a, b, c, d, k, thetaEq, type));
+    vector<Atom *> atoms = {a, b, c, d};
+    validAtoms(atoms);
+    if (type == -1) {
+        assert(k!=COEF_DEFAULT and thetaEq!=COEF_DEFAULT);
+    }
     std::array<int, 4> ids = {a->id, b->id, c->id, d->id};
     forcerAtomIds.push_back(ids);
+    forcers.push_back(ImproperHarmonic(a, b, c, d, k, thetaEq, type));
 }
-void FixImproperHarmonic::setImproperTypeCoefs(int type, double k, double rEq) {
-    assert(rEq>=0);
-    ImproperHarmonic dummy(k, rEq, type);
+void FixImproperHarmonic::setImproperTypeCoefs(int type, double k, double thetaEq) {
+    assert(thetaEq>=0);
+    ImproperHarmonic dummy(k, thetaEq, type);
     setForcerType(type, dummy);
 }
 
@@ -192,7 +197,8 @@ string FixImproperHarmonic::restartChunk(string format) {
 
 void export_FixImproperHarmonic() {
     class_<FixImproperHarmonic, SHARED(FixImproperHarmonic), bases<Fix> > ("FixImproperHarmonic", init<SHARED(State), string> (args("state", "handle")))
-        .def("createImproper", &FixImproperHarmonic::createImproper)
+        .def("createImproper", &FixImproperHarmonic::createImproper, (python::arg("k")=COEF_DEFAULT, python::arg("thetaEq")=COEF_DEFAULT, python::arg("type")=-1))
+        .def("setImproperTypeCoefs", &FixImproperHarmonic::setImproperTypeCoefs, (python::arg("k")=COEF_DEFAULT, python::arg("thetaEq")=COEF_DEFAULT, python::arg("type")=COEF_DEFAULT))
         ;
 
 }

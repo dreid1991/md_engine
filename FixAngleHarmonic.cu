@@ -1,7 +1,9 @@
 
+#include "FixHelpers.h"
 #include "helpers.h"
 #include "FixAngleHarmonic.h"
 #include "cutils_func.h"
+#define SMALL 0.0001f
 __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureObject_t idToIdxs, AngleHarmonicGPU *angles, int *startstops, BoundsGPU bounds) {
     int idx = GETIDX();
     extern __shared__ AngleHarmonicGPU angles_shr[];
@@ -25,6 +27,7 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
             //float3 pos = make_float3(float4FromIndex(xs, idxSelf));
             float3 forceSum = make_float3(0, 0, 0);
             for (int i=0; i<n; i++) {
+             //   printf("ANGLE! %d\n", i);
                 AngleHarmonicGPU angle = angles_shr[shr_idx + i];
                 float3 positions[3];
                 positions[angle.myIdx] = pos;
@@ -48,6 +51,8 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
                 float3 directors[2];
                 directors[0] = positions[0] - positions[1];
                 directors[1] = positions[2] - positions[1];
+             //   printf("position Xs %f %f %f\n", positions[0].x, positions[1].x, positions[2].x);
+              //  printf("director Xs %f %f\n", directors[0].x, directors[1].x);
                 float distSqrs[2];
                 float dists[2];
                 for (int i=0; i<2; i++) {
@@ -55,20 +60,29 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
                     dists[i] = sqrtf(distSqrs[i]);
                 }
                 float c = dot(directors[0], directors[1]);
+                printf("prenorm c is %f\n", c);
                 float invDistProd = 1.0f / (dists[0]*dists[1]);
+                printf("inv dist is %f\n", invDistProd);
                 c *= invDistProd;
+                printf("c is %f\n", c);
                 if (c>1) {
                     c=1;
                 } else if (c<-1) {
                     c=-1;
                 }
                 float s = sqrtf(1-c*c);
+                if (s < SMALL) {
+                    s = SMALL;
+                }
+                s = 1.0f / s;
                 float dTheta = acosf(c) - angle.thetaEq;
+                printf("%f %f\n", acosf(c), angle.thetaEq);
                 float forceConst = angle.k * dTheta;
-                float a = -2 * forceConst * s;
+                float a = -2.0f * forceConst * s;
                 float a11 = a*c/distSqrs[0];
                 float a12 = -a*invDistProd;
                 float a22 = a*c/distSqrs[1];
+                printf("forceConst %f a %f s %f dists %f %f %f\n", forceConst, a, s, a11, a12, a22);
 
                 if (angle.myIdx==0) {
                     forceSum += ((directors[0] * a11) + (directors[1] * a12)) * 0.5;
@@ -77,8 +91,12 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
                 } else {
                     forceSum += ((directors[1] * a22) + (directors[0] * a12)) * 0.5;
                 }
+             //   printf("%f %f %f\n", forceSum.x, forceSum.y, forceSum.z);
             }
-            forces[idxSelf] += forceSum;
+            float4 curForce = forces[idxSelf];
+            printf("Final force is %f %f %f\n", forceSum.x, forceSum.y, forceSum.z);
+            curForce += forceSum;
+            forces[idxSelf] = curForce;
         }
     }
 }
@@ -109,7 +127,7 @@ void FixAngleHarmonic::createAngle(Atom *a, Atom *b, Atom *c, double k, double r
     vector<Atom *> atoms = {a, b, c};
     validAtoms(atoms);
     if (type == -1) {
-        assert(k!=-1 and rEq!=-1);
+        assert(k!=COEF_DEFAULT and rEq!=COEF_DEFAULT);
     }
     forcers.push_back(AngleHarmonic(a, b, c, k, rEq, type));
     std::array<int, 3> angleIds = {a->id, b->id, c->id};
@@ -123,7 +141,8 @@ string FixAngleHarmonic::restartChunk(string format) {
 
 void export_FixAngleHarmonic() {
     class_<FixAngleHarmonic, SHARED(FixAngleHarmonic), bases<Fix> > ("FixAngleHarmonic", init<SHARED(State), string> (args("state", "handle")))
-        .def("createAngle", &FixAngleHarmonic::createAngle)
+        .def("createAngle", &FixAngleHarmonic::createAngle, (python::arg("k")=COEF_DEFAULT, python::arg("thetaEq")=COEF_DEFAULT, python::arg("type")=-1))
+        .def("setAngleTypeCoefs", &FixAngleHarmonic::setAngleTypeCoefs, (python::arg("k")=COEF_DEFAULT, python::arg("thetaEq")=COEF_DEFAULT, python::arg("type")=-1))
         ;
 
 }

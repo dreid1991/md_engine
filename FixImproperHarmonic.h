@@ -3,7 +3,7 @@
 #include "Improper.h"
 
 void export_FixImproperHarmonic();
-class FixImproperHarmonic: public FixPotentialMultiAtom<ImproperHarmonic, ImproperHarmonicGPU, 4> {
+class FixImproperHarmonic: public FixPotentialMultiAtom<ImproperVariant, ImproperHarmonic, ImproperHarmonicGPU, 4> {
 	public:
         FixImproperHarmonic(SHARED(State) state_, string handle);
 		void compute(bool);

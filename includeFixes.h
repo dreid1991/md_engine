@@ -1,4 +1,7 @@
 #include "FixBondHarmonic.h"
+#include "FixAngleHarmonic.h"
+#include "FixImproperHarmonic.h"
+#include "FixDihedralOPLS.h"
 #include "FixLJCut.h"
 #include "Fix2d.h"
 #include "Fix.h"

@@ -2,7 +2,7 @@
 #ifndef BOND_H
 #define BOND_H
 
-#include <boost/variant/variant.hpp>
+#include <boost/variant.hpp>
 
 #include "globalDefs.h"
 #include "Atom.h"

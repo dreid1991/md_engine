@@ -4,11 +4,13 @@
 #include "Atom.h"
 
 #include "cutils_math.h"
+#include <boost/variant.hpp>
 
 class Angle {
     public:
         //going to try storing by id instead.  Makes preparing for a run less intensive
         Atom *atoms[3];
+        int type;
 };
 
 
@@ -17,7 +19,6 @@ class AngleHarmonic : public Angle {
     public:
         double thetaEq;
         double k;
-        int type;
         AngleHarmonic(Atom *a, Atom *b, Atom *c, double k_, double thetaEq_, int type_=1);
         AngleHarmonic(double k_, double thetaEq_, int type_=-1);
         AngleHarmonic(){};
@@ -36,5 +37,9 @@ class AngleHarmonicGPU {
 
 
 };
-
+// lets us store a list of vectors to any kind of angles we want
+typedef boost::variant<
+	AngleHarmonic, 
+    Angle	
+> AngleVariant;
 #endif
