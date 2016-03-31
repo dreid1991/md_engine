@@ -84,12 +84,15 @@ public:
         vals[2] = other.z;
     }
 
-    /*! \brief Copy constructor */
+    /*! \brief Conversion operator
+     *
+     * Used to convert VectorGeneric<T> into VectorGeneric<U> as in
+     * VectorInt = Vector or, more explicit v2 = (VectorInt)v1; The conversion
+     * is done by converting each of the three vector elements.
+     */
     template<typename U>
-    VectorGeneric<T> (const VectorGeneric<U> &other) {
-        for (int i=0; i<3; i++) {
-            vals[i] = other[i];
-        }
+    operator VectorGeneric<U> () {
+        return VectorGeneric<U>( (U)vals[0], (U)vals[1], (U)vals[2] );
     }
 
     /*! \brief Convert vector to float4
