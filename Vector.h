@@ -158,24 +158,6 @@ public:
         return VectorGeneric<T>(-vals[0], -vals[1], -vals[2]);
     }
 
-    /*! \brief Multiplication with generic type */
-    template<typename U>
-    auto operator*( const U &scale ) const -> VectorGeneric< decltype(vals[0]*scale) > {
-        return VectorGeneric< decltype(vals[0]*scale) >( vals[0]*scale,vals[1]*scale,vals[2]*scale );
-    }
-
-    /*! \brief Multiplication with other vector operator */
-    template<typename U>
-    auto operator*( const VectorGeneric<U> &q ) const -> VectorGeneric< decltype(vals[0]*q[0]) > {
-        return VectorGeneric< decltype(vals[0]*q[0]) >( vals[0]*q[0],vals[1]*q[1],vals[2]*q[2]);
-    }
-
-    /*! \brief Division with int operator */
-    template<typename U>
-    auto operator/( const U &scale ) const -> VectorGeneric< decltype(vals[0]/scale) > {
-        return VectorGeneric< decltype(vals[0]/scale) >( vals[0]/scale,vals[1]/scale,vals[2]/scale );
-    }
-
     /*! \brief rotation in x-y plane
      *
      * \param rotation Rotation angle
@@ -188,7 +170,25 @@ public:
         return VectorGeneric<num> (c*vals[0] - s*vals[1], s*vals[0] + c*vals[1], vals[2]);
     }
 
-    /*! \brief Element-wise division */
+    /*! \brief Multiplication with generic type */
+    template<typename U>
+    auto operator*( const U &scale ) const -> VectorGeneric< decltype(vals[0]*scale) > {
+        return VectorGeneric< decltype(vals[0]*scale) >( vals[0]*scale,vals[1]*scale,vals[2]*scale );
+    }
+
+    /*! \brief Element-wise multiplication with other vector */
+    template<typename U>
+    auto operator*( const VectorGeneric<U> &q ) const -> VectorGeneric< decltype(vals[0]*q[0]) > {
+        return VectorGeneric< decltype(vals[0]*q[0]) >( vals[0]*q[0],vals[1]*q[1],vals[2]*q[2]);
+    }
+
+    /*! \brief Division with generic type */
+    template<typename U>
+    auto operator/( const U &scale ) const -> VectorGeneric< decltype(vals[0]/scale) > {
+        return VectorGeneric< decltype(vals[0]/scale) >( vals[0]/scale,vals[1]/scale,vals[2]/scale );
+    }
+
+    /*! \brief Element-wise division with other vector */
     template<typename U>
     auto operator/( const VectorGeneric<U> &q ) const -> VectorGeneric< decltype(vals[0]/q[0]) > {
         return VectorGeneric< decltype(vals[0]/q[0]) >( vals[0]/q[0],vals[1]/q[1],vals[2]/q[2] );
@@ -275,7 +275,7 @@ public:
     /*! \brief Non-equal comparison operator */
     template<typename U>
     bool operator!=( const VectorGeneric<U> &q )const{
-        return fabs(vals[0]-q[0])>EPSILON || fabs(vals[1]-q[1])>EPSILON || fabs(vals[2]-q[2])>EPSILON;
+        return !(*this == q);
     }
 
     /*! \brief Dot product with another vector */
@@ -292,12 +292,12 @@ public:
 
     /*! \brief Length of vector */
     auto len() const -> decltype(std::sqrt(vals[0]*vals[0]+vals[1]*vals[1])) {
-        return std::sqrt(vals[0]*vals[0]+vals[1]*vals[1]+vals[2]*vals[2]);
+        return std::sqrt(this->lenSqr());
     }
 
     /*! \brief Squared length of vector */
     auto lenSqr() const -> decltype(vals[0]*vals[0]+vals[1]*vals[1]) {
-        return vals[0]*vals[0]+vals[1]*vals[1]+vals[2]*vals[2];
+        return this->dot(*this);
     }
 
     /*! \brief Distance between two points
@@ -306,30 +306,23 @@ public:
      */
     template<typename U>
     auto dist( const VectorGeneric<U> &q ) const -> decltype(std::sqrt((vals[0]-q[0])*(vals[0]-q[0]))) {
-        auto dx=vals[0]-q[0];
-        auto dy=vals[1]-q[1];
-        auto dz=vals[2]-q[2];
-        return std::sqrt(dx*dx+dy*dy+dz*dz);
+        return (*this - q).len();
     }
 
     /*! \brief Squared distance between two points */
     template<typename U>
     auto distSqr( const VectorGeneric<U> &q) const -> decltype((vals[0]-q[0])*(vals[0]-q[0])) {
-        auto dx=vals[0]-q[0];
-        auto dy=vals[1]-q[1];
-        auto dz=vals[2]-q[2];
-        return dx*dx+dy*dy+dz*dz;
+        return (*this -q).lenSqr();
     }
 
     /*! \brief Return normalized form of this vector */
     auto normalized() const -> VectorGeneric< decltype(vals[0]/std::sqrt(vals[0])) > {
-        auto l=len();
-        return VectorGeneric< decltype(vals[0]/l) >( vals[0]/l,vals[1]/l,vals[2]/l );
+        return *this/this->len();
     }
 
     /*! \brief Normalize this vector */
     void normalize(){
-        auto l=len();vals[0]/=l;vals[1]/=l;vals[2]/=l; //will not necessarily normalize int vectors
+        *this /= this->len();
     }
 
     /*! \brief Mirror vector along y direction */
