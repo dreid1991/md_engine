@@ -42,10 +42,12 @@ void Fix::validAtoms(vector<Atom *> &atoms) {
 }
 
 void export_Fix() {
-    class_<Fix> ("Fix")
-        .def_readonly("handle", &Fix::handle)
-        .def_readwrite("applyEvery", &Fix::applyEvery)
-        .def_readwrite("groupTag", &Fix::groupTag)
-        ;;
+    boost::python::class_<Fix> (
+        "Fix"
+    )
+    .def_readonly("handle", &Fix::handle)
+    .def_readwrite("applyEvery", &Fix::applyEvery)
+    .def_readwrite("groupTag", &Fix::groupTag)
+    ;
 
 }

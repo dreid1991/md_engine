@@ -22,6 +22,12 @@ void Fix2d::compute(bool computeVirials) {
 }
 
 void export_Fix2d() {
-    class_<Fix2d, SHARED(Fix2d), bases<Fix> > ("Fix2d", init<SHARED(State), string, int> (args("state", "handle", "applyEvery")))
-        ;
+    boost::python::class_<Fix2d,
+                          SHARED(Fix2d),
+                          boost::python::bases<Fix> > (
+        "Fix2d",
+        boost::python::init<SHARED(State), string, int> (
+            boost::python::args("state", "handle", "applyEvery"))
+    )
+    ;
 }

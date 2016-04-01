@@ -24,7 +24,6 @@
 #include "GPUArray.h"
 
 using namespace boost;
-using namespace boost::python;
 
 class State;  //forward declaring so bond can use bounds, which includes state
 

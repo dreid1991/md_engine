@@ -86,7 +86,15 @@ void FixChargePairDSF::compute(bool computeVirials) {
 
 
 void export_FixChargePairDSF() {
-    class_<FixChargePairDSF, SHARED(FixChargePairDSF), bases<FixCharge> > ("FixChargePairDSF", init<SHARED(State), string, string> (args("state", "handle", "groupHandle")))
-        .def("setParameters", &FixChargePairDSF::setParameters, (python::arg("alpha"), python::arg("r_cut")))
-        ;
+    boost::python::class_<FixChargePairDSF,
+                          SHARED(FixChargePairDSF),
+                          boost::python::bases<FixCharge> > (
+        "FixChargePairDSF",
+        boost::python::init<SHARED(State), string, string> (
+            boost::python::args("state", "handle", "groupHandle"))
+    )
+    .def("setParameters", &FixChargePairDSF::setParameters,
+            (boost::python::arg("alpha"), boost::python::arg("r_cut"))
+        )
+    ;
 }

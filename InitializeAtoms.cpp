@@ -133,12 +133,26 @@ void InitializeAtoms::initTemp(SHARED(State) state, string groupHandle, double t
 }
 
 void export_InitializeAtoms() {
-    class_<InitializeAtomsPythonWrap> ("InitializeAtoms")
-        //	.def("populateOnGrid", &InitializeAtoms::populateOnGrid, (python::arg("bounds"), python::arg("handle"), python::arg("n")) )
-        //	.staticmethod("populateOnGrid")
-        .def("populateRand", &InitializeAtoms::populateRand, (python::arg("bounds"), python::arg("handle"), python::arg("n"), python::arg("distMin")) )
-        .staticmethod("populateRand")
-        .def("initTemp", &InitializeAtoms::initTemp, (python::arg("groupHandle"), python::arg("temp")) )
-        .staticmethod("initTemp")
-        ;
+    boost::python::class_<InitializeAtomsPythonWrap> (
+        "InitializeAtoms"
+    )
+    //.def("populateOnGrid", &InitializeAtoms::populateOnGrid,
+    //        (boost::python::arg("bounds"),
+    //         boost::python::arg("handle"),
+    //         boost::python::arg("n"))
+    //    )
+    //.staticmethod("populateOnGrid")
+    .def("populateRand", &InitializeAtoms::populateRand,
+            (boost::python::arg("bounds"),
+             boost::python::arg("handle"),
+             boost::python::arg("n"),
+             boost::python::arg("distMin"))
+        )
+    .staticmethod("populateRand")
+    .def("initTemp", &InitializeAtoms::initTemp,
+            (boost::python::arg("groupHandle"),
+             boost::python::arg("temp"))
+        )
+    .staticmethod("initTemp")
+    ;
 }

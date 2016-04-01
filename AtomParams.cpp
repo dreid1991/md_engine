@@ -34,10 +34,16 @@ int AtomParams::typeFromHandle(const std::string &handle) const {
 }
 
 void export_AtomParams() {
-    class_<AtomParams >("AtomParams")
-        .def("addSpecies", &AtomParams::addSpecies, (python::arg("handle"), python::arg("mass"), python::arg("atomicNum")=-1) )
-        .def_readwrite("masses", &AtomParams::masses)
-        .def_readonly("handles", &AtomParams::handles)
-        .def_readonly("numTypes", &AtomParams::numTypes)
-        ;
+    boost::python::class_<AtomParams >(
+        "AtomParams"
+    )
+    .def("addSpecies", &AtomParams::addSpecies,
+            (boost::python::arg("handle"),
+             boost::python::arg("mass"),
+             boost::python::arg("atomicNum")=-1)
+        )
+    .def_readwrite("masses", &AtomParams::masses)
+    .def_readonly("handles", &AtomParams::handles)
+    .def_readonly("numTypes", &AtomParams::numTypes)
+    ;
 }

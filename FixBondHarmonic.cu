@@ -117,9 +117,23 @@ string FixBondHarmonic::restartChunk(string format) {
 }
 
 void export_FixBondHarmonic() {
-    class_<FixBondHarmonic, SHARED(FixBondHarmonic), bases<Fix> > ("FixBondHarmonic", init<SHARED(State), string> (args("state", "handle")))
-        .def("createBond", &FixBondHarmonic::createBond, (python::arg("k")=-1, python::arg("rEq")=-1, python::arg("type")=-1))
-        .def("setBondTypeCoefs", &FixBondHarmonic::setBondTypeCoefs, (python::arg("type"), python::arg("k"), python::arg("rEq")))
-        ;
+    boost::python::class_<FixBondHarmonic,
+                          SHARED(FixBondHarmonic),
+                          boost::python::bases<Fix> > (
+        "FixBondHarmonic",
+        boost::python::init<SHARED(State), string> (
+            boost::python::args("state", "handle"))
+    )
+    .def("createBond", &FixBondHarmonic::createBond,
+            (boost::python::arg("k")=-1,
+             boost::python::arg("rEq")=-1,
+             boost::python::arg("type")=-1)
+        )
+    .def("setBondTypeCoefs", &FixBondHarmonic::setBondTypeCoefs,
+            (boost::python::arg("type"),
+             boost::python::arg("k"),
+             boost::python::arg("rEq"))
+        )
+    ;
 
 }

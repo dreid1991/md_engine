@@ -563,55 +563,66 @@ void State::seedRNG(unsigned int seed) {
 BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(State_seedRNG_overloads,State::seedRNG,0,1)
 
 void export_State() {
-    class_<State, SHARED(State) >("State", init<>())
-        .def("addAtom", &State::addAtom, (python::arg("handle"), python::arg("pos"), python::arg("q")=0) )
-        .def_readonly("atoms", &State::atoms)
-        .def("setPeriodic", &State::setPeriodic)
-        .def("getPeriodic", &State::getPeriodic) //boost is grumpy about readwriting static arrays.  can readonly, but that's weird to only allow one w/ wrapper func for other.  doing wrapper funcs for both
-        .def("removeAtom", &State::removeAtom)
-        //.def("removeBond", &State::removeBond)
-        .def("idxFromId", &State::idxFromId)
+    boost::python::class_<State,
+                          SHARED(State) >(
+        "State",
+        boost::python::init<>()
+    )
+    .def("addAtom", &State::addAtom,
+            (boost::python::arg("handle"),
+             boost::python::arg("pos"),
+             boost::python::arg("q")=0)
+        )
+    .def_readonly("atoms", &State::atoms)
+    .def("setPeriodic", &State::setPeriodic)
+    .def("getPeriodic", &State::getPeriodic) //boost is grumpy about readwriting static arrays.  can readonly, but that's weird to only allow one w/ wrapper func for other.  doing wrapper funcs for both
+    .def("removeAtom", &State::removeAtom)
+    //.def("removeBond", &State::removeBond)
+    .def("idxFromId", &State::idxFromId)
 
-        .def("addToGroup", &State::addToGroupPy)
-        .def("destroyGroup", &State::destroyGroup)
-        .def("createGroup", &State::createGroup, (python::arg("handle"), python::arg("atoms") = boost::python::list()))
-        .def("selectGroup", &State::selectGroup)
-        .def("copyAtoms", &State::copyAtoms)
-        .def("setAtoms", &State::setAtoms)
+    .def("addToGroup", &State::addToGroupPy)
+    .def("destroyGroup", &State::destroyGroup)
+    .def("createGroup", &State::createGroup,
+            (boost::python::arg("handle"),
+             boost::python::arg("atoms") = boost::python::list())
+        )
+    .def("selectGroup", &State::selectGroup)
+    .def("copyAtoms", &State::copyAtoms)
+    .def("setAtoms", &State::setAtoms)
 
-        .def("setSpecialNeighborCoefs", &State::setSpecialNeighborCoefs)
+    .def("setSpecialNeighborCoefs", &State::setSpecialNeighborCoefs)
 
-        .def("activateFix", &State::activateFix)
-        .def("deactivateFix", &State::deactivateFix)
-        .def("activateWriteConfig", &State::activateWriteConfig)
-        .def("deactivateWriteConfig", &State::deactivateWriteConfig)
-        .def("activatePythonOperation", &State::activatePythonOperation)
-        .def("deactivatePythonOperation", &State::deactivatePythonOperation)
-        .def("zeroVelocities", &State::zeroVelocities)
-        .def("destroy", &State::destroy)
-        .def("seedRNG", &State::seedRNG, State_seedRNG_overloads())
-        .def_readwrite("is2d", &State::is2d)
-        .def_readonly("changedAtoms", &State::changedAtoms)
-        .def_readonly("changedGroups", &State::changedGroups)
-        .def_readwrite("buildNeighborlists", &State::buildNeighborlists)
-        .def_readwrite("turn", &State::turn)
-        .def_readwrite("periodicInterval", &State::periodicInterval)
-        .def_readwrite("rCut", &State::rCut)
-        .def_readwrite("padding", &State::padding)
-        .def_readonly("groupTags", &State::groupTags)
-        .def_readonly("dataManager", &State::dataManager)
-        //shared ptrs
-        .def_readwrite("grid", &State::grid)
-        .def_readwrite("bounds", &State::bounds)
-        .def_readwrite("fixes", &State::fixes)
-        .def_readwrite("atomParams", &State::atomParams)
-        .def_readwrite("writeConfigs", &State::writeConfigs)
-        .def_readonly("readConfig", &State::readConfig)
-        .def_readwrite("shoutEvery", &State::shoutEvery)
-        .def_readwrite("verbose", &State::verbose)
-        .def_readonly("deviceManager", &State::devManager);
+    .def("activateFix", &State::activateFix)
+    .def("deactivateFix", &State::deactivateFix)
+    .def("activateWriteConfig", &State::activateWriteConfig)
+    .def("deactivateWriteConfig", &State::deactivateWriteConfig)
+    .def("activatePythonOperation", &State::activatePythonOperation)
+    .def("deactivatePythonOperation", &State::deactivatePythonOperation)
+    .def("zeroVelocities", &State::zeroVelocities)
+    .def("destroy", &State::destroy)
+    .def("seedRNG", &State::seedRNG, State_seedRNG_overloads())
+    .def_readwrite("is2d", &State::is2d)
+    .def_readonly("changedAtoms", &State::changedAtoms)
+    .def_readonly("changedGroups", &State::changedGroups)
+    .def_readwrite("buildNeighborlists", &State::buildNeighborlists)
+    .def_readwrite("turn", &State::turn)
+    .def_readwrite("periodicInterval", &State::periodicInterval)
+    .def_readwrite("rCut", &State::rCut)
+    .def_readwrite("padding", &State::padding)
+    .def_readonly("groupTags", &State::groupTags)
+    .def_readonly("dataManager", &State::dataManager)
+    //shared ptrs
+    .def_readwrite("grid", &State::grid)
+    .def_readwrite("bounds", &State::bounds)
+    .def_readwrite("fixes", &State::fixes)
+    .def_readwrite("atomParams", &State::atomParams)
+    .def_readwrite("writeConfigs", &State::writeConfigs)
+    .def_readonly("readConfig", &State::readConfig)
+    .def_readwrite("shoutEvery", &State::shoutEvery)
+    .def_readwrite("verbose", &State::verbose)
+    .def_readonly("deviceManager", &State::devManager);
 
-        ;
+    ;
 
 }
 

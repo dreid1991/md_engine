@@ -2,7 +2,6 @@
 #include "FixDihedralOPLS.h"
 #include "FixHelpers.h"
 #include "cutils_func.h"
-namespace py = boost::python;
 
 #define EPSILON 0.00001f
 
@@ -253,14 +252,14 @@ void FixDihedralOPLS::createDihedral(Atom *a, Atom *b, Atom *c, Atom *d, double 
 }
 
 
-void FixDihedralOPLS::createDihedralPy(Atom *a, Atom *b, Atom *c, Atom *d, py::list coefs, int type) {
+void FixDihedralOPLS::createDihedralPy(Atom *a, Atom *b, Atom *c, Atom *d, boost::python::list coefs, int type) {
     double coefs_c[4];
     if (type!=-1) {
         createDihedral(a, b, c, d, COEF_DEFAULT, COEF_DEFAULT, COEF_DEFAULT, COEF_DEFAULT, type);
     } else {
-        assert(py::len(coefs) == 4);
+        assert(boost::python::len(coefs) == 4);
         for (int i=0; i<4; i++) {
-            py::extract<double> coef(coefs[i]);
+            boost::python::extract<double> coef(coefs[i]);
             assert(coef.check());
             coefs_c[i] = coef;
         }
@@ -276,9 +275,19 @@ string FixDihedralOPLS::restartChunk(string format) {
 }
 
 void export_FixDihedralOPLS() {
-    class_<FixDihedralOPLS, SHARED(FixDihedralOPLS), bases<Fix> > ("FixDihedralOPLS", init<SHARED(State), string> (args("state", "handle")))
-        .def("createDihedral", &FixDihedralOPLS::createDihedralPy, (python::arg("coefs")=py::list(), python::arg("type")=-1))
-        ;
+    boost::python::class_<FixDihedralOPLS,
+                          SHARED(FixDihedralOPLS),
+                          boost::python::bases<Fix> > (
+        "FixDihedralOPLS",
+        boost::python::init<SHARED(State), string> (
+            boost::python::args("state", "handle")
+        )
+    )
+    .def("createDihedral", &FixDihedralOPLS::createDihedralPy,
+            (boost::python::arg("coefs")=boost::python::list(),
+             boost::python::arg("type")=-1)
+        )
+    ;
 
 }
 

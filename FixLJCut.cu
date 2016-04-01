@@ -201,7 +201,18 @@ void FixLJCut::addSpecies(string handle) {
 }
 
 void export_FixLJCut() {
-    class_<FixLJCut, SHARED(FixLJCut), bases<Fix> > ("FixLJCut", init<SHARED(State), string, string> (args("state", "handle", "groupHandle")))
-        .def("setParameter", &FixLJCut::setParameter, (python::arg("param"), python::arg("handleA"), python::arg("handleB"), python::arg("val")))
-        ;
+    boost::python::class_<FixLJCut,
+                          SHARED(FixLJCut),
+                          boost::python::bases<Fix> > (
+        "FixLJCut",
+        boost::python::init<SHARED(State), string, string> (
+            boost::python::args("state", "handle", "groupHandle"))
+    )
+    .def("setParameter", &FixLJCut::setParameter,
+            (boost::python::arg("param"),
+             boost::python::arg("handleA"),
+             boost::python::arg("handleB"),
+             boost::python::arg("val"))
+        )
+    ;
 }

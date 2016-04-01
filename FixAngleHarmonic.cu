@@ -140,10 +140,24 @@ string FixAngleHarmonic::restartChunk(string format) {
 }
 
 void export_FixAngleHarmonic() {
-    class_<FixAngleHarmonic, SHARED(FixAngleHarmonic), bases<Fix> > ("FixAngleHarmonic", init<SHARED(State), string> (args("state", "handle")))
-        .def("createAngle", &FixAngleHarmonic::createAngle, (python::arg("k")=COEF_DEFAULT, python::arg("thetaEq")=COEF_DEFAULT, python::arg("type")=-1))
-        .def("setAngleTypeCoefs", &FixAngleHarmonic::setAngleTypeCoefs, (python::arg("k")=COEF_DEFAULT, python::arg("thetaEq")=COEF_DEFAULT, python::arg("type")=-1))
-        ;
+    boost::python::class_<FixAngleHarmonic,
+                          SHARED(FixAngleHarmonic),
+                          boost::python::bases<Fix> > (
+        "FixAngleHarmonic",
+        boost::python::init<SHARED(State), string> (
+                                        boost::python::args("state", "handle"))
+    )
+    .def("createAngle", &FixAngleHarmonic::createAngle,
+            (boost::python::arg("k")=COEF_DEFAULT,
+             boost::python::arg("thetaEq")=COEF_DEFAULT,
+             boost::python::arg("type")=-1)
+        )
+    .def("setAngleTypeCoefs", &FixAngleHarmonic::setAngleTypeCoefs,
+            (boost::python::arg("k")=COEF_DEFAULT,
+             boost::python::arg("thetaEq")=COEF_DEFAULT,
+             boost::python::arg("type")=-1)
+        )
+    ;
 
 }
 

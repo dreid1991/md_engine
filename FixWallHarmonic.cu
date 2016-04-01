@@ -41,11 +41,20 @@ void FixWallHarmonic::compute(bool computeVirials) {
 }
 
 void export_FixWallHarmonic() {
-    class_<FixWallHarmonic, SHARED(FixWallHarmonic), bases<Fix> > ("FixWallHarmonic", init<SHARED(State), string, string, Vector, Vector, double, double> (args("state", "handle", "groupHandle", "origin", "forceDir", "dist", "k")))
-        .def_readwrite("k", &FixWallHarmonic::k)
-        .def_readwrite("dist", &FixWallHarmonic::dist)
-        .def_readwrite("forceDir", &FixWallHarmonic::forceDir)
-        .def_readwrite("origin", &FixWallHarmonic::origin)
-        ;
+    boost::python::class_<FixWallHarmonic,
+                          SHARED(FixWallHarmonic),
+                          boost::python::bases<Fix> > (
+        "FixWallHarmonic",
+        boost::python::init<SHARED(State), string, string, Vector,
+                            Vector, double, double> (
+            boost::python::args("state", "handle", "groupHandle", "origin",
+                                "forceDir", "dist", "k")
+        )
+    )
+    .def_readwrite("k", &FixWallHarmonic::k)
+    .def_readwrite("dist", &FixWallHarmonic::dist)
+    .def_readwrite("forceDir", &FixWallHarmonic::forceDir)
+    .def_readwrite("origin", &FixWallHarmonic::origin)
+    ;
 
 }

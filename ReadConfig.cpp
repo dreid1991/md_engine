@@ -284,11 +284,13 @@ pugi::xml_node ReadConfig::readNode(string nodeTag) {
 }
 
 void export_ReadConfig() {
-
-    class_<ReadConfig, SHARED(ReadConfig) >("ReadConfig")
-        .def("loadFile", &ReadConfig::loadFile)
-        .def("next", &ReadConfig::next)
-        .def("prev", &ReadConfig::prev)
-        .def("moveBy", &ReadConfig::moveBy)
-        ;
+    boost::python::class_<ReadConfig,
+                          SHARED(ReadConfig) >(
+        "ReadConfig"
+    )
+    .def("loadFile", &ReadConfig::loadFile)
+    .def("next", &ReadConfig::next)
+    .def("prev", &ReadConfig::prev)
+    .def("moveBy", &ReadConfig::moveBy)
+    ;
 }
