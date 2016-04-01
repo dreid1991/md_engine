@@ -7,8 +7,6 @@
 #include "globalDefs.h"
 #include "cutils_math.h"
 
-#define EPSILON .000001f
-
 void export_Vector();
 void export_VectorInt();
 
@@ -91,7 +89,7 @@ public:
      * is done by converting each of the three vector elements.
      */
     template<typename U>
-    operator VectorGeneric<U> () {
+    operator VectorGeneric<U> () const {
         return VectorGeneric<U>( (U)vals[0], (U)vals[1], (U)vals[2] );
     }
 
@@ -263,28 +261,36 @@ public:
         vals[0]-=q[0];vals[1]-=q[1];vals[2]-=q[2];return *this;
     }
 
-    /*! \brief Smaller than comparison operator */
+    /*! \brief Smaller than comparison operator
+     *
+     * The comparison is element-wise. v < q returns true if v[0] < q[0]
+     * or (v[0] == q[0] && v[1] < q[1]) or (v[0] == q[0] && v[1] == q[1] &&
+     * v[2] < q[2]).
+     */
     template<typename U>
-    bool operator<( const VectorGeneric<U> &q )const{
-        if( std::abs(vals[0]-q[0])>EPSILON ) return vals[0]<q[0] ? true : false;
-        if( std::abs(vals[1]-q[1])>EPSILON ) return vals[1]<q[1] ? true : false;
-        return std::abs(vals[2]-q[2])>EPSILON && vals[2]<q[2];
+    bool operator<( const VectorGeneric<U> &q ) const {
+        if( vals[0] != q[0] ) { return vals[0] < q[0]; }
+        if( vals[1] != q[1] ) { return vals[1] < q[1]; }
+        return vals[2] < q[2];
     }
 
-    /*! \brief Larger than comparison operator */
+    /*! \brief Larger than comparison operator
+     *
+     * The comparison is element-wise. Thus, v > q returns true if v[0] > q[0]
+     * or (v[0] == q[0] && v[1] > q[1]) or (v[0] == q[0] && v[1] == q[1] &&
+     * v[2] > q[2]).
+     */
     template<typename U>
-    bool operator>( const VectorGeneric<U> &q )const{
-        if( std::abs(vals[0]-q[0])>EPSILON ) return vals[0]>q[0] ? true : false;
-        if( std::abs(vals[1]-q[1])>EPSILON ) return vals[1]>q[1] ? true : false;
-        return std::abs(vals[2]-q[2])>EPSILON && vals[2]>q[2];
+    bool operator>( const VectorGeneric<U> &q ) const {
+        if( vals[0] != q[0] ) { return vals[0] > q[0]; }
+        if( vals[1] != q[1] ) { return vals[1] > q[1]; }
+        return vals[2] > q[2];
     }
 
     /*! \brief Equality comparison operator */
     template<typename U>
-    bool operator==( const VectorGeneric<U> &q )const{
-        return std::abs(vals[0]-q[0])<=EPSILON &&
-               std::abs(vals[1]-q[1])<=EPSILON &&
-               std::abs(vals[2]-q[2])<=EPSILON;
+    bool operator==( const VectorGeneric<U> &q ) const {
+        return vals[0] == q[0] && vals[1] == q[1] && vals[2] == q[2];
     }
 
     /*! \brief Non-equal comparison operator */
@@ -384,6 +390,8 @@ public:
 
 typedef VectorGeneric<num> Vector;
 typedef VectorGeneric<int> VectorInt;
+
+const Vector VectorEps(0.00001,0.00001,0.00001);
 
 std::ostream &operator<<(std::ostream &os, const Vector &v);
 std::ostream &operator<<(std::ostream &os, const float4 &v);

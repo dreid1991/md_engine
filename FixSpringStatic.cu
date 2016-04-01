@@ -4,6 +4,7 @@
 
 FixSpringStatic::FixSpringStatic(SHARED(State) state_, string handle_, string groupHandle_, double k_,  PyObject *tetherFunc_, Vector multiplier_) : Fix(state_, handle_, groupHandle_, springStaticType, 1), k(k_), tetherFunc(tetherFunc_), multiplier(multiplier_) {
     updateTethers();
+    forceSingle = true;
 }
 
 void FixSpringStatic::updateTethers() {

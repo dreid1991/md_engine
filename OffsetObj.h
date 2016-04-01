@@ -9,10 +9,10 @@ class OffsetObj {
 		OffsetObj (T &obj_, Vector offset_) : obj(obj_), offset(offset_) {};
 		OffsetObj () : obj(T()), offset(Vector()) {};
 		bool operator==(const OffsetObj<T> &other) {
-			return obj == other.obj and offset == other.offset;
+			return obj == other.obj && (offset-other.offset).abs() < VectorEps;
 		}
 		bool operator!=(const OffsetObj<T> &other) {
-			return obj != other.obj or offset != other.offset;
+			return !(*this == other);
 		}
 };
 #endif

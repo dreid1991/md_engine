@@ -82,7 +82,7 @@ bool Bounds::isSkewed() {
         Vector test(1, 1, 1);
         test[i] = 0;
         Vector res = sides[i] * test;
-        if (res != Vector(0, 0, 0)) {
+        if (res.abs() > VectorEps) {
             return true;
         }
     }
