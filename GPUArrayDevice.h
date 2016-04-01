@@ -166,7 +166,7 @@ public:
      * \todo For this function val needs to be converted to unsigned char
      * and this value is used.
      */
-    void memset(const T &val) {
+    void memset(int val) {
         CUCHECK(cudaMemset(ptr, val, n*sizeof(T)));
     }
 
