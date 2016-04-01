@@ -505,7 +505,7 @@ bool Mod::setZValue(SHARED(State) state, num neighThresh, const num target, cons
 */
 
 
-__global__ void Mod::unskewAtoms(cudaSurfaceObject_t xs, int nAtoms, float3 xOrig, float3 yOrig, float3 lo) {
+__global__ void Mod::unskewAtoms(float4 *xs, int nAtoms, float3 xOrig, float3 yOrig, float3 lo) {
     int idx = GETIDX();
     if (idx < nAtoms) {
         float lxo = length(xOrig);
@@ -524,20 +524,18 @@ __global__ void Mod::unskewAtoms(cudaSurfaceObject_t xs, int nAtoms, float3 xOri
         float c4 = lxo*cos(a) * invDenom;
         
 
-        int xIdx = XIDX(idx, sizeof(float4));
-        int yIdx = YIDX(idx, sizeof(float4));
-        int xAddr = xIdx * sizeof(float4);
-        float4 pos = surf2Dread<float4>(xs, xAddr, yIdx);
+
+        float4 pos = xs[idx];
         float xo = pos.x - lo.x;
         float yo = pos.y - lo.y;
         pos.x = lxf * (xo*c1 + yo*c2) + lo.x;
         pos.y = lyf * (xo*c3 + yo*c4) + lo.y;
-        surf2Dwrite(pos, xs, xAddr, yIdx);
+        xs[idx] = pos;
     }
 }
 
 
-__global__ void Mod::skewAtomsFromZero(cudaSurfaceObject_t xs, int nAtoms, float3 xFinal, float3 yFinal, float3 lo) {
+__global__ void Mod::skewAtomsFromZero(float4 *xs, int nAtoms, float3 xFinal, float3 yFinal, float3 lo) {
     int idx = GETIDX();
     if (idx < nAtoms) {
         const double a = atan2(xFinal.y, xFinal.x);
@@ -554,11 +552,8 @@ __global__ void Mod::skewAtomsFromZero(cudaSurfaceObject_t xs, int nAtoms, float
         const double c3 = lxf*sin(a);
         const double c4 = lyf*cos(b);
 
-        int xIdx = XIDX(idx, sizeof(float4));
-        int yIdx = YIDX(idx, sizeof(float4));
-        int xAddr = xIdx * sizeof(float4);
 
-        float4 pos = surf2Dread<float4>(xs, xAddr, yIdx);
+        float4 pos = xs[idx];
 
         float xo = pos.x - lo.x;
         float yo = pos.y - lo.y;
@@ -568,7 +563,7 @@ __global__ void Mod::skewAtomsFromZero(cudaSurfaceObject_t xs, int nAtoms, float
         pos.x = fx * c1 + fy * c2 + lo.x;
         pos.y = fx * c3 + fy * c4 + lo.y;
 
-        surf2Dwrite(pos, xs, xAddr, yIdx);
+        xs[idx] = pos;
     }
 }
 

@@ -1,6 +1,7 @@
 #include "InitializeAtoms.h"
-
-default_random_engine InitializeAtoms::generator = default_random_engine();
+#include "State.h"
+#include "Atom.h"
+#include "list_macro.h"
 /*
 make a 'ready' flag in state, which means am ready to run.  creating atoms makes false, 
 		make ready by re-doing all atom pointers 
@@ -39,11 +40,10 @@ void InitializeAtoms::populateOnGrid(SHARED(State) state, Bounds &bounds, string
 	}
 	state->changedAtoms = true;
 }
-void InitializeAtoms::populateRand(SHARED(State) state, Bounds &bounds, string handle, int n, num distMin) {
+void InitializeAtoms::populateRand(SHARED(State) state, Bounds &bounds, string handle, int n, double distMin) {
 	assert(n>=0);
 
-	random_device randDev;
-	generator.seed(randDev());
+	std::mt19937 generator = state->getRNG();
 	vector<Atom> &atoms = state->atoms;
 	AtomParams &params = state->atomParams;
 	vector<string> handles = params.handles;
@@ -51,12 +51,12 @@ void InitializeAtoms::populateRand(SHARED(State) state, Bounds &bounds, string h
 
 	assert(type != (int) handles.size()); //makes sure it found one
 	unsigned int n_final = atoms.size() + n;
-	uniform_real_distribution<num> dists[3];
+	uniform_real_distribution<double> dists[3];
 	for (int i=0; i<3; i++) {
-		dists[i] = uniform_real_distribution<num>(bounds.lo[i], bounds.hi[i]);
+		dists[i] = uniform_real_distribution<double>(bounds.lo[i], bounds.hi[i]);
 	}
 	if (state->is2d) {
-		dists[2] = uniform_real_distribution<num>(0, 0);
+		dists[2] = uniform_real_distribution<double>(0, 0);
 	}
 
 	int id = max_id(atoms) + 1;
@@ -68,7 +68,10 @@ void InitializeAtoms::populateRand(SHARED(State) state, Bounds &bounds, string h
 		bool is_overlap = false;
 		for (Atom &a : atoms) {
 			int typeA = a.type;
-			if (a.pos.distSqr(pos) < distMin * distMin) {
+			/*! \todo Check only for overlap across boundary if boundary
+			 * is periodic. */
+			Vector dist = state->bounds.minImage(pos - a.pos);
+			if (dist.lenSqr() < distMin * distMin) {
 				is_overlap = true;
 				break;
 			}
@@ -86,36 +89,39 @@ void InitializeAtoms::populateRand(SHARED(State) state, Bounds &bounds, string h
 	state->changedAtoms = true;
 
 }
-void InitializeAtoms::initTemp(SHARED(State) state, string groupHandle, num temp) { //boltzmann const is 1 for reduced lj units
-//	random_device randDev;
-	generator.seed(2);//randDev());
+void InitializeAtoms::initTemp(SHARED(State) state, string groupHandle, double temp) { //boltzmann const is 1 for reduced lj units
+	std::mt19937 generator = state->getRNG();
     int groupTag = state->groupTagFromHandle(groupHandle);
 	
 	vector<Atom *> atoms = LISTMAPREFTEST(Atom, Atom *, a, state->atoms, &a, a.groupTag & groupTag);
 
-    assert(atoms.size()>1);
-	map<num, normal_distribution<num> > dists;
+    assert(atoms.size());
+	map<double, normal_distribution<double> > dists;
 	for (Atom *a : atoms) {
 		if (dists.find(a->mass) == dists.end()) {
-			dists[a->mass] = normal_distribution<num> (0, sqrt(temp / a->mass));
+			dists[a->mass] = normal_distribution<double> (0, sqrt(temp / a->mass));
 		}
 	}
-	Vector sumVels;
-	for (Atom *a : atoms) {
-		for (int i=0; i<3; i++) {
-			a->vel[i] = dists[a->mass](generator);
-		}
-		sumVels += a->vel;
-	}
-	sumVels /= (num) atoms.size();
+    Vector sumVels;
+    for (Atom *a : atoms) {
+        for (int i=0; i<3; i++) {
+            a->vel[i] = dists[a->mass](generator);
+        }
+        sumVels += a->vel;
+    }
+    if (atoms.size()>1) {
+        sumVels /= (double) atoms.size();
+        for (Atom *a : atoms) {
+            a->vel -= sumVels;
+        }
+    }
 	double sumKe = 0;
 	for (Atom *a : atoms) {
-		a->vel -= sumVels;
 		sumKe += a->kinetic();
 	}
-	double curTemp = sumKe / 3.0 / atoms.size();
+	double curTemp = sumKe / 1.5 / atoms.size();
 	for (Atom *a : atoms) {
-		a->vel *= (num) sqrt(temp / curTemp);
+		a->vel *= sqrt(temp / curTemp);
 	}
 	if (state->is2d) {
 		for (Atom *a : atoms) {
@@ -127,12 +133,26 @@ void InitializeAtoms::initTemp(SHARED(State) state, string groupHandle, num temp
 }
 
 void export_InitializeAtoms() {
-    class_<InitializeAtomsPythonWrap> ("InitializeAtoms")
-        //	.def("populateOnGrid", &InitializeAtoms::populateOnGrid, (python::arg("bounds"), python::arg("handle"), python::arg("n")) )
-        //	.staticmethod("populateOnGrid")
-        .def("populateRand", &InitializeAtoms::populateRand, (python::arg("bounds"), python::arg("handle"), python::arg("n"), python::arg("distMin")) )
-        .staticmethod("populateRand")
-        .def("initTemp", &InitializeAtoms::initTemp, (python::arg("groupHandle"), python::arg("temp")) )
-        .staticmethod("initTemp")
-        ;
+    boost::python::class_<InitializeAtomsPythonWrap> (
+        "InitializeAtoms"
+    )
+    //.def("populateOnGrid", &InitializeAtoms::populateOnGrid,
+    //        (boost::python::arg("bounds"),
+    //         boost::python::arg("handle"),
+    //         boost::python::arg("n"))
+    //    )
+    //.staticmethod("populateOnGrid")
+    .def("populateRand", &InitializeAtoms::populateRand,
+            (boost::python::arg("bounds"),
+             boost::python::arg("handle"),
+             boost::python::arg("n"),
+             boost::python::arg("distMin"))
+        )
+    .staticmethod("populateRand")
+    .def("initTemp", &InitializeAtoms::initTemp,
+            (boost::python::arg("groupHandle"),
+             boost::python::arg("temp"))
+        )
+    .staticmethod("initTemp")
+    ;
 }

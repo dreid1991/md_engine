@@ -3,22 +3,26 @@
 #include "GPUArrayDevice.h"
 #include <vector>
 #include "Atom.h"
+#include <boost/variant.hpp>
 using namespace std;
 void cumulativeSum(int *data, int n);
 
-template <class SRC, class DEST, int N>
-int copyMultiAtomToGPU(vector<Atom> &atoms, vector<SRC> &src, GPUArrayDevice<DEST> *dest, GPUArrayDevice<int> *destIdxs) {
+template <class SRCVar, class SRCFull, class DEST, int N>
+int copyMultiAtomToGPU(vector<Atom> &atoms, vector<SRCVar> &src, GPUArrayDevice<DEST> *dest, GPUArrayDevice<int> *destIdxs) {
     vector<int> idxs(atoms.size()+1, 0); //started out being used as counts
     vector<int> numAddedPerAtom(atoms.size(), 0);
     //so I can arbitrarily order.  I choose to do it by the the way atoms happen to be sorted currently.  Could be improved.
-    for (SRC &s : src) {
+    for (SRCVar &sVar : src) {
+        SRCFull &s = boost::get<SRCFull>(sVar);
         for (int i=0; i<N; i++) {
             idxs[s.atoms[i] - atoms.data()]++;
         }
+        
     }
     cumulativeSum(idxs.data(), atoms.size()+1);  
     vector<DEST> destHost(idxs.back());
-    for (SRC &s : src) {
+    for (SRCVar &sVar : src) {
+        SRCFull &s = boost::get<SRCFull>(sVar);
         int atomIds[N];
         int atomIndexes[N];
         for (int i=0; i<N; i++) {

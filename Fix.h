@@ -10,7 +10,6 @@
 #include "GPUArrayTex.h"
 #include "State.h"
 #include "FixTypes.h"
-#include "Mod.h"
 #include <pugixml.hpp>
 
 
@@ -29,7 +28,9 @@ class Fix {
 		string type;
 		Fix() {};	
 		Fix(SHARED(State) state_, string handle_, string groupHandle_, string type_, int applyEvery_);
-		virtual void compute(){};
+		virtual void compute(bool){};
+        virtual void singlePointEng(float *){};
+        virtual void postRun(){};
 		bool isEqual(Fix &);
 		bool forceSingle;
         int orderPreference;

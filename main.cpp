@@ -15,6 +15,9 @@
 #include  "IntegraterRelax.h"
 #include  "IntegraterLangevin.h"
 #include "FixChargePairDSF.h"
+#include "WriteConfig.h"
+#include "ReadConfig.h"
+#include <stdlib.h>
 
 using namespace std;
 
@@ -34,7 +37,7 @@ void testFire() {
     std::srand(2);
     for (int i=0; i<baseLen; i++) {
         for (int j=0; j<baseLen; j++) {
-            state->atoms.push_back(Atom(Vector(i*mult+eps*(double(std::rand())/RAND_MAX), j*mult+eps*(double(std::rand())/RAND_MAX), 0), 0, j + i*baseLen, 2, 0));
+            state->addAtom("handle",Vector(i*mult+eps*(double(std::rand())/RAND_MAX), j*mult+eps*(double(std::rand())/RAND_MAX), 0), 0);
         }
     }
 
@@ -49,13 +52,14 @@ void testFire() {
     nonbond->setParameter("eps", "handle", "handle", 1);
     state->activateFix(nonbond);
     cout << "last" << endl;
-//     cout << state->atoms[0].pos[0]<<' '<<state->atoms[0].vel[0]<<' '<<state->atoms[0].force[0]<<' '<<state->atoms[0].forceLast[0]<< endl;
+    cout << state->atoms[0].pos[0]<<' '<<state->atoms[0].vel[0]<<' '<<state->atoms[0].force[0]<<' '<<state->atoms[0].forceLast[0]<< endl;
 
     SHARED(WriteConfig) write = SHARED(WriteConfig) (new WriteConfig(state, "test", "handle", "xml", 10000));    
     state->activateWriteConfig(write);
 
     state->dt=0.003;    
-    //state->integrater.relax(400000,1.0);  
+    IntegraterRelax integraterR(state);
+    integraterR.run(400000,1.0);  
 //     cout << state->atoms[0].pos[0]<<' '<<state->atoms[0].vel[0]<<' '<<state->atoms[0].force[0]<<' '<<state->atoms[0].forceLast[0]<< endl;
     
 }
@@ -180,6 +184,49 @@ void testPair() {
     ofs.close();
 }
 
+
+void test_charge_ewald() {
+    SHARED(State) state = SHARED(State) (new State());
+    state->shoutEvery = 1000;
+    int L = 20.0;
+
+    state->bounds = Bounds(state, Vector(0, 0, 0), Vector(L,L,L));
+    state->rCut = 5.0;
+    state->grid = AtomGrid(state.get(), L,L,L);
+    state->atomParams.addSpecies("handle", 2);
+    state->addAtom("handle",Vector(0.5*L, 0.5*L, 0.5*L), 0);
+    state->addAtom("handle",Vector(0.75*L, 0.5*L, 0.5*L), 0);
+
+    //charge
+    SHARED(FixChargeEwald) charge (new FixChargeEwald(state, "charge","all"));
+    charge->setParameters(64,1.0,3);
+//     charge->setParameters(32,3.0);
+    
+    state->atoms[0].q=1.0;
+    state->atoms[1].q=-1.0;
+    state->activateFix(charge);
+
+    
+    state->dt=0.0001;  
+    IntegraterVerlet integrater(state);
+//     charge->compute();
+    integrater.run(1);     
+
+    ofstream ofs;
+    ofs.open("test_pair.dat",ios::out );
+    for (int i=0;i<1000-10;i++){
+	state->atoms[0].pos[0]=0.5*L+i*0.25*L/1000.0;
+	state->atoms[0].vel[0]=0.0;
+	state->atoms[1].pos[0]=0.75*L;
+	state->atoms[1].vel[0]=0.0;
+	integrater.run(1);     
+// 	cout<<state->atoms[0].pos[0]<<' '<<state->atoms[1].pos[0]<<' '<<state->atoms[0].force[0]<<' '<<state->atoms[1].force[0]<<'\n';
+	ofs<<state->atoms[0].pos[0]<<' '<<state->atoms[1].pos[0]<<' '<<state->atoms[0].force[0]<<' '<<state->atoms[1].force[0]<<'\n';
+    }
+    ofs.close();
+}
+
+
 void testRead() {
     SHARED(State) state = SHARED(State) (new State());
     state->readConfig->loadFile("test.xml");
@@ -283,18 +330,18 @@ void testBondHarmonic() {
     SHARED(FixLJCut) nonbond = SHARED(FixLJCut) (new FixLJCut(state, "ljcut", "all"));
     nonbond->setParameter("sig", "handle", "handle", 1);
     nonbond->setParameter("eps", "handle", "handle", 1);
-    //state->activateFix(nonbond);
+    state->activateFix(nonbond);
     cout << state->atoms[0].id<< endl;
     SHARED(FixBondHarmonic) bond (new FixBondHarmonic(state, "bondh"));
 
     state->activateFix(bond);
-    bond->createBond(&state->atoms[0], &state->atoms[1], 1, 2);
-    bond->createBond(&state->atoms[1], &state->atoms[2], 1, 2);
+    bond->createBond(&state->atoms[0], &state->atoms[1], 1, 2, -1);
+    bond->createBond(&state->atoms[1], &state->atoms[2], 1, 2, -1);
     cout << "req" << endl;
     cout << bond->getBond(0).rEq << endl;
     cout << bond->getBond(1).rEq << endl;
     IntegraterRelax integraterR(state);
-    integraterR.run(5000,1e-8);
+    integraterR.run(1,1e-8);
     for (int i=0; i<3; i++) {
         cout << state->atoms[i].pos[0] << endl;
     }
@@ -316,15 +363,86 @@ void testBondHarmonicGrid() {
 
     state->activateFix(bond);
     double spacing = 1.4;
-    int n = 5;
-    state->addAtom("handle", Vector(1, 1, 0), 0);
-    state->addAtom("handle", Vector(3, 1, 0), 0);
+    int n = 50;
     
     for (int i=0; i<n; i++) {
         for (int j=0; j<n; j++) {
             state->addAtom("handle", Vector(i*spacing, j*spacing, 0), 0);
         }
     }
+  //  state->addAtom("handle", Vector(1, 1, 0), 0);
+   // state->addAtom("handle", Vector(3, 1, 0), 0);
+    
+    double rEq = 1.0;
+    for (int i=0; i<n; i++) {
+        for (int j=0; j<n; j++) {
+            if (i<n-1) {
+                bond->createBond(&state->atoms[(i+1)*n+j], &state->atoms[i*n+j], 1, rEq, -1);
+            }
+            if (j<n-1) {
+                bond->createBond(&state->atoms[i*n+j+1], &state->atoms[i*n+j], 1, rEq, -1);
+            }
+            
+        }
+    }
+    state->periodicInterval = 9;
+   /* 
+    State::ExclusionList out = state->generateExclusionList(4);
+    for (auto atom : out) {
+        cout << "atom id: " << atom.first << endl;
+        int depth = 1;
+        for (auto excls : atom.second) {
+            cout << "  depth " << depth << ": ";
+            for (auto e : excls) { std::cout << e << " "; }
+            ++depth;
+            cout << endl;
+        }
+    }
+    */
+    //return;
+    
+    SHARED(Fix2d) f2d = SHARED(Fix2d) (new Fix2d(state, "2d", 1));
+    state->activateFix(f2d);
+    SHARED(FixLJCut) nonbond = SHARED(FixLJCut) (new FixLJCut(state, "ljcut", "all"));
+    nonbond->setParameter("sig", "handle", "handle", 1);
+    nonbond->setParameter("eps", "handle", "handle", 1);
+    //state->activateFix(nonbond);
+    
+    IntegraterRelax integraterR(state);
+    integraterR.run(60000,1e-8);
+    for (Atom &a : state->atoms) {
+        cout << a.pos << endl;
+    }
+
+
+}
+
+
+
+
+void testBondHarmonicGridToGPU() {
+    SHARED(State) state = SHARED(State) (new State());
+    state->is2d = true;
+    state->periodic[2] = false;
+    state->bounds = Bounds(state, Vector(0, 0, 0), Vector(50, 50, 10));
+    state->rCut = 3.5;
+    state->grid = AtomGrid(state.get(), 4, 4, 3);
+    state->atomParams.addSpecies("handle", 2);
+    
+    SHARED(FixBondHarmonic) bond (new FixBondHarmonic(state, "bondh"));
+
+    state->activateFix(bond);
+    double spacing = 1.4;
+    /*
+    int n = 2;
+    
+    for (int i=0; i<n; i++) {
+        for (int j=0; j<n; j++) {
+            state->addAtom("handle", Vector(i*spacing, j*spacing, 0), 0);
+        }
+    }
+  //  state->addAtom("handle", Vector(1, 1, 0), 0);
+   // state->addAtom("handle", Vector(3, 1, 0), 0);
     
     double rEq = 1.0;
     for (int i=0; i<n; i++) {
@@ -338,8 +456,21 @@ void testBondHarmonicGrid() {
             
         }
     }
+    */
+    state->addAtom("handle", Vector(1, 1, 0), 0);
+    state->addAtom("handle", Vector(2, 1, 0), 0);
+    state->addAtom("handle", Vector(3, 1, 0), 0);
+    state->addAtom("handle", Vector(4, 1, 0), 0);
+    state->addAtom("handle", Vector(4.1, 1, 0), 0);
+//    state->addAtom("handle", Vector(4, 1, 0), 0);
+    bond->createBond(&state->atoms[0], &state->atoms[1], 1, 1, -1);
+    bond->createBond(&state->atoms[2], &state->atoms[1], 1, 1, -1);
+    bond->createBond(&state->atoms[2], &state->atoms[3], 1, 1, -1);
+    bond->createBond(&state->atoms[4], &state->atoms[3], 1, 1, -1);
+    //bond->createBond(&state->atoms[4], &state->atoms[0], 1, 1);
+  //  bond->createBond(&state->atoms[2], &state->atoms[3], 1, 1);
     state->periodicInterval = 9;
-    
+   /* 
     State::ExclusionList out = state->generateExclusionList(4);
     for (auto atom : out) {
         cout << "atom id: " << atom.first << endl;
@@ -351,57 +482,155 @@ void testBondHarmonicGrid() {
             cout << endl;
         }
     }
-    return;
-    
+    */
+    //return;
     SHARED(Fix2d) f2d = SHARED(Fix2d) (new Fix2d(state, "2d", 1));
     state->activateFix(f2d);
     SHARED(FixLJCut) nonbond = SHARED(FixLJCut) (new FixLJCut(state, "ljcut", "all"));
+    state->activateFix(nonbond);
     nonbond->setParameter("sig", "handle", "handle", 1);
     nonbond->setParameter("eps", "handle", "handle", 1);
-    state->activateFix(nonbond);
+    //state->activateFix(nonbond);
     
     IntegraterRelax integraterR(state);
-    integraterR.run(5000,1e-8);
-    for (int i=0; i<3; i++) {
-        cout << state->atoms[i].pos[0] << endl;
+   // integraterR.run(60000,1e-8);
+    integraterR.run(5000, 1e-3);
+    for (BondVariant &bv : bond->bonds) {
+        Bond single = get<BondHarmonic>(bv);
+        cout << single.atoms[0]->pos << " " << single.atoms[1]->pos << endl;
     }
 
 
 }
 
 
-void testLJ() {
+
+void hoomdBench() {
     SHARED(State) state = SHARED(State) (new State());
-    int baseLen = 250;
-    state->shoutEvery = 100;
-    double mult = 1.5;
-    state->bounds = Bounds(state, Vector(0, 0, 0), Vector(mult*baseLen, mult*baseLen, 10));
-    state->rCut = 3.5;
-    state->grid = AtomGrid(state.get(), 4, 4, 3);
-    state->atomParams.addSpecies("handle", 2);
-    state->is2d = true;
-    state->periodic[2] = false;
+    state->shoutEvery = 10;
+    double boxLen = 55.12934875488;
+    state->bounds = Bounds(state, Vector(0, 0, 0), Vector(boxLen, boxLen, boxLen));
+    state->rCut = 3.0;
+    state->padding = 0.6;
+    state->grid = AtomGrid(state.get(), 3.6, 3.6, 3.6);
+    state->atomParams.addSpecies("handle", 1);
+    InitializeAtoms::populateRand(state, state->bounds, "handle", 6000, 0.6);
+
+    cout << "populated" << endl;
     
+  //  state->atoms.pos[0] += Vector(0.1, 0, 0);
 
-    for (int i=0; i<baseLen; i++) {
-        for (int j=0; j<baseLen; j++) {
-            state->atoms.push_back(Atom(Vector(i*mult, j*mult, 0), 0, j + i*baseLen, 2, 0));
-        }
-    }
-
-    
-
-
-    state->periodicInterval = 9;
-    SHARED(Fix2d) f2d = SHARED(Fix2d) (new Fix2d(state, "2d", 1));
-    state->activateFix(f2d);
+    state->periodicInterval = 7;
+   // SHARED(Fix2d) f2d = SHARED(Fix2d) (new Fix2d(state, "2d", 1));
+  //  state->activateFix(f2d);
     SHARED(FixLJCut) nonbond = SHARED(FixLJCut) (new FixLJCut(state, "ljcut", "all"));
     nonbond->setParameter("sig", "handle", "handle", 1);
     nonbond->setParameter("eps", "handle", "handle", 1);
     state->activateFix(nonbond);
-    cout << "last" << endl;
-    cout << state->atoms[0].id<< endl;
+    vector<double> intervals = {0, 1};
+    vector<double> temps = {1.2, 1.2};
+    SHARED(FixNVTRescale) thermo = SHARED(FixNVTRescale) (new FixNVTRescale(state, "thermo", "all", intervals, temps, 100));
+    //state->activateFix(thermo);
+    FILE *input = fopen("/home/daniel/Documents/hoomd_benchmarks/hoomd-benchmarks/lj-liquid/stripped.xml", "r");
+    char buf[150];
+/*
+    for (int i=0; i<64000; i++) {
+        fgets(buf, 150, input);
+        string s(buf);
+        istringstream is(s);
+        double pos[3];
+        for (int i=0; i<3; i++) {
+            is >> pos[i];
+        }
+        state->addAtom("handle", Vector(pos), 0);
+    }
+    */
+    InitializeAtoms::initTemp(state, "all", 1.2);
+    //SHARED(WriteConfig) write = SHARED(WriteConfig) (new WriteConfig(state, "test", "handley", "xml", 20));
+  //  state->activateWriteConfig(write);
 
+    IntegraterVerlet verlet(state);
+    verlet.run(5000);
+    cout.flush();
+    //SHARED(FixBondHarmonic) harmonic = SHARED(FixBondHarmonic) (new FixBondHarmonic(state, "harmonic"));
+    //state->activateFix(harmonic);
+    //harmonic->createBond(&state->atoms[0], &state->atoms[1], 1, 2);
+    
+    //SHARED(FixSpringStatic) springStatic = SHARED(FixSpringStatic) (new FixSpringStatic(state, "spring", "all", 1, Py_None));
+    //state->activateFix(springStatic);
+
+    //SHARED(WriteConfig) write = SHARED(WriteConfig) (new WriteConfig(state, "test", "handley", "base64", 50));
+    //state->activateWriteConfig(write);
+    //state->integrater.run(1000);
+
+}
+
+void testLJ() {
+    SHARED(State) state = SHARED(State) (new State());
+    state->devManager.setDevice(0);
+    int baseLen = 20;
+    state->shoutEvery = 1000;
+    double mult = 1.5;
+    state->bounds = Bounds(state, Vector(0, 0, 0), Vector(mult*baseLen, mult*baseLen, mult*baseLen));
+    state->rCut = 2.5;
+    state->padding = 0.5;
+    state->grid = AtomGrid(state.get(), 3.5, 3.5, 3);
+    state->atomParams.addSpecies("handle", 2);
+    vector<double> intervals = {0, 1};
+    vector<double> temps = {1.2, 1.2};
+
+    SHARED(FixNVTRescale) thermo = SHARED(FixNVTRescale) (new FixNVTRescale(state, "thermo", "all", intervals, temps, 100));
+    state->activateFix(thermo);
+    //state->is2d = true;
+    //state->periodic[2] = false;
+   // for (int i=0; i<32; i++) {
+        //state->addAtom("handle", Vector(2*i+1, 1, 0), 0);
+     //   state->addAtom("handle", Vector(2*31+1-2*i, 1, 0), 0);
+   // }
+
+  //  for (int i=0; i<32; i++) {
+   //     state->addAtom("handle", Vector(2*i+1, 5, 0), 0);
+ //   }
+    //state->addAtom("handle", Vector(1, 1, 0), 0);
+    //state->addAtom("handle", Vector(3.0, 1, 0), 0);
+
+   // state->addAtom("handle", Vector(5.0, 1, 0), 0);
+   // state->addAtom("handle", Vector(7.0, 1, 0), 0);
+    for (int i=0; i<baseLen; i++) {
+        for (int j=0; j<baseLen; j++) {
+            for (int k=0; k<baseLen; k++) {
+            //    state->addAtom("handle", Vector(i*mult + (rand() % 20)/40.0, j*mult + (rand() % 20)/40.0, 0), 0);
+                state->addAtom("handle", Vector(i*mult + (rand() % 20)/40.0, j*mult + (rand() % 20)/40.0, k*mult + (rand() % 20)/40.0), 0);
+            }
+        }
+    }
+
+    InitializeAtoms::initTemp(state, "all", 1.2); 
+  //  state->atoms.pos[0] += Vector(0.1, 0, 0);
+
+    state->periodicInterval = 9;
+   // SHARED(Fix2d) f2d = SHARED(Fix2d) (new Fix2d(state, "2d", 1));
+  //  state->activateFix(f2d);
+    SHARED(FixLJCut) nonbond = SHARED(FixLJCut) (new FixLJCut(state, "ljcut", "all"));
+    nonbond->setParameter("sig", "handle", "handle", 1);
+    nonbond->setParameter("eps", "handle", "handle", 1);
+    state->activateFix(nonbond);
+
+    //SHARED(WriteConfig) write = SHARED(WriteConfig) (new WriteConfig(state, "test", "handley", "xml", 20));
+  //  state->activateWriteConfig(write);
+
+    IntegraterVerlet verlet(state);
+    cout << state->atoms[0].pos << endl;
+    //verlet.run();
+    cout << state->atoms[0].pos << endl;
+    cout << state->atoms[1].pos << endl;
+    cout << state->atoms[0].force << endl;
+    cout.flush();
+    double sumKe = 0;
+    for (Atom &a : state->atoms) {
+        sumKe += a.kinetic();
+    }
+    cout << "temp  is " << (sumKe*(2.0/3.0)/state->atoms.size()) << endl;
     //SHARED(FixBondHarmonic) harmonic = SHARED(FixBondHarmonic) (new FixBondHarmonic(state, "harmonic"));
     //state->activateFix(harmonic);
     //harmonic->createBond(&state->atoms[0], &state->atoms[1], 1, 2);
@@ -428,16 +657,18 @@ void testGPUArrayTex() {
 }
 
 int main(int argc, char **argv) {
-    for (int i=0; i<argc; i++) {
-        cout << argv[i] << endl;
-    }
     if (argc > 1) {
         int arg = atoi(argv[1]);
         if (arg==0) {
-            cout << "hi" << endl;
-            testBondHarmonic();
+    //        testDihedral();
+            testLJ();
+            // testLJ();
+            // hoomdBench();
+            //testBondHarmonicGridToGPU();
         } else if (arg==1) {
-            //marat put your test stuff here
+//             testPair();
+//             testFire();
+	    test_charge_ewald();
         } else if (arg==2) {
             testBondHarmonicGrid();
             //sean put your test stuff here

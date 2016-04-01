@@ -2,34 +2,56 @@
 #define GRID_GPU
 
 
-#include "Mod.h"
-#include "BoundsGPU.h"
 #include "cutils_math.h"
-#include "GPUArrayDevice.h"
+#include "GPUArray.h"
 #include "GPUArrayTexDevice.h"
+#include <unordered_map>
+#include <unordered_set>
+#include <set>
+
+#include "boost_for_export.h"
+
+#define EXCL_MASK (~(3<<30));
 //okay, this is going to contain all the kernels needed to do gridding
 //can also have it contain the 3d grid for neighbor int2 s
 class State;
 class GridGPU {
     bool is2d;
     void initArrays();
+    void initStream();
     bool verifyNeighborlists(float neighCut);
-
-    vector<int> numNeighbors;
+    bool streamCreated;
     bool checkSorting(int gridIdx, int *gridIdxs, GPUArrayDevice<int> &grid);
     public: 
-        GPUArrayDevice<int> perCellArray;
+        GPUArray<int> perCellArray;
+        GPUArray<int> perBlockArray;
+        GPUArray<int> perAtomArray; //during runtime this is the starting (+1 is ending) index for each neighbor
+        GPUArrayDevice<float4> xsLastBuild;
+        GPUArray<int> buildFlag;
         float3 ds;
         float3 dsOrig;
         float3 os;
         int3 ns;
-        GPUArrayTexDevice<int> neighborlist;
-        GPUArrayDevice<int> perAtomArray; //during runtime this is the starting (+1 is ending) index for each neighbor
+        GPUArrayDevice<uint> neighborlist;
         State *state; 
         GridGPU(State *state_, float dx, float dy, float dz);
         GridGPU(State *state_, float3 ds_, float3 dsOrig_, float3 os_, int3 ns_);
-        GridGPU() {};
+        GridGPU(); // NEED TO CREATE STREAM OR WILL BE TRYING TO DESTROY NONEXISTANT STREAM
+        ~GridGPU();
         //need set2d function
-        void periodicBoundaryConditions(float neighCut, bool doSort);
+        void handleExclusions();
+        void periodicBoundaryConditions(float neighCut, bool doSort, bool forceBuild=false);
+        //exclusion list stuff     
+		typedef map<int, vector<set<int>>> ExclusionList; //is ordered to make looping over by id in order easier
+		bool closerThan(const ExclusionList &exclude,
+						int atomid, int otherid, int16_t depthi);
+		ExclusionList generateExclusionList(const int16_t maxDepth);
+      //  ExclusionList exclusionList;
+        GPUArrayDevice<int> exclusionIndexes;
+        GPUArrayDevice<uint> exclusionIds;
+        int maxExclusionsPerAtom;
+        int numChecksSinceLastBuild;
+        cudaStream_t rebuildCheckStream;
+        void copyPositionsAsync();
 };
 #endif

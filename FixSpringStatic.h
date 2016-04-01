@@ -17,7 +17,7 @@ class FixSpringStatic : public Fix {
     public:
         GPUArray<float4> tethers;
         double k;
-        void compute();
+        void compute(bool);
         void updateTethers();
         bool dataToDevice();
         bool prepareForRun();

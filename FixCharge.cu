@@ -17,6 +17,12 @@ bool FixCharge::prepareForRun() {
 }
 
 void export_FixCharge() {
-    class_<FixCharge, SHARED(FixCharge), bases<Fix> > ("FixCharge", init<SHARED(State), string, string,string> (args("state", "handle", "groupHandle","type")))
-        ;
+    boost::python::class_<FixCharge,
+                          SHARED(FixCharge),
+                          boost::python::bases<Fix> > (
+        "FixCharge",
+        boost::python::init<SHARED(State), string, string,string> (
+            boost::python::args("state", "handle", "groupHandle","type"))
+    )
+    ;
 }

@@ -30,7 +30,6 @@ class GPUArrayTexPair : public GPUArrayBasePair, public GPUArrayTexBase {
             for (int i=0; i<2; i++) {
                 d_data[i] = GPUArrayTexDevice<T>(desc_);
             }
-            size = 0;
         }
         GPUArrayTexPair(vector<T> vals, cudaChannelFormatDesc desc_) {
             for (int i=0; i<2; i++) {
@@ -39,9 +38,8 @@ class GPUArrayTexPair : public GPUArrayBasePair, public GPUArrayTexBase {
             set(vals);
         }
         void set(vector<T> &other) {
-            size = other.size();
             for (int i=0; i<2; i++) {
-                d_data[i].resize(size);
+                d_data[i].resize(other.size());
             }
             h_data = other;
             h_data.reserve(d_data[0].capacity);
@@ -65,7 +63,7 @@ class GPUArrayTexPair : public GPUArrayBasePair, public GPUArrayTexBase {
             d_data[activeIdx].getAsync(h_data.data(), stream);
         }
         void copyToDeviceArray(void *dest) { //DEST HAD BETTER BE ALLOCATED
-            int numBytes = size * sizeof(T);
+            int numBytes = size() * sizeof(T);
             copyToDeviceArrayInternal(dest, d_data[activeIdx].d_data, numBytes);
 
         }

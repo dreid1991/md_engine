@@ -1,5 +1,6 @@
 import sys
-sys.path.append('/home/daniel/Documents/auxetic/lib')
+sys.path.append('/home/daniel/Documents/md_engine_opt/core/python')
+sys.path.append('../python')
 from Sim import *
 import matplotlib.pyplot as plt
 from math import *
@@ -133,5 +134,5 @@ def domovie(fn, xlim=None, ylim=None, tag = '', forceColor=None, doBonds=True):
     state.destroy()
 
 if __name__ == '__main__':
-	domovie(fn)
+	domovie(fn, doBonds=False)
 

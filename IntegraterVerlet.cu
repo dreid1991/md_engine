@@ -1,28 +1,30 @@
 #include "IntegraterVerlet.h"
 
-
+#include "State.h"
 
 IntegraterVerlet::IntegraterVerlet(SHARED(State) state_) : Integrater(state_.get(), IntVerletType) {
 }
 
-__global__ void preForce_cu(int nAtoms, cudaSurfaceObject_t xs, float4 *vs, float4 *fs, float4 *fsLast, float dt) {
+__global__ void preForce_cu(int nAtoms, float4 *xs, float4 *vs, float4 *fs, float4 *fsLast, float dt) {
     int idx = GETIDX();
     if (idx < nAtoms) {
-        int xIdx = XIDX(idx, sizeof(float4));
-        int yIdx = YIDX(idx, sizeof(float4));
-        int xAddr = xIdx * sizeof(float4);
-        float4 pos = surf2Dread<float4>(xs, xAddr, yIdx);
 
         float4 vel = vs[idx];
         float4 force = fs[idx];
 
         float invmass = vel.w;
         float groupTag = force.w;
-        float id = pos.w;
-        pos += vel * dt + force * dt*dt*0.5f*invmass;
-        pos.w = id;
 
-        surf2Dwrite(pos, xs, xAddr, yIdx);
+        float3 dPos = make_float3(vel) * dt +
+                      make_float3(force) * dt*dt * 0.5f * invmass;
+        
+        // Only add float3 to xs and fs! (w entry is used as int or bitmask)
+        //THIS IS NONTRIVIALLY FASTER THAN DOING +=.  Sped up whole sumilation by 1%
+        float4 xCur = xs[idx];
+        xCur += dPos;
+        xs[idx] = xCur;
+
+        //xs[idx] = pos;
         fsLast[idx] = force;
         fs[idx] = make_float4(0, 0, 0, groupTag);
     }
@@ -47,7 +49,7 @@ __global__ void postForce_cu(int nAtoms, float4 *vs, float4 *fs, float4 *fsLast,
 }
 void IntegraterVerlet::preForce(uint activeIdx) {
 	//vector<Atom> &atoms = state->atoms;
-    preForce_cu<<<NBLOCK(state->atoms.size()), PERBLOCK>>>(state->atoms.size(), state->gpd.xs.getSurf(), state->gpd.vs.getDevData(), state->gpd.fs.getDevData(), state->gpd.fsLast.getDevData(), state->dt);
+    preForce_cu<<<NBLOCK(state->atoms.size()), PERBLOCK>>>(state->atoms.size(), state->gpd.xs.getDevData(), state->gpd.vs.getDevData(), state->gpd.fs.getDevData(), state->gpd.fsLast.getDevData(), state->dt);
 }
 
 
@@ -72,20 +74,33 @@ void IntegraterVerlet::run(int numTurns) {
     int remainder = state->turn % periodicInterval;
     int turnInit = state->turn; 
     auto start = std::chrono::high_resolution_clock::now();
-
+    /*
+    int x = 0;
+    dataGather = async(launch::async, [&]() {x=5;});
+    cout << "valid " << endl;
+    cout << dataGather.valid() << endl;
+    dataGather.wait();
+    cout << dataGather.valid() << endl;
+    cout << "x is " << x << endl;
+    cout << "waiting again" << endl;
+    dataGather.wait();
+    cout << "past" << endl;
+    return;
+     */
     for (int i=0; i<numTurns; i++) {
         if (! ((remainder + i) % periodicInterval)) {
             state->gridGPU.periodicBoundaryConditions(rCut + padding, true);
         }
         int activeIdx = state->gpd.activeIdx;
         asyncOperations();
+        doDataCollection();
         preForce(activeIdx);
         force(activeIdx);
         postForce(activeIdx);
 
-		if (state->verbose and not ((state->turn - turnInit) % state->shoutEvery)) {
-			cout << "Turn " << (int) state->turn << " " << (int) (100 * (state->turn - turnInit) / (num) numTurns) << " percent done" << endl;
-		}
+        if (state->verbose and not ((state->turn - turnInit) % state->shoutEvery)) {
+            cout << "Turn " << (int) state->turn << " " << (int) (100 * (state->turn - turnInit) / (num) numTurns) << " percent done" << endl;
+        }
         state->turn++;
 
     }
@@ -100,8 +115,14 @@ void IntegraterVerlet::run(int numTurns) {
 }
 
 void export_IntegraterVerlet() {
-    class_<IntegraterVerlet, SHARED(IntegraterVerlet), bases<Integrater> > ("IntegraterVerlet", init<SHARED(State)>())
-        .def("run", &IntegraterVerlet::run)
-        ;
+    boost::python::class_<IntegraterVerlet,
+                          SHARED(IntegraterVerlet),
+                          boost::python::bases<Integrater>,
+                          boost::noncopyable > (
+        "IntegraterVerlet",
+        boost::python::init<SHARED(State)>()
+     )
+    .def("run", &IntegraterVerlet::run)
+    ;
 }
 

@@ -11,7 +11,7 @@ class FixWallHarmonic : public Fix {
         Vector forceDir;
         double dist;
         double k;
-        void compute();
+        void compute(bool);
 };
 
 #endif

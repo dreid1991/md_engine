@@ -6,14 +6,13 @@
 
 #include <assert.h>
 #include <iostream>
+#include <stdint.h>
 
 #include <map>
-#include <unordered_map>
-#include <unordered_set>
 #include <tuple>
 #include <vector>
-#include <set>
 #include <functional>
+#include <random>
 #include <thread>
 
 #include <boost/shared_ptr.hpp>
@@ -24,12 +23,6 @@
 #include "GPUArrayTex.h"
 #include "GPUArray.h"
 
-using namespace std;
-using namespace boost;
-using namespace boost::python;
-
-class State;  //forward declaring so bond can use bounds, which includes state
-
 #include "AtomParams.h"
 #include "Atom.h"
 #include "Bond.h"
@@ -37,102 +30,91 @@ class State;  //forward declaring so bond can use bounds, which includes state
 #include "GridGPU.h"
 #include "Bounds.h"
 #include "AtomGrid.h"
-#include "DataSet.h"
 #include "DataManager.h"
 
 #include "boost_for_export.h"
-
+#include "DeviceManager.h"
 
 void export_State();
-
+class PythonOperation;
 class ReadConfig;
-class Atom;
 class Fix;
 //class DataManager;
 class WriteConfig;
 
-// TODO: MAKE DESTRUCTOR THAT CALLS FINISH IF IT HASN'T BEEN CALLED
 class State {
-	bool removeGroupTag(string handle);
-	uint addGroupTag(string handle);
+	bool removeGroupTag(std::string handle);
+	uint addGroupTag(std::string handle);
 	public:
 		// Sooo GPU ones are active during runtime, 
 		//		non-GPU are active during process (wording?) time.
-		vector<Atom> atoms;
+		std::vector<Atom> atoms;
 		GridGPU gridGPU;
 		BoundsGPU boundsGPU;
-		vector<Bond> bonds;
-		// using tuples makes boost say invalid template parameter.  Not sure why.
-		// Using int lists instead.  Also, can't have vector of static lists.
-		// Don't want to use pair, b/c angle has 3 :(
-		vector<int*> bondAtomIds; 
 		GPUData gpd;
+        DeviceManager devManager;
 		AtomGrid grid;
 		Bounds bounds;
-		vector<Fix *> fixes;
-		vector<SHARED(Fix)> fixesShr;
-		DataManager data;
-		vector<SHARED(WriteConfig) > writeConfigs;
-		map<string, unsigned int> groupTags;
+		std::vector<Fix *> fixes;
+		std::vector<SHARED(Fix)> fixesShr;
+		DataManager dataManager;
+		std::vector<SHARED(WriteConfig) > writeConfigs;
+        std::vector<SHARED(PythonOperation) > pythonOperations;
+		std::map<std::string, uint32_t> groupTags;
 		bool is2d;
 		bool buildNeighborlists;
 		bool periodic[3];
 		float dt;
-		int turn;
+        float specialNeighborCoefs[3]; //as 1-2, 1-3, 1-4 neighbors
+		int64_t turn;
 		int runningFor;
-		int runInit;
+		int64_t runInit;
 		int dangerousRebuilds;
 		int periodicInterval;
-		int dataIntervalStd;
+
+        bool computeVirials;
+
 
 		double rCut;
 		double padding;
 		
+        void setSpecialNeighborCoefs(float onetwo, float onethree, float onefour); 
 		bool activateFix(SHARED(Fix));
 		bool deactivateFix(SHARED(Fix));
 		bool activateWriteConfig(SHARED(WriteConfig));
 		bool deactivateWriteConfig(SHARED(WriteConfig));
+
+        bool activatePythonOperation(SHARED(PythonOperation));
+        bool deactivatePythonOperation(SHARED(PythonOperation));
 		//bool fixIsActive(SHARED(Fix));
 		bool changedAtoms;
-		bool changedBonds;
 		bool changedGroups;
 		bool redoNeighbors;
-		bool addToGroupPy(string, boost::python::list);
-		bool addToGroup(string, std::function<bool (Atom *)> );
-		vector<Atom *> selectGroup(string handle);
-		bool destroyGroup(string);
-		bool createGroup(string, boost::python::list atoms=boost::python::list());
-		uint groupTagFromHandle(string handle); 
-		bool addAtom(string handle, Vector pos, double q);
+		bool addToGroupPy(std::string, boost::python::list);
+		bool addToGroup(std::string, std::function<bool (Atom *)> );
+		std::vector<Atom *> selectGroup(std::string handle);
+		bool destroyGroup(std::string);
+		bool createGroup(std::string, boost::python::list atoms=boost::python::list());
+		uint32_t groupTagFromHandle(std::string handle);
+		int addAtom(std::string handle, Vector pos, double q);
 		bool addAtomDirect(Atom);
-		//bool addBond(Atom *, Atom *, double k, double rEq);
-		void refreshBonds();
-		void initData();
 		bool removeAtom(Atom *);
-		bool removeBond(Bond *);
 
 		// because it's an unordered set, the elements will always be unique
 		// use atom.id values, not Atom values, to allow for map/set hashing
-		typedef unordered_map<int, vector<unordered_set<int>>> ExclusionList;
-		bool closerThan(const ExclusionList &exclude,
-						int atomid, int otherid, int16_t depthi);
-		ExclusionList generateExclusionList(const int16_t maxDepth);
 
-		int addSpecies(string handle, double mass);
+		int addSpecies(std::string handle, double mass);
 
 		int idxFromId(int id);
 		Atom *atomFromId(int id);
 		bool verbose;
 		int shoutEvery;
 		AtomParams atomParams;
-		vector<Atom> copyAtoms();	
-		vector<BondSave> copyBonds();
-		void setAtoms(vector<Atom> &);
-		void setBonds(vector<BondSave> &);
-		void deleteBonds();  // SEANQ: what's the difference between remove and delete?
+		std::vector<Atom> copyAtoms();
+		void setAtoms(std::vector<Atom> &);
 		void deleteAtoms();
-		bool atomInGroup(Atom &, string handle);
-		bool asyncHostOperation(std::function<void (int )> cb);
+		bool atomInGroup(Atom &, std::string handle);
+		bool asyncHostOperation(std::function<void (int64_t )> cb);
 		SHARED(thread) asyncData;
 		SHARED(ReadConfig) readConfig;
 
@@ -148,11 +130,6 @@ class State {
 		}
         bool validAtom(Atom *);
 		bool makeReady();
-		// SEAN: maybe some typedefs could make this a little clearer
-		void setNeighborSpecialsGeneric(
-				std::function< vector<pair<int, vector<int> > > (Fix *)> processFix,
-				std::function<void (vector<int> &, vector<int> &, int) > processEnd);
-		void setNeighborlistExclusions();
 		int maxExclusions;
 		bool prepareForRun();
 		bool downloadFromRun();
@@ -160,12 +137,19 @@ class State {
 		void destroy();
 		// these two are for managing atom ids such that they are densely packed
 		// and it's quick at add atoms in large systems
-		vector<int> idxFromIdCache; 
+		std::vector<int> idxFromIdCache;
 		void updateIdxFromIdCache();
 		
 		int maxIdExisting;
-		vector<int> idBuffer;
+		std::vector<int> idBuffer;
 		// Akay, so we declare grid, fixes, bounds, and integrator seperately
+
+		std::mt19937 &getRNG();
+		void seedRNG(unsigned int seed = 0);
+
+	private:
+		std::mt19937 randomNumberGenerator;
+		bool rng_is_seeded;
 
 	// Can't I just make the properties accessable rather than making get/set functions?
 	// yes
@@ -175,11 +159,6 @@ class State {
 
 // SEANQ: is there a reason these are down below?
 //#include "AtomGrid.h"
-#include "Fix.h"
-#include "Bounds.h"
-#include "AtomParams.h"
-//#include "DataManager.h"
-#include "WriteConfig.h"
-#include "ReadConfig.h"
+
 #endif
 

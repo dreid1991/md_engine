@@ -1,5 +1,5 @@
 #include "Fix.h"
-
+#include "ReadConfig.h"
 Fix::Fix(SHARED(State) state_, string handle_, string groupHandle_, string type_, int applyEvery_) : state(state_.get()), handle(handle_), groupHandle(groupHandle_), applyEvery(applyEvery_), type(type_), forceSingle(false), orderPreference(0), restartHandle(type + "_" + handle) {
     forceSingle = false;
     updateGroupTag();
@@ -42,10 +42,12 @@ void Fix::validAtoms(vector<Atom *> &atoms) {
 }
 
 void export_Fix() {
-    class_<Fix> ("Fix")
-        .def_readonly("handle", &Fix::handle)
-        .def_readwrite("applyEvery", &Fix::applyEvery)
-        .def_readwrite("groupTag", &Fix::groupTag)
-        ;;
+    boost::python::class_<Fix> (
+        "Fix"
+    )
+    .def_readonly("handle", &Fix::handle)
+    .def_readwrite("applyEvery", &Fix::applyEvery)
+    .def_readwrite("groupTag", &Fix::groupTag)
+    ;
 
 }

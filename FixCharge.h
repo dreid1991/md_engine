@@ -11,7 +11,7 @@ class FixCharge : public Fix {
     public:
         FixCharge(SHARED(State) state_, string handle_, string groupHandle_, string type_);
 
-        virtual void compute(){};
+        virtual void compute(bool){};
         bool prepareForRun();
 	
 };

@@ -2,7 +2,7 @@
 #include "FixBondHarmonic.h"
 #include "cutils_func.h"
 #include "FixHelpers.h"
-__global__ void compute_cu(int nAtoms, cudaTextureObject_t xs, float4 *forces, cudaTextureObject_t idToIdxs, BondHarmonicGPU *bonds, int *startstops, BoundsGPU bounds) {
+__global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureObject_t idToIdxs, BondHarmonicGPU *bonds, int *startstops, BoundsGPU bounds) {
     int idx = GETIDX();
     extern __shared__ BondHarmonicGPU bonds_shr[];
     int idxBeginCopy = startstops[blockDim.x*blockIdx.x];
@@ -17,26 +17,26 @@ __global__ void compute_cu(int nAtoms, cudaTextureObject_t xs, float4 *forces, c
         //startIdx - idxBeginCopy gives my index in shared memory
         int shr_idx = startIdx - idxBeginCopy;
         int n = endIdx - startIdx;
-        int idSelf = bonds_shr[startIdx].myId;
-        
-        int idxSelf = tex2D<int>(idToIdxs, XIDX(idSelf, sizeof(int)), YIDX(idSelf, sizeof(int)));
+        if (n>0) { //if you have atoms w/ zero bonds at the end, they will read one off the end of the bond list
+            int idSelf = bonds_shr[shr_idx].myId;
 
-        float3 pos = make_float3(tex2D<float4>(xs, XIDX(idxSelf, sizeof(float4)), YIDX(idxSelf, sizeof(float4))));
-        float3 forceSum = make_float3(0, 0, 0);
-        for (int i=0; i<n; i++) {
-            BondHarmonicGPU b = bonds_shr[shr_idx + i];
-            int idOther = b.idOther;
-            int idxOther = tex2D<int>(idToIdxs, XIDX(idOther, sizeof(int)), YIDX(idOther, sizeof(int)));
+            int idxSelf = tex2D<int>(idToIdxs, XIDX(idSelf, sizeof(int)), YIDX(idSelf, sizeof(int)));
 
-            float3 posOther = make_float3(tex2D<float4>(xs, XIDX(idxOther, sizeof(float4)), YIDX(idxOther, sizeof(float4))));
-           // printf("atom %d bond %d gets force %f\n", idx, i, harmonicForce(bounds, pos, posOther, b.k, b.rEq));
-           // printf("xs %f %f\n", pos.x, posOther.x);
-            forceSum += harmonicForce(bounds, pos, posOther, b.k, b.rEq);
+
+            float3 pos = make_float3(xs[idxSelf]);
+            float3 forceSum = make_float3(0, 0, 0);
+            for (int i=0; i<n; i++) {
+                BondHarmonicGPU b = bonds_shr[shr_idx + i];
+                int idOther = b.idOther;
+                int idxOther = tex2D<int>(idToIdxs, XIDX(idOther, sizeof(int)), YIDX(idOther, sizeof(int)));
+
+                float3 posOther = make_float3(xs[idxOther]);
+                // printf("atom %d bond %d gets force %f\n", idx, i, harmonicForce(bounds, pos, posOther, b.k, b.rEq));
+                // printf("xs %f %f\n", pos.x, posOther.x);
+                forceSum += harmonicForce(bounds, pos, posOther, b.k, b.rEq);
+            }
+            forces[idxSelf] += forceSum;
         }
-        int zero = 0;
-        float4 forceSumWhole = make_float4(forceSum);
-        forceSumWhole.w = * (float *) &zero;
-        forces[idxSelf] += forceSumWhole;
     }
 }
 
@@ -50,18 +50,27 @@ FixBondHarmonic::FixBondHarmonic(SHARED(State) state_, string handle) : FixBond(
 //okay, so the net result of this function is that two arrays (items, idxs of items) are on the gpu and we know how many bonds are in bondiest  block
 
 
-void FixBondHarmonic::createBond(Atom *a, Atom *b, float k, float rEq) {
+void FixBondHarmonic::createBond(Atom *a, Atom *b, double k, double rEq, int type) {
     vector<Atom *> atoms = {a, b};
     validAtoms(atoms);
-    bonds.push_back(BondHarmonic(a, b, k, rEq));
+    if (type == -1) {
+        assert(k!=-1 and rEq!=-1);
+    }
+    bonds.push_back(BondHarmonic(a, b, k, rEq, type));
     bondAtomIds.push_back(make_int2(a->id, b->id));
 }
-void FixBondHarmonic::compute() {
+
+void FixBondHarmonic::setBondTypeCoefs(int type, double k, double rEq) {
+    assert(rEq>=0);
+    BondHarmonic dummy((Atom *) NULL, (Atom *) NULL, k, rEq);
+    setForcerType(type, dummy);
+}
+
+void FixBondHarmonic::compute(bool computeVirials) {
     int nAtoms = state->atoms.size();
     int activeIdx = state->gpd.activeIdx;
-    if (bonds.size()) {
-        compute_cu<<<NBLOCK(nAtoms), PERBLOCK, sizeof(BondHarmonicGPU) * maxBondsPerBlock>>>(nAtoms, state->gpd.xs.getTex(), state->gpd.fs(activeIdx), state->gpd.idToIdxs.getTex(), bondsGPU.ptr, bondIdxs.ptr, state->boundsGPU);
-    }
+    //cout << "Max bonds per block is " << maxBondsPerBlock << endl;
+    compute_cu<<<NBLOCK(nAtoms), PERBLOCK, sizeof(BondHarmonicGPU) * maxBondsPerBlock>>>(nAtoms, state->gpd.xs(activeIdx), state->gpd.fs(activeIdx), state->gpd.idToIdxs.getTex(), bondsGPU.data(), bondIdxs.data(), state->boundsGPU);
 
 }
 
@@ -108,8 +117,23 @@ string FixBondHarmonic::restartChunk(string format) {
 }
 
 void export_FixBondHarmonic() {
-    class_<FixBondHarmonic, SHARED(FixBondHarmonic), bases<Fix> > ("FixBondHarmonic", init<SHARED(State), string> (args("state", "handle")))
-        .def("createBond", &FixBondHarmonic::createBond)
-        ;
+    boost::python::class_<FixBondHarmonic,
+                          SHARED(FixBondHarmonic),
+                          boost::python::bases<Fix> > (
+        "FixBondHarmonic",
+        boost::python::init<SHARED(State), string> (
+            boost::python::args("state", "handle"))
+    )
+    .def("createBond", &FixBondHarmonic::createBond,
+            (boost::python::arg("k")=-1,
+             boost::python::arg("rEq")=-1,
+             boost::python::arg("type")=-1)
+        )
+    .def("setBondTypeCoefs", &FixBondHarmonic::setBondTypeCoefs,
+            (boost::python::arg("type"),
+             boost::python::arg("k"),
+             boost::python::arg("rEq"))
+        )
+    ;
 
 }

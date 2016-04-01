@@ -1,14 +1,48 @@
 #include "DataSet.h"
 #include "State.h"
-DataSet::DataSet(State *state_, string handle_, int accumulateEvery_, int computeEvery_) : state(state_), turnInit(state->turn), handle(handle_), accumulateEvery(accumulateEvery_), computeEvery(computeEvery_) {};
+using namespace std;
+namespace py = boost::python;
+void DataSet::setCollectMode() {
+    PyObject *func = collectGenerator.ptr();
+    if (PyCallable_Check(func)) {
+        collectModeIsPython = true;
+    } else {
+        collectModeIsPython = false;
+        if (collectEvery <= 0) {
+            cout << "Data set must either have python function or valid collect interval" << endl;
+            assert(collectEvery > 0);
+        }
+    }
+}
 
+void DataSet::takeCollectValues(int collectEvery_, py::object collectGenerator_) {
+    collectEvery = collectEvery_;
+    collectGenerator = collectGenerator;
+    setCollectMode();
+}
 
+int64_t DataSet::getNextCollectTurn(int64_t turn) {
+    if (collectModeIsPython) {
+        int64_t userPythonFunctionResult = boost::python::call<int64_t>(collectGenerator.ptr(), turn);
+        assert(userPythonFunctionResult > turn);
+        return userPythonFunctionResult;
+    } else {
+        return turn + collectEvery;
+    }
+}
+
+void DataSet::setNextCollectTurn(int64_t turn) {
+    nextCollectTurn = getNextCollectTurn(turn);
+}
 void export_DataSet() {
-    class_<DataSet, SHARED(DataSet) >("DataSet")
-        .def_readonly("turns", &DataSet::turns)
-        .def_readonly("data", &DataSet::data)
-        .def_readonly("turnInit", &DataSet::turnInit)
-        .def_readonly("handle", &DataSet::handle)
-        .def_readwrite("computeEvery", &DataSet::computeEvery)
-        ;
+    boost::python::class_<DataSet,
+                          boost::noncopyable>(
+        "DataSet",
+        boost::python::no_init
+    )
+    .def_readonly("turns", &DataSet::turnsPy)
+    .def_readonly("vals", &DataSet::valsPy)
+    .def_readwrite("nextCollectTurn", &DataSet::nextCollectTurn)
+ //   .def("getDataSet", &DataManager::getDataSet)
+    ;
 }

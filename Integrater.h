@@ -7,9 +7,9 @@
 #include "GPUArray.h"
 #include "GPUArrayTex.h"
 #include "boost_for_export.h"
+#include <future>
 void export_Integrater();
 class State;
-using namespace std;
 
 
 extern const string IntVerletType;
@@ -19,23 +19,27 @@ class Integrater {
 
     protected:
         //virtual void preForce(uint);
-        void force(uint);
+        void force(bool);
         //virtual void postForce(uint);
-        virtual void data();
         void asyncOperations();
-        vector<GPUArrayBase *> activeData;
+        std::vector<GPUArrayBase *> activeData;
         void basicPreRunChecks();
         void basicPrepare(int);
         void basicFinish();
         void setActiveData();
-	public:
-		string type;
-		State *state;
-		Integrater() {};
-		Integrater(State *state_, string type_);
-       
-		//double relax(int numTurns, num fTol);
-		void forceSingle();
+        void doDataCollection();
+        void singlePointEng(); //make a python-wrapped version
+        public:
+            double singlePointEngPythonAvg(string groupHandle);
+            boost::python::list singlePointEngPythonPerParticle();
+            string type;
+            State *state;
+            Integrater() {};
+            Integrater(State *state_, string type_);
+    
+            //double relax(int numTurns, num fTol);
+            void forceSingle(bool);
+            void writeOutput();
 /*	void verletPreForce(vector<Atom *> &atoms, double timestep);
 	void verletPostForce(vector<Atom *> &atoms, double timestep);
 	void compute(vector<Fix *> &, int);
@@ -47,5 +51,4 @@ class Integrater {
 };
 
 
-#include "State.h"
 #endif

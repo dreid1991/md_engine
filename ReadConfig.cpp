@@ -1,7 +1,7 @@
 #include "ReadConfig.h"
 #include "State.h"
 #include "xml_func.h"
-
+#include <boost/lexical_cast.hpp> //for case string to int64 (turn)
 
 
 vector<vector<num> > mapTo2d(vector<num> &xs, const int dim) {
@@ -132,11 +132,11 @@ vector<Bond> buildBonds(pugi::xml_node &config, State *state, string tag, int nu
 */
 bool ReadConfig::read() {
     cout << "READING A CONFIG" << endl;
-	state->deleteBonds();
+	//state->deleteBonds();
 	state->deleteAtoms();
 	vector<Atom> readAtoms;
-	int readTurn = atoi(config->attribute("turn").value());
-	int numAtoms = atoi(config->attribute("numAtoms").value());
+	int64_t readTurn = boost::lexical_cast<int64_t>(config->attribute("turn").value());
+	int numAtoms = boost::lexical_cast<int>(config->attribute("numAtoms").value());
 	bool readIs2d = !strcmp(config->attribute("dimension").value(), "2");
 	const char *periodic = config->attribute("periodic").value();
     cout << "periodic is " << periodic << endl;
@@ -284,11 +284,13 @@ pugi::xml_node ReadConfig::readNode(string nodeTag) {
 }
 
 void export_ReadConfig() {
-
-    class_<ReadConfig, SHARED(ReadConfig) >("ReadConfig")
-        .def("loadFile", &ReadConfig::loadFile)
-        .def("next", &ReadConfig::next)
-        .def("prev", &ReadConfig::prev)
-        .def("moveBy", &ReadConfig::moveBy)
-        ;
+    boost::python::class_<ReadConfig,
+                          SHARED(ReadConfig) >(
+        "ReadConfig"
+    )
+    .def("loadFile", &ReadConfig::loadFile)
+    .def("next", &ReadConfig::next)
+    .def("prev", &ReadConfig::prev)
+    .def("moveBy", &ReadConfig::moveBy)
+    ;
 }

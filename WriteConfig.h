@@ -10,18 +10,20 @@
 void export_WriteConfig();
 
 class WriteConfig {
-	void (*writeFormat)(State *, char [FN_LEN]);	
+	void (*writeFormat)(State *, string, int64_t, bool);	
 	public:
 		State *state;
 		string fn;
 		string handle;
 		string format;
 		int writeEvery;
-		int turnInit;
-		void write();
-		char fnFinal[FN_LEN];
+        bool isXML;
+		void write(int64_t turn);
 		void finish();
         int orderPreference; //just there so I can use same functions as fix for adding/removing
+        bool oneFilePerWrite;
+        string getCurrentFn(int64_t turn);
+
 		WriteConfig(SHARED(State), string fn, string handle, string format, int writeEvery);
         ~WriteConfig() {
             finish();

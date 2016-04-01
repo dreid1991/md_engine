@@ -4,6 +4,7 @@
 
 FixSpringStatic::FixSpringStatic(SHARED(State) state_, string handle_, string groupHandle_, double k_,  PyObject *tetherFunc_, Vector multiplier_) : Fix(state_, handle_, groupHandle_, springStaticType, 1), k(k_), tetherFunc(tetherFunc_), multiplier(multiplier_) {
     updateTethers();
+    forceSingle = true;
 }
 
 void FixSpringStatic::updateTethers() {
@@ -36,14 +37,14 @@ bool FixSpringStatic::prepareForRun() {
 }
 
 
-void __global__ compute_cu(int nTethers, float4 *tethers, cudaTextureObject_t xs, float4 *fs, cudaTextureObject_t idToIdxs, float k, BoundsGPU bounds, float3 multiplier) {
+void __global__ compute_cu(int nTethers, float4 *tethers, float4 *xs, float4 *fs, cudaTextureObject_t idToIdxs, float k, BoundsGPU bounds, float3 multiplier) {
     int idx = GETIDX();
     if (idx < nTethers) {
         float4 tether = tethers[idx];
         float3 tetherPos = make_float3(tether);
         int id = * (int *) &tether.w;
         int atomIdx = tex2D<int>(idToIdxs, XIDX(id, sizeof(int)), YIDX(id, sizeof(int)));
-        float3 curPos = make_float3(tex2D<float4>(xs, XIDX(atomIdx, sizeof(float4)), YIDX(atomIdx, sizeof(float4))));
+        float3 curPos = make_float3(xs[atomIdx]);
 //        printf("cur is %f %f, tether is %f %f, mult is %f %f %f, k is %f \n", curPos.x, curPos.y, tetherPos.x, tetherPos.y, multiplier.x, multiplier.y, multiplier.z, k);
         float3 force = multiplier * harmonicForce(bounds, curPos, tetherPos, k, 0);
         //printf("forces %f %f %f\n", force.x, force.y, force.z);
@@ -51,20 +52,37 @@ void __global__ compute_cu(int nTethers, float4 *tethers, cudaTextureObject_t xs
     }
 }
 
-void FixSpringStatic::compute() {
+void FixSpringStatic::compute(bool computeVirials) {
     GPUData &gpd = state->gpd;
     int activeIdx = state->gpd.activeIdx;
-    compute_cu<<<NBLOCK(tethers.h_data.size()), PERBLOCK>>>(tethers.h_data.size(), tethers.getDevData(), gpd.xs.getTex(), gpd.fs(activeIdx), gpd.idToIdxs.getTex(), k, state->boundsGPU, multiplier.asFloat3());
+    compute_cu<<<NBLOCK(tethers.h_data.size()), PERBLOCK>>>(tethers.h_data.size(), tethers.getDevData(), gpd.xs(activeIdx), gpd.fs(activeIdx), gpd.idToIdxs.getTex(), k, state->boundsGPU, multiplier.asFloat3());
 }
 
 
 
 void export_FixSpringStatic() {
-    class_<FixSpringStatic, SHARED(FixSpringStatic), bases<Fix> > ("FixSpringStatic", init<SHARED(State), string, string, double, PyObject *, optional<Vector>> (args("state", "handle", "groupHandle", "k", "tetherFunc", "multiplier")))
-        .def("updateTethers", &FixSpringStatic::updateTethers)
-        .def_readwrite("multiplier", &FixSpringStatic::multiplier)
-        .def_readwrite("tetherFunc", &FixSpringStatic::tetherFunc)
-        .def_readwrite("k", &FixSpringStatic::k)
-        ;
+    boost::python::class_<FixSpringStatic,
+                          SHARED(FixSpringStatic),
+                          boost::python::bases<Fix> > (
+        "FixSpringStatic",
+        boost::python::init<SHARED(State),
+                            string,
+                            string,
+                            double,
+                            PyObject *,
+                            boost::python::optional<Vector>> (
+                                boost::python::args("state",
+                                                    "handle",
+                                                    "groupHandle",
+                                                    "k",
+                                                    "tetherFunc",
+                                                    "multiplier")
+                                )
+    )
+    .def("updateTethers", &FixSpringStatic::updateTethers)
+    .def_readwrite("multiplier", &FixSpringStatic::multiplier)
+    .def_readwrite("tetherFunc", &FixSpringStatic::tetherFunc)
+    .def_readwrite("k", &FixSpringStatic::k)
+    ;
 
 }

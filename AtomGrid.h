@@ -10,8 +10,8 @@
 #include <assert.h>
 #include <vector>
 #include <boost/shared_ptr.hpp>
-#include "Mod.h"
 #include "globalDefs.h"
+#include "Bond.h"
 #include "boost_for_export.h"
 class State;
 using namespace std;
@@ -60,7 +60,6 @@ class AtomGrid : public Grid<Atom *> {
 			setNeighborSquares();
 		};
 		*/
-        void assignBondOffsets(vector<Bond> &, Bounds);
         bool adjustForChangedBounds();
 		void periodicBoundaryConditions();
 		void periodicBoundaryConditions(double);

@@ -15,11 +15,12 @@ class FixBondHarmonic : public FixBond<BondHarmonic, BondHarmonicGPU> {
        // bool refreshAtoms();
         //vector<pair<int, vector<int> > > neighborlistExclusions();
 
-        void createBond(Atom *, Atom *, float, float);
+        void createBond(Atom *, Atom *, double, double, int);
+        void setBondTypeCoefs(int, double, double);
         ~FixBondHarmonic(){};
         string restartChunk(string format);
        // int maxBondsPerBlock;
-        void compute();
+        void compute(bool);
         const BondHarmonic getBond(size_t i) {
             return boost::get<BondHarmonic>(bonds[i]);
         }

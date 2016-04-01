@@ -1,53 +1,51 @@
 #include "boost_stls.h"
-
+#include "Bounds.h"
 void export_stls() {
-    class_<std::map<std::string, int> >("stringInt")
-        .def(map_indexing_suite<std::map<std::string, int> >())
+    boost::python::class_<std::map<std::string, int> >("stringInt")
+        .def(boost::python::map_indexing_suite<std::map<std::string, int> >())
         ;
-    class_<std::vector<double> >("vecdouble")
-        .def(vector_indexing_suite<std::vector<double> >() )
+    boost::python::class_<std::vector<double> >("vecdouble")
+        .def(boost::python::vector_indexing_suite<std::vector<double> >() )
         ;
-
-    class_<std::vector<vector<double> > >("vecdouble")
-        .def(vector_indexing_suite<std::vector< vector<double> > >() )
+    boost::python::class_<std::vector<vector<double> > >("vecdouble")
+        .def(boost::python::vector_indexing_suite<std::vector< vector<double> > >() )
         ;
-    class_<std::vector<int> >("vecInt")
-        .def(vector_indexing_suite<std::vector<int> >() )
-        ;
-
-    class_<std::vector<Atom> >("vecAtom")
-        .def(vector_indexing_suite<std::vector<Atom> >() )
+    boost::python::class_<std::vector<int> >("vecInt")
+        .def(boost::python::vector_indexing_suite<std::vector<int> >() )
         ;
 
-    class_<std::vector<Atom *> >("vecAtomPtr")
-        .def(vector_indexing_suite<std::vector<Atom *> >() )
+    boost::python::class_<std::vector<int64_t> >("vecLong")
+        .def(boost::python::vector_indexing_suite<std::vector<int64_t> >() )
         ;
-    class_<std::vector<Bond> >("vecBond")
-        .def(vector_indexing_suite<std::vector<Bond> >() )
+    boost::python::class_<std::vector<Atom> >("vecAtom")
+        .def(boost::python::vector_indexing_suite<std::vector<Atom> >() )
         ;
 
-    class_<std::vector<Neighbor> >("vecNeighbor")
-        .def(vector_indexing_suite<std::vector<Neighbor> >() )
+    boost::python::class_<std::vector<Atom *> >("vecAtomPtr")
+        .def(boost::python::vector_indexing_suite<std::vector<Atom *> >() )
         ;
-    /*
-       class_<std::vector<SHARED(DataSet) > >("vecDataSet")
-       .def(vector_indexing_suite<std::vector<SHARED(DataSet) > >() )
-       ;
-       */
-    class_<std::vector<SHARED(WriteConfig) > >("vecWriteConfig")
-        .def(vector_indexing_suite<std::vector<SHARED(WriteConfig) > >() )
+    boost::python::class_<std::vector<Bond> >("vecBond")
+        .def(boost::python::vector_indexing_suite<std::vector<Bond> >() )
         ;
-    class_<std::vector<BondSave > >("vecBondSave")
-        .def(vector_indexing_suite<std::vector<BondSave > >() )
+
+    boost::python::class_<std::vector<Neighbor> >("vecNeighbor")
+        .def(boost::python::vector_indexing_suite<std::vector<Neighbor> >() )
         ;
-    /*
-       class_<std::map<std::string, SHARED(DataSet) > >("stringDataSet")
-       .def(map_indexing_suite<std::map<std::string, SHARED(DataSet) > >())
-       ;
-       */
-    class_<std::vector<SHARED(Fix) > >("vecFix")
-        .def(vector_indexing_suite<std::vector<SHARED(Fix) > >() )
+    boost::python::class_<std::vector<SHARED(WriteConfig) > >("vecWriteConfig")
+        .def(boost::python::vector_indexing_suite<std::vector<SHARED(WriteConfig) > >() )
+        ;
+    boost::python::class_<std::vector<BondSave > >("vecBondSave")
+        .def(boost::python::vector_indexing_suite<std::vector<BondSave > >() )
+        ;
+    boost::python::class_<std::vector<SHARED(Fix) > >("vecFix")
+        .def(boost::python::vector_indexing_suite<std::vector<SHARED(Fix) > >() )
         //	.def("remove", &vectorRemove<Fix>)
         //	.staticmethod("remove")
+        ;
+    boost::python::class_<std::vector<SHARED(Bounds)> >("vecBounds")
+        .def(boost::python::vector_indexing_suite<std::vector<SHARED(Bounds)> >() )
+        ;
+    boost::python::class_<std::vector<Bounds> >("vecBoundsRaw")
+        .def(boost::python::vector_indexing_suite<std::vector<Bounds> >() )
         ;
 }

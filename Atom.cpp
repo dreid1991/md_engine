@@ -1,5 +1,7 @@
 
 #include "Atom.h"
+#include "boost_for_export.h"
+using namespace boost::python;
 void export_Atom () { 
     class_<Atom>("Atom", init<int, int>())
         .def(init<Vector, int, int>())

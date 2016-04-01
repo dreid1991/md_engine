@@ -12,7 +12,6 @@
 void export_Bounds();
 
 class State;
-using namespace std;
 class Bounds : public BoundsGeneric {
 	public:
 		State *state;
@@ -32,13 +31,17 @@ class Bounds : public BoundsGeneric {
 		Bounds(State *state_, Vector lo_, Vector sides_[3]) : BoundsGeneric(lo_, sides_), state(state_), isSet(true) {
 			handle2d();
 		}
+        Bounds(BoundsGPU &source) : isSet(true) {
+            state = (State *) NULL; //this one is only for tabulating data
+            set(source);
+        }
         BoundsGPU makeGPU();
 		void handle2d();
 	
-		string asStr() {
+        std::string asStr() {
 			
-			string loStr = "Lower bounds " + lo.asStr();
-			string hiStr = "upper bounds " + hi.asStr();
+            std::string loStr = "Lower bounds " + lo.asStr();
+            std::string hiStr = "upper bounds " + hi.asStr();
 			return loStr + ", " + hiStr ;
 		}
 		bool atomInBounds(Atom &);
@@ -47,10 +50,14 @@ class Bounds : public BoundsGeneric {
 			return *this;
 		}
         bool operator==(const Bounds &other) {
-            return lo==other.lo and hi==other.hi and sides[0]==other.sides[0] and sides[1]==other.sides[1] and sides[2]==other.sides[2];
+            return ((lo-other.lo).abs() < VectorEps) &&
+                   ((hi-other.hi).abs() < VectorEps) &&
+                   ((sides[0]-other.sides[0]).abs() < VectorEps) &&
+                   ((sides[1]-other.sides[1]).abs() < VectorEps) &&
+                   ((sides[2]-other.sides[2]).abs() < VectorEps);
         }
         bool operator!=(const Bounds &other) {
-            return not(lo==other.lo and hi==other.hi and sides[0]==other.sides[0] and sides[1]==other.sides[1] and sides[2]==other.sides[2]);
+            return !(*this == other);
         }
         void set(BoundsGPU &b) {
             lo = Vector(b.lo);
@@ -88,6 +95,7 @@ class Bounds : public BoundsGeneric {
 		Bounds unskewed();
         bool isSkewed();	
         bool isSet;
+        Vector minImage(Vector v);
 };
 
 //SHARED(Bounds) BoundsCreateSkew(  figure out how to create laters

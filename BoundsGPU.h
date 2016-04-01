@@ -53,6 +53,10 @@ class BoundsGPU {
             v -= sides[2] * img * periodic.z;
             return v;
         }
+        GPUMEMBER bool inBounds(float3 v) {
+            float3 diff = v - lo;
+            return diff.x < sides[0].x and diff.y < sides[1].y and diff.z < sides[2].z;
+        }
         
 };
 #endif

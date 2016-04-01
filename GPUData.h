@@ -3,34 +3,37 @@
 #include "GPUArrayPair.h"
 #include "GPUArrayTexPair.h"
 #include "GPUArrayDevice.h"
+#include "Virial.h"
 #define NUM_PAIR_ARRAYS 6
 class GPUData {
     public:
         GPUArrayBasePair *allPairs[NUM_PAIR_ARRAYS];
-        GPUArrayTexPair<float4> xs;
+        GPUArrayPair<float4> xs;
         GPUArrayPair<float4> vs;
         GPUArrayPair<float4> fs;
         GPUArrayPair<float4> fsLast;
-        GPUArrayTexPair<short> types;
+        GPUArrayPair<uint> ids;
+        GPUArrayPair<float> qs;
         GPUArrayTex<int> idToIdxs;
-        GPUArrayTexPair<float> qs;
 
 
         GPUArray<float4> xsBuffer;
         GPUArray<float4> vsBuffer;
         GPUArray<float4> fsBuffer;
         GPUArray<float4> fsLastBuffer;
+        GPUArray<uint> idsBuffer;
 
-        GPUArrayTex<int> nlistExclusions;
-        GPUArrayTex<int> nlistExclusionIdxs;
+        GPUArray<float> perParticleEng; //for data collection.  If we re-use per-particle arrays, we can't do async kernels to do per-group sums.  Would use less memory though
+        GPUArray<Virial> perParticleVirial;
+
     //OMG REMEMBER TO ADD EACH NEW ARRAY TO THE ACTIVE DATA LIST IN INTEGRATER OR PAIN AWAITS
 
-        GPUData() : xs(cudaCreateChannelDesc(32, 32, 32, 32, cudaChannelFormatKindFloat)), idToIdxs(cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindSigned)), qs(cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindFloat)), types(cudaCreateChannelDesc(16, 0, 0, 0, cudaChannelFormatKindSigned)), nlistExclusions(cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindSigned)), nlistExclusionIdxs(cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindSigned)), activeIdx(0) {
-           allPairs[0] = (GPUArrayBasePair *) &xs; //ids (ints) are bit cast into the w value of xs.  Cast as int pls
+        GPUData() : idToIdxs(cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindSigned)), activeIdx(0) {
+           allPairs[0] = (GPUArrayBasePair *) &xs; //types (ints) are bit cast into the w value of xs.  Cast as int pls
            allPairs[1] = (GPUArrayBasePair *) &vs; //mass is stored in w value of vs.  ALWAYS do arithmatic as float3s, or you will mess up id or mass
            allPairs[2] = (GPUArrayBasePair *) &fs; //groupTags (uints) are bit cast into the w value of fs
            allPairs[3] = (GPUArrayBasePair *) &fsLast; //and one more space!
-           allPairs[4] = (GPUArrayBasePair *) &types;
+           allPairs[4] = (GPUArrayBasePair *) &ids;
            allPairs[5] = (GPUArrayBasePair *) &qs;
         }
         unsigned int activeIdx;

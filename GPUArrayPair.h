@@ -25,38 +25,27 @@ class GPUArrayPair : public GPUArrayBasePair {
 
     void setHost(vector<T> &vals) {
         h_data = vals;
-        size = vals.size();
-    }
-    void setHostCanFit(vector<T> &vals) {
-
-        memcpy(h_data.data(), vals.data(), sizeof(T) * vals.size());
-        size = vals.size();
-        //okay... may be some excess on host, device.  can deal with later if problem
     }
     public:
         vector<T> h_data;
         GPUArrayDevice<T> d_data[2];
         GPUArrayPair() : GPUArrayBasePair() {
-            size = 0;
         }
         GPUArrayPair(vector<T> &vals) {
             set(vals);
-            if (!vals.size()) { //should alloc anyway
-                for (int i=0; i<2; i++) {
-                    d_data[i] = GPUArrayDevice<T>(vals.size());
-                }
-
+            for (int i=0; i<2; i++) {
+                d_data[i] = GPUArrayDevice<T>(vals.size());
             }
         }
         T *getDevData(int n) {
-            return d_data[n].ptr;
+            return d_data[n].data();
         }
         T *getDevData() {
             return getDevData(activeIdx);
         }
         bool set(vector<T> &other) {
-            if (other.size() < size) {
-                setHostCanFit(other);
+            if (other.size() < size()) {
+                setHost(other);
                 return true;
             } else {
                 for (int i=0; i<2; i++) {
@@ -67,18 +56,31 @@ class GPUArrayPair : public GPUArrayBasePair {
             return false;
 
         }
+
+        size_t size() const { return h_data.size(); }
+
         T *operator ()(int n) {
             return getDevData(n);
         }
         void dataToDevice() {
-            CUCHECK(cudaMemcpy(d_data[activeIdx].ptr, h_data.data(), size*sizeof(T), cudaMemcpyHostToDevice ));
+            CUCHECK(cudaMemcpy(d_data[activeIdx].data(), h_data.data(), size()*sizeof(T), cudaMemcpyHostToDevice ));
 
         }
         void dataToHost() {
-            CUCHECK(cudaMemcpy(h_data.data(), d_data[activeIdx].ptr, size*sizeof(T), cudaMemcpyDeviceToHost));
+            dataToHost(activeIdx);
+        }      
+        void dataToHost(int idx) {
+            CUCHECK(cudaMemcpy(h_data.data(), d_data[idx].data(), size()*sizeof(T), cudaMemcpyDeviceToHost));
         }      
         void copyToDeviceArray(void *dest) {
-            CUCHECK(cudaMemcpy(dest, d_data[activeIdx].ptr, size*sizeof(T), cudaMemcpyDeviceToDevice));
+            CUCHECK(cudaMemcpy(dest, d_data[activeIdx].data(), size()*sizeof(T), cudaMemcpyDeviceToDevice));
+        }
+        bool copyBetweenArrays(int dst, int src) {
+            if (dst != src) {
+                CUCHECK(cudaMemcpy(d_data[dst].data(), d_data[src].data(), size()*sizeof(T), cudaMemcpyDeviceToDevice));
+                return true;
+            }
+            return false;
         }
         void memsetByVal(T val, int idx) {
             d_data[idx].memsetByVal(val);

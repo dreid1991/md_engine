@@ -16,5 +16,6 @@ const string scaleBoxType = "scaleBox";
 const string skewBoxType = "skewBox";
 const string wallHarmonicType = "wallHarmonic";
 const string chargePairDSF = "chargePairDSF";
+const string improperHarmonicType = "improperHarmonic";
 
 const vector<string> FORCERTYPES = {LJCutType, LJRadType, expCutType, softSphereType};

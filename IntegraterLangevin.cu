@@ -3,6 +3,7 @@
 #include <curand_kernel.h>
  #include <math.h>
       
+#include "State.h"
 
 IntegraterLangevin::IntegraterLangevin(SHARED(State) state_) : IntegraterVerlet(state_) {
 }
@@ -66,6 +67,7 @@ void IntegraterLangevin::run(int numTurns) {
         }
         int activeIdx = state->gpd.activeIdx;
         asyncOperations();
+        doDataCollection();
         preForce(activeIdx);
         force(activeIdx);
         postForce(activeIdx,state->turn);

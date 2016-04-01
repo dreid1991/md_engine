@@ -1,6 +1,6 @@
 #include "Dihedral.h"
 
-DihedralOPLS::DihedralOPLS(Atom *a, Atom *b, Atom *c, Atom *d, double coefs_[4]) {
+DihedralOPLS::DihedralOPLS(Atom *a, Atom *b, Atom *c, Atom *d, double coefs_[4], int type_) {
     atoms[0] = a;
     atoms[1] = b;
     atoms[2] = c;
@@ -8,7 +8,24 @@ DihedralOPLS::DihedralOPLS(Atom *a, Atom *b, Atom *c, Atom *d, double coefs_[4])
     for (int i=0; i<4; i++) {
         coefs[i] = coefs_[i];
     }
+    type = type_;
+}
 
+DihedralOPLS::DihedralOPLS(double coefs_[4], int type_) {
+    for (int i=0; i<4; i++) {
+        atoms[i] = (Atom *) NULL;
+    }
+    for (int i=0; i<4; i++) {
+        coefs[i] = coefs_[i];
+    }
+    type = type_;
+}
+
+
+void DihedralOPLS::takeValues(DihedralOPLS &dihedral) {
+    for (int i=0; i<4; i++) {
+        coefs[i] = dihedral.coefs[i];
+    }
 }
 
 void DihedralOPLSGPU::takeIds(int *ids_) {
