@@ -36,33 +36,36 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *fs, int *neighborCoun
             int nlistIdx = baseIdx + warpSize * i;
             uint otherIdxRaw = neighborlist[nlistIdx];
             uint neighDist = otherIdxRaw >> 30;
-            uint otherIdx = otherIdxRaw & EXCL_MASK;
-            float4 otherPosWhole = xs[otherIdx];
-            int otherType = * (int *) &otherPosWhole.w;
-            float3 otherPos = make_float3(otherPosWhole);
-            //then wrap and compute forces!
-            float sig = squareVectorItem(sigs_shr, numTypes, type, otherType);
-            float eps = squareVectorItem(eps_shr, numTypes, type, otherType);
-            float3 dr = bounds.minImage(pos - otherPos);
-            float lenSqr = lengthSqr(dr);
-         //   printf("dist is %f %f %f\n", dr.x, dr.y, dr.z);
-            if (lenSqr < rCut*rCut) {
-                float multiplier = multipliers[neighDist];
-               // printf("mult is %f between idxs %d %d\n", multiplier, idx, otherIdx);
-                float sig6 = powf(sig, 6);//compiler should optimize this 
-                float p1 = eps*48*sig6*sig6;
-                float p2 = eps*24*sig6;
-                float r2inv = 1/lenSqr;
-                float r6inv = r2inv*r2inv*r2inv;
-                float forceScalar = r6inv * r2inv * (p1 * r6inv - p2) * multiplier;
+            float multiplier = multipliers[neighDist];
+            if (multiplier) {
+                uint otherIdx = otherIdxRaw & EXCL_MASK;
+                float4 otherPosWhole = xs[otherIdx];
+                int otherType = * (int *) &otherPosWhole.w;
+                float3 otherPos = make_float3(otherPosWhole);
+                //then wrap and compute forces!
+                float sig = squareVectorItem(sigs_shr, numTypes, type, otherType);
+                float eps = squareVectorItem(eps_shr, numTypes, type, otherType);
+                float3 dr = bounds.minImage(pos - otherPos);
+                float lenSqr = lengthSqr(dr);
+             //   printf("dist is %f %f %f\n", dr.x, dr.y, dr.z);
+                if (lenSqr < rCut*rCut) {
+                   // printf("mult is %f between idxs %d %d\n", multiplier, idx, otherIdx);
+                    float sig6 = powf(sig, 6);//compiler should optimize this 
+                    float p1 = eps*48*sig6*sig6;
+                    float p2 = eps*24*sig6;
+                    float r2inv = 1/lenSqr;
+                    float r6inv = r2inv*r2inv*r2inv;
+                    float forceScalar = r6inv * r2inv * (p1 * r6inv - p2) * multiplier;
 
-                float3 forceVec = dr * forceScalar;
-                forceSum += forceVec;
+                    float3 forceVec = dr * forceScalar;
+                    forceSum += forceVec;
+                }
             }
 
         }   
         //printf("force %f %f %f with %d atoms \n", forceSum.x, forceSum.y, forceSum.z, end-start);
         float4 forceCur = fs[idx];
+        printf("LJ force is %f %f %f\n", forceSum.x, forceSum.y, forceSum.z);
         forceCur += forceSum;
         fs[idx] = forceCur;
         //fs[idx] += forceSum;
