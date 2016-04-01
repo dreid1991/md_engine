@@ -23,7 +23,6 @@
 #include "GPUArrayTex.h"
 #include "GPUArray.h"
 
-using namespace std;
 using namespace boost;
 using namespace boost::python;
 
@@ -49,24 +48,24 @@ class Fix;
 class WriteConfig;
 
 class State {
-	bool removeGroupTag(string handle);
-	uint addGroupTag(string handle);
+	bool removeGroupTag(std::string handle);
+	uint addGroupTag(std::string handle);
 	public:
 		// Sooo GPU ones are active during runtime, 
 		//		non-GPU are active during process (wording?) time.
-		vector<Atom> atoms;
+		std::vector<Atom> atoms;
 		GridGPU gridGPU;
 		BoundsGPU boundsGPU;
 		GPUData gpd;
         DeviceManager devManager;
 		AtomGrid grid;
 		Bounds bounds;
-		vector<Fix *> fixes;
-		vector<SHARED(Fix)> fixesShr;
+		std::vector<Fix *> fixes;
+		std::vector<SHARED(Fix)> fixesShr;
 		DataManager dataManager;
-		vector<SHARED(WriteConfig) > writeConfigs;
-        vector<SHARED(PythonOperation) > pythonOperations;
-		map<string, uint32_t> groupTags;
+		std::vector<SHARED(WriteConfig) > writeConfigs;
+        std::vector<SHARED(PythonOperation) > pythonOperations;
+		std::map<std::string, uint32_t> groupTags;
 		bool is2d;
 		bool buildNeighborlists;
 		bool periodic[3];
@@ -96,30 +95,30 @@ class State {
 		bool changedAtoms;
 		bool changedGroups;
 		bool redoNeighbors;
-		bool addToGroupPy(string, boost::python::list);
-		bool addToGroup(string, std::function<bool (Atom *)> );
-		vector<Atom *> selectGroup(string handle);
-		bool destroyGroup(string);
-		bool createGroup(string, boost::python::list atoms=boost::python::list());
-		uint32_t groupTagFromHandle(string handle); 
-		int addAtom(string handle, Vector pos, double q);
+		bool addToGroupPy(std::string, boost::python::list);
+		bool addToGroup(std::string, std::function<bool (Atom *)> );
+		std::vector<Atom *> selectGroup(std::string handle);
+		bool destroyGroup(std::string);
+		bool createGroup(std::string, boost::python::list atoms=boost::python::list());
+		uint32_t groupTagFromHandle(std::string handle);
+		int addAtom(std::string handle, Vector pos, double q);
 		bool addAtomDirect(Atom);
 		bool removeAtom(Atom *);
 
 		// because it's an unordered set, the elements will always be unique
 		// use atom.id values, not Atom values, to allow for map/set hashing
 
-		int addSpecies(string handle, double mass);
+		int addSpecies(std::string handle, double mass);
 
 		int idxFromId(int id);
 		Atom *atomFromId(int id);
 		bool verbose;
 		int shoutEvery;
 		AtomParams atomParams;
-		vector<Atom> copyAtoms();	
-		void setAtoms(vector<Atom> &);
+		std::vector<Atom> copyAtoms();
+		void setAtoms(std::vector<Atom> &);
 		void deleteAtoms();
-		bool atomInGroup(Atom &, string handle);
+		bool atomInGroup(Atom &, std::string handle);
 		bool asyncHostOperation(std::function<void (int64_t )> cb);
 		SHARED(thread) asyncData;
 		SHARED(ReadConfig) readConfig;
@@ -143,11 +142,11 @@ class State {
 		void destroy();
 		// these two are for managing atom ids such that they are densely packed
 		// and it's quick at add atoms in large systems
-		vector<int> idxFromIdCache; 
+		std::vector<int> idxFromIdCache;
 		void updateIdxFromIdCache();
 		
 		int maxIdExisting;
-		vector<int> idBuffer;
+		std::vector<int> idBuffer;
 		// Akay, so we declare grid, fixes, bounds, and integrator seperately
 
 		std::mt19937 &getRNG();
