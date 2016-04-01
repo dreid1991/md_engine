@@ -148,17 +148,17 @@ State::ExclusionList State::generateExclusionList(const int16_t maxDepth) {
     
     // computes adjacent bonds (depth -> 1, depthi -> 0)
     vector<vector<BondVariant> *> allBonds;
-    for (Fix *f : fixes) {
+    for (const Fix *f : fixes) {
         vector<BondVariant> *fixBonds = f->getBonds();
         if (fixBonds != nullptr) {
             allBonds.push_back(fixBonds);
         }
     }
-    for (Atom atom : atoms) {
+    for (const Atom &atom : atoms) {
         exclude[atom.id].push_back(unordered_set<int>());
     }
-    for (vector<BondVariant> *fixBonds : allBonds) {
-        for (BondVariant &bondVariant : *fixBonds) {
+    for (const vector<BondVariant> *fixBonds : allBonds) {
+        for (const BondVariant &bondVariant : *fixBonds) {
 			// boost variant magic that takes any BondVariant and turns it into a Bond
             const Bond &bond = boost::apply_visitor(bondDowncast(bondVariant), bondVariant);
             // atoms in the same bond are 1 away from each other
@@ -166,11 +166,11 @@ State::ExclusionList State::generateExclusionList(const int16_t maxDepth) {
             exclude[bond.getAtomId(1)][depthi].insert(bond.getAtomId(0));
         }
     }
-    depthi++;
+    ++depthi;
     
     // compute the rest
     while (depthi < maxDepth) {
-        for (Atom atom : atoms) {
+        for (const Atom &atom : atoms) {
             // for every atom at the previous depth away
             exclude[atom.id].push_back(unordered_set<int>());
             for (int extendFrom : exclude[atom.id][depthi-1]) {
@@ -189,7 +189,7 @@ State::ExclusionList State::generateExclusionList(const int16_t maxDepth) {
                 }
             }
         }
-        depthi++;
+        ++depthi;
     }
     return exclude;
 }
@@ -288,7 +288,7 @@ void State::refreshBonds() {
 int State::addSpecies(string handle, double mass) {
     int id = atomParams.addSpecies(handle, mass);
     if (id != -1) {
-        for (Fix *f : fixes) {
+        for (const Fix *f : fixes) {
             f->addSpecies(handle);
         }
     }
@@ -650,7 +650,7 @@ bool State::downloadFromRun() {
 
 bool State::makeReady() {
 	if (changedAtoms or changedGroups) {
-		for (Fix* fix : fixes) {
+		for (Fix *fix : fixes) {
 			fix->refreshAtoms(); 
 		}
 	}

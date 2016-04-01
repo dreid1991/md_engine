@@ -46,9 +46,6 @@ int copyBondsToGPU(vector<Atom> &atoms, vector<BondVariant> &src, GPUArrayDevice
 
 }
 
-
-
-
 template <class CPUType, class GPUType>
 class FixBond : public Fix {
     public:
@@ -57,7 +54,8 @@ class FixBond : public Fix {
         GPUArrayDevice<int> bondIdxs;
         vector<BondVariant> bonds;
         int maxBondsPerBlock;
-        FixBond(SHARED(State) state_, string handle_, string groupHandle_, string type_, int applyEvery_) : Fix(state_, handle_, groupHandle_, type_, applyEvery_) {
+        FixBond(SHARED(State) state_, string handle_, string groupHandle_, string type_, int applyEvery_) 
+          : Fix(state_, handle_, groupHandle_, type_, applyEvery_) {
             forceSingle = true;
             maxBondsPerBlock = 0;
         }
@@ -80,7 +78,6 @@ class FixBond : public Fix {
             return true;
 
         }
-        
-
 
 };
+
