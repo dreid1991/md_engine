@@ -23,8 +23,6 @@
 #include "GPUArrayTex.h"
 #include "GPUArray.h"
 
-class State;  //forward declaring so bond can use bounds, which includes state
-
 #include "AtomParams.h"
 #include "Atom.h"
 #include "Bond.h"
