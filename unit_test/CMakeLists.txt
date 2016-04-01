@@ -1,7 +1,8 @@
 include_directories (${GTEST_INCLUDE_DIRS})
 
 set (CPUTESTS "VectorTest")
-set (GPUTESTS "GPUArrayDeviceTest")
+set (GPUTESTS "CudaMathTest"
+              "GPUArrayDeviceTest")
 set (ALLTESTS ${GPUTESTS} ${CPUTESTS})
 
 foreach (UNIT_TEST ${CPUTESTS})
