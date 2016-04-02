@@ -63,9 +63,8 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *fs, int *neighborCoun
             }
 
         }   
-        //printf("force %f %f %f with %d atoms \n", forceSum.x, forceSum.y, forceSum.z, end-start);
+    //    printf("LJ force %f %f %f \n", forceSum.x, forceSum.y, forceSum.z);
         float4 forceCur = fs[idx];
-        printf("LJ force is %f %f %f\n", forceSum.x, forceSum.y, forceSum.z);
         forceCur += forceSum;
         fs[idx] = forceCur;
         //fs[idx] += forceSum;

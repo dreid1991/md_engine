@@ -2,6 +2,7 @@
 #include "FixImproperHarmonic.h"
 #include "FixHelpers.h"
 #include "cutils_func.h"
+#define SMALL 0.001f
 __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureObject_t idToIdxs, ImproperHarmonicGPU *impropers, int *startstops, BoundsGPU bounds) {
     int idx = GETIDX();
     extern __shared__ ImproperHarmonicGPU impropers_shr[];
@@ -78,41 +79,41 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
                 float scValues[3]; //???, is s1, s2, s12 in lammps
                 for (int i=0; i<2; i++) {
                     scValues[i] = 1.0f - angleBits[i+1] * angleBits[i+1];
-                    if (scValues[i] < EPSILON) {
-                        scValues[i] = EPSILON;
+                    if (scValues[i] < SMALL) {
+                        scValues[i] = SMALL;
                     }
                     scValues[i] = 1.0 / scValues[i];
                 }
                 scValues[2] = sqrtf(scValues[0] * scValues[1]);
                 float c = (angleBits[1]*angleBits[2] + angleBits[0]) * scValues[2];
+
                 if (c > 1.0f) {
                     c = 1.0f;
                 } else if (c < -1.0f) {
                     c = -1.0f;
                 }
                 float s = sqrtf(1.0f - c*c);
-                if (s < EPSILON) {
-                    s = EPSILON;
+                if (s < SMALL) {
+                    s = SMALL;
                 }
-                
                 float dTheta = acosf(c) - improper.thetaEq;
 
                 float a = improper.k * dTheta;
+                a *= -2.0f / s;
                 scValues[2] *= a;
                 c *= a;
-                float a11 = c * invLenSqrs[0] * scValues[2];
+                float a11 = c * invLenSqrs[0] * scValues[0];
                 float a22 = - invLenSqrs[1] * (2.0f * angleBits[0] * scValues[2] - c * (scValues[0] + scValues[1]));
                 float a33 = c * invLenSqrs[2] * scValues[1];
-                float a12 = -invLens[0] * invLens[1] * (angleBits[1] * c * scValues[0] + angleBits[1] * scValues[2]);
+                float a12 = -invLens[0] * invLens[1] * (angleBits[1] * c * scValues[0] + angleBits[2] * scValues[2]);
                 float a13 = -invLens[0] * invLens[2] * scValues[2];
                 float a23 = invLens[1] * invLens[2] * (angleBits[2] * c * scValues[1] + angleBits[1] * scValues[2]);
 
-
                 float3 myForce = make_float3(0, 0, 0);
                 float3 sFloat3 = make_float3(
-                        a22*directors[1].x + a23*directors[2].x + a12*directors[1].x
-                        ,  a22*directors[1].y + a23*directors[2].y + a12*directors[1].y
-                        ,  a22*directors[1].z + a23*directors[2].z + a12*directors[1].z
+                        a22*directors[1].x + a23*directors[2].x + a12*directors[0].x
+                        ,  a22*directors[1].y + a23*directors[2].y + a12*directors[0].y
+                        ,  a22*directors[1].z + a23*directors[2].z + a12*directors[0].z
                         );
                 if (improper.myIdx <= 1) {
                     float3 a11Dir1 = directors[0] * a11;
@@ -198,7 +199,7 @@ string FixImproperHarmonic::restartChunk(string format) {
 void export_FixImproperHarmonic() {
     class_<FixImproperHarmonic, SHARED(FixImproperHarmonic), bases<Fix> > ("FixImproperHarmonic", init<SHARED(State), string> (args("state", "handle")))
         .def("createImproper", &FixImproperHarmonic::createImproper, (python::arg("k")=COEF_DEFAULT, python::arg("thetaEq")=COEF_DEFAULT, python::arg("type")=-1))
-        .def("setImproperTypeCoefs", &FixImproperHarmonic::setImproperTypeCoefs, (python::arg("k")=COEF_DEFAULT, python::arg("thetaEq")=COEF_DEFAULT, python::arg("type")=COEF_DEFAULT))
+        .def("setImproperTypeCoefs", &FixImproperHarmonic::setImproperTypeCoefs, (python::arg("type")=COEF_DEFAULT, python::arg("k")=COEF_DEFAULT, python::arg("thetaEq")=COEF_DEFAULT))
         ;
 
 }

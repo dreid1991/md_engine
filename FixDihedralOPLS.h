@@ -13,6 +13,7 @@ class FixDihedralOPLS : public FixPotentialMultiAtom<DihedralVariant, DihedralOP
 		//DataSet *press;
         void createDihedral(Atom *, Atom *, Atom *, Atom *, double, double, double, double, int);
         void createDihedralPy(Atom *, Atom *, Atom *, Atom *, boost::python::list, int);
+        void setDihedralTypeCoefs(int, boost::python::list);
         //vector<pair<int, vector<int> > > neighborlistExclusions();
         string restartChunk(string format);
 

@@ -60,11 +60,11 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
                     dists[i] = sqrtf(distSqrs[i]);
                 }
                 float c = dot(directors[0], directors[1]);
-                printf("prenorm c is %f\n", c);
+             //   printf("prenorm c is %f\n", c);
                 float invDistProd = 1.0f / (dists[0]*dists[1]);
-                printf("inv dist is %f\n", invDistProd);
+              //  printf("inv dist is %f\n", invDistProd);
                 c *= invDistProd;
-                printf("c is %f\n", c);
+              //  printf("c is %f\n", c);
                 if (c>1) {
                     c=1;
                 } else if (c<-1) {
@@ -76,13 +76,13 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
                 }
                 s = 1.0f / s;
                 float dTheta = acosf(c) - angle.thetaEq;
-                printf("%f %f\n", acosf(c), angle.thetaEq);
+              //  printf("%f %f\n", acosf(c), angle.thetaEq);
                 float forceConst = angle.k * dTheta;
                 float a = -2.0f * forceConst * s;
                 float a11 = a*c/distSqrs[0];
                 float a12 = -a*invDistProd;
                 float a22 = a*c/distSqrs[1];
-                printf("forceConst %f a %f s %f dists %f %f %f\n", forceConst, a, s, a11, a12, a22);
+             //   printf("forceConst %f a %f s %f dists %f %f %f\n", forceConst, a, s, a11, a12, a22);
 
                 if (angle.myIdx==0) {
                     forceSum += ((directors[0] * a11) + (directors[1] * a12)) * 0.5;
@@ -94,7 +94,7 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
              //   printf("%f %f %f\n", forceSum.x, forceSum.y, forceSum.z);
             }
             float4 curForce = forces[idxSelf];
-            printf("Final force is %f %f %f\n", forceSum.x, forceSum.y, forceSum.z);
+         //   printf("Final force is %f %f %f\n", forceSum.x, forceSum.y, forceSum.z);
             curForce += forceSum;
             forces[idxSelf] = curForce;
         }
@@ -117,6 +117,7 @@ void FixAngleHarmonic::compute(bool computeVirials) {
 //okay, so the net result of this function is that two arrays (items, idxs of items) are on the gpu and we know how many bonds are in bondiest  block
 
 void FixAngleHarmonic::setAngleTypeCoefs(int type, double k, double rEq) {
+    cout << type << " " << k << " " << rEq << endl;
     assert(rEq>=0);
     AngleHarmonic dummy(k, rEq);
     setForcerType(type, dummy);
@@ -142,7 +143,7 @@ string FixAngleHarmonic::restartChunk(string format) {
 void export_FixAngleHarmonic() {
     class_<FixAngleHarmonic, SHARED(FixAngleHarmonic), bases<Fix> > ("FixAngleHarmonic", init<SHARED(State), string> (args("state", "handle")))
         .def("createAngle", &FixAngleHarmonic::createAngle, (python::arg("k")=COEF_DEFAULT, python::arg("thetaEq")=COEF_DEFAULT, python::arg("type")=-1))
-        .def("setAngleTypeCoefs", &FixAngleHarmonic::setAngleTypeCoefs, (python::arg("k")=COEF_DEFAULT, python::arg("thetaEq")=COEF_DEFAULT, python::arg("type")=-1))
+        .def("setAngleTypeCoefs", &FixAngleHarmonic::setAngleTypeCoefs, (python::arg("type")=-1, python::arg("k")=COEF_DEFAULT, python::arg("thetaEq")=COEF_DEFAULT))
         ;
 
 }

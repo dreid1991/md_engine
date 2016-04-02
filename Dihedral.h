@@ -21,6 +21,7 @@ class DihedralOPLS : public Dihedral {
         DihedralOPLS(Atom *a, Atom *b, Atom *c, Atom *d, double coefs_[4], int type_);
         DihedralOPLS(double coefs_[4], int type_);
         void takeValues(DihedralOPLS &);
+        DihedralOPLS(){};
     
 };
 

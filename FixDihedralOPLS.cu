@@ -122,6 +122,7 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
                 if (dx < 0) {
                     phi = -phi;
                 }
+                printf("phi is %f\n", phi);
                 float sinPhi = sinf(phi);
                 float absSinPhi = sinPhi < 0 ? -sinPhi : sinPhi;
                 if (absSinPhi < EPSILON) {
@@ -136,7 +137,7 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
                     - 4.0f * dihedral.coefs[3] * sinf(4.0f*phi) * invSinPhi
                     )
                     ;
-
+                printf("deriv is %f\n", derivOfPotential);
                 c *= derivOfPotential;
                 scValues[2] *= derivOfPotential;
                 float a11 = c * invLenSqrs[0] * scValues[0];
@@ -242,7 +243,7 @@ void FixDihedralOPLS::compute(bool computeVirials) {
 
 void FixDihedralOPLS::createDihedral(Atom *a, Atom *b, Atom *c, Atom *d, double v1, double v2, double v3, double v4, int type) {
     double vs[4] = {v1, v2, v3, v4};
-    if (type!=-1) {
+    if (type==-1) {
         for (int i=0; i<4; i++) {
             assert(vs[i] != COEF_DEFAULT);
         }
@@ -269,6 +270,19 @@ void FixDihedralOPLS::createDihedralPy(Atom *a, Atom *b, Atom *c, Atom *d, py::l
     }
 }
 
+void FixDihedralOPLS::setDihedralTypeCoefs(int type, py::list coefs) {
+    assert(py::len(coefs)==4);
+    double coefs_c[4];
+    for (int i=0; i<4; i++) {
+        py::extract<double> coef(coefs[i]);
+        assert(coef.check());
+        coefs_c[i] = coef;
+    }
+
+    DihedralOPLS dummy(coefs_c, type);
+    setForcerType(type, dummy);
+}
+
 string FixDihedralOPLS::restartChunk(string format) {
     stringstream ss;
 
@@ -278,6 +292,7 @@ string FixDihedralOPLS::restartChunk(string format) {
 void export_FixDihedralOPLS() {
     class_<FixDihedralOPLS, SHARED(FixDihedralOPLS), bases<Fix> > ("FixDihedralOPLS", init<SHARED(State), string> (args("state", "handle")))
         .def("createDihedral", &FixDihedralOPLS::createDihedralPy, (python::arg("coefs")=py::list(), python::arg("type")=-1))
+        .def("setDihedralTypeCoefs", &FixDihedralOPLS::setDihedralTypeCoefs, (python::arg("type"), python::arg("coefs")))
         ;
 
 }
