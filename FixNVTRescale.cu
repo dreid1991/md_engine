@@ -144,8 +144,18 @@ bool FixNVTRescale::downloadFromRun() {
 
 
 void export_FixNVTRescale() {
-    class_<FixNVTRescale, SHARED(FixNVTRescale), bases<Fix> > ("FixNVTRescale", init<SHARED(State), string, string, boost::python::list, boost::python::list, optional<int, SHARED(Bounds)> > (args("state", "handle", "groupHandle", "intervals", "temps", "applyEvery", "thermoBounds")))
-        .def_readwrite("finished", &FixNVTRescale::finished)
-        .def_readwrite("thermoBounds", &FixNVTRescale::thermoBounds);
-        ;
+    boost::python::class_<FixNVTRescale,
+                          SHARED(FixNVTRescale),
+                          boost::python::bases<Fix> > (
+        "FixNVTRescale",
+        boost::python::init<SHARED(State), string, string, boost::python::list,
+                            boost::python::list,
+                            boost::python::optional<int, SHARED(Bounds)> > (
+            boost::python::args("state", "handle", "groupHandle", "intervals",
+                                "temps", "applyEvery", "thermoBounds")
+        )
+    )
+    .def_readwrite("finished", &FixNVTRescale::finished)
+    .def_readwrite("thermoBounds", &FixNVTRescale::thermoBounds);
+    ;
 }

@@ -4,6 +4,7 @@
 #include "FixAngleHarmonic.h"
 #include "cutils_func.h"
 #define SMALL 0.0001f
+namespace py = boost::python;
 __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureObject_t idToIdxs, AngleHarmonicGPU *angles, int *startstops, BoundsGPU bounds) {
     int idx = GETIDX();
     extern __shared__ AngleHarmonicGPU angles_shr[];
@@ -141,10 +142,24 @@ string FixAngleHarmonic::restartChunk(string format) {
 }
 
 void export_FixAngleHarmonic() {
-    class_<FixAngleHarmonic, SHARED(FixAngleHarmonic), bases<Fix> > ("FixAngleHarmonic", init<SHARED(State), string> (args("state", "handle")))
-        .def("createAngle", &FixAngleHarmonic::createAngle, (python::arg("k")=COEF_DEFAULT, python::arg("thetaEq")=COEF_DEFAULT, python::arg("type")=-1))
-        .def("setAngleTypeCoefs", &FixAngleHarmonic::setAngleTypeCoefs, (python::arg("type")=-1, python::arg("k")=COEF_DEFAULT, python::arg("thetaEq")=COEF_DEFAULT))
-        ;
+    boost::python::class_<FixAngleHarmonic,
+                          SHARED(FixAngleHarmonic),
+                          boost::python::bases<Fix> > (
+        "FixAngleHarmonic",
+        boost::python::init<SHARED(State), string> (
+                                        boost::python::args("state", "handle"))
+    )
+    .def("createAngle", &FixAngleHarmonic::createAngle,
+            (boost::python::arg("k")=COEF_DEFAULT,
+             boost::python::arg("thetaEq")=COEF_DEFAULT,
+             boost::python::arg("type")=-1)
+        )
+    .def("setAngleTypeCoefs", &FixAngleHarmonic::setAngleTypeCoefs,
+            (boost::python::arg("type")=-1),
+             boost::python::arg("k")=COEF_DEFAULT,
+             boost::python::arg("thetaEq")=COEF_DEFAULT
+        )
+    ;
 
 }
 

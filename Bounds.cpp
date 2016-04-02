@@ -96,15 +96,20 @@ Vector Bounds::minImage(Vector v) {
     return v;
 }
 void export_Bounds() {
-    class_<Bounds, SHARED(Bounds) >("Bounds", init<SHARED(State), Vector, Vector>(args("state", "lo", "hi")))
-        .def("copy", &Bounds::copy)
-        .def("set", &Bounds::setPython)
-        .def("getSide", &Bounds::getSide)
-        .def("setSide", &Bounds::setSide)
-        .def("minImage", &Bounds::minImage)
-        .def_readwrite("lo", &Bounds::lo)
-        .def_readwrite("hi", &Bounds::hi)
-        .def_readwrite("trace", &Bounds::trace)
-        ;
+    boost::python::class_<Bounds,
+                          SHARED(Bounds) >(
+        "Bounds",
+        boost::python::init<SHARED(State), Vector, Vector>(
+            boost::python::args("state", "lo", "hi"))
+    )
+    .def("copy", &Bounds::copy)
+    .def("set", &Bounds::setPython)
+    .def("getSide", &Bounds::getSide)
+    .def("setSide", &Bounds::setSide)
+    .def("minImage", &Bounds::minImage)
+    .def_readwrite("lo", &Bounds::lo)
+    .def_readwrite("hi", &Bounds::hi)
+    .def_readwrite("trace", &Bounds::trace)
+    ;
 
 }

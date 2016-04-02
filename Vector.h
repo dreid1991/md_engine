@@ -14,28 +14,22 @@ void export_VectorInt();
  * \brief A three-element vector
  *
  * \tparam T Type of data stored in the vector.
- * \tparam K I have no idea.
  *
  * This class defines a simple three-element vector and the corresponding
  * vector operations.
  *
- * \todo Remove usage of typename K. Is it even used? And if yes, what does
- *       it represent? This is very confusing.
  */
-//theme for these operations is that if we're operating on unlike types, switch
-//to num representation.  would like better way to do this
 template <typename T>
 class VectorGeneric {
-	T vals[3]; //!< Array storing the values
-public:
+private:
+    T vals[3]; //!< Array storing the values
 
+public:
     /*! \brief Default constructor */
     VectorGeneric<T> () {
         vals[0] = vals[1] = vals[2] = 0;
     }
 
-    // if using literals, have to cast each as int or num so compiler can
-    // distinguish between these two constructors
     /*! \brief Constructor
      *
      * \param x First element as double
@@ -299,6 +293,18 @@ public:
         return !(*this == q);
     }
 
+    /* \brief Larger-equal comparison operator */
+    template<typename U>
+    bool operator>=( const VectorGeneric<U> &q ) const {
+        return (*this == q) || (*this > q);
+    }
+
+    /* \brief Smaller-equal comparison operator */
+    template<typename U>
+    bool operator<=( const VectorGeneric<U> &q ) const {
+        return (*this == q) || (*this < q);
+    }
+
     /*! \brief Dot product with another vector */
     template<typename U>
     auto dot( const VectorGeneric<U> &q ) const -> decltype(vals[0]*q[0]+vals[1]*q[1]) {
@@ -370,8 +376,12 @@ public:
 
     /*! \brief I have no idea
      *
-     * \todo Someone explain to me what this function does? And write this
-     *       documentation please.
+     * |param other Second point for distance calculation
+     * \param trace X-, y-, and z- length of the simulation bounding box
+     *
+     * This function calcuates the distance from this vector to another vector
+     * taking periodic boundary conditions into accound. Thus calculating the
+     * minimum distance between the vectors.
      */
     VectorGeneric<T> loopedVTo(const VectorGeneric<T> &other, const VectorGeneric<T> &trace) const {
         VectorGeneric<T> dist = other - *this;
@@ -384,7 +394,6 @@ public:
             }
         }
         return dist;
-
     }
 };
 

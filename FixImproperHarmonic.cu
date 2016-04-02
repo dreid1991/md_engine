@@ -3,6 +3,7 @@
 #include "FixHelpers.h"
 #include "cutils_func.h"
 #define SMALL 0.001f
+namespace py = boost::python;
 __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureObject_t idToIdxs, ImproperHarmonicGPU *impropers, int *startstops, BoundsGPU bounds) {
     int idx = GETIDX();
     extern __shared__ ImproperHarmonicGPU impropers_shr[];
@@ -197,10 +198,26 @@ string FixImproperHarmonic::restartChunk(string format) {
 }
 
 void export_FixImproperHarmonic() {
-    class_<FixImproperHarmonic, SHARED(FixImproperHarmonic), bases<Fix> > ("FixImproperHarmonic", init<SHARED(State), string> (args("state", "handle")))
-        .def("createImproper", &FixImproperHarmonic::createImproper, (python::arg("k")=COEF_DEFAULT, python::arg("thetaEq")=COEF_DEFAULT, python::arg("type")=-1))
-        .def("setImproperTypeCoefs", &FixImproperHarmonic::setImproperTypeCoefs, (python::arg("type")=COEF_DEFAULT, python::arg("k")=COEF_DEFAULT, python::arg("thetaEq")=COEF_DEFAULT))
-        ;
+
+    boost::python::class_<FixImproperHarmonic,
+                          SHARED(FixImproperHarmonic),
+                          boost::python::bases<Fix> > (
+        "FixImproperHarmonic",
+        boost::python::init<SHARED(State), string> (
+                boost::python::args("state", "handle"))
+    )
+    .def("createImproper", &FixImproperHarmonic::createImproper,
+            (boost::python::arg("k")=COEF_DEFAULT,
+             boost::python::arg("thetaEq")=COEF_DEFAULT,
+             boost::python::arg("type")=-1)
+        )
+    .def("setImproperTypeCoefs", &FixImproperHarmonic::setImproperTypeCoefs,
+            (boost::python::arg("type")=COEF_DEFAULT,
+             boost::python::arg("k")=COEF_DEFAULT,
+             boost::python::arg("thetaEq")=COEF_DEFAULT
+             )
+        )
+    ;
 
 }
 

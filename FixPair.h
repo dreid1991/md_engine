@@ -5,6 +5,8 @@
 
 #include <climits>
 #include <map>
+#include <string>
+#include <vector>
 
 #include "AtomParams.h"
 #include "GPUArray.h"
@@ -12,8 +14,6 @@
 #include "xml_func.h"
 
 class State;
-
-using namespace std;
 
 /*! \brief Global function returning a single SquareVector item
  *
@@ -65,8 +65,8 @@ namespace SquareVector {
      * This function creates a new SquareVector
      */
     template <class T>
-    vector<T> create(int size) {
-        return vector<T>(size*size, DEFAULT_FILL);
+    std::vector<T> create(int size) {
+        return std::vector<T>(size*size, DEFAULT_FILL);
     }
 
     /*! \brief Fill SquareVector with values
@@ -87,8 +87,8 @@ namespace SquareVector {
                 T val = squareVectorRef<T>(vec->data(), size, i, j);
                 if (i==j) {
                     if (val == DEFAULT_FILL) {
-                        cout << "You have not defined interaction parameters "
-                                "for atom type with index " << i << endl;
+                        std::cout << "You have not defined interaction parameters "
+                                "for atom type with index " << i << std::endl;
                         assert(val != DEFAULT_FILL);
                     }
                 } else if (val == DEFAULT_FILL) {
@@ -114,8 +114,8 @@ namespace SquareVector {
      * This Function copies a SquareVector and gives it a new size.
      */
     template <class T>
-    vector<T> copyToSize(vector<T> &other, int oldSize, int newSize) {
-        vector<T> replacement(newSize*newSize, DEFAULT_FILL);
+    std::vector<T> copyToSize(std::vector<T> &other, int oldSize, int newSize) {
+        std::vector<T> replacement(newSize*newSize, DEFAULT_FILL);
         int copyUpTo = fmin(oldSize, newSize);
         for (int i=0; i<copyUpTo; i++) {
             for (int j=0; j<copyUpTo; j++) {
@@ -184,8 +184,8 @@ class FixPair : public Fix {
     public:
 
         /*! \brief Constructor */
-        FixPair(SHARED(State) state_, string handle_, string groupHandle_,
-                string type_, int applyEvery_)
+        FixPair(SHARED(State) state_, std::string handle_,
+                std::string groupHandle_, std::string type_, int applyEvery_)
             : Fix(state_, handle_, groupHandle_, type_, applyEvery_)
             {
                 // Empty constructor
@@ -201,7 +201,7 @@ class FixPair : public Fix {
          * This function adds a label to a given GPUArray. After this step, the
          * array can be accessed using its label.
          */
-        void labelArray(string label, GPUArray<float> &arr) {
+        void labelArray(std::string label, GPUArray<float> &arr) {
             paramMap[label] = &arr;
         }
 
@@ -213,7 +213,8 @@ class FixPair : public Fix {
          * This function can be used to set the parameters of the pair
          * interaction fix.
          */
-        void initializeParameters(string paramHandle, GPUArray<float> &params);
+        void initializeParameters(std::string paramHandle,
+                                  GPUArray<float> &params);
 
         /*! \brief Fill the vector containing the pair interaction parameters
          *
@@ -264,12 +265,12 @@ class FixPair : public Fix {
          * pair parameter map. The chunk is the used for outputting the current
          * configuration.
          */
-        string restartChunkPairParams(string format);
+        string restartChunkPairParams(std::string format);
 
         /*! \brief Map mapping string labels onto the GPUArrays containing the
          *         pair potential parameters
          */
-        map<string, GPUArray<float> *> paramMap;
+        std::map<string, GPUArray<float> *> paramMap;
 
     public:
         /*! \brief Set a specific parameter for specific particle types
@@ -282,8 +283,8 @@ class FixPair : public Fix {
          * This function sets a specific parameter for the pair potential
          * between two atom types.
          */
-        bool setParameter(string param, string handleA,
-                          string handleB, double val);
+        bool setParameter(std::string param, std::string handleA,
+                          std::string handleB, double val);
 
 //    GPUArrayDevice<float> copySqrToDevice(SquareVector<float> &vec) {
 //        GPUArrayDevice<float> arr (vec.totalSize());

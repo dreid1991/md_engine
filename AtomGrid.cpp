@@ -372,10 +372,14 @@ void AtomGrid::deleteNeighbors() {
 	}
 }
 void export_AtomGrid() {
-    class_<AtomGrid>("AtomGrid", init<SHARED(State), double, double, double>(args("state", "dx", "dy", "dz")))
-        .def_readwrite("os", &AtomGrid::os)
-        .def_readwrite("ds", &AtomGrid::ds)
-        .def_readwrite("ns", &AtomGrid::ns)
-        ;
+    boost::python::class_<AtomGrid>(
+        "AtomGrid",
+        boost::python::init<SHARED(State), double, double, double>(
+            boost::python::args("state", "dx", "dy", "dz"))
+    )
+    .def_readwrite("os", &AtomGrid::os)
+    .def_readwrite("ds", &AtomGrid::ds)
+    .def_readwrite("ns", &AtomGrid::ns)
+    ;
 
 }

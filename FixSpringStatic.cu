@@ -61,11 +61,28 @@ void FixSpringStatic::compute(bool computeVirials) {
 
 
 void export_FixSpringStatic() {
-    class_<FixSpringStatic, SHARED(FixSpringStatic), bases<Fix> > ("FixSpringStatic", init<SHARED(State), string, string, double, PyObject *, optional<Vector>> (args("state", "handle", "groupHandle", "k", "tetherFunc", "multiplier")))
-        .def("updateTethers", &FixSpringStatic::updateTethers)
-        .def_readwrite("multiplier", &FixSpringStatic::multiplier)
-        .def_readwrite("tetherFunc", &FixSpringStatic::tetherFunc)
-        .def_readwrite("k", &FixSpringStatic::k)
-        ;
+    boost::python::class_<FixSpringStatic,
+                          SHARED(FixSpringStatic),
+                          boost::python::bases<Fix> > (
+        "FixSpringStatic",
+        boost::python::init<SHARED(State),
+                            string,
+                            string,
+                            double,
+                            PyObject *,
+                            boost::python::optional<Vector>> (
+                                boost::python::args("state",
+                                                    "handle",
+                                                    "groupHandle",
+                                                    "k",
+                                                    "tetherFunc",
+                                                    "multiplier")
+                                )
+    )
+    .def("updateTethers", &FixSpringStatic::updateTethers)
+    .def_readwrite("multiplier", &FixSpringStatic::multiplier)
+    .def_readwrite("tetherFunc", &FixSpringStatic::tetherFunc)
+    .def_readwrite("k", &FixSpringStatic::k)
+    ;
 
 }

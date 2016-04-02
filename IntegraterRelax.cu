@@ -240,9 +240,22 @@ double IntegraterRelax::run(int numTurns, num fTol) {
 }
 
 void export_IntegraterRelax() {
-    class_<IntegraterRelax, SHARED(IntegraterRelax), bases<Integrater>, boost::noncopyable > ("IntegraterRelax", init<SHARED(State)>())
-        .def("run", &IntegraterRelax::run)
-        .def("set_params", &IntegraterRelax::set_params,(python::arg("alphaInit"),python::arg("alphaShrink"),python::arg("dtGrow"),python::arg("dtShrink"),python::arg("delay"),python::arg("dtMax_mult")))
-        ;
+    boost::python::class_<IntegraterRelax,
+                          SHARED(IntegraterRelax),
+                          boost::python::bases<Integrater>,
+                          boost::noncopyable > (
+        "IntegraterRelax",
+        boost::python::init<SHARED(State)>()
+    )
+    .def("run", &IntegraterRelax::run)
+    .def("set_params", &IntegraterRelax::set_params,
+            (boost::python::arg("alphaInit"),
+             boost::python::arg("alphaShrink"),
+             boost::python::arg("dtGrow"),
+             boost::python::arg("dtShrink"),
+             boost::python::arg("delay"),
+             boost::python::arg("dtMax_mult"))
+        )
+    ;
 }
 

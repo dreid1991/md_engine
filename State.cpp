@@ -49,18 +49,18 @@ State::State() {
 }
 
 
-uint State::groupTagFromHandle(string handle) {
+uint State::groupTagFromHandle(std::string handle) {
 	assert(groupTags.find(handle) != groupTags.end());
 	return groupTags[handle];
 }
 
-bool State::atomInGroup(Atom &a, string handle) {
+bool State::atomInGroup(Atom &a, std::string handle) {
     uint tag = groupTagFromHandle(handle);
     return a.groupTag & tag;
 }
 
-int State::addAtom(string handle, Vector pos, double q) {
-	vector<string> &handles = atomParams.handles;
+int State::addAtom(std::string handle, Vector pos, double q) {
+	std::vector<std::string> &handles = atomParams.handles;
 	auto it = find(handles.begin(), handles.end(), handle);
 	assert(it != handles.end());
 	int idx = it - handles.begin();//okay, so index in handles is type
@@ -83,7 +83,7 @@ bool State::addAtomDirect(Atom a) {
     }
     
 	if (a.type >= atomParams.numTypes) {
-		cout << "Bad atom type " << a.type << endl;
+		std::cout << "Bad atom type " << a.type << std::endl;
 		return false;
 	}
 
@@ -92,7 +92,7 @@ bool State::addAtomDirect(Atom a) {
 	}
 	if (is2d) {
         if (fabs(a.pos[2]) > 0.2) { //some noise value if you aren't applying fix 2d every turn.  Should add override
-            cout << "adding atom with large z value in 2d simulation. Not adding atom" << endl;
+            std::cout << "adding atom with large z value in 2d simulation. Not adding atom" << std::endl;
             return false;
         }
         a.pos[2] = 0;
@@ -155,7 +155,7 @@ Atom *State::atomFromId(int id) {
 
 
 
-int State::addSpecies(string handle, double mass) {
+int State::addSpecies(std::string handle, double mass) {
     int id = atomParams.addSpecies(handle, mass);
     if (id != -1) {
         for (Fix *f : fixes) {
@@ -172,7 +172,7 @@ void State::setSpecialNeighborCoefs(float onetwo, float onethree, float onefour)
 }
 
 template <class T>
-int getSharedIdx(vector<SHARED(T)> &list, SHARED(T) other) {
+int getSharedIdx(std::vector<SHARED(T)> &list, SHARED(T) other) {
     for (unsigned int i=0; i<list.size(); i++) {
         if (list[i]->handle == other->handle) {
             return i;
@@ -182,20 +182,20 @@ int getSharedIdx(vector<SHARED(T)> &list, SHARED(T) other) {
 }
 
 template <class T>
-bool removeGeneric(vector<SHARED(T)> &list, vector<T *> *unshared, SHARED(T) other) {
+bool removeGeneric(std::vector<SHARED(T)> &list, std::vector<T *> *unshared, SHARED(T) other) {
     int idx = getSharedIdx<T>(list, other);
     if (idx == -1) {
         return false;
     }
     list.erase(list.begin()+idx, list.begin()+idx+1);
-    if (unshared != (vector<T *> *) NULL) {
+    if (unshared != (std::vector<T *> *) NULL) {
         unshared->erase(unshared->begin()+idx, unshared->begin()+idx+1);
     }
     return true;
 }
 
 template <class T>
-bool addGeneric(vector<SHARED(T)> &list, vector<T *> *unshared, SHARED(T) other) {
+bool addGeneric(std::vector<SHARED(T)> &list, std::vector<T *> *unshared, SHARED(T) other) {
     int idx = getSharedIdx<T>(list, other);
     if (idx != -1) {
         return false;
@@ -205,7 +205,7 @@ bool addGeneric(vector<SHARED(T)> &list, vector<T *> *unshared, SHARED(T) other)
         SHARED(T)  existing = list[idx];
         if (other->orderPreference < existing->orderPreference) {
             list.insert(list.begin() + idx, other);
-            if (unshared != (vector<T *> *) NULL) {
+            if (unshared != (std::vector<T *> *) NULL) {
                 unshared->insert(unshared->begin() + idx, other.get());
             }
             added = true;
@@ -216,7 +216,7 @@ bool addGeneric(vector<SHARED(T)> &list, vector<T *> *unshared, SHARED(T) other)
     }
     if (not added) {
         list.insert(list.end(), other);
-        if (unshared != (vector<T *> *) NULL) {
+        if (unshared != (std::vector<T *> *) NULL) {
             unshared->insert(unshared->end(), other.get());
         }
 
@@ -225,23 +225,24 @@ bool addGeneric(vector<SHARED(T)> &list, vector<T *> *unshared, SHARED(T) other)
 }
 
 bool State::activateWriteConfig(SHARED(WriteConfig) other) {
-    return addGeneric<WriteConfig>(writeConfigs, (vector<WriteConfig *> *) NULL, other);
+    return addGeneric<WriteConfig>(writeConfigs, (std::vector<WriteConfig *> *) NULL, other);
 }
 bool State::deactivateWriteConfig(SHARED(WriteConfig) other) {
-    return removeGeneric<WriteConfig>(writeConfigs, (vector<WriteConfig *> *) NULL, other);
+    return removeGeneric<WriteConfig>(writeConfigs, (std::vector<WriteConfig *> *) NULL, other);
 }
 
 bool State::activatePythonOperation(SHARED(PythonOperation) other) {
-    return addGeneric<PythonOperation>(pythonOperations, (vector<PythonOperation *> *) NULL, other);
+    return addGeneric<PythonOperation>(pythonOperations, (std::vector<PythonOperation *> *) NULL, other);
 }
 bool State::deactivatePythonOperation(SHARED(PythonOperation) other) {
-    return removeGeneric<PythonOperation>(pythonOperations, (vector<PythonOperation *> *) NULL, other);
+    return removeGeneric<PythonOperation>(pythonOperations, (std::vector<PythonOperation *> *) NULL, other);
 }
 
 
 bool State::activateFix(SHARED(Fix) other) {
     if (other->state != this) {
-        cout << "Trying to add fix with handle " << other->handle << ", but fix was initialized with a different State" << endl;
+        std::cout << "Trying to add fix with handle " << other->handle
+                  << ", but fix was initialized with a different State" << std::endl;
     }
     assert(other->state == this);
     return addGeneric<Fix>(fixesShr, &fixes, other);
@@ -253,9 +254,9 @@ bool State::deactivateFix(SHARED(Fix) other) {
 
 bool State::prepareForRun() {
     int nAtoms = atoms.size();
-    vector<float4> xs_vec, vs_vec, fs_vec, fsLast_vec;
-    vector<uint> ids;
-    vector<float> qs;
+    std::vector<float4> xs_vec, vs_vec, fs_vec, fsLast_vec;
+    std::vector<uint> ids;
+    std::vector<float> qs;
     xs_vec.reserve(nAtoms);
     vs_vec.reserve(nAtoms);
     fs_vec.reserve(nAtoms);
@@ -282,8 +283,8 @@ bool State::prepareForRun() {
     gpd.fsLast.set(fsLast_vec);
     gpd.ids.set(ids);
     gpd.qs.set(qs);
-    vector<int> id_vec = LISTMAPREF(Atom, int, a, atoms, a.id);
-    vector<int> idToIdxs_vec;
+    std::vector<int> id_vec = LISTMAPREF(Atom, int, a, atoms, a.id);
+    std::vector<int> idToIdxs_vec;
     int size = *max_element(id_vec.begin(), id_vec.end()) + 1;
     //so... wanna keep ids tightly packed.  That's managed by program, not user
     idToIdxs_vec.reserve(size);
@@ -316,13 +317,13 @@ void copyAsyncWithInstruc(State *state, std::function<void (int64_t )> cb, int64
     state->gpd.fsLastBuffer.dataToHostAsync(stream);
     state->gpd.idsBuffer.dataToHostAsync(stream);
     CUCHECK(cudaStreamSynchronize(stream));
-    vector<int> idToIdxsOnCopy = state->gpd.idToIdxsOnCopy;
-    vector<float4> &xs = state->gpd.xsBuffer.h_data;
-    vector<float4> &vs = state->gpd.vsBuffer.h_data;
-    vector<float4> &fs = state->gpd.fsBuffer.h_data;
-    vector<float4> &fsLast = state->gpd.fsLastBuffer.h_data;
-    vector<uint> &ids = state->gpd.idsBuffer.h_data;
-    vector<Atom> &atoms = state->atoms;
+    std::vector<int> idToIdxsOnCopy = state->gpd.idToIdxsOnCopy;
+    std::vector<float4> &xs = state->gpd.xsBuffer.h_data;
+    std::vector<float4> &vs = state->gpd.vsBuffer.h_data;
+    std::vector<float4> &fs = state->gpd.fsBuffer.h_data;
+    std::vector<float4> &fsLast = state->gpd.fsLastBuffer.h_data;
+    std::vector<uint> &ids = state->gpd.idsBuffer.h_data;
+    std::vector<Atom> &atoms = state->atoms;
 
     for (int i=0, ii=state->atoms.size(); i<ii; i++) {
         int id = ids[i];
@@ -366,11 +367,11 @@ bool State::asyncHostOperation(std::function<void (int64_t )> cb) {
 }
 
 bool State::downloadFromRun() {
-    vector<float4> &xs = gpd.xs.h_data;
-    vector<float4> &vs = gpd.vs.h_data;
-    vector<float4> &fs = gpd.fs.h_data;
-    vector<float4> &fsLast = gpd.fsLast.h_data;
-    vector<uint> &ids = gpd.ids.h_data;
+    std::vector<float4> &xs = gpd.xs.h_data;
+    std::vector<float4> &vs = gpd.vs.h_data;
+    std::vector<float4> &fs = gpd.fs.h_data;
+    std::vector<float4> &fsLast = gpd.fsLast.h_data;
+    std::vector<uint> &ids = gpd.ids.h_data;
     for (int i=0, ii=atoms.size(); i<ii; i++) {
         int id = ids[i];
         int idxWriteTo = gpd.idToIdxsOnCopy[id];
@@ -401,7 +402,7 @@ bool State::makeReady() {
 	return true;
 }
 
-bool State::addToGroupPy(string handle, boost::python::list toAdd) {//testF takes index, returns bool
+bool State::addToGroupPy(std::string handle, boost::python::list toAdd) {//testF takes index, returns bool
 	int tagBit = groupTagFromHandle(handle);  //if I remove asserts from this, could return things other than true, like if handle already exists
     int len = boost::python::len(toAdd);
     for (int i=0; i<len; i++) {
@@ -412,7 +413,12 @@ bool State::addToGroupPy(string handle, boost::python::list toAdd) {//testF take
         }
         Atom *a = atomPy;
         if (not (a >= &atoms[0] and a <= &atoms.back())) {
-            cout << "Tried to add atom that is not in the atoms list.  If you added or removed atoms after taking a reference to this atom, the list storing atoms may have moved in memory, making this an invalid pointer.  Consider resetting your atom variables" << endl;
+            std::cout << "Tried to add atom that is not in the atoms list.  "
+                      << "If you added or removed atoms after taking a "
+                      << "reference to this atom, the list storing atoms may "
+                      << "have moved in memory, making this an invalid pointer."
+                      << "  Consider resetting your atom variables"
+                      << std::endl;
             assert(false);
         }
         a->groupTag |= tagBit;
@@ -430,7 +436,7 @@ bool State::addToGroupPy(string handle, boost::python::list toAdd) {//testF take
 
 }
 
-bool State::addToGroup(string handle, std::function<bool (Atom *)> testF) {
+bool State::addToGroup(std::string handle, std::function<bool (Atom *)> testF) {
 	int tagBit = addGroupTag(handle);
 	for (Atom &a : atoms) {
 		if (testF(&a)) {
@@ -441,7 +447,7 @@ bool State::addToGroup(string handle, std::function<bool (Atom *)> testF) {
 	return true;
 }
 
-bool State::destroyGroup(string handle) {
+bool State::destroyGroup(std::string handle) {
 	uint tagBit = groupTagFromHandle(handle);
 	assert(handle != "all");
 	for (Atom &a : atoms) {
@@ -452,10 +458,11 @@ bool State::destroyGroup(string handle) {
 	return true;
 }
 
-bool State::createGroup(string handle, boost::python::list forGrp) {
+bool State::createGroup(std::string handle, boost::python::list forGrp) {
     uint res = addGroupTag(handle);
     if (!res) {
-        cout << "Tried to create group " << handle << " << that already exists" << endl;
+        std::cout << "Tried to create group " << handle
+                  << " << that already exists" << std::endl;
         return false;
     }
     if (boost::python::len(forGrp)) {
@@ -464,7 +471,7 @@ bool State::createGroup(string handle, boost::python::list forGrp) {
     return true;
 }
 
-uint State::addGroupTag(string handle) {
+uint State::addGroupTag(std::string handle) {
 	uint working = 0;
 	assert(groupTags.find(handle) == groupTags.end());
 	for (auto it=groupTags.begin(); it!=groupTags.end(); it++) {
@@ -480,20 +487,20 @@ uint State::addGroupTag(string handle) {
 	return 0;
 }
 
-bool State::removeGroupTag(string handle) {
+bool State::removeGroupTag(std::string handle) {
 	auto it = groupTags.find(handle);
 	assert(it != groupTags.end());
 	groupTags.erase(it);
 	return true;
 }
 
-vector<Atom *> State::selectGroup(string handle) {
+std::vector<Atom *> State::selectGroup(std::string handle) {
 	int tagBit = groupTagFromHandle(handle);
 	return LISTMAPREFTEST(Atom, Atom *, a, atoms, &a, a.groupTag & tagBit);
 }
 
-vector<Atom> State::copyAtoms() {
-	vector<Atom> save;
+std::vector<Atom> State::copyAtoms() {
+	std::vector<Atom> save;
 	save.reserve(atoms.size());
 	for (Atom &a : atoms) {
 		Atom copy = a;
@@ -513,7 +520,7 @@ void State::deleteAtoms() {
 	atoms.erase(atoms.begin(), atoms.end());
 }
 
-void State::setAtoms(vector<Atom> &fromSave) {
+void State::setAtoms(std::vector<Atom> &fromSave) {
 	changedAtoms = true;
 	changedGroups = true;
 	atoms = fromSave;
@@ -556,55 +563,66 @@ void State::seedRNG(unsigned int seed) {
 BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(State_seedRNG_overloads,State::seedRNG,0,1)
 
 void export_State() {
-    class_<State, SHARED(State) >("State", init<>())
-        .def("addAtom", &State::addAtom, (python::arg("handle"), python::arg("pos"), python::arg("q")=0) )
-        .def_readonly("atoms", &State::atoms)
-        .def("setPeriodic", &State::setPeriodic)
-        .def("getPeriodic", &State::getPeriodic) //boost is grumpy about readwriting static arrays.  can readonly, but that's weird to only allow one w/ wrapper func for other.  doing wrapper funcs for both
-        .def("removeAtom", &State::removeAtom)
-        //.def("removeBond", &State::removeBond)
-        .def("idxFromId", &State::idxFromId)
+    boost::python::class_<State,
+                          SHARED(State) >(
+        "State",
+        boost::python::init<>()
+    )
+    .def("addAtom", &State::addAtom,
+            (boost::python::arg("handle"),
+             boost::python::arg("pos"),
+             boost::python::arg("q")=0)
+        )
+    .def_readonly("atoms", &State::atoms)
+    .def("setPeriodic", &State::setPeriodic)
+    .def("getPeriodic", &State::getPeriodic) //boost is grumpy about readwriting static arrays.  can readonly, but that's weird to only allow one w/ wrapper func for other.  doing wrapper funcs for both
+    .def("removeAtom", &State::removeAtom)
+    //.def("removeBond", &State::removeBond)
+    .def("idxFromId", &State::idxFromId)
 
-        .def("addToGroup", &State::addToGroupPy)
-        .def("destroyGroup", &State::destroyGroup)
-        .def("createGroup", &State::createGroup, (python::arg("handle"), python::arg("atoms") = boost::python::list()))
-        .def("selectGroup", &State::selectGroup)
-        .def("copyAtoms", &State::copyAtoms)
-        .def("setAtoms", &State::setAtoms)
+    .def("addToGroup", &State::addToGroupPy)
+    .def("destroyGroup", &State::destroyGroup)
+    .def("createGroup", &State::createGroup,
+            (boost::python::arg("handle"),
+             boost::python::arg("atoms") = boost::python::list())
+        )
+    .def("selectGroup", &State::selectGroup)
+    .def("copyAtoms", &State::copyAtoms)
+    .def("setAtoms", &State::setAtoms)
 
-        .def("setSpecialNeighborCoefs", &State::setSpecialNeighborCoefs)
+    .def("setSpecialNeighborCoefs", &State::setSpecialNeighborCoefs)
 
-        .def("activateFix", &State::activateFix)
-        .def("deactivateFix", &State::deactivateFix)
-        .def("activateWriteConfig", &State::activateWriteConfig)
-        .def("deactivateWriteConfig", &State::deactivateWriteConfig)
-        .def("activatePythonOperation", &State::activatePythonOperation)
-        .def("deactivatePythonOperation", &State::deactivatePythonOperation)
-        .def("zeroVelocities", &State::zeroVelocities)
-        .def("destroy", &State::destroy)
-        .def("seedRNG", &State::seedRNG, State_seedRNG_overloads())
-        .def_readwrite("is2d", &State::is2d)
-        .def_readonly("changedAtoms", &State::changedAtoms)
-        .def_readonly("changedGroups", &State::changedGroups)
-        .def_readwrite("buildNeighborlists", &State::buildNeighborlists)
-        .def_readwrite("turn", &State::turn)
-        .def_readwrite("periodicInterval", &State::periodicInterval)
-        .def_readwrite("rCut", &State::rCut)
-        .def_readwrite("padding", &State::padding)
-        .def_readonly("groupTags", &State::groupTags)
-        .def_readonly("dataManager", &State::dataManager)
-        //shared ptrs
-        .def_readwrite("grid", &State::grid)
-        .def_readwrite("bounds", &State::bounds)
-        .def_readwrite("fixes", &State::fixes)
-        .def_readwrite("atomParams", &State::atomParams)
-        .def_readwrite("writeConfigs", &State::writeConfigs)
-        .def_readonly("readConfig", &State::readConfig)
-        .def_readwrite("shoutEvery", &State::shoutEvery)
-        .def_readwrite("verbose", &State::verbose)
-        .def_readonly("deviceManager", &State::devManager);
+    .def("activateFix", &State::activateFix)
+    .def("deactivateFix", &State::deactivateFix)
+    .def("activateWriteConfig", &State::activateWriteConfig)
+    .def("deactivateWriteConfig", &State::deactivateWriteConfig)
+    .def("activatePythonOperation", &State::activatePythonOperation)
+    .def("deactivatePythonOperation", &State::deactivatePythonOperation)
+    .def("zeroVelocities", &State::zeroVelocities)
+    .def("destroy", &State::destroy)
+    .def("seedRNG", &State::seedRNG, State_seedRNG_overloads())
+    .def_readwrite("is2d", &State::is2d)
+    .def_readonly("changedAtoms", &State::changedAtoms)
+    .def_readonly("changedGroups", &State::changedGroups)
+    .def_readwrite("buildNeighborlists", &State::buildNeighborlists)
+    .def_readwrite("turn", &State::turn)
+    .def_readwrite("periodicInterval", &State::periodicInterval)
+    .def_readwrite("rCut", &State::rCut)
+    .def_readwrite("padding", &State::padding)
+    .def_readonly("groupTags", &State::groupTags)
+    .def_readonly("dataManager", &State::dataManager)
+    //shared ptrs
+    .def_readwrite("grid", &State::grid)
+    .def_readwrite("bounds", &State::bounds)
+    .def_readwrite("fixes", &State::fixes)
+    .def_readwrite("atomParams", &State::atomParams)
+    .def_readwrite("writeConfigs", &State::writeConfigs)
+    .def_readonly("readConfig", &State::readConfig)
+    .def_readwrite("shoutEvery", &State::shoutEvery)
+    .def_readwrite("verbose", &State::verbose)
+    .def_readonly("deviceManager", &State::devManager);
 
-        ;
+    ;
 
 }
 

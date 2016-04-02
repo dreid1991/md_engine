@@ -10,8 +10,9 @@ if (PYTHON_BIN)
     configure_file (${SETUP_PY_IN} ${SETUP_PY})
 
     add_custom_command (OUTPUT ${OUTPUT}
+        MAIN_DEPENDENCY ${SIM_SOURCES}
         COMMAND ${PYTHON_BIN} ${SETUP_PY} build
-                        COMMAND ${CMAKE_COMMAND} -E touch ${OUTPUT})
+        COMMAND ${CMAKE_COMMAND} -E touch ${OUTPUT})
 
     add_custom_target (PythonLib ALL DEPENDS ${OUTPUT})
 

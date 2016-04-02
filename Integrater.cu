@@ -290,11 +290,16 @@ boost::python::list Integrater::singlePointEngPythonPerParticle() {
 
 
 void export_Integrater() {
-    class_<Integrater, boost::noncopyable> ("Integrater")
-        .def("writeOutput", &Integrater::writeOutput)
-        .def("energyAverage", &Integrater::singlePointEngPythonAvg, (python::arg("groupHandle")="all"))
-        .def("energyPerParticle", &Integrater::singlePointEngPythonPerParticle);
-        //.def("run", &Integrater::run)
-        ;
+    boost::python::class_<Integrater,
+                          boost::noncopyable> (
+        "Integrater"
+    )
+    .def("writeOutput", &Integrater::writeOutput)
+    .def("energyAverage", &Integrater::singlePointEngPythonAvg,
+            (boost::python::arg("groupHandle")="all")
+        )
+    .def("energyPerParticle", &Integrater::singlePointEngPythonPerParticle);
+    //.def("run", &Integrater::run)
+    ;
 }
 

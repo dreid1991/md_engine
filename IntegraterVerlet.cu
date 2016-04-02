@@ -115,8 +115,14 @@ void IntegraterVerlet::run(int numTurns) {
 }
 
 void export_IntegraterVerlet() {
-    class_<IntegraterVerlet, SHARED(IntegraterVerlet), bases<Integrater>, boost::noncopyable > ("IntegraterVerlet", init<SHARED(State)>())
-        .def("run", &IntegraterVerlet::run)
-        ;
+    boost::python::class_<IntegraterVerlet,
+                          SHARED(IntegraterVerlet),
+                          boost::python::bases<Integrater>,
+                          boost::noncopyable > (
+        "IntegraterVerlet",
+        boost::python::init<SHARED(State)>()
+     )
+    .def("run", &IntegraterVerlet::run)
+    ;
 }
 
