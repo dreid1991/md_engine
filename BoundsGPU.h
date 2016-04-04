@@ -55,7 +55,7 @@ class BoundsGPU {
         }
         GPUMEMBER bool inBounds(float3 v) {
             float3 diff = v - lo;
-            return diff.x < sides[0].x and diff.y < sides[1].y and diff.z < sides[2].z;
+            return diff.x < sides[0].x and diff.y < sides[1].y and diff.z < sides[2].z and diff.x >= 0 and diff.y >= 0 and diff.z >= 0;
         }
         
 };

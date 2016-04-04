@@ -16,7 +16,8 @@ __global__ void countNumInGridCells(float4 *xs, int nAtoms, int *counts, int *at
         int3 sqrIdx = make_int3((make_float3(xs[idx]) - os) / ds);
         int sqrLinIdx = LINEARIDX(sqrIdx, ns);
         //printf("lin is %d\n", sqrLinIdx);
-        int myPlaceInGrid = atomicAdd(counts + sqrLinIdx, 1); //atomicAdd returns old value
+        int myPlaceInGrid;
+        myPlaceInGrid = atomicAdd(counts + sqrLinIdx, 1); //atomicAdd returns old value
         //printf("grid is %d\n", myPlaceInGrid);
         //printf("myPlaceInGrid %d\n", myPlaceInGrid);
         atomIdxs[idx] = myPlaceInGrid;
@@ -25,13 +26,13 @@ __global__ void countNumInGridCells(float4 *xs, int nAtoms, int *counts, int *at
 }
 
 
+
 __global__ void periodicWrap(float4 *xs, int nAtoms, BoundsGPU bounds) {
     int idx = GETIDX();
     if (idx < nAtoms) {
 
         float4 pos = xs[idx];
 
-        float4 orig = pos;
         float id = pos.w;
         float3 trace = bounds.trace();
         float3 diffFromLo = make_float3(pos) - bounds.lo;
@@ -39,7 +40,8 @@ __global__ void periodicWrap(float4 *xs, int nAtoms, BoundsGPU bounds) {
         float3 pos_orig = make_float3(pos);
         pos -= make_float4(trace * imgs * bounds.periodic);
         pos.w = id;
-        if (not(pos.x==orig.x and pos.y==orig.y and pos.z==orig.z)) { //sigh
+        //if (not(pos.x==orig.x and pos.y==orig.y and pos.z==orig.z)) { //sigh
+        if (imgs.x != 0 or imgs.y != 0 or imgs.z != 0) {
             xs[idx] = pos;
         }
 
@@ -560,7 +562,7 @@ void setPerBlockCounts(vector<int> &neighborCounts, vector<int> &numNeighborsInB
 
 __global__ void setBuildFlag(float4 *xsA, float4 *xsB, int nAtoms, BoundsGPU boundsGPU, float paddingSqr, int *buildFlag, int numChecksSinceBuild) {
     int idx = GETIDX();
-    extern __shared__ char flags_shr[];
+    extern __shared__ short flags_shr[];
     if (idx < nAtoms) {
         float3 distVector = boundsGPU.minImage(make_float3(xsA[idx] - xsB[idx]));
         float lenSqr = lengthSqr(distVector);
@@ -568,44 +570,20 @@ __global__ void setBuildFlag(float4 *xsA, float4 *xsB, int nAtoms, BoundsGPU bou
         float maxMoveSqr = paddingSqr * maxMoveRatio * maxMoveRatio;
         //printf("moved %f\n", sqrtf(lenSqr));
       //  printf("max move is %f\n", maxMoveSqr);
-        flags_shr[threadIdx.x] = (char) (lenSqr > maxMoveSqr);
+        flags_shr[threadIdx.x] = (short) (lenSqr > maxMoveSqr);
     } else {
         flags_shr[threadIdx.x] = 0;
     }
    __syncthreads();
    //just took from parallel reduction in cutils_func
-   reduceByN<char>(flags_shr, blockDim.x);
+   reduceByN<short>(flags_shr, blockDim.x);
     if (threadIdx.x == 0 and flags_shr[0] != 0) {
-        buildFlag[0] += (int) flags_shr[0];
+        buildFlag[0] = 1;
     }
 
 }
 void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort, bool forceBuild) {
     int warpSize = state->devManager.prop.warpSize;
-    
-
-    //cudaDeviceSynchronize();
-    //cout << "periodic!" << endl << endl << endl;
-    //cout << "max excl is " << maxExclusionsPerAtom << endl;
-    /*
-    int *exclIdx = exclusionIndexes.get((int *) NULL);
-    uint *exclId = exclusionIds.get((uint *) NULL);
-    cout << " idxs" << endl;
-    for (int i=0; i<exclusionIndexes.size(); i++) {
-        cout << exclIdx[i] << endl;
-    }
-    cout << "ids" << endl;
-    for (int i=0; i<exclusionIds.size(); i++) {
-        uint masked = exclId[i] & EXCL_MASK;
-        uint dist = exclId[i] >> 30;
-        cout << "id " << masked<< endl;
-        cout << "dist " << dist << endl;
-    }
-    */
-    float3 ds_orig = ds;
-    float3 os_orig = os;
-    ds += make_float3(EPSILON, EPSILON, EPSILON); //as defined in Vector.h.  PAIN AND NUMERICAL ERROR AWAIT ALL THOSE WHO ALTER THIS LINE (AND THE ONE BELOW IT)
-    os -= make_float3(EPSILON, EPSILON, EPSILON);
     Vector nsV = Vector(make_float3(ns));
     int nAtoms = state->atoms.size();
     int activeIdx = state->gpd.activeIdx;
@@ -613,11 +591,16 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort, bool force
     //DO ASYNC COPY TO xsLastBuild
     //FINISH FUTURE WHICH SETS REBUILD FLAG BY NOW PLEASE
    // CUCHECK(cudaStreamSynchronize(rebuildCheckStream));
-    setBuildFlag<<<NBLOCK(nAtoms), PERBLOCK, PERBLOCK * sizeof(char)>>>(state->gpd.xs(activeIdx), xsLastBuild.data(), nAtoms, bounds, state->padding*state->padding, buildFlag.d_data.data(), numChecksSinceLastBuild);
+    setBuildFlag<<<NBLOCK(nAtoms), PERBLOCK, PERBLOCK * sizeof(short)>>>(state->gpd.xs(activeIdx), xsLastBuild.data(), nAtoms, bounds, state->padding*state->padding, buildFlag.d_data.data(), numChecksSinceLastBuild);
     buildFlag.dataToHost();
     cudaDeviceSynchronize();
+    //    cout << "I AM BUILDING" << endl;
     if (buildFlag.h_data[0] or forceBuild) {
-        //cout << "I AM BUILDING" << endl;
+
+        float3 ds_orig = ds;
+        float3 os_orig = os;
+        ds += make_float3(EPSILON, EPSILON, EPSILON); //as defined in Vector.h.  PAIN AND NUMERICAL ERROR AWAIT ALL THOSE WHO ALTER THIS LINE (AND THE ONE BELOW IT)
+        os -= make_float3(EPSILON, EPSILON, EPSILON);
         BoundsGPU boundsUnskewed = bounds.unskewed();
         float3 trace = boundsUnskewed.trace();
         if (bounds.sides[0].y or bounds.sides[1].x) {
@@ -640,8 +623,9 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort, bool force
         perCellArray.d_data.memset(0);
         perAtomArray.d_data.memset(0);
       //  cudaDeviceSynchronize();
-        //SAFECALL((countNumInGridCells<<<NBLOCK(nAtoms), PERBLOCK>>>(state->gpd.xs(activeIdx), nAtoms, perCellArray.d_data.data(), perAtomArray.d_data.data(), os, ds, ns)), "NUM IN CELLS");
         countNumInGridCells<<<NBLOCK(nAtoms), PERBLOCK>>>(state->gpd.xs(activeIdx), nAtoms, perCellArray.d_data.data(), perAtomArray.d_data.data(), os, ds, ns);
+        //SAFECALL((countNumInGridCells<<<NBLOCK(nAtoms), PERBLOCK>>>(state->gpd.xs(activeIdx), nAtoms, perCellArray.d_data.data(), perAtomArray.d_data.data(), os, ds, ns)), "NUM IN CELLS");
+        //countNumInGridCells<<<NBLOCK(nAtoms), PERBLOCK>>>(state->gpd.xs(activeIdx), nAtoms, perCellArray.d_data.data(), perAtomArray.d_data.data(), os, ds, ns);
         perCellArray.dataToHost();
         cudaDeviceSynchronize();
         int *gridCellCounts_h = perCellArray.h_data.data();
@@ -747,10 +731,9 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort, bool force
         numChecksSinceLastBuild = 0; 
         copyPositionsAsync();
     } else {
-        //cout << "I AM NOT BUILDING" << endl;
         numChecksSinceLastBuild++;
     }
-    buildFlag.d_data.memset(0);
+    buildFlag.d_data.memset(0); 
     
 }
 
