@@ -1,6 +1,7 @@
 #ifndef BOUNDS_GPU
 #define BOUNDS_GPU
 #include "cutils_math.h"
+#include "globalDefs.h"
 #include "Vector.h"
 class BoundsGPU {
     public:

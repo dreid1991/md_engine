@@ -4,7 +4,8 @@
 #include <cmath>
 #include <string>
 #include <sstream>
-#include "globalDefs.h"
+
+#include "cuda_runtime.h"
 
 void export_Vector();
 void export_VectorInt();
@@ -158,10 +159,10 @@ public:
      *
      * The z-component of the vector remains unchanged.
      */
-    VectorGeneric<num> rotate2d( num rotation) const {
-        num c = cos(rotation);
-        num s = sin(rotation);
-        return VectorGeneric<num> (c*vals[0] - s*vals[1], s*vals[0] + c*vals[1], vals[2]);
+    VectorGeneric<double> rotate2d( double rotation) const {
+        double c = cos(rotation);
+        double s = sin(rotation);
+        return VectorGeneric<double> (c*vals[0] - s*vals[1], s*vals[0] + c*vals[1], vals[2]);
     }
 
     /*! \brief Multiplication with generic type */
@@ -396,7 +397,7 @@ public:
     }
 };
 
-typedef VectorGeneric<num> Vector;
+typedef VectorGeneric<double> Vector;
 typedef VectorGeneric<int> VectorInt;
 
 const Vector VectorEps(0.00001,0.00001,0.00001);

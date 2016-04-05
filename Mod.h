@@ -4,6 +4,7 @@ class State;
 class Bond;
 class Angle;
 using namespace std;
+#include "globalDefs.h"
 #include "Vector.h"
 #include <vector>
 #include <assert.h>
