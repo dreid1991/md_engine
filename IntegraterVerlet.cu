@@ -2,8 +2,8 @@
 
 #include "State.h"
 
-IntegraterVerlet::IntegraterVerlet(SHARED(State) state_) : Integrater(state_.get(), IntVerletType) {
-}
+IntegraterVerlet::IntegraterVerlet(SHARED(State) state_)
+    : Integrater(state_.get()) {}
 
 __global__ void preForce_cu(int nAtoms, float4 *xs, float4 *vs, float4 *fs, float4 *fsLast, float dt) {
     int idx = GETIDX();

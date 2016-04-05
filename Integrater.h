@@ -10,9 +10,6 @@ class State;
 
 void export_Integrater();
 
-extern const std::string IntVerletType;
-extern const std::string IntRelaxType;
-
 /*! \class Integrater
  * \brief Base class for Molecular Dynamics Integraters
  *
@@ -103,7 +100,6 @@ public:
      * containing one value per atom in the simulation.
      */
     boost::python::list singlePointEngPythonPerParticle();
-    std::string type; //!< Unused \todo remove
     State *state; //!< Pointer to the simulation state
 
     /*! \brief Default constructor
@@ -119,8 +115,7 @@ public:
      *
      * \todo Remove usage of type
      */
-    Integrater(State *state_, std::string type_);
-    //double relax(int numTurns, num fTol);
+    explicit Integrater(State *state_);
 
     /*! \brief Calculate single point force
      *

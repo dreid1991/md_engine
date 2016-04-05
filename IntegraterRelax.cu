@@ -3,7 +3,9 @@
 #include "State.h"
 
 
-IntegraterRelax::IntegraterRelax(SHARED(State) state_) : Integrater(state_.get(), IntRelaxType) {
+IntegraterRelax::IntegraterRelax(SHARED(State) state_)
+    : Integrater(state_.get())
+{
     //FIRE parameters
     alphaInit = 0.1;
     alphaShrink = 0.99;

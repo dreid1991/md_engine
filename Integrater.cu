@@ -9,10 +9,6 @@
 #include "PythonOperation.h"
 #include "WriteConfig.h"
 
-const string IntVerletType = "verlet";
-const string IntRelaxType = "relax";
-
-
 void Integrater::force(bool computeVirials) {
     
 	int simTurn = state->turn;
@@ -240,7 +236,7 @@ void Integrater::setActiveData() {
     activeData.push_back((GPUArrayBase *) &state->gpd.qs);
 }
 
-Integrater::Integrater(State *state_, string type_) : state(state_), type(type_){
+Integrater::Integrater(State *state_) : state(state_) {
     setActiveData(); 
 }
 
