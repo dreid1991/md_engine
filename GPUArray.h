@@ -6,8 +6,6 @@
 #include "GPUArrayBase.h"
 #include "GPUArrayDevice.h"
 
-using namespace std;
-
 /*! \class GPUArray
  * \brief Array storing data on the CPU and the GPU
  *
@@ -34,7 +32,7 @@ public:
      * and the GPU.
      */
     explicit GPUArray(int size_)
-        : h_data(vector<T>(size_,T())), d_data(GPUArrayDevice<T>(size_)) {}
+        : h_data(std::vector<T>(size_,T())), d_data(GPUArrayDevice<T>(size_)) {}
 
     /*! \brief Constructor
      *
@@ -42,7 +40,7 @@ public:
      *
      * Constructor setting the CPU data array with the specified vector.
      */
-    explicit GPUArray(vector<T> &vals) {
+    explicit GPUArray(std::vector<T> &vals) {
         set(vals);
         d_data = GPUArrayDevice<T>(vals.size());
     }
@@ -53,7 +51,7 @@ public:
      *
      * Set the CPU data to to data specified in the given vector.
      */
-    void set(vector<T> &other) {
+    void set(std::vector<T> &other) {
         if (other.size() > size()) {
             d_data = GPUArrayDevice<T>(other.size());
         }
@@ -106,7 +104,7 @@ public:
 
 public:
 
-    vector<T> h_data; //!< Array storing data on the CPU
+    std::vector<T> h_data; //!< Array storing data on the CPU
     GPUArrayDevice<T> d_data; //!< Array storing data on the GPU
 };
 
