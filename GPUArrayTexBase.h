@@ -3,10 +3,6 @@
 
 #include "globalDefs.h"
 
-#define SAFEHOSTCAPACITY(n, SIZE) \
-    (n <= (PERLINE/sizeof(SIZE)) ? n : \
-                (PERLINE/sizeof(SIZE))*ceil(n/(float)(PERLINE/sizeof(SIZE))))
-
 class GPUArrayTexBase {
     protected:
         void copyToDeviceArrayInternal(void *dest,
