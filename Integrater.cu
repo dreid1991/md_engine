@@ -1,11 +1,14 @@
 #include "Integrater.h"
+
+#include "boost_for_export.h"
 #include "cuda_call.h"
-#include "Fix.h"
-#include "WriteConfig.h"
-// #include "globalDefs.h"
-#include "PythonOperation.h"
-#include "DataSet.h"
 #include "cutils_func.h"
+#include "DataSet.h"
+#include "Fix.h"
+#include "GPUArrayBase.h"
+#include "PythonOperation.h"
+#include "WriteConfig.h"
+
 const string IntVerletType = "verlet";
 const string IntRelaxType = "relax";
 

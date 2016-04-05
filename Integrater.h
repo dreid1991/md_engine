@@ -1,19 +1,17 @@
 #ifndef INTEGRATER_H
 #define INTEGRATER_H
-#include "Atom.h"
+
+#include <boost/python/list.hpp>
+#include <string>
 #include <vector>
-//#include "Fix.h"
-#include <chrono>
-#include "GPUArray.h"
-#include "GPUArrayTex.h"
-#include "boost_for_export.h"
-#include <future>
-void export_Integrater();
+
+class GPUArrayBase;
 class State;
 
+void export_Integrater();
 
-extern const string IntVerletType;
-extern const string IntRelaxType;
+extern const std::string IntVerletType;
+extern const std::string IntRelaxType;
 
 /*! \class Integrater
  * \brief Base class for Molecular Dynamics Integraters
@@ -95,7 +93,7 @@ public:
      * This function calculates and returns the average per particle energy for
      * the particles in the group specified via the groupHandle.
      */
-    double singlePointEngPythonAvg(string groupHandle);
+    double singlePointEngPythonAvg(std::string groupHandle);
 
     /*! \brief Create list of per-particle energies
      *
@@ -105,7 +103,7 @@ public:
      * containing one value per atom in the simulation.
      */
     boost::python::list singlePointEngPythonPerParticle();
-    string type; //!< Unused \todo remove
+    std::string type; //!< Unused \todo remove
     State *state; //!< Pointer to the simulation state
 
     /*! \brief Default constructor
@@ -121,7 +119,7 @@ public:
      *
      * \todo Remove usage of type
      */
-    Integrater(State *state_, string type_);
+    Integrater(State *state_, std::string type_);
     //double relax(int numTurns, num fTol);
 
     /*! \brief Calculate single point force

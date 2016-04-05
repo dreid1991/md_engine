@@ -1,8 +1,9 @@
 #ifndef INTEGRATERRELAX_H
 #define INTEGRATERRELAX_H
 
-#include "Integrater.h"
 #include "cuda_call.h"
+#include "globalDefs.h"
+#include "Integrater.h"
 
 //-------------------------------------------------------
 //  FIRE algorithm -- Fast Internal Relaxation Engine
