@@ -155,7 +155,7 @@ class GridGPU {
          * ExclusionList is a map connecting the atom id with a vector of sets
          * of other atom ids. The map should always be ordered.
          */
-		typedef map<int, vector<set<int>>> ExclusionList;
+		typedef std::map<int, std::vector<std::set<int>>> ExclusionList;
 
         /*! \brief Check if atoms are more closely connected than a given depth
          *

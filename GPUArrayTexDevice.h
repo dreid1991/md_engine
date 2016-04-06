@@ -1,5 +1,6 @@
 #ifndef GPUARRAYTEXDEVICE_H
 #define GPUARRAYTEXDEVICE_H
+
 #include "Python.h"
 #include <vector>
 #include <cuda_runtime.h>
@@ -12,10 +13,6 @@
 #include "GPUArrayBase.h"
 #include "GPUArrayTexBase.h"
 #include "memset_defs.h"
-using namespace std;
-
-
-//for use in runtime loop, not general storage
 
 void MEMSETFUNC(cudaSurfaceObject_t, void *, int, int);
 
@@ -24,7 +21,9 @@ void MEMSETFUNC(cudaSurfaceObject_t, void *, int, int);
  * \tparam T type of data stored in the Texture
  *
  * This class manages data stored in a GPU Texture device. This type of memory
- * is often faster than the standard global or shared memory on the GPU.
+ * is often faster than the standard global or shared memory on the GPU. This
+ * type of storage should be used only for runtime loop, not for general
+ * storage.
  */
 template <class T>
 class GPUArrayTexDevice : public GPUArrayTexBase {
@@ -239,7 +238,7 @@ public:
      * \return Size in x-dimension
      */
     int NX() {
-        return fmin((int) (PERLINE/sizeof(T)), (int) size);
+        return std::fmin((int) (PERLINE/sizeof(T)), (int) size);
     }
 
     /*! \brief Get size in y-dimension of Texture Array
@@ -247,7 +246,7 @@ public:
      * \return Size in y-dimension
      */
     int NY() {
-        return ceil(size / (float) (PERLINE/sizeof(T)));
+        return std::ceil(size / (float) (PERLINE/sizeof(T)));
     }
 
     /*! \brief Resize the Texture Array
