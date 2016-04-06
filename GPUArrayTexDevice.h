@@ -21,39 +21,6 @@ template <class T>
 class GPUArrayTexDevice : public GPUArrayTexBase {
 public:
 
-    cudaTextureObject_t tex; //!< Texture object
-    cudaSurfaceObject_t surf; //!< Texture surface
-    cudaResourceDesc resDesc; //!< Resource descriptor
-    cudaTextureDesc texDesc; //!< Texture descriptor
-    bool madeTex; //!< True if texture has been created.
-
-    /*! \brief Destroy Texture and Surface objects, deallocate memory */
-    void destroyDevice() {
-        if (madeTex) {
-            CUCHECK(cudaDestroyTextureObject(tex));
-            CUCHECK(cudaDestroySurfaceObject(surf));
-        }
-        if (data() != (cudaArray *) NULL) {
-            CUCHECK(cudaFreeArray(data()));
-        }
-        madeTex = false;
-    }
-
-    /*! \brief Initialize descriptors
-     *
-     * The default values are cudaResourceTypeArray for the resource type of
-     * the resource descriptor and cudaReadModeElementType for the read mode
-     * of the texture descriptor. All other values of the resource and texture
-     * descriptors are set to zero.
-     */
-    void initializeDescriptions() {
-        memset(&resDesc, 0, sizeof(resDesc));
-        resDesc.resType = cudaResourceTypeArray;
-        //.res.array.array is unset.  Set when allocing on device
-        memset(&texDesc, 0, sizeof(texDesc));
-        texDesc.readMode = cudaReadModeElementType;
-    }
-
     /*! \brief Default constructor */
     GPUArrayTexDevice() : madeTex(false) {
         d_data = (cudaArray *) NULL;
@@ -109,6 +76,23 @@ public:
         createTexSurfObjs();
     }
 
+    /*! \brief Move constructor
+     *
+     * \param other GPUArrayTexDevice containing the data to move
+     */
+    GPUArrayTexDevice(GPUArrayTexDevice<T> &&other) {
+        copyFromOther(other);
+        d_data = other.data();
+        initializeDescriptions();
+        resDesc.res.array.array = data();
+        if (other.madeTex) {
+            createTexSurfObjs();
+        }
+        other.d_data = nullptr;
+        other.n = 0;
+        other.cap = 0;
+    }
+
     /*! \brief Assignment operator
      *
      * \param other Right hand side of assignment operator
@@ -126,37 +110,6 @@ public:
                                          x*sizeof(T), y,
                                          cudaMemcpyDeviceToDevice));
         return *this;
-    }
-
-    /*! \brief Custom copy operator
-     *
-     * \param other GPUArrayTexDevice to copy from
-     */
-    void copyFromOther(const GPUArrayTexDevice<T> &other) {
-        //I should own no pointers at this point, am just copying other's
-        channelDesc = other.channelDesc;
-        n = other.size();
-        cap = other.capacity();
-        d_data = other.d_data;
-
-
-    }
-
-    /*! \brief Move constructor
-     *
-     * \param other GPUArrayTexDevice containing the data to move
-     */
-    GPUArrayTexDevice(GPUArrayTexDevice<T> &&other) {
-        copyFromOther(other);
-        d_data = other.data();
-        initializeDescriptions();
-        resDesc.res.array.array = data();
-        if (other.madeTex) {
-            createTexSurfObjs();
-        }
-        other.d_data = nullptr;
-        other.n = 0;
-        other.cap = 0;
     }
 
     /*! \brief Move assignment operator
@@ -180,6 +133,31 @@ public:
         return *this;
     }
 
+    /*! \brief Initialize descriptors
+     *
+     * The default values are cudaResourceTypeArray for the resource type of
+     * the resource descriptor and cudaReadModeElementType for the read mode
+     * of the texture descriptor. All other values of the resource and texture
+     * descriptors are set to zero.
+     */
+    void initializeDescriptions() {
+        memset(&resDesc, 0, sizeof(resDesc));
+        resDesc.resType = cudaResourceTypeArray;
+        //.res.array.array is unset.  Set when allocing on device
+        memset(&texDesc, 0, sizeof(texDesc));
+        texDesc.readMode = cudaReadModeElementType;
+    }
+
+    /*! \brief Allocate memory on the Texture device */
+    void allocDevice() {
+        int x = NX();
+        int y = NY();
+        CUCHECK(cudaMallocArray(&d_data, &channelDesc, x, y) );
+        cap = x*y;
+        //assuming address gets set in blocking manner
+        resDesc.res.array.array = data();
+    }
+
     /*! \brief Create Texture and Surface Objects */
     void createTexSurfObjs() {
 
@@ -188,6 +166,30 @@ public:
         cudaCreateTextureObject(&tex, &resDesc, &texDesc, NULL);
         cudaCreateSurfaceObject(&surf, &resDesc);
         madeTex = true;
+    }
+
+    /*! \brief Destroy Texture and Surface objects, deallocate memory */
+    void destroyDevice() {
+        if (madeTex) {
+            CUCHECK(cudaDestroyTextureObject(tex));
+            CUCHECK(cudaDestroySurfaceObject(surf));
+        }
+        if (data() != (cudaArray *) NULL) {
+            CUCHECK(cudaFreeArray(data()));
+        }
+        madeTex = false;
+    }
+
+    /*! \brief Custom copy operator
+     *
+     * \param other GPUArrayTexDevice to copy from
+     */
+    void copyFromOther(const GPUArrayTexDevice<T> &other) {
+        //I should own no pointers at this point, am just copying other's
+        channelDesc = other.channelDesc;
+        n = other.size();
+        cap = other.capacity();
+        d_data = other.d_data;
     }
 
     /*! \brief Get the number of elements in the array
@@ -252,16 +254,6 @@ public:
      * \return Pointer to const device memory
      */
      cudaArray const* data() const { return d_data; }
-
-    /*! \brief Allocate memory on the Texture device */
-    void allocDevice() {
-        int x = NX();
-        int y = NY();
-        CUCHECK(cudaMallocArray(&d_data, &channelDesc, x, y) );
-        cap = x*y;
-        //assuming address gets set in blocking manner
-        resDesc.res.array.array = data();
-    }
 
     /*! \brief Copy data from device to a given memory
      *
@@ -332,6 +324,12 @@ public:
         assert(sizeof(T) == 4 || sizeof(T) == 8 || sizeof(T) == 16);
         MEMSETFUNC(surf, &val_, size(), sizeof(T));
     }
+
+    cudaTextureObject_t tex; //!< Texture object
+    cudaSurfaceObject_t surf; //!< Texture surface
+    cudaResourceDesc resDesc; //!< Resource descriptor
+    cudaTextureDesc texDesc; //!< Texture descriptor
+    bool madeTex; //!< True if texture has been created.
 
 private:
     size_t n; //!< Number of elements currently stored
