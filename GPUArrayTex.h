@@ -1,15 +1,8 @@
 #ifndef GPUARRAYTEX_H
 #define GPUARRAYTEX_H
 
-#include "Python.h"
 #include <vector>
-#include <cuda_runtime.h>
-#include "cutils_math.h"
-#include <assert.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <iostream>
-#include "globalDefs.h"
+
 #include "GPUArrayBase.h"
 #include "GPUArrayTexBase.h"
 #include "GPUArrayTexDevice.h"
