@@ -4,17 +4,18 @@
 #include <cmath>
 
 void FixPair::prepareParameters(string handle,
-                            std::function<float (float, float)> fillFunction, bool fillDiag, std::function<float ()> fillDiagFunction) {
+                            std::function<float (float, float)> fillFunction, std::function<float (float)> processFunction, bool fillDiag, std::function<float ()> fillDiagFunction) {
     GPUArray<float> &array = *paramMap[handle];
     vector<float> *preproc = &paramMapPreproc[handle];
     int desiredSize = state->atomParams.numTypes;
     ensureParamSize(array);
     *preproc = array.h_data;
     if (fillDiag) {
-        cout << "filling diag!" << endl;
         SquareVector::populateDiagonal<float>(&array.h_data, desiredSize, fillDiagFunction);
     }
     SquareVector::populate<float>(&array.h_data, desiredSize, fillFunction);
+    SquareVector::process<float>(&array.h_data, desiredSize, processFunction);
+    
     //okay, now ready to go to device!
 
 }

@@ -85,7 +85,6 @@ namespace SquareVector {
         void populateDiagonal(vector<T> *vec, int size, 
                 std::function<T ()> fillFunction) {
             for (int i=0; i<size; i++) {
-                cout << "diag " << i << endl;
                 T val = squareVectorRef<T>(vec->data(), size, i, i);
                 if (val == DEFAULT_FILL) {
                     squareVectorRef<T>(vec->data(), size, i, i) = fillFunction();
@@ -116,8 +115,18 @@ namespace SquareVector {
                 }
             }
         }
+    template <class T>
+        void process(vector<T> *vec, int size, 
+                std::function<T (T)> processFunction) {
+            for (int i=0; i<size; i++) {
+                for (int j=0; j<size; j++) {
+                    squareVectorRef<T>(vec->data(), size, i, j) =
+                            processFunction(squareVectorRef<T>(vec->data(), size, i, j));
+                }
+            }
+        }
 
-    /*! \brief Copy SquareVector onto another SquareVector with a different
+                /*! \brief Copy SquareVector onto another SquareVector with a different
      *         size
      *
      * \param other Reference to old SquareVector
@@ -140,6 +149,7 @@ namespace SquareVector {
         }
         return replacement;
     }
+
 }
 
 //template <class T>
@@ -230,7 +240,7 @@ class FixPair : public Fix {
          * calculations
          */
         void prepareParameters(string handle,
-                            std::function<float (float, float)> fillFunction, bool fillDiag, std::function<float ()> = std::function<float ()> ());
+                            std::function<float (float, float)> fillFunction, std::function<float (float)> processFunction, bool fillDiag, std::function<float ()> = std::function<float ()> ());
 
         /*! \brief Send parameters to all GPU devices */
         void sendAllToDevice();

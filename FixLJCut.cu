@@ -11,16 +11,16 @@ FixLJCut::FixLJCut(SHARED(State) state_, string handle_, string groupHandle_) : 
 
 
 
-__global__ void compute_cu(int nAtoms, float4 *xs, float4 *fs, int *neighborCounts, uint *neighborlist, int *cumulSumMaxPerBlock, int warpSize, float *sigs, float *eps, float *rCuts, int numTypes,  BoundsGPU bounds, float onetwoStr, float onethreeStr, float onefourStr) {
+__global__ void compute_cu(int nAtoms, float4 *xs, float4 *fs, int *neighborCounts, uint *neighborlist, int *cumulSumMaxPerBlock, int warpSize, float *sigs, float *eps, float *rCutSqrs, int numTypes,  BoundsGPU bounds, float onetwoStr, float onethreeStr, float onefourStr) {
     float multipliers[4] = {1, onetwoStr, onethreeStr, onefourStr};
     extern __shared__ float paramsAll[];
     int sqrSize = numTypes*numTypes;
     float *sigs_shr = paramsAll;
     float *eps_shr = paramsAll + sqrSize;
-    float *rCuts_shr = paramsAll + 2*sqrSize;
+    float *rCutSqrs_shr = paramsAll + 2*sqrSize;
     copyToShared<float>(eps, eps_shr, sqrSize);
     copyToShared<float>(sigs, sigs_shr, sqrSize);
-    copyToShared<float>(rCuts, rCuts_shr, sqrSize);
+    copyToShared<float>(rCutSqrs, rCutSqrs_shr, sqrSize);
     __syncthreads();
 
     int idx = GETIDX();
@@ -46,22 +46,21 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *fs, int *neighborCoun
                 int otherType = * (int *) &otherPosWhole.w;
                 float3 otherPos = make_float3(otherPosWhole);
                 //then wrap and compute forces!
-                float sig = squareVectorItem(sigs_shr, numTypes, type, otherType);
-                float eps = squareVectorItem(eps_shr, numTypes, type, otherType);
+                float sig6 = squareVectorItem(sigs_shr, numTypes, type, otherType);
+                float epstimes24 = squareVectorItem(eps_shr, numTypes, type, otherType);
                 float3 dr = bounds.minImage(pos - otherPos);
                 float lenSqr = lengthSqr(dr);
                 //PRE-SQR THIS VALUE ON CPU
-                float rCut = squareVectorItem(rCuts_shr, numTypes, type, otherType);
+                float rCutSqr = squareVectorItem(rCutSqrs_shr, numTypes, type, otherType);
                 //if (threadIdx.x == 100) {
                 //    printf("%f %f %f\n", sig, eps, rCut);
                // }
              //   printf("dist is %f %f %f\n", dr.x, dr.y, dr.z);
-                if (lenSqr < rCut*rCut) {
+                if (lenSqr < rCutSqr) {
                    // printf("mult is %f between idxs %d %d\n", multiplier, idx, otherIdx);
                     //HEY - PRECOMPUTE THESE VALUES ON CPU IN PREPARE FOR RUN
-                    float sig6 = powf(sig, 6);//compiler should optimize this 
-                    float p1 = eps*48*sig6*sig6;
-                    float p2 = eps*24*sig6;
+                    float p1 = epstimes24*2*sig6*sig6;
+                    float p2 = epstimes24*sig6;
                     float r2inv = 1/lenSqr;
                     float r6inv = r2inv*r2inv*r2inv;
                     float forceScalar = r6inv * r2inv * (p1 * r6inv - p2) * multiplier;
@@ -117,8 +116,8 @@ __global__ void computeEng_cu(int nAtoms, float4 *xs, float *perParticleEng, int
                 int otherType = * (int *) &otherPosWhole.w;
                 float3 otherPos = make_float3(otherPosWhole);
                 //then wrap and compute forces!
-                float sig = squareVectorItem(sigs_shr, numTypes, type, otherType);
-                float eps = squareVectorItem(eps_shr, numTypes, type, otherType);
+                float sig6 = squareVectorItem(sigs_shr, numTypes, type, otherType);
+                float epstimes24 = squareVectorItem(eps_shr, numTypes, type, otherType);
                 float3 dr = bounds.minImage(pos - otherPos);
                 float lenSqr = lengthSqr(dr);
                 //PRE-SQR THIS VALUE ON CPU
@@ -126,11 +125,10 @@ __global__ void computeEng_cu(int nAtoms, float4 *xs, float *perParticleEng, int
              //   printf("dist is %f %f %f\n", dr.x, dr.y, dr.z);
                 if (lenSqr < rCut*rCut) {
                    // printf("mult is %f between idxs %d %d\n", multiplier, idx, otherIdx);
-                    float sig6 = powf(sig, 6);//compiler should optimize this 
                     float r2inv = 1/lenSqr;
                     float r6inv = r2inv*r2inv*r2inv;
                     float sig6r6inv = sig6 * r6inv;
-                    sumEng += 0.5 * 4*eps*sig6r6inv*(sig6r6inv-1.0f) * multiplier; //0.5 b/c we need to half-count energy b/c pairs are redundant
+                    sumEng += 0.5 * 4*(epstimes24 / 24)*sig6r6inv*(sig6r6inv-1.0f) * multiplier; //0.5 b/c we need to half-count energy b/c pairs are redundant
                 }
 
             }
@@ -188,13 +186,21 @@ bool FixLJCut::prepareForRun() {
     auto none = [] (float a){};
 
     auto fillRCutDiag = [this] () {
-        cout << "RETURNING " << state->rCut << endl;
         return (float) state->rCut;
     };
 
-    prepareParameters(epsHandle, fillEps, false);
-    prepareParameters(sigHandle, fillSig, false);
-    prepareParameters(rCutHandle, fillRCut, true, fillRCutDiag);
+    auto processEps = [] (float a) {
+        return 24*a;
+    };
+    auto processSig = [] (float a) {
+        return pow(a, 6);
+    };
+    auto processRCut = [] (float a) {
+        return a*a;
+    };
+    prepareParameters(epsHandle, fillEps, processEps, false);
+    prepareParameters(sigHandle, fillSig, processSig, false);
+    prepareParameters(rCutHandle, fillRCut, processRCut, true, fillRCutDiag);
     sendAllToDevice();
     return true;
 }
@@ -233,8 +239,8 @@ void FixLJCut::addSpecies(string handle) {
 
 }
 
-vector<float> FixLJCut::getRCuts() {
-    return rCuts.h_data;
+vector<float> FixLJCut::getRCuts() { //to be called after prepare.  These are squares now
+    return LISTMAP(float, float, rc, rCuts.h_data, sqrt(rc));
 }
 
 void export_FixLJCut() {
