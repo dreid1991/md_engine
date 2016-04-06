@@ -1,18 +1,10 @@
 #ifndef GPUARRAYTEXDEVICE_H
 #define GPUARRAYTEXDEVICE_H
 
-#include "Python.h"
-#include <vector>
 #include <cuda_runtime.h>
-#include "cutils_math.h"
-#include <assert.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <iostream>
-#include "globalDefs.h"
-#include "GPUArrayBase.h"
+#include <cassert>
+
 #include "GPUArrayTexBase.h"
-#include "memset_defs.h"
 
 void MEMSETFUNC(cudaSurfaceObject_t, void *, int, int);
 
@@ -43,13 +35,10 @@ public:
     /*! \brief Destroy Texture and Surface objects, deallocate memory */
     void destroyDevice() {
         if (madeTex) {
-            //cout << "destroy texture objects for " << this << endl;
             CUCHECK(cudaDestroyTextureObject(tex));
             CUCHECK(cudaDestroySurfaceObject(surf));
         }
-        //cout << "d_data is " << d_data << endl;
         if (d_data != (cudaArray *) NULL) {
-          //  cout << "and I'm destroying" << endl;
             CUCHECK(cudaFreeArray(d_data));
         }
         madeTex = false;
@@ -72,8 +61,6 @@ public:
 
     /*! \brief Default constructor */
     GPUArrayTexDevice() : madeTex(false) {
-        //cout << "default constructor " << endl;
-        //cout << this << endl;
         d_data = (cudaArray *) NULL;
         size = 0;
         capacity = 0;
@@ -85,8 +72,6 @@ public:
      * \param desc_ Channel descriptor
      */
     GPUArrayTexDevice(cudaChannelFormatDesc desc_) : madeTex(false) {
-        //cout << "desc constructor " << endl;
-        //cout << this << endl;
         d_data = (cudaArray *) NULL;
         channelDesc = desc_;
         initializeDescriptions();
@@ -103,8 +88,6 @@ public:
     GPUArrayTexDevice(int size_, cudaChannelFormatDesc desc_)
         : madeTex(false)
     {
-        //cout << "number, desc constructor" << endl;
-        //cout << this << endl;
         size = size_;
         channelDesc = desc_;
         initializeDescriptions();
@@ -115,7 +98,6 @@ public:
 
     /*! \brief Desctructor */
     ~GPUArrayTexDevice() {
-        //cout << "in destructor!" << endl<<this<<endl;cout.flush();
         destroyDevice();
     }
 
@@ -124,7 +106,6 @@ public:
      * \param other GPUArrayTexDevice to copy from
      */
     GPUArrayTexDevice(const GPUArrayTexDevice<T> &other) {
-        //cout << this << endl;
         channelDesc = other.channelDesc;
         size = other.size;
         capacity = other.capacity;
@@ -146,7 +127,6 @@ public:
      * \return This object
      */
     GPUArrayTexDevice<T> &operator=(const GPUArrayTexDevice<T> &other) {
-        //cout << this << endl;
         channelDesc = other.channelDesc;
         if (other.size) {
             resize(other.size); //creates tex surf objs
@@ -189,8 +169,6 @@ public:
      * \param other GPUArrayTexDevice containing the data to move
      */
     GPUArrayTexDevice(GPUArrayTexDevice<T> &&other) {
-        //cout << "move constructor" << endl;
-        //cout << this << endl;
         copyFromOther(other);
         d_data = other.d_data;
         initializeDescriptions();
@@ -209,8 +187,6 @@ public:
      * \return This object
      */
     GPUArrayTexDevice<T> &operator=(GPUArrayTexDevice<T> &&other) {
-        //cout << "move assignment" << endl;
-        //cout << "from " << &other << " to " << this << endl;
         destroyDevice();
         copyFromOther(other);
         initializeDescriptions();

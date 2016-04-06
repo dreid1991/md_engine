@@ -1,5 +1,6 @@
 #include "GPUArrayTexDevice.h"
 
+#include "memset_defs.h"
 
 void MEMSETFUNC(cudaSurfaceObject_t surf, void *val_, int n, int Tsize) {
     if (Tsize == 4) {
