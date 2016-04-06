@@ -36,8 +36,8 @@ integVerlet = IntegraterVerlet(state)
 #engData = state.dataManager.recordEnergy('all', 100)
 
 writeconfig = WriteConfig(state, fn='test_out', writeEvery=50, format='xyz', handle='writer')
-state.activateWriteConfig(writeconfig)
-integVerlet.run(1000)#000000)
+#state.activateWriteConfig(writeconfig)
+integVerlet.run(10000)#000000)
 print state.atoms[0].pos
 sumV = 0.
 for a in state.atoms:
