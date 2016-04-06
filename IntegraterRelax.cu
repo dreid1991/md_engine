@@ -116,7 +116,7 @@ double IntegraterRelax::run(int numTurns, num fTol) {
 
 
     //neiblist build
-    state->gridGPU.periodicBoundaryConditions(state->rCut + state->padding, true);
+    state->gridGPU.periodicBoundaryConditions(-1, true, true);
 
     for (int i=0; i<numTurns; i++) {
         //init to 0 on cpu and gpu
@@ -126,7 +126,7 @@ double IntegraterRelax::run(int numTurns, num fTol) {
         FDotF.memsetByVal(0.0);
         //vdotF calc
         if (! ((remainder + i) % periodicInterval)) {
-            state->gridGPU.periodicBoundaryConditions(state->rCut + state->padding, true);
+            state->gridGPU.periodicBoundaryConditions();
         }
         asyncOperations();
 

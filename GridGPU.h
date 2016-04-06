@@ -75,6 +75,7 @@ class GridGPU {
         int3 ns; //!< Number of grid points in each dimension
         GPUArrayDevice<uint> neighborlist; //!< Neighbor list
         State *state; //!< Pointer to the simulation state
+        float neighCutoffMax; //!< largest cutoff radius of any interacting pair + padding, default value for grid building
 
         /*! \brief Constructor
          *
@@ -84,7 +85,7 @@ class GridGPU {
          * \param dz Attempted z-resolution of the simulation grid
          *
          * Constructor to create Grid with approximate resolution. The final
-         * resolution will be the next smaller value such that the box size is
+         * resolution will be the next larger value such that the box size is
          * a multiple of the resolution.
          */
         GridGPU(State *state_, float dx, float dy, float dz);
@@ -106,7 +107,7 @@ class GridGPU {
          *       explicit GridGPU(AtomGrid const &atomGrid)
          */
         GridGPU(State *state_, float3 ds_, float3 dsOrig_, float3 os_,
-                                                                    int3 ns_);
+                                                        int3 ns_, float maxRCut_);
 
         /*! \brief Default constructor
          *
@@ -137,14 +138,15 @@ class GridGPU {
 
         /*! \brief Remap atoms around periodic boundary conditions
          *
-         * \param neighCut Cutoff distance for neighbor interactions
+         * \param neighCut Cutoff distance for neighbor interactions.
+         * Defaults to max values, stored in class
          * \param doSort Sort the perAtomArray
          * \param forceBuild Force rebuilding of neighbor list
          *
          * This function remaps particles that have moved across a periodic
          * boundary and rebuilds the neighbor list if necessary.
          */
-        void periodicBoundaryConditions(float neighCut, bool doSort,
+        void periodicBoundaryConditions(float neighCut=-1, bool doSort=true,
                                                         bool forceBuild=false);
 
         /*! \typedef ExclusionList

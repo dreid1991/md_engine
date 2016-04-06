@@ -47,8 +47,10 @@ BOOST_PYTHON_MODULE(Sim) {
     export_FixDihedralOPLS();
     export_FixWallHarmonic();
     export_FixSpringStatic();
-    export_FixLJCut(); //make there be a pair base class in boost!
     export_Fix2d();
+
+    export_FixPair();
+    export_FixLJCut(); //make there be a pair base class in boost!
     
     export_FixCharge();
     export_FixChargePairDSF();

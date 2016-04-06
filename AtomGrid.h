@@ -37,7 +37,7 @@ class AtomGrid : public Grid<Atom *> {
 		//rescale should probably go in here
 		void updateAtoms(vector<Atom *> &);
         bool isSet;
-        GridGPU makeGPU();
+        GridGPU makeGPU(float maxRCut);
         AtomGrid() : isSet(false) {};
 		AtomGrid(State *state_, double dx_, double dy_, double dz_);
 		AtomGrid(SHARED(State) state_, double dx_, double dy_, double dz_);

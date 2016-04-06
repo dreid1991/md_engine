@@ -59,6 +59,9 @@ class Fix {
         virtual vector<BondVariant> *getBonds() {
             return nullptr;
         }
+        virtual vector<float> getRCuts() {
+            return vector<float>();
+        }
         void validAtoms(vector<Atom *> &atoms);
 	
 };

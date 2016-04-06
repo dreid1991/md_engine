@@ -115,8 +115,8 @@ void AtomGrid::appendNeighborListSelfCheck(Atom &a, OffsetObj<Atom **> &gridSqr,
 
 
 
-GridGPU AtomGrid::makeGPU() {
-    return GridGPU(state, ds.asFloat3(), dsOrig.asFloat3(), os.asFloat3(), ns.asInt3());
+GridGPU AtomGrid::makeGPU(float maxRCut) {
+    return GridGPU(state, ds.asFloat3(), dsOrig.asFloat3(), os.asFloat3(), ns.asInt3(), maxRCut);
 }
 
 void AtomGrid::enforcePeriodic(Bounds bounds) {

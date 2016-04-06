@@ -63,10 +63,6 @@ void IntegraterVerlet::run(int numTurns) {
     basicPreRunChecks(); 
     basicPrepare(numTurns);
     
-    double rCut = state->rCut;
-    double padding = state->padding;
-
-    //ADD PADDING
 
 
     int periodicInterval = state->periodicInterval;
@@ -89,7 +85,7 @@ void IntegraterVerlet::run(int numTurns) {
      */
     for (int i=0; i<numTurns; i++) {
         if (! ((remainder + i) % periodicInterval)) {
-            state->gridGPU.periodicBoundaryConditions(rCut + padding, true);
+            state->gridGPU.periodicBoundaryConditions();
         }
         int activeIdx = state->gpd.activeIdx;
         asyncOperations();

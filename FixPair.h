@@ -13,6 +13,8 @@
 #include "Fix.h"
 #include "xml_func.h"
 
+void export_FixPair();
+
 class State;
 
 /*! \brief Global function returning a single SquareVector item
@@ -80,27 +82,40 @@ namespace SquareVector {
      * using a function pointer.
      */
     template <class T>
-    void populate(vector<T> *vec, int size,
-                  std::function<T (T, T)> fillFunction) {
-        for (int i=0; i<size; i++) {
-            for (int j=0; j<size; j++) {
-                T val = squareVectorRef<T>(vec->data(), size, i, j);
-                if (i==j) {
-                    if (val == DEFAULT_FILL) {
-                        std::cout << "You have not defined interaction parameters "
-                                "for atom type with index " << i << std::endl;
-                        assert(val != DEFAULT_FILL);
-                    }
-                } else if (val == DEFAULT_FILL) {
-                    squareVectorRef<T>(vec->data(), size, i, j) =
-                            fillFunction(squareVectorRef<T>(vec->data(), size,
-                                                            i, i),
-                                         squareVectorRef<T>(vec->data(), size,
-                                                            j, j));
+        void populateDiagonal(vector<T> *vec, int size, 
+                std::function<T ()> fillFunction) {
+            for (int i=0; i<size; i++) {
+                cout << "diag " << i << endl;
+                T val = squareVectorRef<T>(vec->data(), size, i, i);
+                if (val == DEFAULT_FILL) {
+                    squareVectorRef<T>(vec->data(), size, i, i) = fillFunction();
+                    cout << squareVectorRef<T>(vec->data(), size, i, i) << endl;
                 }
             }
         }
-    }
+
+    template <class T>
+        void populate(vector<T> *vec, int size,
+                std::function<T (T, T)> fillFunction) {
+            for (int i=0; i<size; i++) {
+                for (int j=0; j<size; j++) {
+                    T val = squareVectorRef<T>(vec->data(), size, i, j);
+                    if (i==j) {
+                        if (val == DEFAULT_FILL) {
+                            std::cout << "You have not defined interaction parameters "
+                                "for atom type with index " << i << std::endl;
+                            assert(val != DEFAULT_FILL);
+                        }
+                    } else if (val == DEFAULT_FILL) {
+                        squareVectorRef<T>(vec->data(), size, i, j) =
+                            fillFunction(squareVectorRef<T>(vec->data(), size,
+                                        i, i),
+                                    squareVectorRef<T>(vec->data(), size,
+                                        j, j));
+                    }
+                }
+            }
+        }
 
     /*! \brief Copy SquareVector onto another SquareVector with a different
      *         size
@@ -193,17 +208,7 @@ class FixPair : public Fix {
 
     protected:
 
-        /*! \brief Add a label to a given array
-         *
-         * \param label String specifying the label
-         * \param arr Reference of array to which the label applies
-         *
-         * This function adds a label to a given GPUArray. After this step, the
-         * array can be accessed using its label.
-         */
-        void labelArray(std::string label, GPUArray<float> &arr) {
-            paramMap[label] = &arr;
-        }
+  
 
         /*! \brief Initialize the parameters
          *
@@ -224,8 +229,8 @@ class FixPair : public Fix {
          * This function prepares the parameter array used in the GPU
          * calculations
          */
-        void prepareParameters(GPUArray<float> &array,
-                            std::function<float (float, float)> fillFunction);
+        void prepareParameters(string handle,
+                            std::function<float (float, float)> fillFunction, bool fillDiag, std::function<float ()> = std::function<float ()> ());
 
         /*! \brief Send parameters to all GPU devices */
         void sendAllToDevice();
@@ -271,6 +276,7 @@ class FixPair : public Fix {
          *         pair potential parameters
          */
         std::map<string, GPUArray<float> *> paramMap;
+        std::map<string, vector<float> > paramMapPreproc;
 
     public:
         /*! \brief Set a specific parameter for specific particle types
@@ -286,6 +292,7 @@ class FixPair : public Fix {
         bool setParameter(std::string param, std::string handleA,
                           std::string handleB, double val);
 
+        void resetToPreproc(string handle);
 //    GPUArrayDevice<float> copySqrToDevice(SquareVector<float> &vec) {
 //        GPUArrayDevice<float> arr (vec.totalSize());
 //        arr.set(vec.data());

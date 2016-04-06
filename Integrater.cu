@@ -195,15 +195,15 @@ void Integrater::basicPrepare(int numTurns) {
 	state->runningFor = numTurns;
     state->runInit = state->turn; 
     state->updateIdxFromIdCache();
-    state->prepareForRun();
     for (Fix *f : state->fixes) {
         f->updateGroupTag();
         f->prepareForRun();
     }
+    state->prepareForRun();
     for (GPUArrayBase *dat : activeData) {
         dat->dataToDevice();
     }
-    state->gridGPU.periodicBoundaryConditions(state->rCut + state->padding, true, true);
+    state->gridGPU.periodicBoundaryConditions(-1, true, true);
     state->dataManager.generateSingleDataSetList();  
     for (DataSet *ds : state->dataManager.dataSets) {
         ds->setCollectMode();

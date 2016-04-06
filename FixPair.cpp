@@ -3,13 +3,26 @@
 
 #include <cmath>
 
-void FixPair::prepareParameters(GPUArray<float> &array,
-                            std::function<float (float, float)> fillFunction) {
+void FixPair::prepareParameters(string handle,
+                            std::function<float (float, float)> fillFunction, bool fillDiag, std::function<float ()> fillDiagFunction) {
+    GPUArray<float> &array = *paramMap[handle];
+    vector<float> *preproc = &paramMapPreproc[handle];
     int desiredSize = state->atomParams.numTypes;
     ensureParamSize(array);
+    *preproc = array.h_data;
+    if (fillDiag) {
+        cout << "filling diag!" << endl;
+        SquareVector::populateDiagonal<float>(&array.h_data, desiredSize, fillDiagFunction);
+    }
     SquareVector::populate<float>(&array.h_data, desiredSize, fillFunction);
     //okay, now ready to go to device!
 
+}
+
+void FixPair::resetToPreproc(string handle) {
+    GPUArray<float> &array = *paramMap[handle];
+    vector<float> &preproc = paramMapPreproc[handle];
+    array.set(preproc);
 }
 
 void FixPair::ensureParamSize(GPUArray<float> &array) {
@@ -58,7 +71,8 @@ bool FixPair::setParameter(std::string param,
 void FixPair::initializeParameters(std::string paramHandle,
                                    GPUArray<float> &params) {
     ensureParamSize(params);
-    labelArray(paramHandle, params);
+    paramMap[paramHandle] = &params;
+    paramMapPreproc[paramHandle] = vector<float>();
 }
 
 
@@ -74,5 +88,16 @@ std::string FixPair::restartChunkPairParams(string format) {
     }
     return ss.str();
 }
-
+void export_FixPair() {
+    boost::python::class_<FixPair,
+                          boost::python::bases<Fix> > (
+        "FixPair", boost::python::no_init  )
+    .def("setParameter", &FixPair::setParameter,
+            (boost::python::arg("param"),
+             boost::python::arg("handleA"),
+             boost::python::arg("handleB"),
+             boost::python::arg("val"))
+        )
+    ;
+}
 

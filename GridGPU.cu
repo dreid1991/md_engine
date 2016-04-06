@@ -416,7 +416,7 @@ GridGPU::GridGPU() {
     streamCreated = false;
     //initStream();
 }
-GridGPU::GridGPU(State *state_, float3 ds_, float3 dsOrig_, float3 os_, int3 ns_) : state(state_), ds(ds_), dsOrig(dsOrig_), os(os_), ns(ns_) {
+GridGPU::GridGPU(State *state_, float3 ds_, float3 dsOrig_, float3 os_, int3 ns_, float maxRCut_) : state(state_), ds(ds_), dsOrig(dsOrig_), os(os_), ns(ns_), neighCutoffMax(maxRCut_ + state->padding) {
     streamCreated = false;
     initArrays();
     initStream();
@@ -583,6 +583,11 @@ __global__ void setBuildFlag(float4 *xsA, float4 *xsB, int nAtoms, BoundsGPU bou
 
 }
 void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort, bool forceBuild) {
+    //to do: remove sorting option.  Must sort every time if using mpi, and also I think building without sorting isn't even working right now
+    if (neighCut == -1) {
+        neighCut = neighCutoffMax;
+    }
+
     int warpSize = state->devManager.prop.warpSize;
     Vector nsV = Vector(make_float3(ns));
     int nAtoms = state->atoms.size();

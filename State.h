@@ -45,6 +45,7 @@ class WriteConfig;
 class State {
 	bool removeGroupTag(std::string handle);
 	uint addGroupTag(std::string handle);
+    float getMaxRCut();//<!to be called from within prepare for run __after__ fixed have prepared (because that removes any DEFAULT_FILL values)
 	public:
 		// Sooo GPU ones are active during runtime, 
 		//		non-GPU are active during process (wording?) time.
@@ -75,7 +76,7 @@ class State {
         bool computeVirials;
 
 
-		double rCut;
+		double rCut; //!< rCut behavior - each pair fix can define its own rCuts.  If values are not defined, this value is used as the default.  When a run begins, the grid will figure out the largest rCut out of the pairs and use that value.  This bit has not been implemented yet.
 		double padding;
 		
         void setSpecialNeighborCoefs(float onetwo, float onethree, float onefour); 
@@ -135,6 +136,7 @@ class State {
 		bool downloadFromRun();
 		void zeroVelocities();
 		void destroy();
+
 		// these two are for managing atom ids such that they are densely packed
 		// and it's quick at add atoms in large systems
 		std::vector<int> idxFromIdCache;

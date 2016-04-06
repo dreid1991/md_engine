@@ -251,8 +251,18 @@ bool State::deactivateFix(SHARED(Fix) other) {
     return removeGeneric<Fix>(fixesShr, &fixes, other);
 }
 
-
+float State::getMaxRCut() {
+    float maxRCut = 0;
+    for (Fix *f : fixes) {
+        vector<float> rCuts = f->getRCuts();
+        for (float x : rCuts) {
+            maxRCut = fmax(x, maxRCut);
+        }
+    }
+    return maxRCut;
+}
 bool State::prepareForRun() {
+    //fixes have already prepared by the time the integrater calls this prepare
     int nAtoms = atoms.size();
     std::vector<float4> xs_vec, vs_vec, fs_vec, fsLast_vec;
     std::vector<uint> ids;
@@ -297,7 +307,8 @@ bool State::prepareForRun() {
     gpd.idToIdxsOnCopy = idToIdxs_vec;
     gpd.idToIdxs.set(idToIdxs_vec);
     boundsGPU = bounds.makeGPU();
-    gridGPU = grid.makeGPU();
+    float maxRCut = getMaxRCut();
+    gridGPU = grid.makeGPU(maxRCut);
     gpd.xsBuffer = GPUArray<float4>(nAtoms);
     gpd.vsBuffer = GPUArray<float4>(nAtoms);
     gpd.fsBuffer = GPUArray<float4>(nAtoms);
@@ -382,6 +393,7 @@ bool State::downloadFromRun() {
     }
     return true;
 }
+
 
 bool State::makeReady() {
 	if (changedAtoms or changedGroups) {
