@@ -1,5 +1,6 @@
 #ifndef GPUARRAYTEX_H
 #define GPUARRAYTEX_H
+
 #include "Python.h"
 #include <vector>
 #include <cuda_runtime.h>
@@ -12,12 +13,6 @@
 #include "GPUArrayBase.h"
 #include "GPUArrayTexBase.h"
 #include "GPUArrayTexDevice.h"
-using namespace std;
-
-
-
-//for use in runtime loop, not general storage
-
 
 /*! \brief Manage data on the CPU and a GPU Texture
  *
@@ -25,13 +20,14 @@ using namespace std;
  *
  * This class manages data stored on the CPU and a GPU texture device. The
  * class allocates memory both on the CPU and the GPU and transfers data
- * between the two.
+ * between the two. This class is designed only for use in the runtime loop,
+ * not for general storage.
  */
 template <class T>
 class GPUArrayTex : public GPUArrayBase, public GPUArrayTexBase {
     public:
         GPUArrayTexDevice<T> d_data; //!< Array storing data on the GPU
-        vector<T> h_data; //!< Array storing data on the CPU
+        std::vector<T> h_data; //!< Array storing data on the CPU
 
         /*! \brief Default constructor */
         GPUArrayTex() {
@@ -53,7 +49,7 @@ class GPUArrayTex : public GPUArrayBase, public GPUArrayTexBase {
          * fit the data given in the vector. Then, it copies the data to the
          * CPU memory. The GPU memory remains unset.
          */
-        GPUArrayTex(vector<T> vals, cudaChannelFormatDesc desc_) : d_data(vals.size(), desc_) {
+        GPUArrayTex(std::vector<T> vals, cudaChannelFormatDesc desc_) : d_data(vals.size(), desc_) {
             set(vals);
         }
 
@@ -64,7 +60,7 @@ class GPUArrayTex : public GPUArrayBase, public GPUArrayTexBase {
          *
          * Copy data from vector to the CPU memory.
          */
-        bool set(vector<T> &other) {
+        bool set(std::vector<T> &other) {
             d_data.resize(other.size());
             h_data = other;
             h_data.reserve(d_data.capacity());
