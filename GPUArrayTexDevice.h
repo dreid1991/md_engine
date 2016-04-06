@@ -25,7 +25,6 @@ public:
     int size; //!< Number of elements currently stored
     int capacity; //!< Number of elements fitting into the currently
                   //!< allocated memory
-    int Tsize; //!< Size of the data type stored
     cudaTextureObject_t tex; //!< Texture object
     cudaSurfaceObject_t surf; //!< Texture surface
     cudaResourceDesc resDesc; //!< Resource descriptor
@@ -64,7 +63,6 @@ public:
         d_data = (cudaArray *) NULL;
         size = 0;
         capacity = 0;
-        Tsize = sizeof(T);
     }
 
     /*! \brief Constructor
@@ -77,7 +75,6 @@ public:
         initializeDescriptions();
         size = 0;
         capacity = 0;
-        Tsize = sizeof(T);
     }
 
     /*! \brief Constructor
@@ -93,7 +90,6 @@ public:
         initializeDescriptions();
         allocDevice();
         createTexSurfObjs();
-        Tsize = sizeof(T);
     }
 
     /*! \brief Desctructor */
@@ -115,9 +111,6 @@ public:
                                          NX() * sizeof(T), NY(),
                                          cudaMemcpyDeviceToDevice));
         createTexSurfObjs();
-        Tsize = sizeof(T);
-
-
     }
 
     /*! \brief Assignment operator
@@ -177,7 +170,6 @@ public:
             createTexSurfObjs();
         }
         nullOther(other);
-        Tsize = sizeof(T);
     }
 
     /*! \brief Move assignment operator
@@ -321,8 +313,8 @@ public:
      * \param val_ Value to set data to
      */
     void memsetByVal(T val_) {
-        assert(Tsize==4 or Tsize==8 or Tsize==16);
-        MEMSETFUNC(surf, &val_, size, Tsize);
+        assert(sizeof(T) == 4 || sizeof(T) == 8 || sizeof(T) == 16);
+        MEMSETFUNC(surf, &val_, size, sizeof(T));
     }
 };
 
