@@ -20,6 +20,7 @@
     Thanks to Linh Hah for additions and fixes.
 */
 
+#pragma once
 #ifndef CUTIL_MATH_H
 #define CUTIL_MATH_H
 

@@ -1,4 +1,7 @@
 #pragma once
+#ifndef DATASETENERGY_H
+#define DATASETENERGY_H
+
 #include "DataSet.h"
 #include "GPUArray.h"
 
@@ -13,3 +16,5 @@ class DataSetEnergy : public DataSet {
         GPUArray<float> engGPU;
 
 };
+
+#endif

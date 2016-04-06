@@ -1,4 +1,4 @@
-
+#pragma once
 #ifndef _CUDA_SAFE_CALL_
 #define _CUDA_SAFE_CALL_
 

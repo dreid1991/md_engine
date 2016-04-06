@@ -1,3 +1,4 @@
+#pragma once
 #ifndef ATOMGRID_H
 #define ATOMGRID_H
 #include "Python.h"

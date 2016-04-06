@@ -1,3 +1,4 @@
+#pragma once
 #ifndef FIX_TYPES
 #define FIX_TYPES
 #include <string>

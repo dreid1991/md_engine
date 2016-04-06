@@ -1,7 +1,9 @@
-#include "globalDefs.h"
-#include "cutils_math.h"
+#pragma once
 #ifndef CUTILS_FUNC_H
 #define CUTILS_FUNC_H
+
+#include "globalDefs.h"
+#include "cutils_math.h"
 
 template <class T>
 __device__ int baseNeighlistIdx(int *cumulSumMaxPerBlock, int warpSize) { 

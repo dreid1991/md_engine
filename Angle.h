@@ -1,3 +1,4 @@
+#pragma once
 #ifndef ANGLE_H
 #define ANGLE_H
 #include "globalDefs.h"

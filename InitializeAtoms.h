@@ -1,3 +1,4 @@
+#pragma once
 #ifndef INITIALIZE_H
 #define INTIIALIZE_H
 

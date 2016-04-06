@@ -1,3 +1,4 @@
+#pragma once
 #ifndef FIXWALLHARMONIC_H
 #define FIXWALLHARMONIC_H
 #include "Fix.h"

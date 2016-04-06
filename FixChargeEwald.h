@@ -1,3 +1,4 @@
+#pragma once
 #ifndef FIX_CHARGE_EWALD_H
 #define FIX_CHARGE_EWALD_H
 //#include "AtomParams.h"

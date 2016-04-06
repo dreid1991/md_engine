@@ -1,3 +1,4 @@
+#pragma once
 #ifndef DIHEDRAL_H
 #define DIHEDRAL_H
 #include "globalDefs.h"

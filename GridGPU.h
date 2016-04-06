@@ -1,3 +1,4 @@
+#pragma once
 #ifndef GRID_GPU
 #define GRID_GPU
 

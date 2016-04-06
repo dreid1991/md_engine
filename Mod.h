@@ -1,3 +1,4 @@
+#pragma once
 #ifndef MOD_H
 #define MOD_H
 class State;

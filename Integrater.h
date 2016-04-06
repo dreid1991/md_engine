@@ -1,3 +1,4 @@
+#pragma once
 #ifndef INTEGRATER_H
 #define INTEGRATER_H
 

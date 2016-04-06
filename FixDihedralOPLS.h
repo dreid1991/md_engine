@@ -1,3 +1,4 @@
+#pragma once
 #ifndef FIXDIHEDRALOPLS_H
 #define FIXDIHEDRALOPLS_H
 #include "FixPotentialMultiAtom.h"

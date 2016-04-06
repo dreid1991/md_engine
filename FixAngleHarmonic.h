@@ -1,3 +1,4 @@
+#pragma once
 #ifndef FIXANGLEHARMONIC_H
 #define FIXANGLEHARMONIC_H
 #include "FixPotentialMultiAtom.h"

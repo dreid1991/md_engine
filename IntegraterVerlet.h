@@ -1,3 +1,4 @@
+#pragma once
 #ifndef INTEGRATERVERLET_H
 #define INTEGRATERVERLET_H
 

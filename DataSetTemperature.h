@@ -1,4 +1,7 @@
 #pragma once
+#ifndef DATASETTEMPERATURE_H
+#define DATASETTEMPERATURE_H
+
 #include "DataSet.h"
 #include "GPUArray.h"
 
@@ -13,3 +16,5 @@ class DataSetTemperature : public DataSet {
         GPUArray<float> tempGPU;
 
 };
+
+#endif

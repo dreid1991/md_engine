@@ -1,3 +1,4 @@
+#pragma once
 #ifndef FIXNVTRESCALE_H
 #define FIXNVTRESCALE_H
 #include "Fix.h"

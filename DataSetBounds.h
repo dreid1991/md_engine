@@ -1,4 +1,7 @@
 #pragma once
+#ifndef DATASETBOUNDS_H
+#define DATASETBOUNDS_H
+
 #include "DataSet.h"
 #include "GPUArray.h"
 class Bounds;
@@ -12,3 +15,5 @@ class DataSetBounds : public DataSet {
         BoundsGPU stored;
 
 };
+
+#endif

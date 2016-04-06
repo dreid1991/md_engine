@@ -1,3 +1,4 @@
+#pragma once
 #ifndef GPUARRAYTEXPAIR_H
 #define GPUARRAYTEXPAIR_H
 #include "Python.h"

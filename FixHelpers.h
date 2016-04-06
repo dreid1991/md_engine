@@ -1,3 +1,4 @@
+#pragma once
 #ifndef FIX_HELPERS_H
 #define FIX_HELPERS_H
 #include "BoundsGPU.h"

@@ -1,3 +1,4 @@
+#pragma once
 #ifndef XML_FUNC_H
 #define XML_FUNC_H
 #include "Python.h"

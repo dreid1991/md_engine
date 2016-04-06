@@ -1,3 +1,4 @@
+#pragma once
 #ifndef INTEGRATERLANGEVIN_H
 #define INTEGRATERLANGEVIN_H
 #include "IntegraterVerlet.h"

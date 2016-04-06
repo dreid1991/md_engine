@@ -1,3 +1,4 @@
+#pragma once
 #ifndef LIST_MACRO_H
 #define LIST_MACRO_H
 

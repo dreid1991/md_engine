@@ -1,3 +1,4 @@
+#pragma once
 #ifndef GPUARRAYBASEPAIR_H
 #define GPUARRAYBASEPAIR_H
 #include "GPUArrayBase.h"

@@ -1,3 +1,4 @@
+#pragma once
 #ifndef ATOM_PARAMS_H
 #define ATOM_PARAMS_H
 

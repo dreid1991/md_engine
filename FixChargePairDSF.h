@@ -1,3 +1,4 @@
+#pragma once
 #ifndef FIX_CHARGEPAIR_DSF_H
 #define FIX_CHARGEPAIR_DSF_H
 //#include "AtomParams.h"

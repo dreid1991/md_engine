@@ -1,3 +1,4 @@
+#pragma once
 #ifndef INTEGRATERRELAX_H
 #define INTEGRATERRELAX_H
 

@@ -1,3 +1,4 @@
+#pragma once
 #ifndef GPUARRAY_H
 #define GPUARRAY_H
 

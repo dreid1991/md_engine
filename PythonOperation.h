@@ -1,4 +1,7 @@
 #pragma once
+#ifndef PYTHONOPERATION_H
+#define PYTHONOPERATION_H
+
 #include "globalDefs.h"
 
 #include "boost_for_export.h"
@@ -20,3 +23,5 @@ class PythonOperation {
     //track of next turn, following ones, etc. Can implement this later if need be.  
 
 };
+
+#endif

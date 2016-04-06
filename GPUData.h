@@ -1,3 +1,4 @@
+#pragma once
 #ifndef GPUDATA_H
 #define GPUDATA_H
 #include "GPUArrayPair.h"

@@ -1,3 +1,4 @@
+#pragma once
 #ifndef FIXBONDHARMONIC_H
 #define FIXBONDHARMONIC_H
 #include "Bond.h"

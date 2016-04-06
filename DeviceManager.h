@@ -1,4 +1,7 @@
 #pragma once
+#ifndef DEVICEMANAGER_H
+#define DEVICEMANAGER_H
+
 #include "Python.h"
 #include <cuda.h>
 #include <cuda_runtime_api.h>
@@ -12,3 +15,5 @@ class DeviceManager {
         bool setDevice(int, bool output=true);
         int currentDevice;
 };
+
+#endif

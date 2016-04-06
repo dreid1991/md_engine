@@ -1,4 +1,7 @@
 #pragma once
+#ifndef IMPROPER_H
+#define IMPROPER_H
+
 #include "globalDefs.h"
 #include "Atom.h"
 
@@ -39,3 +42,5 @@ typedef boost::variant<
 	ImproperHarmonic, 
     Improper	
 > ImproperVariant;
+
+#endif

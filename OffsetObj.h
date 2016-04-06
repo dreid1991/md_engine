@@ -1,3 +1,4 @@
+#pragma once
 #ifndef OFFSETOBJ_H
 #define OFFSETOBJ_H
 #include "Vector.h"

@@ -1,3 +1,4 @@
+#pragma once
 #ifndef FIX2D_H
 #define FIX2D_H
 class State;

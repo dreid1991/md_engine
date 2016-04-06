@@ -1,3 +1,4 @@
+#pragma once
 #ifndef BOOST_STLS_H
 #define BOOST_STLS_H
 #include <vector>

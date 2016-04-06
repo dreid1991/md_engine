@@ -1,3 +1,4 @@
+#pragma once
 #ifndef DATASET_H
 #define DATASET_H
 #include "Python.h"

@@ -1,3 +1,4 @@
+#pragma once
 #ifndef READCONFIG_H
 #define READCONFIG_H
 #include "Python.h"

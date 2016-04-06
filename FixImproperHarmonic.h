@@ -1,4 +1,7 @@
 #pragma once
+#ifndef FIXIMPROPERHARMONIC_H
+#define FIXIMPROPERHARMONIC_H
+
 #include "FixPotentialMultiAtom.h"
 #include "Improper.h"
 
@@ -17,3 +20,4 @@ class FixImproperHarmonic: public FixPotentialMultiAtom<ImproperVariant, Imprope
 
 };
 
+#endif

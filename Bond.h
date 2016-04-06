@@ -1,4 +1,4 @@
-
+#pragma once
 #ifndef BOND_H
 #define BOND_H
 
@@ -8,6 +8,7 @@
 #include "Atom.h"
 
 #include "cutils_math.h"
+
 
 class Bond {
     public:

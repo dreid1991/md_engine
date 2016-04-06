@@ -1,3 +1,4 @@
+#pragma once
 #ifndef FIXPOTENTIALMULTIATOM_H
 #define FIXPOTENTIALMULTIATOM_H
 #include <array>

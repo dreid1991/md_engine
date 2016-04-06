@@ -1,3 +1,4 @@
+#pragma once
 #ifndef BOOST_FOR_EXPORT_H
 #define BOOST_FOR_EXPORT_H
 #include <boost/python.hpp>

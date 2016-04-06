@@ -1,4 +1,7 @@
 #pragma once 
+#ifndef FIXBOND_H
+#define FIXBOND_H
+
 #include "Fix.h"
 #include "Bond.h"
 
@@ -105,3 +108,5 @@ class FixBond : public Fix {
 
 
 };
+
+#endif

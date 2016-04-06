@@ -1,3 +1,7 @@
+#pragma once
+#ifndef INCLUDEFIXES_H
+#define INCLUDEFIXES_H
+
 #include "FixBondHarmonic.h"
 #include "FixAngleHarmonic.h"
 #include "FixImproperHarmonic.h"
@@ -12,3 +16,4 @@
 #include "FixChargePairDSF.h"
 #include "FixChargeEwald.h"
 
+#endif

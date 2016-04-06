@@ -1,3 +1,7 @@
+#pragma once
+#ifndef FIXSPRINGSTATIC_H
+#define FIXSPRINGSTATIC_H
+
 #include "Fix.h"
 #include "GPUArray.h"
 /*
@@ -26,3 +30,5 @@ class FixSpringStatic : public Fix {
         FixSpringStatic(SHARED(State), string handle_, string groupHandle_, double k_, PyObject *tetherFunc_, Vector multiplier=Vector(1, 1, 1));
     
 };
+
+#endif

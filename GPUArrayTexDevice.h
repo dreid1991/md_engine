@@ -1,3 +1,4 @@
+#pragma once
 #ifndef GPUARRAYTEXDEVICE_H
 #define GPUARRAYTEXDEVICE_H
 

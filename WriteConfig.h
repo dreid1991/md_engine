@@ -1,3 +1,4 @@
+#pragma once
 #ifndef WRITECONFIG_H
 #define WRITECONFIG_H
 #include "State.h"

@@ -1,3 +1,4 @@
+#pragma once
 #ifndef BOUNDS_GPU
 #define BOUNDS_GPU
 #include "cutils_math.h"

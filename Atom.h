@@ -1,3 +1,4 @@
+#pragma once
 #ifndef ATOM_H
 #define ATOM_H
 #include "Vector.h"

@@ -1,3 +1,4 @@
+#pragma once
 #ifndef FIX_PAIR_H
 #define FIX_PAIR_H
 

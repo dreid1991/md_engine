@@ -1,3 +1,4 @@
+#pragma once
 #ifndef FIXLJCUT_H
 #define FIXLJCUT_H
 

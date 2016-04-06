@@ -1,3 +1,4 @@
+#pragma once
 #ifndef MEMSET_DEFS_H
 #define MEMSET_DEFS_H
 #include "globalDefs.h"
