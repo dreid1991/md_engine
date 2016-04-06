@@ -1,8 +1,6 @@
 #ifndef GPUARRAYTEXBASE_H
 #define GPUARRAYTEXBASE_H
 
-#include "globalDefs.h"
-
 /*! \brief Base class for GPU Texture Arrays
  *
  * This class is a base class to work with Texture arrays.
