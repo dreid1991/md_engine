@@ -142,17 +142,6 @@ public:
 
     }
 
-    /*! \brief Set other GPUArrayTexDevice to NULL state
-     *
-     * \param other GPUArrayTexDevice to set to NULL
-     */
-    void nullOther(GPUArrayTexDevice<T> &other) {
-        other.d_data = (cudaArray *) NULL;
-        other.n = 0;
-        other.cap = 0;
-
-    }
-
     /*! \brief Move constructor
      *
      * \param other GPUArrayTexDevice containing the data to move
@@ -165,7 +154,9 @@ public:
         if (other.madeTex) {
             createTexSurfObjs();
         }
-        nullOther(other);
+        other.d_data = nullptr;
+        other.n = 0;
+        other.cap = 0;
     }
 
     /*! \brief Move assignment operator
@@ -183,7 +174,9 @@ public:
             createTexSurfObjs();
 
         }
-        nullOther(other);
+        other.d_data = nullptr;
+        other.n = 0;
+        other.cap = 0;
         return *this;
     }
 
