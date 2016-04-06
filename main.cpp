@@ -651,7 +651,7 @@ void testGPUArrayTex() {
         vals.push_back(i+1);
     }
     xs.set(vals.data());
-    cout << xs.size << endl;
+    cout << xs.size() << endl;
     cout << xs.capacity<< endl;
 
 }

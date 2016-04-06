@@ -22,7 +22,6 @@ class GPUArrayTexDevice : public GPUArrayTexBase {
 public:
 
     cudaArray *d_data; //!< Pointer to the data
-    int size; //!< Number of elements currently stored
     int capacity; //!< Number of elements fitting into the currently
                   //!< allocated memory
     cudaTextureObject_t tex; //!< Texture object
@@ -61,7 +60,7 @@ public:
     /*! \brief Default constructor */
     GPUArrayTexDevice() : madeTex(false) {
         d_data = (cudaArray *) NULL;
-        size = 0;
+        n = 0;
         capacity = 0;
     }
 
@@ -73,20 +72,20 @@ public:
         d_data = (cudaArray *) NULL;
         channelDesc = desc_;
         initializeDescriptions();
-        size = 0;
+        n = 0;
         capacity = 0;
     }
 
     /*! \brief Constructor
      *
-     * \param size_ Size of the array (number of elements)
-     * \param desc_ Channel descriptor
+     * \param size Size of the array (number of elements)
+     * \param desc Channel descriptor
      */
-    GPUArrayTexDevice(int size_, cudaChannelFormatDesc desc_)
+    GPUArrayTexDevice(int size, cudaChannelFormatDesc desc)
         : madeTex(false)
     {
-        size = size_;
-        channelDesc = desc_;
+        n = size;
+        channelDesc = desc;
         initializeDescriptions();
         allocDevice();
         createTexSurfObjs();
@@ -103,7 +102,7 @@ public:
      */
     GPUArrayTexDevice(const GPUArrayTexDevice<T> &other) {
         channelDesc = other.channelDesc;
-        size = other.size;
+        n = other.size();
         capacity = other.capacity;
         initializeDescriptions();
         allocDevice();
@@ -121,8 +120,8 @@ public:
      */
     GPUArrayTexDevice<T> &operator=(const GPUArrayTexDevice<T> &other) {
         channelDesc = other.channelDesc;
-        if (other.size) {
-            resize(other.size); //creates tex surf objs
+        if (other.size()) {
+            resize(other.size()); //creates tex surf objs
         }
         int x = NX();
         int y = NY();
@@ -139,7 +138,7 @@ public:
     void copyFromOther(const GPUArrayTexDevice<T> &other) {
         //I should own no pointers at this point, am just copying other's
         channelDesc = other.channelDesc;
-        size = other.size;
+        n = other.size();
         capacity = other.capacity;
         d_data = other.d_data;
 
@@ -152,7 +151,7 @@ public:
      */
     void nullOther(GPUArrayTexDevice<T> &other) {
         other.d_data = (cudaArray *) NULL;
-        other.size = 0;
+        other.n = 0;
         other.capacity = 0;
 
     }
@@ -201,12 +200,14 @@ public:
         madeTex = true;
     }
 
+    size_t size() const { return n; }
+
     /*! \brief Get size in x-dimension of Texture Array
      *
      * \return Size in x-dimension
      */
     int NX() {
-        return std::fmin((int) (PERLINE/sizeof(T)), (int) size);
+        return std::fmin((int) (PERLINE/sizeof(T)), (int) size());
     }
 
     /*! \brief Get size in y-dimension of Texture Array
@@ -214,7 +215,7 @@ public:
      * \return Size in y-dimension
      */
     int NY() {
-        return std::ceil(size / (float) (PERLINE/sizeof(T)));
+        return std::ceil(size() / (float) (PERLINE/sizeof(T)));
     }
 
     /*! \brief Resize the Texture Array
@@ -228,11 +229,11 @@ public:
     void resize(int n_) {
         if (n_ > capacity) {
             destroyDevice();
-            size = n_;
+            n = n_;
             allocDevice();
             createTexSurfObjs();
         } else {
-            size = n_;
+            n = n_;
         }
 
     }
@@ -303,7 +304,7 @@ public:
      * \param dest Pointer to GPU memory
      */
     void copyToDeviceArray(void *dest) { //DEST HAD BETTER BE ALLOCATED
-        int numBytes = size * sizeof(T);
+        int numBytes = size() * sizeof(T);
         copyToDeviceArrayInternal(dest, d_data, numBytes);
 
     }
@@ -314,8 +315,11 @@ public:
      */
     void memsetByVal(T val_) {
         assert(sizeof(T) == 4 || sizeof(T) == 8 || sizeof(T) == 16);
-        MEMSETFUNC(surf, &val_, size, sizeof(T));
+        MEMSETFUNC(surf, &val_, size(), sizeof(T));
     }
+
+private:
+    size_t n; //!< Number of elements currently stored
 };
 
 #endif
