@@ -42,7 +42,9 @@ class GPUArrayTex : public GPUArrayBase, public GPUArrayTexBase {
          * fit the data given in the vector. Then, it copies the data to the
          * CPU memory. The GPU memory remains unset.
          */
-        GPUArrayTex(std::vector<T> vals, cudaChannelFormatDesc desc_) : d_data(vals.size(), desc_) {
+        GPUArrayTex(std::vector<T> vals, cudaChannelFormatDesc desc_)
+            : d_data(vals.size(), desc_)
+        {
             set(vals);
         }
 
