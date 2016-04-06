@@ -19,209 +19,336 @@ using namespace std;
 
 void MEMSETFUNC(cudaSurfaceObject_t, void *, int, int);
 
+/*! \brief Manager for data on a GPU Texture
+ *
+ * \tparam T type of data stored in the Texture
+ *
+ * This class manages data stored in a GPU Texture device. This type of memory
+ * is often faster than the standard global or shared memory on the GPU.
+ */
 template <class T>
 class GPUArrayTexDevice : public GPUArrayTexBase {
-    public:
-        
-        cudaArray *d_data;
-        //int capacity;
-        int size;
-        int capacity;
-        int Tsize;
-        cudaTextureObject_t tex;
-        cudaSurfaceObject_t surf;
-        cudaResourceDesc resDesc;
-        cudaTextureDesc texDesc;
-        bool madeTex;
-        void destroyDevice() {
-            if (madeTex) {
-                //cout << "destroy texture objects for " << this << endl;
-                CUCHECK(cudaDestroyTextureObject(tex));
-                CUCHECK(cudaDestroySurfaceObject(surf));
-            }
-            //cout << "d_data is " << d_data << endl;
-            if (d_data != (cudaArray *) NULL) {
-              //  cout << "and I'm destroying" << endl;
-                CUCHECK(cudaFreeArray(d_data));
-            }
-            madeTex = false;
+public:
+
+    cudaArray *d_data; //!< Pointer to the data
+    int size; //!< Number of elements currently stored
+    int capacity; //!< Number of elements fitting into the currently
+                  //!< allocated memory
+    int Tsize; //!< Size of the data type stored
+    cudaTextureObject_t tex; //!< Texture object
+    cudaSurfaceObject_t surf; //!< Texture surface
+    cudaResourceDesc resDesc; //!< Resource descriptor
+    cudaTextureDesc texDesc; //!< Texture descriptor
+    bool madeTex; //!< True if texture has been created.
+
+    /*! \brief Destroy Texture and Surface objects, deallocate memory */
+    void destroyDevice() {
+        if (madeTex) {
+            //cout << "destroy texture objects for " << this << endl;
+            CUCHECK(cudaDestroyTextureObject(tex));
+            CUCHECK(cudaDestroySurfaceObject(surf));
         }
-        void initializeDescriptions() {
-            memset(&resDesc, 0, sizeof(resDesc));
-            resDesc.resType = cudaResourceTypeArray;
-            //.res.array.array is unset.  Set when allocing on device
-            memset(&texDesc, 0, sizeof(texDesc));
-            texDesc.readMode = cudaReadModeElementType;
+        //cout << "d_data is " << d_data << endl;
+        if (d_data != (cudaArray *) NULL) {
+          //  cout << "and I'm destroying" << endl;
+            CUCHECK(cudaFreeArray(d_data));
         }
-        GPUArrayTexDevice() : madeTex(false) {
-            //cout << "default constructor " << endl;
-            //cout << this << endl;
-            d_data = (cudaArray *) NULL;
-            size = 0;
-            capacity = 0;
-            Tsize = sizeof(T);
+        madeTex = false;
+    }
+
+    /*! \brief Initialize descriptors
+     *
+     * The default values are cudaResourceTypeArray for the resource type of
+     * the resource descriptor and cudaReadModeElementType for the read mode
+     * of the texture descriptor. All other values of the resource and texture
+     * descriptors are set to zero.
+     */
+    void initializeDescriptions() {
+        memset(&resDesc, 0, sizeof(resDesc));
+        resDesc.resType = cudaResourceTypeArray;
+        //.res.array.array is unset.  Set when allocing on device
+        memset(&texDesc, 0, sizeof(texDesc));
+        texDesc.readMode = cudaReadModeElementType;
+    }
+
+    /*! \brief Default constructor */
+    GPUArrayTexDevice() : madeTex(false) {
+        //cout << "default constructor " << endl;
+        //cout << this << endl;
+        d_data = (cudaArray *) NULL;
+        size = 0;
+        capacity = 0;
+        Tsize = sizeof(T);
+    }
+
+    /*! \brief Constructor
+     *
+     * \param desc_ Channel descriptor
+     */
+    GPUArrayTexDevice(cudaChannelFormatDesc desc_) : madeTex(false) {
+        //cout << "desc constructor " << endl;
+        //cout << this << endl;
+        d_data = (cudaArray *) NULL;
+        channelDesc = desc_;
+        initializeDescriptions();
+        size = 0;
+        capacity = 0;
+        Tsize = sizeof(T);
+    }
+
+    /*! \brief Constructor
+     *
+     * \param size_ Size of the array (number of elements)
+     * \param desc_ Channel descriptor
+     */
+    GPUArrayTexDevice(int size_, cudaChannelFormatDesc desc_)
+        : madeTex(false)
+    {
+        //cout << "number, desc constructor" << endl;
+        //cout << this << endl;
+        size = size_;
+        channelDesc = desc_;
+        initializeDescriptions();
+        allocDevice();
+        createTexSurfObjs();
+        Tsize = sizeof(T);
+    }
+
+    /*! \brief Desctructor */
+    ~GPUArrayTexDevice() {
+        //cout << "in destructor!" << endl<<this<<endl;cout.flush();
+        destroyDevice();
+    }
+
+    /*! \brief Copy constructor
+     *
+     * \param other GPUArrayTexDevice to copy from
+     */
+    GPUArrayTexDevice(const GPUArrayTexDevice<T> &other) {
+        //cout << this << endl;
+        channelDesc = other.channelDesc;
+        size = other.size;
+        capacity = other.capacity;
+        initializeDescriptions();
+        allocDevice();
+        CUCHECK(cudaMemcpy2DArrayToArray(d_data, 0, 0, other.d_data, 0, 0,
+                                         NX() * sizeof(T), NY(),
+                                         cudaMemcpyDeviceToDevice));
+        createTexSurfObjs();
+        Tsize = sizeof(T);
+
+
+    }
+
+    /*! \brief Assignment operator
+     *
+     * \param other Right hand side of assignment operator
+     *
+     * \return This object
+     */
+    GPUArrayTexDevice<T> &operator=(const GPUArrayTexDevice<T> &other) {
+        //cout << this << endl;
+        channelDesc = other.channelDesc;
+        if (other.size) {
+            resize(other.size); //creates tex surf objs
         }
-        GPUArrayTexDevice(cudaChannelFormatDesc desc_) : madeTex(false) {
-            //cout << "desc constructor " << endl;
-            //cout << this << endl;
-            d_data = (cudaArray *) NULL;
-            channelDesc = desc_;
-            initializeDescriptions();
-            size = 0;
-            capacity = 0;
-            Tsize = sizeof(T);
+        int x = NX();
+        int y = NY();
+        CUCHECK(cudaMemcpy2DArrayToArray(d_data, 0, 0, other.d_data, 0, 0,
+                                         x*sizeof(T), y,
+                                         cudaMemcpyDeviceToDevice));
+        return *this;
+    }
+
+    /*! \brief Custom copy operator
+     *
+     * \param other GPUArrayTexDevice to copy from
+     */
+    void copyFromOther(const GPUArrayTexDevice<T> &other) {
+        //I should own no pointers at this point, am just copying other's
+        channelDesc = other.channelDesc;
+        size = other.size;
+        capacity = other.capacity;
+        d_data = other.d_data;
+
+
+    }
+
+    /*! \brief Set other GPUArrayTexDevice to NULL state
+     *
+     * \param other GPUArrayTexDevice to set to NULL
+     */
+    void nullOther(GPUArrayTexDevice<T> &other) {
+        other.d_data = (cudaArray *) NULL;
+        other.size = 0;
+        other.capacity = 0;
+
+    }
+
+    /*! \brief Move constructor
+     *
+     * \param other GPUArrayTexDevice containing the data to move
+     */
+    GPUArrayTexDevice(GPUArrayTexDevice<T> &&other) {
+        //cout << "move constructor" << endl;
+        //cout << this << endl;
+        copyFromOther(other);
+        d_data = other.d_data;
+        initializeDescriptions();
+        resDesc.res.array.array = d_data;
+        if (other.madeTex) {
+            createTexSurfObjs();
         }
-        GPUArrayTexDevice(int size_, cudaChannelFormatDesc desc_) : madeTex(false) {
-            //cout << "number, desc constructor" << endl;
-            //cout << this << endl;
-            size = size_;
-            channelDesc = desc_;
-            initializeDescriptions();
+        nullOther(other);
+        Tsize = sizeof(T);
+    }
+
+    /*! \brief Move assignment operator
+     *
+     * \param other Right hand side of assignment operator
+     *
+     * \return This object
+     */
+    GPUArrayTexDevice<T> &operator=(GPUArrayTexDevice<T> &&other) {
+        //cout << "move assignment" << endl;
+        //cout << "from " << &other << " to " << this << endl;
+        destroyDevice();
+        copyFromOther(other);
+        initializeDescriptions();
+        resDesc.res.array.array = d_data;
+        if (other.madeTex) {
+            createTexSurfObjs();
+
+        }
+        nullOther(other);
+        return *this;
+    }
+
+    /*! \brief Create Texture and Surface Objects */
+    void createTexSurfObjs() {
+
+        tex = 0;
+        surf = 0;
+        cudaCreateTextureObject(&tex, &resDesc, &texDesc, NULL);
+        cudaCreateSurfaceObject(&surf, &resDesc);
+        madeTex = true;
+    }
+
+    /*! \brief Get size in x-dimension of Texture Array
+     *
+     * \return Size in x-dimension
+     */
+    int NX() {
+        return fmin((int) (PERLINE/sizeof(T)), (int) size);
+    }
+
+    /*! \brief Get size in y-dimension of Texture Array
+     *
+     * \return Size in y-dimension
+     */
+    int NY() {
+        return ceil(size / (float) (PERLINE/sizeof(T)));
+    }
+
+    /*! \brief Resize the Texture Array
+     *
+     * \param n_ New size
+     *
+     * Resize the Texture array. If the new size is larger than capacity,
+     * new memory is allocated. This function can destroy the data on the
+     * GPU texture device.
+     */
+    void resize(int n_) {
+        if (n_ > capacity) {
+            destroyDevice();
+            size = n_;
             allocDevice();
             createTexSurfObjs();
-            Tsize = sizeof(T);
-        }
-        ~GPUArrayTexDevice() {
-            //cout << "in destructor!" << endl<<this<<endl;cout.flush();
-            
-            destroyDevice();
+        } else {
+            size = n_;
         }
 
-        GPUArrayTexDevice(const GPUArrayTexDevice<T> &other) { //copy constructor
-            //cout << this << endl;
-            channelDesc = other.channelDesc;
-            size = other.size;
-            capacity = other.capacity;
-            initializeDescriptions();
-            allocDevice();
-            CUCHECK(cudaMemcpy2DArrayToArray(d_data, 0, 0, other.d_data, 0, 0, NX() * sizeof(T), NY(), cudaMemcpyDeviceToDevice));
-            createTexSurfObjs();
-            Tsize = sizeof(T);
+    }
 
+    /*! \brief Allocate memory on the Texture device */
+    void allocDevice() {
+        int x = NX();
+        int y = NY();
+        CUCHECK(cudaMallocArray(&d_data, &channelDesc, x, y) );
+        capacity = x*y;
+        //assuming address gets set in blocking manner
+        resDesc.res.array.array = d_data;
+    }
 
-        }
-        GPUArrayTexDevice<T> &operator=(const GPUArrayTexDevice<T> &other) { //copy assignment
-            //cout << this << endl;
-            channelDesc = other.channelDesc;
-            if (other.size) {
-                resize(other.size); //creates tex surf objs
-            }
-            int x = NX();
-            int y = NY();
-            CUCHECK(cudaMemcpy2DArrayToArray(d_data, 0, 0, other.d_data, 0, 0, x*sizeof(T), y, cudaMemcpyDeviceToDevice));
-            return *this;
-        }
-        void copyFromOther(const GPUArrayTexDevice<T> &other) {
-            //I should own no pointers at this point, am just copying other's
-            channelDesc = other.channelDesc;
-            size = other.size;
-            capacity = other.capacity;
-            d_data = other.d_data;
+    /*! \brief Copy data from device to a given memory
+     *
+     * \param copyTo Pointer pointing to the memory taking the data
+     *
+     * \return Pointer to the position data is copied to
+     */
+    T *get(T *copyTo) {
+        int x = NX();
+        int y = NY();
 
+        if (copyTo == (T *) NULL) {
+            copyTo = (T *) malloc(x*y*sizeof(T));
+        }
+        CUCHECK(cudaMemcpy2DFromArray(copyTo, x * sizeof(T), d_data, 0, 0,
+                                      x * sizeof(T), y,
+                                      cudaMemcpyDeviceToHost));
+        return copyTo;
+    }
 
-        }
-        void nullOther(GPUArrayTexDevice<T> &other) {
-            other.d_data = (cudaArray *) NULL;
-            other.size = 0;
-            other.capacity = 0;
+    /*! \brief Copy data from pointer to device
+     *
+     * \param copyFrom Pointer to memory where to copy from
+     */
+    void set(T *copyFrom) {
+        int x = NX();
+        int y = NY();
+        cudaMemcpy2DToArray(d_data, 0, 0, copyFrom, x*sizeof(T),
+                            x * sizeof(T), y, cudaMemcpyHostToDevice );
+    }
 
-        }
-        GPUArrayTexDevice(GPUArrayTexDevice<T> &&other) { //move constructor;
-            //cout << "move constructor" << endl;
-            //cout << this << endl;
-            copyFromOther(other);
-            d_data = other.d_data;
-            initializeDescriptions(); 
-            resDesc.res.array.array = d_data;
-            if (other.madeTex) {
-                createTexSurfObjs();
-            }
-            nullOther(other);
-            Tsize = sizeof(T);
-        }
-        GPUArrayTexDevice<T> &operator=(GPUArrayTexDevice<T> &&other) { //move assignment
-            //cout << "move assignment" << endl;
-            //cout << "from " << &other << " to " << this << endl;
-            destroyDevice();
-            copyFromOther(other);
-            initializeDescriptions();
-            resDesc.res.array.array = d_data;
-            if (other.madeTex) {
-                createTexSurfObjs();
+    /*! \brief Copy data from device asynchronously
+     *
+     * \param copyTo Pointer where to copy data to
+     * \param stream Cuda Stream object for asynchronous copying
+     *
+     * \return Pointer to memory where data was copied to
+     */
+    T *getAsync(T *copyTo, cudaStream_t stream) {
+        int x = NX();
+        int y = NY();
 
-            }
-            nullOther(other);
-            return *this;
+        if (copyTo == (T *) NULL) {
+            copyTo = (T *) malloc(x*y*sizeof(T));
         }
-        void createTexSurfObjs() {
+        CUCHECK(cudaMemcpy2DFromArrayAsync(copyTo, x * sizeof(T), d_data, 0, 0,
+                                           x * sizeof(T), y,
+                                           cudaMemcpyDeviceToHost, stream));
+        return copyTo;
 
-            tex = 0;
-            surf = 0;
-            cudaCreateTextureObject(&tex, &resDesc, &texDesc, NULL);
-            cudaCreateSurfaceObject(&surf, &resDesc);
-            madeTex = true;
-        }
+    }
 
-        int NX() {
-            return fmin((int) (PERLINE/sizeof(T)), (int) size);
-        }
-        int NY() {
-            return ceil(size / (float) (PERLINE/sizeof(T)));
-        }
-        void resize(int n_) {
-            if (n_ > capacity) {
-                destroyDevice();
-                size = n_;
-                allocDevice();
-                createTexSurfObjs();
-            } else {
-                size = n_;
-            }
+    /*! \brief Copy data to GPU device
+     *
+     * \param dest Pointer to GPU memory
+     */
+    void copyToDeviceArray(void *dest) { //DEST HAD BETTER BE ALLOCATED
+        int numBytes = size * sizeof(T);
+        copyToDeviceArrayInternal(dest, d_data, numBytes);
 
-        }
-        void allocDevice() {
-            int x = NX();
-            int y = NY();
-            CUCHECK(cudaMallocArray(&d_data, &channelDesc, x, y) );
-            capacity = x*y;
-            //assuming address gets set in blocking manner
-            resDesc.res.array.array = d_data;
-        }
-        T *get(T *copyTo) {
-            int x = NX();
-            int y = NY();
+    }
 
-            if (copyTo == (T *) NULL) {
-                copyTo = (T *) malloc(x*y*sizeof(T));
-            }
-            CUCHECK(cudaMemcpy2DFromArray(copyTo, x * sizeof(T), d_data, 0, 0, x * sizeof(T), y, cudaMemcpyDeviceToHost));
-            return copyTo;
-        }
-        void set(T *copyFrom) {
-            int x = NX();
-            int y = NY();
-            cudaMemcpy2DToArray(d_data, 0, 0, copyFrom, x*sizeof(T), x * sizeof(T), y, cudaMemcpyHostToDevice );
-        }
-        T *getAsync(T *copyTo, cudaStream_t stream) {
-            int x = NX();
-            int y = NY();
-
-            if (copyTo == (T *) NULL) {
-                copyTo = (T *) malloc(x*y*sizeof(T));
-            }
-            CUCHECK(cudaMemcpy2DFromArrayAsync(copyTo, x * sizeof(T), d_data, 0, 0, x * sizeof(T), y, cudaMemcpyDeviceToHost, stream));
-            return copyTo;
-
-        }
-        void copyToDeviceArray(void *dest) { //DEST HAD BETTER BE ALLOCATED
-            int numBytes = size * sizeof(T);
-            copyToDeviceArrayInternal(dest, d_data, numBytes);
-
-        }
-        void memsetByVal(T val_) {
-            assert(Tsize==4 or Tsize==8 or Tsize==16);
-            MEMSETFUNC(surf, &val_, size, Tsize);
-        }
+    /*! \brief Set all elements of GPUArrayTexDevice to specific value
+     *
+     * \param val_ Value to set data to
+     */
+    void memsetByVal(T val_) {
+        assert(Tsize==4 or Tsize==8 or Tsize==16);
+        MEMSETFUNC(surf, &val_, size, Tsize);
+    }
 };
 
 #endif
