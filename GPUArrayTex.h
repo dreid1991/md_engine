@@ -55,7 +55,7 @@ class GPUArrayTex : public GPUArrayBase, public GPUArrayTexBase {
         }
         void copyToDeviceArray(void *dest) { //DEST HAD BETTER BE ALLOCATED
             int numBytes = size() * sizeof(T);
-            copyToDeviceArrayInternal(dest, d_data.d_data, numBytes);
+            copyToDeviceArrayInternal(dest, d_data.data(), numBytes);
 
         }
         cudaTextureObject_t getTex() {

@@ -21,7 +21,6 @@ template <class T>
 class GPUArrayTexDevice : public GPUArrayTexBase {
 public:
 
-    cudaArray *d_data; //!< Pointer to the data
     cudaTextureObject_t tex; //!< Texture object
     cudaSurfaceObject_t surf; //!< Texture surface
     cudaResourceDesc resDesc; //!< Resource descriptor
@@ -34,8 +33,8 @@ public:
             CUCHECK(cudaDestroyTextureObject(tex));
             CUCHECK(cudaDestroySurfaceObject(surf));
         }
-        if (d_data != (cudaArray *) NULL) {
-            CUCHECK(cudaFreeArray(d_data));
+        if (data() != (cudaArray *) NULL) {
+            CUCHECK(cudaFreeArray(data()));
         }
         madeTex = false;
     }
@@ -104,7 +103,7 @@ public:
         cap = other.capacity();
         initializeDescriptions();
         allocDevice();
-        CUCHECK(cudaMemcpy2DArrayToArray(d_data, 0, 0, other.d_data, 0, 0,
+        CUCHECK(cudaMemcpy2DArrayToArray(data(), 0, 0, other.data(), 0, 0,
                                          NX() * sizeof(T), NY(),
                                          cudaMemcpyDeviceToDevice));
         createTexSurfObjs();
@@ -123,7 +122,7 @@ public:
         }
         int x = NX();
         int y = NY();
-        CUCHECK(cudaMemcpy2DArrayToArray(d_data, 0, 0, other.d_data, 0, 0,
+        CUCHECK(cudaMemcpy2DArrayToArray(data(), 0, 0, other.data(), 0, 0,
                                          x*sizeof(T), y,
                                          cudaMemcpyDeviceToDevice));
         return *this;
@@ -160,9 +159,9 @@ public:
      */
     GPUArrayTexDevice(GPUArrayTexDevice<T> &&other) {
         copyFromOther(other);
-        d_data = other.d_data;
+        d_data = other.data();
         initializeDescriptions();
-        resDesc.res.array.array = d_data;
+        resDesc.res.array.array = data();
         if (other.madeTex) {
             createTexSurfObjs();
         }
@@ -179,7 +178,7 @@ public:
         destroyDevice();
         copyFromOther(other);
         initializeDescriptions();
-        resDesc.res.array.array = d_data;
+        resDesc.res.array.array = data();
         if (other.madeTex) {
             createTexSurfObjs();
 
@@ -198,7 +197,19 @@ public:
         madeTex = true;
     }
 
+    /*! \brief Get the number of elements in the array
+     *
+     * \return Number of elements
+     */
     size_t size() const { return n; }
+
+    /*! \brief Get the capacity of the array
+     *
+     * \return Capacity
+     *
+     * The capacity is the number of elements that can be stored in the
+     * currently allocated memory.
+     */
     size_t capacity() const { return cap; }
 
     /*! \brief Get size in x-dimension of Texture Array
@@ -237,6 +248,18 @@ public:
 
     }
 
+    /*! \brief Access data pointer
+     *
+     * \return Pointer to device memory
+     */
+    cudaArray *data() { return d_data; }
+
+    /*! \brief Const access to data pointer
+     *
+     * \return Pointer to const device memory
+     */
+     cudaArray const* data() const { return d_data; }
+
     /*! \brief Allocate memory on the Texture device */
     void allocDevice() {
         int x = NX();
@@ -244,7 +267,7 @@ public:
         CUCHECK(cudaMallocArray(&d_data, &channelDesc, x, y) );
         cap = x*y;
         //assuming address gets set in blocking manner
-        resDesc.res.array.array = d_data;
+        resDesc.res.array.array = data();
     }
 
     /*! \brief Copy data from device to a given memory
@@ -260,7 +283,7 @@ public:
         if (copyTo == (T *) NULL) {
             copyTo = (T *) malloc(x*y*sizeof(T));
         }
-        CUCHECK(cudaMemcpy2DFromArray(copyTo, x * sizeof(T), d_data, 0, 0,
+        CUCHECK(cudaMemcpy2DFromArray(copyTo, x * sizeof(T), data(), 0, 0,
                                       x * sizeof(T), y,
                                       cudaMemcpyDeviceToHost));
         return copyTo;
@@ -291,7 +314,7 @@ public:
         if (copyTo == (T *) NULL) {
             copyTo = (T *) malloc(x*y*sizeof(T));
         }
-        CUCHECK(cudaMemcpy2DFromArrayAsync(copyTo, x * sizeof(T), d_data, 0, 0,
+        CUCHECK(cudaMemcpy2DFromArrayAsync(copyTo, x * sizeof(T), data(), 0, 0,
                                            x * sizeof(T), y,
                                            cudaMemcpyDeviceToHost, stream));
         return copyTo;
@@ -304,7 +327,7 @@ public:
      */
     void copyToDeviceArray(void *dest) { //DEST HAD BETTER BE ALLOCATED
         int numBytes = size() * sizeof(T);
-        copyToDeviceArrayInternal(dest, d_data, numBytes);
+        copyToDeviceArrayInternal(dest, data(), numBytes);
 
     }
 
@@ -321,6 +344,7 @@ private:
     size_t n; //!< Number of elements currently stored
     size_t cap; //!< Number of elements fitting into the currently allocated
                 //!< memory
+    cudaArray *d_data; //!< Pointer to the data
 };
 
 #endif
