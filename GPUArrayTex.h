@@ -35,7 +35,7 @@ class GPUArrayTex : public GPUArrayBase, public GPUArrayTexBase {
         bool set(vector<T> &other) {
             d_data.resize(other.size());
             h_data = other;
-            h_data.reserve(d_data.capacity);
+            h_data.reserve(d_data.capacity());
             return true;
         }
         void dataToDevice() {

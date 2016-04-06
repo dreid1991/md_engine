@@ -22,8 +22,6 @@ class GPUArrayTexDevice : public GPUArrayTexBase {
 public:
 
     cudaArray *d_data; //!< Pointer to the data
-    int capacity; //!< Number of elements fitting into the currently
-                  //!< allocated memory
     cudaTextureObject_t tex; //!< Texture object
     cudaSurfaceObject_t surf; //!< Texture surface
     cudaResourceDesc resDesc; //!< Resource descriptor
@@ -61,7 +59,7 @@ public:
     GPUArrayTexDevice() : madeTex(false) {
         d_data = (cudaArray *) NULL;
         n = 0;
-        capacity = 0;
+        cap = 0;
     }
 
     /*! \brief Constructor
@@ -73,7 +71,7 @@ public:
         channelDesc = desc_;
         initializeDescriptions();
         n = 0;
-        capacity = 0;
+        cap = 0;
     }
 
     /*! \brief Constructor
@@ -103,7 +101,7 @@ public:
     GPUArrayTexDevice(const GPUArrayTexDevice<T> &other) {
         channelDesc = other.channelDesc;
         n = other.size();
-        capacity = other.capacity;
+        cap = other.capacity();
         initializeDescriptions();
         allocDevice();
         CUCHECK(cudaMemcpy2DArrayToArray(d_data, 0, 0, other.d_data, 0, 0,
@@ -139,7 +137,7 @@ public:
         //I should own no pointers at this point, am just copying other's
         channelDesc = other.channelDesc;
         n = other.size();
-        capacity = other.capacity;
+        cap = other.capacity();
         d_data = other.d_data;
 
 
@@ -152,7 +150,7 @@ public:
     void nullOther(GPUArrayTexDevice<T> &other) {
         other.d_data = (cudaArray *) NULL;
         other.n = 0;
-        other.capacity = 0;
+        other.cap = 0;
 
     }
 
@@ -201,6 +199,7 @@ public:
     }
 
     size_t size() const { return n; }
+    size_t capacity() const { return cap; }
 
     /*! \brief Get size in x-dimension of Texture Array
      *
@@ -227,7 +226,7 @@ public:
      * GPU texture device.
      */
     void resize(int n_) {
-        if (n_ > capacity) {
+        if (n_ > capacity()) {
             destroyDevice();
             n = n_;
             allocDevice();
@@ -243,7 +242,7 @@ public:
         int x = NX();
         int y = NY();
         CUCHECK(cudaMallocArray(&d_data, &channelDesc, x, y) );
-        capacity = x*y;
+        cap = x*y;
         //assuming address gets set in blocking manner
         resDesc.res.array.array = d_data;
     }
@@ -320,6 +319,8 @@ public:
 
 private:
     size_t n; //!< Number of elements currently stored
+    size_t cap; //!< Number of elements fitting into the currently allocated
+                //!< memory
 };
 
 #endif
