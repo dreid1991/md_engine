@@ -6,6 +6,17 @@
  * This class is a base class to work with Texture arrays.
  */
 class GPUArrayTexBase {
+protected:
+    /*! \brief Default constructor */
+    GPUArrayTexBase() {}
+
+    /*! \brief Constructor
+     *
+     * \param cDesc Channel descriptor for the texture device
+     */
+    explicit GPUArrayTexBase(cudaChannelFormatDesc cDesc)
+                : channelDesc(cDesc) {}
+
 public:
     /*! \brief Copy data from GPU device to texture
      *
@@ -32,6 +43,7 @@ protected:
                                                 cudaMemcpyDeviceToDevice));
     }
 
+protected:
     cudaChannelFormatDesc channelDesc; //!< Descriptor for the texture
 };
 #endif
