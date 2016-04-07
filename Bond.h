@@ -7,8 +7,6 @@
 #include "globalDefs.h"
 #include "Atom.h"
 
-#include "cutils_math.h"
-
 /*! \brief Bond connecting atoms
  *
  * \link Atom Atoms\endlink can be connected by Bonds. Bonds are defined by a
