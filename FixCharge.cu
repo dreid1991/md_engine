@@ -12,7 +12,7 @@ bool FixCharge::prepareForRun() {
     for (int i=0;i<state->atoms.size();i++)
 	sum+=state->atoms[i].q;
     
-    if (sum!=0.0) cout<<"System is not electoneutral. Total charge is "<<sum<<'\n';
+    if (sum!=0.0) cout<<"System is not electroneutral. Total charge is "<<sum<<'\n';
     return true;
 }
 

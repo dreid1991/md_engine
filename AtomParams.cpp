@@ -42,6 +42,7 @@ void export_AtomParams() {
              boost::python::arg("mass"),
              boost::python::arg("atomicNum")=-1)
         )
+    .def("typeFromHandle",  &AtomParams::typeFromHandle, (python::arg("handle")))
     .def_readwrite("masses", &AtomParams::masses)
     .def_readonly("handles", &AtomParams::handles)
     .def_readonly("numTypes", &AtomParams::numTypes)

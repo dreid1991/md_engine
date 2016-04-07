@@ -251,12 +251,12 @@ void export_IntegraterRelax() {
     )
     .def("run", &IntegraterRelax::run)
     .def("set_params", &IntegraterRelax::set_params,
-            (boost::python::arg("alphaInit"),
-             boost::python::arg("alphaShrink"),
-             boost::python::arg("dtGrow"),
-             boost::python::arg("dtShrink"),
-             boost::python::arg("delay"),
-             boost::python::arg("dtMax_mult"))
+            (boost::python::arg("alphaInit")=-1,
+             boost::python::arg("alphaShrink")=-1,
+             boost::python::arg("dtGrow")=-1,
+             boost::python::arg("dtShrink")=-1,
+             boost::python::arg("delay")=-1,
+             boost::python::arg("dtMax_mult")=-1)
         )
     ;
 }

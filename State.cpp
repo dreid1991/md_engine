@@ -620,6 +620,7 @@ void export_State() {
     .def_readwrite("turn", &State::turn)
     .def_readwrite("periodicInterval", &State::periodicInterval)
     .def_readwrite("rCut", &State::rCut)
+    .def_readwrite("dt", &State::dt)    
     .def_readwrite("padding", &State::padding)
     .def_readonly("groupTags", &State::groupTags)
     .def_readonly("dataManager", &State::dataManager)

@@ -25,12 +25,15 @@ __global__ void map_charge_to_grid_order_1_cu(int nAtoms, float4 *xs,  float *qs
         
         //find nearest grid point
         float3 h=bounds.trace()/make_float3(sz);
-        int3 nearest_grid_point=make_int3(pos/h);//TODO looks unsafe. should round down
+        int3 nearest_grid_point=make_int3((pos+0.5*h)/h);
         //or
         int3 p=nearest_grid_point;
-        p.x-=p.x>=sz.x? sz.x:0;
-        p.y-=p.y>=sz.y? sz.y:0;
-        p.z-=p.z>=sz.z? sz.z:0;
+        if (p.x>0) p.x-=int(p.x/sz.x)*sz.x;
+        if (p.y>0) p.y-=int(p.y/sz.y)*sz.y;
+        if (p.z>0) p.z-=int(p.z/sz.z)*sz.z;
+        if (p.x<0) p.x-=int((p.x+1)/sz.x-1)*sz.x;
+        if (p.y<0) p.y-=int((p.y+1)/sz.y-1)*sz.y;
+        if (p.z<0) p.z-=int((p.z+1)/sz.z-1)*sz.z;
         atomicAdd(&grid[p.x*sz.y*sz.z*2+p.y*sz.z*2+p.z*2], 1.0*qi);
     }
 }
@@ -54,7 +57,7 @@ __global__ void map_charge_to_grid_order_3_cu(int nAtoms, float4 *xs,  float *qs
         
         //find nearest grid point
         float3 h=bounds.trace()/make_float3(sz);
-        int3 nearest_grid_point=make_int3(pos/h);//TODO looks unsafe. should round down or handle for actual grid point where assignment happens
+        int3 nearest_grid_point=make_int3((pos+0.5*h)/h);
         
         //distance from nearest_grid_point /h
         float3 d=pos/h-make_float3(nearest_grid_point);
@@ -69,13 +72,18 @@ __global__ void map_charge_to_grid_order_3_cu(int nAtoms, float4 *xs,  float *qs
             for (int iz=-1;iz<=1;iz++){
                 p.z=nearest_grid_point.z+iz;
                 float charge_w=charge_z_w*W_p_3(iz,d.z);
-                p.x-= p.x>=sz.x? sz.x : 0;
-                p.y-= p.y>=sz.y? sz.y : 0;
-                p.z-= p.z>=sz.z? sz.z : 0;
-                p.x+= p.x<0    ? sz.x : 0;
-                p.y+= p.y<0    ? sz.y : 0;
-                p.z+= p.z<0    ? sz.z : 0;
+                if (p.x>0) p.x-=int(p.x/sz.x)*sz.x;
+                if (p.y>0) p.y-=int(p.y/sz.y)*sz.y;
+                if (p.z>0) p.z-=int(p.z/sz.z)*sz.z;
+                if (p.x<0) p.x-=int((p.x+1)/sz.x-1)*sz.x;
+                if (p.y<0) p.y-=int((p.y+1)/sz.y-1)*sz.y;
+                if (p.z<0) p.z-=int((p.z+1)/sz.z-1)*sz.z;
+                if ((p.x<0) or (p.x>sz.x-1)) printf("grid point miss x  %d, %d, %d, %f \n", idx,p.x,nearest_grid_point.x,pos.x);
+                if ((p.y<0) or (p.y>sz.y-1)) printf("grid point miss y  %d, %d, %d, %f \n", idx,p.y,nearest_grid_point.y,pos.y);
+                if ((p.z<0) or (p.z>sz.z-1)) printf("grid point miss z  %d, %d, %d, %f \n", idx,p.z,nearest_grid_point.z,pos.z);
+                
                 atomicAdd(&grid[p.x*sz.y*sz.z*2+p.y*sz.z*2+p.z*2], charge_w);
+                
             }
           }
         }
@@ -211,10 +219,15 @@ __global__ void Ewald_long_range_forces_order_1_cu(int nAtoms, float4 *xs, float
         
         //find nearest grid point
         float3 h=bounds.trace()/make_float3(sz);
-        int3 p=make_int3(pos/h);//TODO looks unsafe. should round down
-        p.x-=p.x>=sz.x? sz.x:0;
-        p.y-=p.y>=sz.y? sz.y:0;
-        p.z-=p.z>=sz.z? sz.z:0;
+        int3 nearest_grid_point=make_int3((pos+0.5*h)/h);
+
+        int3 p=nearest_grid_point;        
+        if (p.x>0) p.x-=int(p.x/sz.x)*sz.x;
+        if (p.y>0) p.y-=int(p.y/sz.y)*sz.y;
+        if (p.z>0) p.z-=int(p.z/sz.z)*sz.z;
+        if (p.x<0) p.x-=int((p.x+1)/sz.x-1)*sz.x;
+        if (p.y<0) p.y-=int((p.y+1)/sz.y-1)*sz.y;
+        if (p.z<0) p.z-=int((p.z+1)/sz.z-1)*sz.z;
         
         //get E field
         float3 E;
@@ -243,7 +256,7 @@ __global__ void Ewald_long_range_forces_order_3_cu(int nAtoms, float4 *xs, float
 
         //find nearest grid point
         float3 h=bounds.trace()/make_float3(sz);
-        int3 nearest_grid_point=make_int3(pos/h);//TODO looks unsafe. should round down or handle for actual grid point where assignment happens
+        int3 nearest_grid_point=make_int3((pos+0.5*h)/h);
         
         //distance from nearest_grid_point /h
         float3 d=pos/h-make_float3(nearest_grid_point);
@@ -258,12 +271,12 @@ __global__ void Ewald_long_range_forces_order_3_cu(int nAtoms, float4 *xs, float
             p.y=nearest_grid_point.y+iy;
             for (int iz=-1;iz<=1;iz++){
                 p.z=nearest_grid_point.z+iz;
-                p.x-= p.x>=sz.x? sz.x : 0;
-                p.y-= p.y>=sz.y? sz.y : 0;
-                p.z-= p.z>=sz.z? sz.z : 0;
-                p.x+= p.x<0    ? sz.x : 0;
-                p.y+= p.y<0    ? sz.y : 0;
-                p.z+= p.z<0    ? sz.z : 0;
+                if (p.x>0) p.x-=int(p.x/sz.x)*sz.x;
+                if (p.y>0) p.y-=int(p.y/sz.y)*sz.y;
+                if (p.z>0) p.z-=int(p.z/sz.z)*sz.z;
+                if (p.x<0) p.x-=int((p.x+1)/sz.x-1)*sz.x;
+                if (p.y<0) p.y-=int((p.y+1)/sz.y-1)*sz.y;
+                if (p.z<0) p.z-=int((p.z+1)/sz.z-1)*sz.z;
                 float3 Ep;
                 float W_xyz=W_p_3(ix,d.x)*W_p_3(iy,d.y)*W_p_3(iz,d.z);
                 
@@ -290,9 +303,8 @@ __global__ void compute_short_range_forces_cu(int nAtoms, float4 *xs, float4 *fs
         float3 pos = make_float3(posWhole);
 
         float3 forceSum = make_float3(0, 0, 0);
-        float qi = qs[idx];//tex2D<float>(qs, XIDX(idx, sizeof(float)), YIDX(idx, sizeof(float)));
+        float qi = qs[idx];
 
-        //printf("start, end %d %d\n", start, end);
         int baseIdx = baseNeighlistIdx<void>(cumulSumMaxPerBlock, warpSize);
         int numNeigh = neighborCounts[idx];
         for (int i=0; i<numNeigh; i++) {
@@ -307,16 +319,19 @@ __global__ void compute_short_range_forces_cu(int nAtoms, float4 *xs, float4 *fs
             //   printf("dist is %f %f %f\n", dr.x, dr.y, dr.z);
             if (lenSqr < rCut*rCut) {
                 float multiplier = multipliers[neighDist];
-                float len=sqrtf(lenSqr);
-                float qj = qs[otherIdx];
+                if (multiplier) {
+                    float len=sqrtf(lenSqr);
+                    float qj = qs[otherIdx];
 
-                float r2inv = 1.0f/lenSqr;
-                float rinv = 1.0f/len;                                   //1/Sqrt(Pi)
-                float forceScalar = qi*qj*(erfcf((alpha*len))*rinv+(2.0*0.5641895835477563*alpha)*exp(-alpha*alpha*lenSqr))*r2inv* multiplier;
+                    float r2inv = 1.0f/lenSqr;
+                    float rinv = 1.0f/len;                                   //1/Sqrt(Pi)
+                    float forceScalar = qi*qj*(erfcf((alpha*len))*rinv+(2.0*0.5641895835477563*alpha)*exp(-alpha*alpha*lenSqr))*r2inv* multiplier;
 
-                
-                float3 forceVec = dr * forceScalar;
-                forceSum += forceVec;
+                    
+                    float3 forceVec = dr * forceScalar;
+                    forceSum += forceVec;
+//                     if ((::isnan(forceScalar)) or (abs(forceScalar)>1E6))  printf("short ewald nan %f ,%d ,%d %f \n", forceScalar,idx, otherIdx,pos.x);   
+                }
             }
 
         }   
@@ -328,7 +343,6 @@ __global__ void compute_short_range_forces_cu(int nAtoms, float4 *xs, float4 *fs
 
 
 FixChargeEwald::FixChargeEwald(SHARED(State) state_, string handle_, string groupHandle_): FixCharge(state_, handle_, groupHandle_, chargePairDSF),first_run(true){
-//   setParameters(128,3.0);
   cufftCreate(&plan);
 }
 
@@ -346,14 +360,17 @@ void FixChargeEwald::setParameters(int szx_,int szy_,int szz_,float rcut_,int in
 {
     //for now support for only 2^N sizes
     //TODO generalize for non cubic boxes
-    if ((szx_!=32)||(szx_!=64)||(szx_!=128)||(szx_!=256)||(szx_!=512)||(szx_!=1024)){
+    if ((szx_!=32)&&(szx_!=64)&&(szx_!=128)&&(szx_!=256)&&(szx_!=512)&&(szx_!=1024)){
         cout << szx_ << " is not supported, sorry. Only 2^N grid size works for charge Ewald\n";
+        exit(2);
     }
-    if ((szy_!=32)||(szy_!=64)||(szy_!=128)||(szy_!=256)||(szy_!=512)||(szy_!=1024)){
+    if ((szy_!=32)&&(szy_!=64)&&(szy_!=128)&&(szy_!=256)&&(szy_!=512)&&(szy_!=1024)){
         cout << szy_ << " is not supported, sorry. Only 2^N grid size works for charge Ewald\n";
+        exit(2);
     }
-    if ((szz_!=32)||(szz_!=64)||(szz_!=128)||(szz_!=256)||(szz_!=512)||(szz_!=1024)){
+    if ((szz_!=32)&&(szz_!=64)&&(szz_!=128)&&(szz_!=256)&&(szz_!=512)&&(szz_!=1024)){
         cout << szz_ << " is not supported, sorry. Only 2^N grid size works for charge Ewald\n";
+        exit(2);
     }
     sz=make_int3(szx_,szy_,szz_);
     r_cut=rcut_;
@@ -433,7 +450,7 @@ void FixChargeEwald::calc_potential(cufftComplex *phi_buf){
             for(int j=0;j<sz.y;j++){
                 for(int k=0;k<sz.z;k++){
                     cout<<buf[i*sz.y*sz.z*2+j*sz.z*2+k*2]/volume<<'\t';
-                    ofs<<buf[i*sz.y*sz.z*2+j*sz.z*2+k*2]/volume<<'\t';
+                     ofs<<buf[i*sz.y*sz.z*2+j*sz.z*2+k*2]/volume<<'\t';
                 }
                 ofs<<'\n';
                 cout<<'\n';
@@ -447,7 +464,7 @@ void FixChargeEwald::calc_potential(cufftComplex *phi_buf){
 void FixChargeEwald::compute(bool computeVirials) {
     CUT_CHECK_ERROR("before FixChargeEwald kernel execution failed");
 
-    cout<<"FixChargeEwald::compute..\n";
+//     cout<<"FixChargeEwald::compute..\n";
     int nAtoms = state->atoms.size();
     GPUData &gpd = state->gpd;
     GridGPU &grid = state->gridGPU;
@@ -466,7 +483,8 @@ void FixChargeEwald::compute(bool computeVirials) {
     dim3 dimBlock(8,8,8);
     dim3 dimGrid((sz.x + dimBlock.x - 1) / dimBlock.x,(sz.y + dimBlock.y - 1) / dimBlock.y,(sz.z + dimBlock.z - 1) / dimBlock.z);    
     map_charge_set_to_zero_cu<<<dimGrid, dimBlock>>>(sz,FFT_Qs);
-    
+    CUT_CHECK_ERROR("map_charge_set_to_zero_cu kernel execution failed");
+
       switch (interpolation_order){
       case 1:{map_charge_to_grid_order_1_cu
               <<<NBLOCK(nAtoms), PERBLOCK>>>( nAtoms,
@@ -607,8 +625,23 @@ void FixChargeEwald::compute(bool computeVirials) {
 }
 
 
+void (FixChargeEwald::*setParameters_xyz)(int ,int ,int ,float ,int) = &FixChargeEwald::setParameters;
+void (FixChargeEwald::*setParameters_xxx)(int ,float ,int) = &FixChargeEwald::setParameters;
 void export_FixChargeEwald() {
-//     class_<FixChargeEwald, SHARED(FixChargeEwald), bases<FixCharge> > ("FixChargeEwald", init<SHARED(State), string, string> (args("state", "handle", "groupHandle")))
-//         .def("setParameters", &FixChargeEwald::setParameters, (python::arg("alpha"), python::arg("r_cut")))
-//         ;
+    boost::python::class_<FixChargeEwald,
+                          SHARED(FixChargeEwald),
+                          boost::python::bases<FixCharge> > (
+         "FixChargeEwald", 
+         boost::python::init<SHARED(State), string, string> (
+              boost::python::args("state", "handle", "groupHandle"))
+        )
+        .def("setParameters", setParameters_xyz,
+                (boost::python::arg("szx"),boost::python::arg("szy"),boost::python::arg("szz"), boost::python::arg("r_cut"),boost::python::arg("interpolation_order"))
+          
+            )
+        .def("setParameters", setParameters_xxx,
+                (boost::python::arg("sz"),boost::python::arg("r_cut"),boost::python::arg("interpolation_order"))
+            )        
+        ;
 }
+
