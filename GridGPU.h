@@ -60,13 +60,13 @@ class GridGPU {
      * This function is helpful for debugging purposes, checking that the
      * atoms are sorted correctly into the grid cells.
      */
-    bool checkSorting(int gridIdx, int *gridIdxs, GPUArrayDevice<int> &grid);
+    bool checkSorting(int gridIdx, int *gridIdxs, GPUArrayDeviceGlobal<int> &grid);
     public: 
         GPUArray<int> perCellArray; //!< Number of atoms in a given grid cell
         GPUArray<int> perBlockArray; //!< Number of neighbors in a GPU block
         GPUArray<int> perAtomArray; //!< For each atom, store the place in the
                                     //!< grid
-        GPUArrayDevice<float4> xsLastBuild; //!< Contains the atom positions at
+        GPUArrayDeviceGlobal<float4> xsLastBuild; //!< Contains the atom positions at
                                             //!< the time of the last build.
         GPUArray<int> buildFlag; //!< If buildFlag[0] == true, neighbor list
                                  //!< will be rebuilt
@@ -74,7 +74,7 @@ class GridGPU {
         float3 dsOrig; //!< Grid spacing at the time of construction
         float3 os; //!< Point of origin (lower value for all bounds)
         int3 ns; //!< Number of grid points in each dimension
-        GPUArrayDevice<uint> neighborlist; //!< Neighbor list
+        GPUArrayDeviceGlobal<uint> neighborlist; //!< Neighbor list
         State *state; //!< Pointer to the simulation state
         float neighCutoffMax; //!< largest cutoff radius of any interacting pair + padding, default value for grid building
 
@@ -190,8 +190,8 @@ class GridGPU {
          */
 		ExclusionList generateExclusionList(const int16_t maxDepth);
       //  ExclusionList exclusionList;
-        GPUArrayDevice<int> exclusionIndexes; //!< List of exclusion indices
-        GPUArrayDevice<uint> exclusionIds; //!< List of excluded atom IDs
+        GPUArrayDeviceGlobal<int> exclusionIndexes; //!< List of exclusion indices
+        GPUArrayDeviceGlobal<uint> exclusionIds; //!< List of excluded atom IDs
         int maxExclusionsPerAtom; //!< Maximum number of exclusions for a
                                   //!< single atom
         int numChecksSinceLastBuild; //!< Number of calls to

@@ -9,7 +9,7 @@
 #include <unordered_map>
 
 template <class SRC, class DEST>
-int copyBondsToGPU(vector<Atom> &atoms, vector<BondVariant> &src, GPUArrayDevice<DEST> *dest, GPUArrayDevice<int> *destIdxs) {
+int copyBondsToGPU(vector<Atom> &atoms, vector<BondVariant> &src, GPUArrayDeviceGlobal<DEST> *dest, GPUArrayDeviceGlobal<int> *destIdxs) {
     vector<int> idxs(atoms.size()+1, 0); //started out being used as counts
     vector<int> numAddedPerAtom(atoms.size(), 0);
     //so I can arbitrarily order.  I choose to do it by the the way atoms happen to be sorted currently.  Could be improved.
@@ -36,9 +36,9 @@ int copyBondsToGPU(vector<Atom> &atoms, vector<BondVariant> &src, GPUArrayDevice
             numAddedPerAtom[bondAtomIndexes[i]]++;
         }
     }
-    *dest = GPUArrayDevice<DEST>(destHost.size());
+    *dest = GPUArrayDeviceGlobal<DEST>(destHost.size());
     dest->set(destHost.data());
-    *destIdxs = GPUArrayDevice<int>(idxs.size());
+    *destIdxs = GPUArrayDeviceGlobal<int>(idxs.size());
     destIdxs->set(idxs.data());
 
     //getting max # bonds per block
@@ -57,8 +57,8 @@ template <class CPUMember, class GPUMember>
 class FixBond : public Fix {
     public:
         vector<int2> bondAtomIds;
-        GPUArrayDevice<GPUMember> bondsGPU;
-        GPUArrayDevice<int> bondIdxs;
+        GPUArrayDeviceGlobal<GPUMember> bondsGPU;
+        GPUArrayDeviceGlobal<int> bondIdxs;
         vector<BondVariant> bonds;
         int maxBondsPerBlock;
         std::unordered_map<int, CPUMember> forcerTypes;

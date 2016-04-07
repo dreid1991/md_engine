@@ -10,7 +10,7 @@
 #include <stdlib.h>
 #include <iostream>
 #include "globalDefs.h"
-#include "GPUArrayDevice.h"
+#include "GPUArrayDeviceGlobal.h"
 using namespace std;
 
 
@@ -33,12 +33,12 @@ class GPUArrayPair : public GPUArrayBase {
             return activeIdx;
         }
         vector<T> h_data;
-        GPUArrayDevice<T> d_data[2];
+        GPUArrayDeviceGlobal<T> d_data[2];
         GPUArrayPair() : GPUArrayBase(), activeIdx(0) {}
         GPUArrayPair(vector<T> &vals) : activeIdx(0) {
             set(vals);
             for (int i=0; i<2; i++) {
-                d_data[i] = GPUArrayDevice<T>(vals.size());
+                d_data[i] = GPUArrayDeviceGlobal<T>(vals.size());
             }
         }
         T *getDevData(int n) {
@@ -53,7 +53,7 @@ class GPUArrayPair : public GPUArrayBase {
                 return true;
             } else {
                 for (int i=0; i<2; i++) {
-                    d_data[i] = GPUArrayDevice<T>(other.size());
+                    d_data[i] = GPUArrayDeviceGlobal<T>(other.size());
                 }
                 setHost(other);
             }

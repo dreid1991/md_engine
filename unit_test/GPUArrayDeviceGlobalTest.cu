@@ -1,4 +1,4 @@
-#include "../GPUArrayDevice.h"
+#include "../GPUArrayDeviceGlobal.h"
 
 #include <gtest/gtest.h>
 
@@ -13,28 +13,28 @@ __global__ void simpleAdd(int arraySize, float *x, float *y, float *z)
     }
 }
 
-class GPUArrayDeviceTest : public ::testing::Test {
+class GPUArrayDeviceGlobalTest : public ::testing::Test {
 protected:
     virtual void SetUp() {
-        testArray = GPUArrayDevice<float>(5);
-        testArraySameSize = GPUArrayDevice<float>(5);
-        testArraySmaller = GPUArrayDevice<float>(3);
-        testArrayLarger = GPUArrayDevice<float>(8);
+        testArray = GPUArrayDeviceGlobal<float>(5);
+        testArraySameSize = GPUArrayDeviceGlobal<float>(5);
+        testArraySmaller = GPUArrayDeviceGlobal<float>(3);
+        testArrayLarger = GPUArrayDeviceGlobal<float>(8);
     }
 
-    GPUArrayDevice<float> emptyTestArray;
-    GPUArrayDevice<float> testArray;
-    GPUArrayDevice<float> testArraySameSize;
-    GPUArrayDevice<float> testArraySmaller;
-    GPUArrayDevice<float> testArrayLarger;
+    GPUArrayDeviceGlobal<float> emptyTestArray;
+    GPUArrayDeviceGlobal<float> testArray;
+    GPUArrayDeviceGlobal<float> testArraySameSize;
+    GPUArrayDeviceGlobal<float> testArraySmaller;
+    GPUArrayDeviceGlobal<float> testArrayLarger;
 
 };
 
-TEST_F(GPUArrayDeviceTest, SizeTest)
+TEST_F(GPUArrayDeviceGlobalTest, SizeTest)
 {
     EXPECT_EQ(0, emptyTestArray.size());
 
-    GPUArrayDevice<float> largeTestArray(12);
+    GPUArrayDeviceGlobal<float> largeTestArray(12);
 
     EXPECT_EQ(12, largeTestArray.size());
 
@@ -47,7 +47,7 @@ TEST_F(GPUArrayDeviceTest, SizeTest)
     EXPECT_EQ(8, largeTestArray.size());
 }
 
-TEST_F(GPUArrayDeviceTest, SetDataTest)
+TEST_F(GPUArrayDeviceGlobalTest, SetDataTest)
 {
     std::vector<float> data1;
     data1.push_back(0.1259203131);
@@ -63,7 +63,7 @@ TEST_F(GPUArrayDeviceTest, SetDataTest)
     data2.push_back(7.2390810394);
     data2.push_back(1.4350929888);
 
-    GPUArrayDevice<float> resultArray(5);
+    GPUArrayDeviceGlobal<float> resultArray(5);
     std::vector<float> resultVec(5);
 
     testArray.set(data1.data());
@@ -83,7 +83,7 @@ TEST_F(GPUArrayDeviceTest, SetDataTest)
     EXPECT_FLOAT_EQ(data1.at(4)+data2.at(4),resultVec.at(4));
 }
 
-TEST_F(GPUArrayDeviceTest, MemsetTest)
+TEST_F(GPUArrayDeviceGlobalTest, MemsetTest)
 {
     float val1 = 0;
     float val2 = 0.385215432;
@@ -97,7 +97,7 @@ TEST_F(GPUArrayDeviceTest, MemsetTest)
     testArray.get(resultVec1.data());
     testArraySameSize.get(resultVec2.data());
 
-    GPUArrayDevice<float> resultArray(5);
+    GPUArrayDeviceGlobal<float> resultArray(5);
     simpleAdd<<<NBLOCK(5), PERBLOCK>>>(resultArray.size(),
                                        testArray.data(),
                                        testArraySameSize.data(),

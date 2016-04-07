@@ -2,7 +2,7 @@
 #ifndef GPUDATA_H
 #define GPUDATA_H
 #include "GPUArrayPair.h"
-#include "GPUArrayDevice.h"
+#include "GPUArrayDeviceGlobal.h"
 #include "Virial.h"
 
 class GPUData {

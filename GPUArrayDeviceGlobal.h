@@ -1,21 +1,20 @@
 #pragma once
-#ifndef GPUARRAYDEVICE_H
-#define GPUARRAYDEVICE_H
+#ifndef GPUARRAYDEVICEGLOBAL_H
+#define GPUARRAYDEVICEGLOBAL_H
 
 #include "globalDefs.h"
 
 /*! \brief Global function to set the device memory */
 void MEMSETFUNC(void *, const void *, size_t, size_t);
 
-/*! \class GPUArrayDevice
- * \brief Array on the GPU device
+/*! \brief Array on the GPU device
  *
  * \tparam T Data type stored in the array
  *
  * Array storing data on the GPU device.
  */
 template <typename T>
-class GPUArrayDevice {
+class GPUArrayDeviceGlobal {
 public:
     /*! \brief Constructor
      *
@@ -24,11 +23,11 @@ public:
      * This constructor creates the array on the GPU device and allocates
      * enough memory to store n_ elements.
      */
-    explicit GPUArrayDevice(size_t n_ = 0)
+    explicit GPUArrayDeviceGlobal(size_t n_ = 0)
         : n(n_) { allocate(); }
 
     /*! \brief Copy constructor */
-    GPUArrayDevice(const GPUArrayDevice<T> &other)
+    GPUArrayDeviceGlobal(const GPUArrayDeviceGlobal<T> &other)
         : n(other.n)
     {
         allocate();
@@ -37,7 +36,7 @@ public:
     }
 
     /*! \brief Move constructor */
-    GPUArrayDevice(GPUArrayDevice<T> &&other)
+    GPUArrayDeviceGlobal(GPUArrayDeviceGlobal<T> &&other)
         : ptr(other.ptr), n(other.n)
     {
         other.n = 0;
@@ -45,12 +44,12 @@ public:
     }
 
     /*! \brief Destructor */
-    ~GPUArrayDevice() {
+    ~GPUArrayDeviceGlobal() {
         deallocate();
     }
 
     /*! \brief Assignment operator */
-    GPUArrayDevice<T> &operator=(const GPUArrayDevice<T> &other) {
+    GPUArrayDeviceGlobal<T> &operator=(const GPUArrayDeviceGlobal<T> &other) {
         if (n != other.n) {
             deallocate();
             n = other.n;
@@ -62,7 +61,7 @@ public:
     }
 
     /*! \brief Move assignment operator */
-    GPUArrayDevice<T> &operator=(GPUArrayDevice<T> &&other) {
+    GPUArrayDeviceGlobal<T> &operator=(GPUArrayDeviceGlobal<T> &&other) {
         deallocate();
         n = other.n;
         ptr = other.ptr;
@@ -118,7 +117,7 @@ public:
      *
      * Copy data from a given adress specified by the copyFrom pointer to
      * the GPU array. The number of bytes copied from memory is the size of
-     * the the GPUArrayDevice.
+     * the the GPUArrayDeviceGlobal.
      */
     void set(const T *copyFrom) {
         CUCHECK(cudaMemcpy(ptr, copyFrom, n*sizeof(T),

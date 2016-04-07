@@ -3,7 +3,7 @@
 #define FIXPOTENTIALMULTIATOM_H
 #include <array>
 #include <vector>
-#include "GPUArrayDevice.h"
+#include "GPUArrayDeviceGlobal.h"
 #include "State.h"
 #include "Fix.h"
 #include <unordered_map>
@@ -23,8 +23,8 @@ class FixPotentialMultiAtom : public Fix {
         std::vector<std::array<int, N> > forcerAtomIds;
         std::vector<CPUVariant> forcers;
         std::unordered_map<int, CPUMember> forcerTypes;
-        GPUArrayDevice<GPUMember> forcersGPU;
-        GPUArrayDevice<int> forcerIdxs;
+        GPUArrayDeviceGlobal<GPUMember> forcersGPU;
+        GPUArrayDeviceGlobal<int> forcerIdxs;
 		//DataSet *eng;
         //DataSet *press;
         bool prepareForRun() {

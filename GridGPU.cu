@@ -401,7 +401,7 @@ void GridGPU::initArrays() {
     perCellArray = GPUArray<int>(prod(ns) + 1);
     perAtomArray = GPUArray<int>(state->atoms.size()+1);
     perBlockArray = GPUArray<int>(NBLOCK(state->atoms.size()) + 1); //also cumulative sum, tracking cumul. sum of max per block
-    xsLastBuild = GPUArrayDevice<float4>(state->atoms.size());
+    xsLastBuild = GPUArrayDeviceGlobal<float4>(state->atoms.size());
     //in prepare for run, you make GPU grid _after_ copying xs to device
     buildFlag = GPUArray<int>(1);
     buildFlag.d_data.memset(0);
@@ -684,9 +684,9 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort, bool force
         int totalNumNeighbors = perBlockArray.h_data.back() * PERBLOCK;
         //cout << "TOTAL NUM IS " << totalNumNeighbors << endl;
         if (totalNumNeighbors > neighborlist.size()) {
-            neighborlist = GPUArrayDevice<uint>(totalNumNeighbors*1.5);
+            neighborlist = GPUArrayDeviceGlobal<uint>(totalNumNeighbors*1.5);
         } else if (totalNumNeighbors < neighborlist.size() * 0.5) {
-            neighborlist = GPUArrayDevice<uint>(totalNumNeighbors*0.8);
+            neighborlist = GPUArrayDeviceGlobal<uint>(totalNumNeighbors*0.8);
         }
         /*
         SAFECALL(assignNeighbors<<<NBLOCK(nAtoms), PERBLOCK, PERBLOCK*maxExclusionsPerAtom*sizeof(uint)>>>(
@@ -876,7 +876,7 @@ bool GridGPU::verifyNeighborlists(float neighCut) {
     return true;
 
 }
-bool GridGPU::checkSorting(int gridIdx, int *gridIdxs, GPUArrayDevice<int> &gridIdxsDev) {
+bool GridGPU::checkSorting(int gridIdx, int *gridIdxs, GPUArrayDeviceGlobal<int> &gridIdxsDev) {
    // printInts<<<NBLOCK(gridIdxsDev.n), PERBLOCK>>>(gridIdxsDev.ptr, gridIdxsDev.n);
     int numGridIdxs = prod(ns);
     vector<int> activeIds = LISTMAPREF(Atom, int, atom, state->atoms, atom.id);
@@ -956,9 +956,9 @@ void GridGPU::handleExclusions() {
         maxExclusionsPerAtom = fmax(maxExclusionsPerAtom, idxs.back() - idxs[idxs.size()-2]);
     }
   //  cout << "max excl per atom is " << maxExclusionsPerAtom << endl;
-    exclusionIndexes = GPUArrayDevice<int>(idxs.size());
+    exclusionIndexes = GPUArrayDeviceGlobal<int>(idxs.size());
     exclusionIndexes.set(idxs.data());
-    exclusionIds = GPUArrayDevice<uint>(excludedById.size());
+    exclusionIds = GPUArrayDeviceGlobal<uint>(excludedById.size());
     exclusionIds.set(excludedById.data());
     //atoms is sorted by id.  list of ids may be sparse, so need to make sure there's enough shared memory for PERBLOCK _atoms_, not just PERBLOCK ids (when calling assign exclusions kernel)
 

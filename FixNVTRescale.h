@@ -4,7 +4,7 @@
 #include "Fix.h"
 #include <boost/python.hpp>
 #include <boost/python/list.hpp>
-#include "GPUArrayDevice.h"
+#include "GPUArrayDeviceGlobal.h"
 void export_FixNVTRescale();
 class FixNVTRescale : public Fix {
     vector<double> intervals;
@@ -15,7 +15,7 @@ class FixNVTRescale : public Fix {
     bool downloadFromRun();
     bool usingBounds;
     BoundsGPU boundsGPU;
-    GPUArrayDevice<float> tempGPU; //length two - first is temp, second is # atoms in group
+    GPUArrayDeviceGlobal<float> tempGPU; //length two - first is temp, second is # atoms in group
     public:
         SHARED(Bounds) thermoBounds;
         bool finished;

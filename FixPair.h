@@ -304,8 +304,8 @@ class FixPair : public Fix {
                           std::string handleB, double val);
 
         void resetToPreproc(string handle);
-//    GPUArrayDevice<float> copySqrToDevice(SquareVector<float> &vec) {
-//        GPUArrayDevice<float> arr (vec.totalSize());
+//    GPUArrayDeviceGlobal<float> copySqrToDevice(SquareVector<float> &vec) {
+//        GPUArrayDeviceGlobal<float> arr (vec.totalSize());
 //        arr.set(vec.data());
 //        return arr;
 //    }

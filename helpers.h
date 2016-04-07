@@ -1,7 +1,7 @@
 #pragma once
 #ifndef HELPERS_H
 #define HELPERS_H
-#include "GPUArrayDevice.h"
+#include "GPUArrayDeviceGlobal.h"
 #include <vector>
 #include "Atom.h"
 #include <boost/variant.hpp>
@@ -9,7 +9,7 @@ using namespace std;
 void cumulativeSum(int *data, int n);
 
 template <class SRCVar, class SRCFull, class DEST, int N>
-int copyMultiAtomToGPU(vector<Atom> &atoms, vector<SRCVar> &src, GPUArrayDevice<DEST> *dest, GPUArrayDevice<int> *destIdxs) {
+int copyMultiAtomToGPU(vector<Atom> &atoms, vector<SRCVar> &src, GPUArrayDeviceGlobal<DEST> *dest, GPUArrayDeviceGlobal<int> *destIdxs) {
     vector<int> idxs(atoms.size()+1, 0); //started out being used as counts
     vector<int> numAddedPerAtom(atoms.size(), 0);
     //so I can arbitrarily order.  I choose to do it by the the way atoms happen to be sorted currently.  Could be improved.
@@ -41,9 +41,9 @@ int copyMultiAtomToGPU(vector<Atom> &atoms, vector<SRCVar> &src, GPUArrayDevice<
             numAddedPerAtom[atomIndexes[i]]++;
         }
     }
-    *dest = GPUArrayDevice<DEST>(destHost.size());
+    *dest = GPUArrayDeviceGlobal<DEST>(destHost.size());
     dest->set(destHost.data());
-    *destIdxs = GPUArrayDevice<int>(idxs.size());
+    *destIdxs = GPUArrayDeviceGlobal<int>(idxs.size());
     destIdxs->set(idxs.data());
 
     //getting max # bonds per block

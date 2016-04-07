@@ -1,4 +1,4 @@
-#include "GPUArrayDevice.h"
+#include "GPUArrayDeviceGlobal.h"
 #include "memset_defs.h"
 
 void MEMSETFUNC(void *ptr, const void *val, size_t n, size_t Tsize) {

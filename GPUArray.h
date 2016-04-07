@@ -5,7 +5,7 @@
 #include <vector>
 
 #include "GPUArrayBase.h"
-#include "GPUArrayDevice.h"
+#include "GPUArrayDeviceGlobal.h"
 
 /*! \class GPUArray
  * \brief Array storing data on the CPU and the GPU
@@ -33,7 +33,7 @@ public:
      * and the GPU.
      */
     explicit GPUArray(int size_)
-        : h_data(std::vector<T>(size_,T())), d_data(GPUArrayDevice<T>(size_)) {}
+        : h_data(std::vector<T>(size_,T())), d_data(GPUArrayDeviceGlobal<T>(size_)) {}
 
     /*! \brief Constructor
      *
@@ -43,7 +43,7 @@ public:
      */
     explicit GPUArray(std::vector<T> &vals) {
         set(vals);
-        d_data = GPUArrayDevice<T>(vals.size());
+        d_data = GPUArrayDeviceGlobal<T>(vals.size());
     }
 
     /*! \brief Set CPU data
@@ -54,7 +54,7 @@ public:
      */
     void set(std::vector<T> &other) {
         if (other.size() > size()) {
-            d_data = GPUArrayDevice<T>(other.size());
+            d_data = GPUArrayDeviceGlobal<T>(other.size());
         }
         h_data = other;
 
@@ -66,7 +66,7 @@ public:
     /*! \brief Ensure that the GPU data array is large enough */
     void ensureSize() {
         if (h_data.size() > d_data.size()) {
-            d_data = GPUArrayDevice<T>(size());
+            d_data = GPUArrayDeviceGlobal<T>(size());
         }
     }
 
@@ -106,7 +106,7 @@ public:
 public:
 
     std::vector<T> h_data; //!< Array storing data on the CPU
-    GPUArrayDevice<T> d_data; //!< Array storing data on the GPU
+    GPUArrayDeviceGlobal<T> d_data; //!< Array storing data on the GPU
 };
 
 #endif

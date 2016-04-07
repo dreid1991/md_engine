@@ -1,4 +1,4 @@
-#include "../GPUArrayDevice.h"
+#include "../GPUArrayDeviceGlobal.h"
 
 #include <gtest/gtest.h>
 
@@ -32,9 +32,9 @@ __global__ void simpleMult(int arraySize, float *x, float *y, float *z)
 class CudaMathTest : public ::testing::Test {
 protected:
     virtual void SetUp() {
-        testArray1 = GPUArrayDevice<float>(5);
-        testArray2 = GPUArrayDevice<float>(5);
-        resultArray = GPUArrayDevice<float>(5);
+        testArray1 = GPUArrayDeviceGlobal<float>(5);
+        testArray2 = GPUArrayDeviceGlobal<float>(5);
+        resultArray = GPUArrayDeviceGlobal<float>(5);
 
         values1.push_back(0.23498103985);
         values1.push_back(3.23908183929);
@@ -54,9 +54,9 @@ protected:
         resultVec = std::vector<float>(5);
     }
 
-    GPUArrayDevice<float> testArray1;
-    GPUArrayDevice<float> testArray2;
-    GPUArrayDevice<float> resultArray;
+    GPUArrayDeviceGlobal<float> testArray1;
+    GPUArrayDeviceGlobal<float> testArray2;
+    GPUArrayDeviceGlobal<float> resultArray;
 
     std::vector<float> values1;
     std::vector<float> values2;
