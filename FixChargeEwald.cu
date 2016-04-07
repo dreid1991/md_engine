@@ -1,7 +1,7 @@
 #include "FixChargeEwald.h"
 #include "cutils_func.h"
 #include <cufft.h>
-#include "cuda_call.h"
+#include "globalDefs.h"
 #include <fstream>
 
 // #include <cmath>
