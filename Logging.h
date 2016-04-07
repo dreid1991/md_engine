@@ -9,12 +9,12 @@
 
 struct ReturnException : std::exception
 {
-    char const* what() throw() { return "Stopping program."; }
+    virtual char const* what() const throw() { return "Stopping program."; }
 };
 
 struct AssertFailedException : std::exception
 {
-    char const* what() throw() { return "Assert failed."; }
+    virtual char const* what() const throw() { return "Assert failed."; }
 };
 
 // Strip path from filename
@@ -29,52 +29,52 @@ struct AssertFailedException : std::exception
     #define DBG 0
 #endif
 
-#define Debug(fmt, ...) \
+#define mdDebug(fmt, ...) \
     do { if (DBG) fprintf(stdout, "DEBUG: " fmt "(in %s:%d:%s)\n", \
                           ##__VA_ARGS__, \
                           __FILENAME__, __LINE__, __func__); \
     } while(false)
 
-#define Message(fmt, ...) \
+#define mdMessage(fmt, ...) \
     do { fprintf(stdout, fmt, ##__VA_ARGS__); } while (false)
 
-#define Warning(fmt, ...) \
+#define mdWarning(fmt, ...) \
     do { fprintf(stderr, "WARNING: " fmt " (in %s:%d)\n", \
                  ##__VA_ARGS__, \
                  __FILENAME__, __LINE__); \
     } while(false)
 
-#define Error(fmt, ...) \
+#define mdError(fmt, ...) \
     do { fprintf(stderr, "ERROR: " fmt " (in %s:%d)\n", \
                  ##__VA_ARGS__, \
                  __FILENAME__, __LINE__); \
          throw ReturnException(); \
     } while(false)
 
-#define Critical(exception, fmt, ...) \
+#define mdCritical(exception, fmt, ...) \
     do { fprintf(stderr, "ERROR: " fmt " (in %s:%d)\n", \
                  ##__VA_ARGS__, \
                  __FILENAME__, __LINE__); \
          throw exception; \
     } while(false)
 
-#define Fatal(exitCode, fmt, ...) \
+#define mdFatal(exitCode, fmt, ...) \
     do { fprintf(stderr, "FATAL: " fmt " (in %s:%d)\n", \
                  ##__VA_ARGS__, \
                  __FILENAME__, __LINE__); \
          std::exit(1); \
     } while(false)
 
-#define Assume(test, fmt, ...) \
-    do { if (!(test)) { fprintf(stderr, "WARNING: In %s(): Assume " \
+#define mdAssume(test, fmt, ...) \
+    do { if (!(test)) { fprintf(stderr, "WARNING: In %s(): Assumption " \
                                         #test " failed: " \
                                         fmt " (%s:%d)\n", \
                                 __func__, ##__VA_ARGS__, \
                                 __FILENAME__, __LINE__); } \
     } while (false)
 
-#define Assert(test, fmt, ...) \
-    do { if (!(test)) { fprintf(stderr, "ERROR: In %s(): Assert " \
+#define mdAssert(test, fmt, ...) \
+    do { if (!(test)) { fprintf(stderr, "ERROR: In %s(): Assertion " \
                                         #test " failed: " \
                                         fmt " (%s:%d)\n", \
                                 __func__, ##__VA_ARGS__, \
