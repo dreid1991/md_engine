@@ -2,7 +2,6 @@
 #ifndef INTEGRATERRELAX_H
 #define INTEGRATERRELAX_H
 
-#include "cuda_call.h"
 #include "globalDefs.h"
 #include "Integrater.h"
 

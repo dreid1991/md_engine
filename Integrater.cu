@@ -1,7 +1,7 @@
 #include "Integrater.h"
 
 #include "boost_for_export.h"
-#include "cuda_call.h"
+#include "globalDefs.h"
 #include "cutils_func.h"
 #include "DataSet.h"
 #include "Fix.h"
