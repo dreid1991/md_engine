@@ -2,7 +2,6 @@
 #ifndef GPUDATA_H
 #define GPUDATA_H
 #include "GPUArrayPair.h"
-#include "GPUArrayTexPair.h"
 #include "GPUArrayDevice.h"
 #include "Virial.h"
 #define NUM_PAIR_ARRAYS 6
