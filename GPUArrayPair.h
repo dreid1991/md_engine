@@ -10,7 +10,6 @@
 #include <stdlib.h>
 #include <iostream>
 #include "globalDefs.h"
-#include "GPUArrayBasePair.h"
 #include "GPUArrayDevice.h"
 using namespace std;
 
@@ -22,17 +21,21 @@ using namespace std;
 
 
 template <class T>
-class GPUArrayPair : public GPUArrayBasePair {
+class GPUArrayPair : public GPUArrayBase {
 
     void setHost(vector<T> &vals) {
         h_data = vals;
     }
     public:
+        unsigned int activeIdx;
+        unsigned int switchIdx() {
+            activeIdx = !activeIdx;
+            return activeIdx;
+        }
         vector<T> h_data;
         GPUArrayDevice<T> d_data[2];
-        GPUArrayPair() : GPUArrayBasePair() {
-        }
-        GPUArrayPair(vector<T> &vals) {
+        GPUArrayPair() : GPUArrayBase(), activeIdx(0) {}
+        GPUArrayPair(vector<T> &vals) : activeIdx(0) {
             set(vals);
             for (int i=0; i<2; i++) {
                 d_data[i] = GPUArrayDevice<T>(vals.size());
