@@ -4,7 +4,7 @@
 #include <math.h>
 
 #include "cutils_func.h"
-#include "cuda_call.h"
+#include "globalDefs.h"
 
 #include "State.h"
 
