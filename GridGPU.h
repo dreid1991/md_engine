@@ -2,20 +2,17 @@
 #ifndef GRID_GPU
 #define GRID_GPU
 
-
-#include "cutils_math.h"
-#include "GPUArray.h"
-#include "GPUArrayTexDevice.h"
-#include <unordered_map>
-#include <unordered_set>
+#include <map>
 #include <set>
 
-#include "boost_for_export.h"
+#include "GPUArray.h"
+#include "GPUArrayDeviceGlobal.h"
+
+class State;
 
 #define EXCL_MASK (~(3<<30));
 //okay, this is going to contain all the kernels needed to do gridding
 //can also have it contain the 3d grid for neighbor int2 s
-class State;
 
 /*! \class GridGPU
  * \brief Simulation grid on the GPU

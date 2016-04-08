@@ -1,5 +1,5 @@
 #include "GridGPU.h"
-#include <set>
+
 #include "State.h"
 #include "helpers.h"
 #include "Bond.h"
@@ -8,6 +8,8 @@
 #include "Mod.h"
 #include "Fix.h"
 #include "cutils_func.h"
+#include "cutils_math.h"
+
 //for debugging
 __global__ void countNumInGridCells(float4 *xs, int nAtoms, int *counts, int *atomIdxs, float3 os, float3 ds, int3 ns) {
     int idx = GETIDX();
