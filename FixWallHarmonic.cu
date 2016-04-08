@@ -35,7 +35,7 @@ void __global__ compute_cu(float4 *xs, int nAtoms, float4 *fs, float3 origin, fl
 
 void FixWallHarmonic::compute(bool computeVirials) {
     GPUData &gpd = state->gpd;
-    int activeIdx = gpd.activeIdx;
+    int activeIdx = gpd.activeIdx();
     int n = state->atoms.size();
     compute_cu<<<NBLOCK(n), PERBLOCK>>>(gpd.xs(activeIdx), n, gpd.fs(activeIdx), origin.asFloat3(), forceDir.asFloat3(), dist, k, groupTag);
 }

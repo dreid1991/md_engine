@@ -27,9 +27,11 @@ class GPUData {
 
     //OMG REMEMBER TO ADD EACH NEW ARRAY TO THE ACTIVE DATA LIST IN INTEGRATER OR PAIN AWAITS
 
-        GPUData() : idToIdxs(cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindSigned)), activeIdx(0) {
+        GPUData() : idToIdxs(cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindSigned)) {
         }
-        unsigned int activeIdx;
+        unsigned int activeIdx() {
+            return xs.activeIdx;
+        }
         unsigned int switchIdx() {
             /*! \todo Find a better way to keep track of all data objects */
             xs.switchIdx();

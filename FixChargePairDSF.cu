@@ -75,7 +75,7 @@ void FixChargePairDSF::compute(bool computeVirials) {
     int nAtoms = state->atoms.size();
     GPUData &gpd = state->gpd;
     GridGPU &grid = state->gridGPU;
-    int activeIdx = gpd.activeIdx;
+    int activeIdx = gpd.activeIdx();
     int *neighborCounts = grid.perAtomArray.d_data.data();
     float *neighborCoefs = state->specialNeighborCoefs;
     compute_charge_pair_DSF_cu<<<NBLOCK(nAtoms), PERBLOCK>>>(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx), neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), gpd.qs(activeIdx), alpha, r_cut, A, shift, state->boundsGPU, state->devManager.prop.warpSize, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2]);// state->devManager.prop.warpSize, sigmas.getDevData(), epsilons.getDevData(), numTypes, state->rCut, state->boundsGPU, oneFourStrength);

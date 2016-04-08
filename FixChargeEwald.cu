@@ -468,7 +468,7 @@ void FixChargeEwald::compute(bool computeVirials) {
     int nAtoms = state->atoms.size();
     GPUData &gpd = state->gpd;
     GridGPU &grid = state->gridGPU;
-    int activeIdx = gpd.activeIdx;
+    int activeIdx = gpd.activeIdx();
     int *neighborCounts = grid.perAtomArray.d_data.data();
     
     if (first_run){

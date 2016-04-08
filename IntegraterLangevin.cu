@@ -274,7 +274,7 @@ void IntegraterLangevin::run(int numTurns) {
         if (! ((remainder + i) % periodicInterval)) {
             state->gridGPU.periodicBoundaryConditions(rCut + padding, true);
         }
-        int activeIdx = state->gpd.activeIdx;
+        int activeIdx = state->gpd.activeIdx();
         asyncOperations();
         doDataCollection();
         preForce(activeIdx);

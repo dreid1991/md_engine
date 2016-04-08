@@ -455,7 +455,7 @@ GridGPU::~GridGPU() {
 
 void GridGPU::copyPositionsAsync() {
 
-    state->gpd.xs.d_data[state->gpd.activeIdx].copyToDeviceArray((void *) xsLastBuild.data());//, rebuildCheckStream);
+    state->gpd.xs.d_data[state->gpd.activeIdx()].copyToDeviceArray((void *) xsLastBuild.data());//, rebuildCheckStream);
 
 }
 
@@ -593,7 +593,7 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort, bool force
     int warpSize = state->devManager.prop.warpSize;
     Vector nsV = Vector(make_float3(ns));
     int nAtoms = state->atoms.size();
-    int activeIdx = state->gpd.activeIdx;
+    int activeIdx = state->gpd.activeIdx();
     BoundsGPU bounds = state->boundsGPU;
     //DO ASYNC COPY TO xsLastBuild
     //FINISH FUTURE WHICH SETS REBUILD FLAG BY NOW PLEASE

@@ -68,7 +68,7 @@ void FixBondHarmonic::setBondTypeCoefs(int type, double k, double rEq) {
 
 void FixBondHarmonic::compute(bool computeVirials) {
     int nAtoms = state->atoms.size();
-    int activeIdx = state->gpd.activeIdx;
+    int activeIdx = state->gpd.activeIdx();
     //cout << "Max bonds per block is " << maxBondsPerBlock << endl;
     compute_cu<<<NBLOCK(nAtoms), PERBLOCK, sizeof(BondHarmonicGPU) * maxBondsPerBlock>>>(nAtoms, state->gpd.xs(activeIdx), state->gpd.fs(activeIdx), state->gpd.idToIdxs.getTex(), bondsGPU.data(), bondIdxs.data(), state->boundsGPU);
 

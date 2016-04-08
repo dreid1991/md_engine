@@ -147,7 +147,7 @@ void FixLJCut::compute(bool computeVirials) {
     int numTypes = state->atomParams.numTypes;
     GPUData &gpd = state->gpd;
     GridGPU &grid = state->gridGPU;
-    int activeIdx = gpd.activeIdx;
+    int activeIdx = gpd.activeIdx();
     int *neighborCounts = grid.perAtomArray.d_data.data();
     float *neighborCoefs = state->specialNeighborCoefs;
 
@@ -162,7 +162,7 @@ void FixLJCut::singlePointEng(float *perParticleEng) {
     int numTypes = state->atomParams.numTypes;
     GPUData &gpd = state->gpd;
     GridGPU &grid = state->gridGPU;
-    int activeIdx = gpd.activeIdx;
+    int activeIdx = gpd.activeIdx();
     int *neighborCounts = grid.perAtomArray.d_data.data();
     float *neighborCoefs = state->specialNeighborCoefs;
 

@@ -125,7 +125,7 @@ void FixNVTRescale::compute(bool computeVirials) {
         temp = tempB*fracThroughInterval + tempA*(1-fracThroughInterval);
     }
     GPUData &gpd = state->gpd;
-    int activeIdx = gpd.activeIdx;
+    int activeIdx = gpd.activeIdx();
     if (usingBounds) {
         sumKeInBounds<<<NBLOCK(nAtoms), PERBLOCK, PERBLOCK*sizeof(float)>>>(tempGPU.data(), gpd.vs(activeIdx), nAtoms, groupTag, gpd.fs(activeIdx), boundsGPU);
         rescaleInBounds<<<NBLOCK(nAtoms), PERBLOCK>>>(nAtoms, groupTag, gpd.xs(activeIdx), gpd.vs(activeIdx), gpd.fs(activeIdx), temp, tempGPU.data(), boundsGPU);
