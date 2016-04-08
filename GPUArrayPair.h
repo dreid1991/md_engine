@@ -13,8 +13,6 @@
 #include "globalDefs.h"
 #include "GPUArrayDeviceGlobal.h"
 
-using namespace std;
-
 /*! \brief GPUArray keeping data on the memory twice
  *
  * GPUArrayPair manages two instead of one GPUArrayDeviceGlobal to store
@@ -38,7 +36,7 @@ private:
      *
      * \todo Do we really need this function?
      */
-    void setHost(vector<T> &vals) {
+    void setHost(std::vector<T> &vals) {
         h_data = vals;
     }
 public:
@@ -52,7 +50,7 @@ public:
         activeIdx = !activeIdx;
         return activeIdx;
     }
-    vector<T> h_data; //!< CPU data
+    std::vector<T> h_data; //!< CPU data
     GPUArrayDeviceGlobal<T> d_data[2]; //!< Pair of GPU data
 
     /*! \brief Default constructor */
@@ -67,7 +65,7 @@ public:
      *
      * \todo Make this constructor explicit
      */
-    GPUArrayPair(vector<T> &vals) : activeIdx(0) {
+    GPUArrayPair(std::vector<T> &vals) : activeIdx(0) {
         set(vals);
         for (int i=0; i<2; i++) {
             d_data[i] = GPUArrayDeviceGlobal<T>(vals.size());
@@ -99,7 +97,7 @@ public:
      * Sets the data of the CPU. If necessary, the GPU memory is
      * reallocated. Note that this operation may delete the GPU memory.
      */
-    bool set(vector<T> &other) {
+    bool set(std::vector<T> &other) {
         if (other.size() < size()) {
             setHost(other);
             return true;
