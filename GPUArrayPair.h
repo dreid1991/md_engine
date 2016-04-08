@@ -2,15 +2,10 @@
 #ifndef GPUARRAYPAIR_H
 #define GPUARRAYPAIR_H
 
-#include "Python.h"
-#include <vector>
 #include <cuda_runtime.h>
-#include "cutils_math.h"
-#include <assert.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <iostream>
-#include "globalDefs.h"
+#include <vector>
+
+#include "GPUArrayBase.h"
 #include "GPUArrayDeviceGlobal.h"
 
 /*! \brief GPUArray keeping data on the memory twice
