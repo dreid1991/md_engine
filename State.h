@@ -105,7 +105,8 @@ class State {
 		// because it's an unordered set, the elements will always be unique
 		// use atom.id values, not Atom values, to allow for map/set hashing
 
-		int addSpecies(std::string handle, double mass);
+        //use atomParams.addSpecies
+		//int addSpecies(std::string handle, double mass);
 
 		int idxFromId(int id);
 		Atom *atomFromId(int id);

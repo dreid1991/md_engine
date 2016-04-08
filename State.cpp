@@ -154,7 +154,7 @@ Atom *State::atomFromId(int id) {
 }
 
 
-
+/*  use atomParams.addSpecies
 int State::addSpecies(std::string handle, double mass) {
     int id = atomParams.addSpecies(handle, mass);
     if (id != -1) {
@@ -164,7 +164,7 @@ int State::addSpecies(std::string handle, double mass) {
     }
     return id;
 }
-
+*/
 void State::setSpecialNeighborCoefs(float onetwo, float onethree, float onefour) {
     specialNeighborCoefs[0] = onetwo;
     specialNeighborCoefs[1] = onethree;
@@ -572,6 +572,11 @@ void State::seedRNG(unsigned int seed) {
     rng_is_seeded = true;
 }
 
+    //helper for reader funcs (LAMMPS reader)
+Vector generateVector(State &s) {
+    return Vector();
+}
+
 BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(State_seedRNG_overloads,State::seedRNG,0,1)
 
 void export_State() {
@@ -633,7 +638,10 @@ void export_State() {
     .def_readonly("readConfig", &State::readConfig)
     .def_readwrite("shoutEvery", &State::shoutEvery)
     .def_readwrite("verbose", &State::verbose)
-    .def_readonly("deviceManager", &State::devManager);
+    .def_readonly("deviceManager", &State::devManager)
+    //helper for reader funcs
+    .def("Vector", &generateVector)
+
 
     ;
 
