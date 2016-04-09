@@ -1,7 +1,7 @@
 #include "FixNVTRescale.h"
 #include "cutils_func.h"
 
-__global__ void sumKeInBounds (float *dest, float4 *src, int n, unsigned int groupTag, float4 *fs, BoundsGPU bounds) {
+__global__ void sumKeInBounds (float *dest, float4 *src, int n, unsigned int groupTag, float4 *fs, BoundsGPU bounds, int warpSize) {
     extern __shared__ float tmp[]; /*should have length of # threads in a block (PERBLOCK) PLUS ONE for counting shared*/
     int potentialIdx = blockDim.x*blockIdx.x + threadIdx.x;
     if (potentialIdx < n) {
@@ -19,7 +19,7 @@ __global__ void sumKeInBounds (float *dest, float4 *src, int n, unsigned int gro
         tmp[threadIdx.x] = 0;
     }
     __syncthreads();
-    reduceByN(tmp, blockDim.x);
+    reduceByN(tmp, blockDim.x, warpSize);
     if (threadIdx.x == 0) {
         atomicAdd(dest, tmp[0]);
     }
@@ -102,6 +102,39 @@ void __global__ rescaleInBounds(int nAtoms, uint groupTag, float4 *xs, float4 *v
         }
     }
 }
+/*
+    template <class K, class T>
+__global__ void SUMTESTS (K *dest, T *src, int n, unsigned int groupTag, float4 *fs, int warpSize) {
+    extern __shared__ K tmp[];
+    int potentialIdx = blockDim.x*blockIdx.x + threadIdx.x;
+    if (potentialIdx < n) {
+        unsigned int atomGroup = * (unsigned int *) &(fs[potentialIdx].w);
+        if (atomGroup & groupTag) {
+            tmp[threadIdx.x] = lengthSqrOverW ( src[blockDim.x*blockIdx.x + threadIdx.x])  ;
+            atomicAdd(dest+1, 1);
+        } else {
+            tmp[threadIdx.x] = 0;
+        }
+    } else {
+        tmp[threadIdx.x] = 0;
+    }
+    __syncthreads();
+    int curLookahead = 1;
+    int maxLookahead = log2f(blockDim.x-1);
+    for (int i=0; i<=maxLookahead; i++) {
+        if (! (threadIdx.x % (curLookahead*2))) {
+            tmp[threadIdx.x] += tmp[threadIdx.x + curLookahead];
+        }
+        curLookahead *= 2;
+        if (curLookahead >= warpSize) {
+            __syncthreads();
+        }
+    }
+    if (threadIdx.x == 0) {
+        atomicAdd(dest, tmp[0]);
+    }
+}
+*/
 
 
 void FixNVTRescale::compute(bool computeVirials) {
@@ -126,11 +159,13 @@ void FixNVTRescale::compute(bool computeVirials) {
     }
     GPUData &gpd = state->gpd;
     int activeIdx = gpd.activeIdx();
+    int warpSize = state->devManager.prop.warpSize;
     if (usingBounds) {
-        sumKeInBounds<<<NBLOCK(nAtoms), PERBLOCK, PERBLOCK*sizeof(float)>>>(tempGPU.data(), gpd.vs(activeIdx), nAtoms, groupTag, gpd.fs(activeIdx), boundsGPU);
+        sumKeInBounds<<<NBLOCK(nAtoms), PERBLOCK, PERBLOCK*sizeof(float)>>>(tempGPU.data(), gpd.vs(activeIdx), nAtoms, groupTag, gpd.fs(activeIdx), boundsGPU, warpSize);
         rescaleInBounds<<<NBLOCK(nAtoms), PERBLOCK>>>(nAtoms, groupTag, gpd.xs(activeIdx), gpd.vs(activeIdx), gpd.fs(activeIdx), temp, tempGPU.data(), boundsGPU);
     } else {
-        sumVectorSqr3DTagsOverW<float, float4> <<<NBLOCK(nAtoms), PERBLOCK, PERBLOCK*sizeof(float)>>>(tempGPU.data(), gpd.vs(activeIdx), nAtoms, groupTag, gpd.fs(activeIdx));
+        //SUMTESTS<float, float4> <<<NBLOCK(nAtoms), PERBLOCK, PERBLOCK*sizeof(float)>>>(tempGPU.data(), gpd.vs(activeIdx), nAtoms, groupTag, gpd.fs(activeIdx), warpSize);
+        sumVectorSqr3DTagsOverW<float, float4> <<<NBLOCK(nAtoms), PERBLOCK, PERBLOCK*sizeof(float)>>>(tempGPU.data(), gpd.vs(activeIdx), nAtoms, groupTag, gpd.fs(activeIdx), warpSize);
         //SAFECALL(sumVectorSqr3DTagsOverW<float, float4> <<<NBLOCK(nAtoms), PERBLOCK, PERBLOCK*sizeof(float)>>>(tempGPU.data(), gpd.vs(activeIdx), nAtoms, groupTag, gpd.fs(activeIdx)));
         rescale<<<NBLOCK(nAtoms), PERBLOCK>>>(nAtoms, groupTag, gpd.vs(activeIdx), gpd.fs(activeIdx), temp, tempGPU.data());
         //SAFECALL(rescale<<<NBLOCK(nAtoms), PERBLOCK>>>(nAtoms, groupTag, gpd.vs(activeIdx), gpd.fs(activeIdx), temp, tempGPU.data()));

@@ -85,10 +85,10 @@ void Integrater::doDataCollection() {
         int nAtoms = state->atoms.size();
         int64_t turn = state->turn;
 		//void collect(int64_t turn, BoundsGPU &, int nAtoms, float4 *xs, float4 *vs, float4 *fs, float *engs, Virial *);
-
+        cudaDeviceProp &prop = state->devManager.prop;
         for (DataSet *ds : dm.dataSets) {
             if (ds->nextCollectTurn == turn) {
-                ds->collect(turn, bounds, nAtoms, xs, vs, fs, gpd.perParticleEng.getDevData(), gpd.perParticleVirial.getDevData());
+                ds->collect(turn, bounds, nAtoms, xs, vs, fs, gpd.perParticleEng.getDevData(), gpd.perParticleVirial.getDevData(), prop);
                 ds->setNextCollectTurn(turn);
             }
         }
@@ -257,7 +257,8 @@ double Integrater::singlePointEngPythonAvg(string groupHandle) {
     singlePointEng();
     cudaDeviceSynchronize();
     uint32_t groupTag = state->groupTagFromHandle(groupHandle);
-    sumPlain<<<NBLOCK(state->atoms.size()), PERBLOCK, sizeof(float)*PERBLOCK>>>(eng.getDevData(), state->gpd.perParticleEng.getDevData(), state->atoms.size(), groupTag, state->gpd.fs.getDevData());
+    int warpSize = state->devManager.prop.warpSize;
+    sumPlain<<<NBLOCK(state->atoms.size()), PERBLOCK, sizeof(float)*PERBLOCK>>>(eng.getDevData(), state->gpd.perParticleEng.getDevData(), state->atoms.size(), groupTag, state->gpd.fs.getDevData(), warpSize);
     eng.dataToHost();
     cudaDeviceSynchronize();
     CUT_CHECK_ERROR("Calculation of single point average energy failed");

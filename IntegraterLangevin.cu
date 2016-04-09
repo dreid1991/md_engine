@@ -228,6 +228,7 @@ void IntegraterLangevin::preForce(uint activeIdx) {
 }
 
 void IntegraterLangevin::postForce(uint activeIdx,int timesteps) {
+    int warpSize = state->devManager.prop.warpSize;
     if (usingBounds) {
         postForce_LangevinInBounds_cu<<<NBLOCK(state->atoms.size()), PERBLOCK>>>(state->atoms.size(),state->gpd.xs.getDevData(), state->gpd.vs.getDevData(), state->gpd.fs.getDevData(), state->dt,timesteps,seed,float(curTemperature()), gamma,boundsGPU);
 
@@ -240,7 +241,8 @@ void IntegraterLangevin::postForce(uint activeIdx,int timesteps) {
     sumVector3D<float,float4> <<<NBLOCK(atomssize),PERBLOCK,sizeof(float)*PERBLOCK>>>(
                                             VDotV.getDevData(),
                                             state->gpd.vs.getDevData(),
-                                            atomssize);               
+                                            atomssize,
+                                            warpSize);               
     VDotV.dataToHost();
 //     cout<<"Velocity check "<<VDotV.h_data[0]/atomssize<<'\n';
     

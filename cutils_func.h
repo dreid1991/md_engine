@@ -32,7 +32,7 @@ __device__ void copyToShared (T *src, T *dest, int n) {
     }
 }
 template <class T>
-inline __device__ void reduceByN(T *src, int span) { // where span is how many elements you're reducing over.  src had better be shared memory
+inline __device__ void reduceByN(T *src, int span, int warpSize) { // where span is how many elements you're reducing over.  src had better be shared memory
     int maxLookahead = span / 2;
     int curLookahead = 1;
     while (curLookahead <= maxLookahead) {
@@ -40,10 +40,25 @@ inline __device__ void reduceByN(T *src, int span) { // where span is how many e
             src[threadIdx.x] += src[threadIdx.x + curLookahead];
         }
         curLookahead *= 2;
-        __syncthreads();
+        if (curLookahead >= warpSize) {
+            __syncthreads();
+        }
     }
 }
-
+template <class T>
+inline __device__ void maxByN(T *src, int span, int warpSize) { // where span is how many elements you're reducing over.  src had better be shared memory
+    int maxLookahead = span / 2;
+    int curLookahead = 1;
+    while (curLookahead <= maxLookahead) {
+        if (! (threadIdx.x % (curLookahead*2))) {
+            src[threadIdx.x] = fmax(src[threadIdx.x], src[threadIdx.x + curLookahead]);
+        }
+        curLookahead *= 2;
+        if (curLookahead >= warpSize) {
+            __syncthreads();
+        }
+    }
+}
 //only safe to use if reducing within a warp
 template <class T>
 inline __device__ void reduceByN_NOSYNC(T *src, int span) { // where span is how many elements you're reducing over.  src had better be shared memory
@@ -59,7 +74,7 @@ inline __device__ void reduceByN_NOSYNC(T *src, int span) { // where span is how
 //Hey - if you pass warpsize, could avoid syncing al small lookaheads
 #define SUM(NAME, OPERATOR, WRAPPER) \
 template <class K, class T>\
-__global__ void NAME (K *dest, T *src, int n) {\
+__global__ void NAME (K *dest, T *src, int n, int warpSize) {\
     extern __shared__ K tmp[]; /*should have length of # threads in a block (PERBLOCK)*/\
     int potentialIdx = blockDim.x*blockIdx.x + threadIdx.x;\
     if (potentialIdx < n) {\
@@ -74,7 +89,9 @@ __global__ void NAME (K *dest, T *src, int n) {\
         if (! (threadIdx.x % (curLookahead*2))) {\
             tmp[threadIdx.x] += tmp[threadIdx.x + curLookahead];\
         }\
-        __syncthreads();\
+        if (curLookahead >= warpSize) {\
+            __syncthreads();\
+        }\
         curLookahead *= 2;\
     }\
     if (threadIdx.x == 0) {\
@@ -93,7 +110,7 @@ SUM(sumVector3D, length, make_float3);
 //
 #define SUM_TAGS(NAME, OPERATOR, WRAPPER) \
     template <class K, class T>\
-__global__ void NAME (K *dest, T *src, int n, unsigned int groupTag, float4 *fs) {\
+__global__ void NAME (K *dest, T *src, int n, unsigned int groupTag, float4 *fs, int warpSize) {\
     extern __shared__ K tmp[]; /*should have length of # threads in a block (PERBLOCK)  */\
     int potentialIdx = blockDim.x*blockIdx.x + threadIdx.x;\
     if (potentialIdx < n) {\
@@ -115,7 +132,9 @@ __global__ void NAME (K *dest, T *src, int n, unsigned int groupTag, float4 *fs)
             tmp[threadIdx.x] += tmp[threadIdx.x + curLookahead];\
         }\
         curLookahead *= 2;\
-        __syncthreads();\
+        if (curLookahead >= warpSize) {\
+            __syncthreads();\
+        }\
     }\
     if (threadIdx.x == 0) {\
         atomicAdd(dest, tmp[0]);\

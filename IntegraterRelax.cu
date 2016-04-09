@@ -95,6 +95,7 @@ double IntegraterRelax::run(int numTurns, num fTol) {
     double alpha = alphaInit;
     const double dtMax = dtMax_mult * dt;
 
+    int warpSize = state->devManager.prop.warpSize;
 
     //assuming constant number of atoms during run
     int atomssize=state->atoms.size();
@@ -144,7 +145,8 @@ double IntegraterRelax::run(int numTurns, num fTol) {
             sumVectorSqr3D<float,float4> <<<nblock,PERBLOCK,sizeof(float)*PERBLOCK>>>(
                                             VDotV.getDevData(),
                                             state->gpd.vs.getDevData(),
-                                            atomssize);
+                                            atomssize,
+                                            warpSize);
             CUT_CHECK_ERROR("vdotV_cu kernel execution failed");
             VDotV.dataToHost();
 
@@ -152,7 +154,8 @@ double IntegraterRelax::run(int numTurns, num fTol) {
             sumVectorSqr3D<float,float4> <<<nblock,PERBLOCK,sizeof(float)*PERBLOCK>>>(
                                             FDotF.getDevData(),
                                             state->gpd.fs.getDevData(),
-                                            atomssize);
+                                            atomssize,
+                                            warpSize);
             CUT_CHECK_ERROR("fdotF_cu kernel execution failed");
             FDotF.dataToHost();
 
@@ -204,7 +207,8 @@ double IntegraterRelax::run(int numTurns, num fTol) {
             sumVectorSqr3D<float,float4> <<<nblock,PERBLOCK,sizeof(float)*PERBLOCK>>>(
                                         force.getDevData(),
                                         state->gpd.fs.getDevData(),
-                                        atomssize);
+                                        atomssize,
+                                        warpSize);
             CUT_CHECK_ERROR("kernel execution failed");//Debug feature, check error code
 
             force.dataToHost();
@@ -231,7 +235,8 @@ double IntegraterRelax::run(int numTurns, num fTol) {
     sumVectorSqr3D<float,float4> <<<nblock,PERBLOCK,sizeof(float)*PERBLOCK>>>(
                                   force.getDevData(),
                                   state->gpd.fs.getDevData(),
-                                  atomssize);
+                                  atomssize,
+                                  warpSize);
     CUT_CHECK_ERROR("kernel execution failed");//Debug feature, check error code
 
     basicFinish();

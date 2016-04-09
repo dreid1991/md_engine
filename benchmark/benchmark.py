@@ -36,18 +36,18 @@ integVerlet = IntegraterVerlet(state)
 #engData = state.dataManager.recordEnergy('all', 100)
 
 writeconfig = WriteConfig(state, fn='test_out', writeEvery=50, format='xyz', handle='writer')
-#state.activateWriteConfig(writeconfig)
-integVerlet.run(10000)#000000)
+state.activateWriteConfig(writeconfig)
+integVerlet.run(2000)#000000)
 print state.atoms[0].pos
 sumV = 0.
 for a in state.atoms:
     sumV += a.vel.lenSqr()
 print sumV / len(state.atoms)/3.0
 
-print boundsData.vals[0].getSide(1)
-print engData.turns[-1]
-print 'last eng %f' % engData.vals[-1]
-print state.turn
-print integVerlet.energyAverage('all')
+#print boundsData.vals[0].getSide(1)
+#print engData.turns[-1]
+#print 'last eng %f' % engData.vals[-1]
+#print state.turn
+#print integVerlet.energyAverage('all')
 perParticle = integVerlet.energyPerParticle()
 print sum(perParticle) / len(perParticle)

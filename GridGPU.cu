@@ -562,7 +562,7 @@ void setPerBlockCounts(vector<int> &neighborCounts, vector<int> &numNeighborsInB
     }
 }
 
-__global__ void setBuildFlag(float4 *xsA, float4 *xsB, int nAtoms, BoundsGPU boundsGPU, float paddingSqr, int *buildFlag, int numChecksSinceBuild) {
+__global__ void setBuildFlag(float4 *xsA, float4 *xsB, int nAtoms, BoundsGPU boundsGPU, float paddingSqr, int *buildFlag, int numChecksSinceBuild, int warpSize) {
     int idx = GETIDX();
     extern __shared__ short flags_shr[];
     if (idx < nAtoms) {
@@ -578,19 +578,19 @@ __global__ void setBuildFlag(float4 *xsA, float4 *xsB, int nAtoms, BoundsGPU bou
     }
    __syncthreads();
    //just took from parallel reduction in cutils_func
-   reduceByN<short>(flags_shr, blockDim.x);
+   reduceByN<short>(flags_shr, blockDim.x, warpSize);
     if (threadIdx.x == 0 and flags_shr[0] != 0) {
         buildFlag[0] = 1;
     }
 
 }
 void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort, bool forceBuild) {
+    int warpSize = state->devManager.prop.warpSize;
     //to do: remove sorting option.  Must sort every time if using mpi, and also I think building without sorting isn't even working right now
     if (neighCut == -1) {
         neighCut = neighCutoffMax;
     }
 
-    int warpSize = state->devManager.prop.warpSize;
     Vector nsV = Vector(make_float3(ns));
     int nAtoms = state->atoms.size();
     int activeIdx = state->gpd.activeIdx();
@@ -598,7 +598,7 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort, bool force
     //DO ASYNC COPY TO xsLastBuild
     //FINISH FUTURE WHICH SETS REBUILD FLAG BY NOW PLEASE
    // CUCHECK(cudaStreamSynchronize(rebuildCheckStream));
-    setBuildFlag<<<NBLOCK(nAtoms), PERBLOCK, PERBLOCK * sizeof(short)>>>(state->gpd.xs(activeIdx), xsLastBuild.data(), nAtoms, bounds, state->padding*state->padding, buildFlag.d_data.data(), numChecksSinceLastBuild);
+    setBuildFlag<<<NBLOCK(nAtoms), PERBLOCK, PERBLOCK * sizeof(short)>>>(state->gpd.xs(activeIdx), xsLastBuild.data(), nAtoms, bounds, state->padding*state->padding, buildFlag.d_data.data(), numChecksSinceLastBuild, warpSize);
     buildFlag.dataToHost();
     cudaDeviceSynchronize();
     //    cout << "I AM BUILDING" << endl;
