@@ -401,6 +401,7 @@ void GridGPU::initArrays() {
     perCellArray = GPUArray<uint32_t>(prod(ns) + 1);
     perAtomArray = GPUArray<uint16_t>(state->atoms.size()+1);
     perBlockArray = GPUArray<uint32_t>(NBLOCK(state->atoms.size()) + 1); //also cumulative sum, tracking cumul. sum of max per block
+    perBlockArray_maxNeighborsInBlock = GPUArrayDeviceGlobal<uint16_t>(NBLOCK(state->atoms.size())); //not +1 on this one, isn't cumul sum
     xsLastBuild = GPUArrayDeviceGlobal<float4>(state->atoms.size());
     //in prepare for run, you make GPU grid _after_ copying xs to device
     buildFlag = GPUArray<int>(1);
@@ -582,6 +583,40 @@ __global__ void setBuildFlag(float4 *xsA, float4 *xsB, int nAtoms, BoundsGPU bou
     }
 
 }
+
+
+
+__global__ void computeMaxNumNeighPerBlock(int nAtoms, uint16_t *neighborCounts, uint16_t *maxNeighInBlock, int warpSize) {
+    int idx = GETIDX();
+    extern __shared__ uint16_t counts_shr[];
+    if (idx < nAtoms) {
+        uint16_t count = neighborCounts[idx];
+        counts_shr[threadIdx.x] = count;
+    } else {
+        counts_shr[threadIdx.x] = 0;
+    }
+    __syncthreads();
+    maxByN<uint16_t>(counts_shr, blockDim.x, warpSize);
+    if (threadIdx.x == 0) {
+        maxNeighInBlock[blockIdx.x] = counts_shr[0];
+    }
+
+
+
+}
+__global__ void setCumulativeSumPerBlock(int numBlocks, uint32_t *perBlockArray, uint16_t *maxNeighborsInBlock) {
+    int idx = GETIDX();
+    //doing this in simplest way possible, can optimize later if problem
+    if (idx < numBlocks+1) {
+        uint32_t sum = 0;
+        for (int i=0; i<idx; i++) {
+            sum += maxNeighborsInBlock[i];
+
+        }
+        perBlockArray[idx] = sum;
+    }
+}
+
 void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort, bool forceBuild) {
     int warpSize = state->devManager.prop.warpSize;
     //to do: remove sorting option.  Must sort every time if using mpi, and also I think building without sorting isn't even working right now
@@ -613,21 +648,13 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort, bool force
         }
         periodicWrap<<<NBLOCK(nAtoms), PERBLOCK>>>(state->gpd.xs(activeIdx), nAtoms, boundsUnskewed);
         //SAFECALL(periodicWrap<<<NBLOCK(nAtoms), PERBLOCK>>>(state->gpd.xs(activeIdx), nAtoms, boundsUnskewed));
-     //   float4 *xs = state->gpd.xs.getDevData();
-        //cout << "I am here to help" << endl;
-        //printBiz<<<NBLOCK(state->atoms.size()), PERBLOCK>>>(state->gpd.xs(activeIdx), state->atoms.size());
-      //  cout << state->gpd.xs.size << endl;
-      //  cudaDeviceSynchronize();
-        //for (int i=0; i<state->atoms.size(); i++) {
-        //    cout << Vector(xs[i]) << endl;
-        //}
+   
         int numGridCells = prod(ns);
         if (numGridCells + 1 != perCellArray.size()) {
             perCellArray = GPUArray<uint32_t>(numGridCells + 1);
         }
         perCellArray.d_data.memset(0);
         perAtomArray.d_data.memset(0);
-      //  cudaDeviceSynchronize();
         countNumInGridCells<<<NBLOCK(nAtoms), PERBLOCK>>>(state->gpd.xs(activeIdx), nAtoms, perCellArray.d_data.data(), perAtomArray.d_data.data(), os, ds, ns);
         //SAFECALL(countNumInGridCells<<<NBLOCK(nAtoms), PERBLOCK>>>(state->gpd.xs(activeIdx), nAtoms, perCellArray.d_data.data(), perAtomArray.d_data.data(), os, ds, ns));
         //countNumInGridCells<<<NBLOCK(nAtoms), PERBLOCK>>>(state->gpd.xs(activeIdx), nAtoms, perCellArray.d_data.data(), perAtomArray.d_data.data(), os, ds, ns);
@@ -676,13 +703,24 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort, bool force
         perAtomArray.d_data.memset(0);
         //SAFECALL(countNumNeighbors<<<NBLOCK(nAtoms), PERBLOCK>>>(state->gpd.xs(gridIdx), nAtoms, state->gpd.idToIdxs.getTex(), state->gpd.ids(gridIdx), perAtomArray.d_data.data(), perCellArray.d_data.data(), os, ds, ns, bounds.periodic, trace, neighCut*neighCut, doSort));
         countNumNeighbors<<<NBLOCK(nAtoms), PERBLOCK>>>(state->gpd.xs(gridIdx), nAtoms, state->gpd.idToIdxs.getTex(), state->gpd.ids(gridIdx), perAtomArray.d_data.data(), perCellArray.d_data.data(), os, ds, ns, bounds.periodic, trace, neighCut*neighCut, doSort);//, state->gpd.nlistExclusionIdxs.getTex(), state->gpd.nlistExclusions.getTex(), state->maxExclusions);
-        perAtomArray.dataToHost();
+
+        computeMaxNumNeighPerBlock<<<NBLOCK(nAtoms), PERBLOCK, PERBLOCK*sizeof(uint16_t)>>>(nAtoms, perAtomArray.d_data.data(), perBlockArray_maxNeighborsInBlock.data(), warpSize);
+
+        int numBlocks = perBlockArray_maxNeighborsInBlock.size();
+        setCumulativeSumPerBlock<<<NBLOCK(numBlocks+1), PERBLOCK>>>(numBlocks, perBlockArray.d_data.data(), perBlockArray_maxNeighborsInBlock.data());
+        uint32_t cumulSumPerBlock;
+
+        perBlockArray.d_data.getWithOffset(&cumulSumPerBlock, numBlocks, 1);
         cudaDeviceSynchronize();
         
-        setPerBlockCounts(perAtomArray.h_data, perBlockArray.h_data);  //okay, now this is the start index (+1 is end index) of each atom's neighbors
-        perBlockArray.dataToDevice();
+       // perAtomArray.dataToHost();
+       // cudaDeviceSynchronize();
+        
+       // setPerBlockCounts(perAtomArray.h_data, perBlockArray.h_data);  //okay, now this is the start index (+1 is end index) of each atom's neighbors
+        //perBlockArray.dataToDevice();
 
-        int totalNumNeighbors = perBlockArray.h_data.back() * PERBLOCK;
+        //int totalNumNeighbors = perBlockArray.h_data.back() * PERBLOCK;
+        int totalNumNeighbors = cumulSumPerBlock * PERBLOCK;
         //cout << "TOTAL NUM IS " << totalNumNeighbors << endl;
         if (totalNumNeighbors > neighborlist.size()) {
             neighborlist = GPUArrayDeviceGlobal<uint>(totalNumNeighbors*1.5);

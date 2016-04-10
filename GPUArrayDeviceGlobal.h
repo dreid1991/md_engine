@@ -92,6 +92,14 @@ public:
                                                 cudaMemcpyDeviceToHost));
         return copyTo;
     }
+    T *getWithOffset(T *copyTo, int offset, int num) {
+        if (copyTo == (T *) NULL) {
+            copyTo = (T *) malloc(n*sizeof(T));
+        }
+        CUCHECK(cudaMemcpy(copyTo, ptr+offset, num*sizeof(T),
+                                                cudaMemcpyDeviceToHost));
+        return copyTo;
+    }
 
     /*! \brief Copy data to pointer asynchronously
      *

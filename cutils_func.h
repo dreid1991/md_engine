@@ -49,7 +49,14 @@ inline __device__ void maxByN(T *src, int span, int warpSize) { // where span is
     int curLookahead = 1;
     while (curLookahead <= maxLookahead) {
         if (! (threadIdx.x % (curLookahead*2))) {
-            src[threadIdx.x] = fmax(src[threadIdx.x], src[threadIdx.x + curLookahead]);
+            T a = src[threadIdx.x];
+            T b = src[threadIdx.x + curLookahead];
+            //max isn't defined for all types in cuda
+            if (a > b) {
+                src[threadIdx.x] = a;
+            } else {
+                src[threadIdx.x] = b;
+            }
         }
         curLookahead *= 2;
         if (curLookahead >= warpSize) {
