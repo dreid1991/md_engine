@@ -5,22 +5,20 @@
 #include "globalDefs.h"
 #include "cutils_math.h"
 
-template <class T>
-__device__ int baseNeighlistIdx(int *cumulSumMaxPerBlock, int warpSize) { 
-    int cumulSumUpToMe = cumulSumMaxPerBlock[blockIdx.x];
-    int maxNeighInMyBlock = cumulSumMaxPerBlock[blockIdx.x+1] - cumulSumUpToMe;
+inline __device__ int baseNeighlistIdx(uint32_t *cumulSumMaxPerBlock, int warpSize) { 
+    uint32_t cumulSumUpToMe = cumulSumMaxPerBlock[blockIdx.x];
+    uint32_t maxNeighInMyBlock = cumulSumMaxPerBlock[blockIdx.x+1] - cumulSumUpToMe;
     int myWarp = threadIdx.x / warpSize;
     int myIdxInWarp = threadIdx.x % warpSize;
     return blockDim.x * cumulSumMaxPerBlock[blockIdx.x] + maxNeighInMyBlock * warpSize * myWarp + myIdxInWarp;
 }
 
-template <class T>
-__device__ int baseNeighlistIdxFromIndex(int *cumulSumMaxPerBlock, int warpSize, int idx) {
+inline __device__ int baseNeighlistIdxFromIndex(uint32_t *cumulSumMaxPerBlock, int warpSize, int idx) {
     int blockIdx = idx / blockDim.x;
     int warpIdx = (idx - blockIdx * blockDim.x) / warpSize;
     int idxInWarp = idx - blockIdx * blockDim.x - warpIdx * warpSize;
-    int cumSumUpToMyBlock = cumulSumMaxPerBlock[blockIdx];
-    int perAtomMyWarp = cumulSumMaxPerBlock[blockIdx+1] - cumSumUpToMyBlock;
+    uint32_t cumSumUpToMyBlock = cumulSumMaxPerBlock[blockIdx];
+    uint32_t perAtomMyWarp = cumulSumMaxPerBlock[blockIdx+1] - cumSumUpToMyBlock;
     int baseIdx = blockDim.x * cumSumUpToMyBlock + perAtomMyWarp * warpSize * warpIdx + idxInWarp;
     return baseIdx;
 

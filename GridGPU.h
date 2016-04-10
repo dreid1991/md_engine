@@ -59,9 +59,9 @@ class GridGPU {
      */
     bool checkSorting(int gridIdx, int *gridIdxs, GPUArrayDeviceGlobal<int> &grid);
     public: 
-        GPUArray<int> perCellArray; //!< Number of atoms in a given grid cell
-        GPUArray<int> perBlockArray; //!< Number of neighbors in a GPU block
-        GPUArray<int> perAtomArray; //!< For each atom, store the place in the
+        GPUArray<uint32_t> perCellArray; //!< Number of atoms in a given grid cell, later starting index of cell in neighborlist
+        GPUArray<uint32_t> perBlockArray; //!< Number of neighbors in a GPU block
+        GPUArray<uint16_t> perAtomArray; //!< For each atom, store the place in the
                                     //!< grid
         GPUArrayDeviceGlobal<float4> xsLastBuild; //!< Contains the atom positions at
                                             //!< the time of the last build.

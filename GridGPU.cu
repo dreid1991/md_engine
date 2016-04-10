@@ -11,14 +11,14 @@
 #include "cutils_math.h"
 
 //for debugging
-__global__ void countNumInGridCells(float4 *xs, int nAtoms, int *counts, int *atomIdxs, float3 os, float3 ds, int3 ns) {
+__global__ void countNumInGridCells(float4 *xs, int nAtoms, uint32_t *counts, uint16_t *atomIdxs, float3 os, float3 ds, int3 ns) {
     int idx = GETIDX();
     if (idx < nAtoms) {
         //printf("idx %d\n", idx);
         int3 sqrIdx = make_int3((make_float3(xs[idx]) - os) / ds);
         int sqrLinIdx = LINEARIDX(sqrIdx, ns);
         //printf("lin is %d\n", sqrLinIdx);
-        int myPlaceInGrid;
+        uint16_t myPlaceInGrid;
         myPlaceInGrid = atomicAdd(counts + sqrLinIdx, 1); //atomicAdd returns old value
         //printf("grid is %d\n", myPlaceInGrid);
         //printf("myPlaceInGrid %d\n", myPlaceInGrid);
@@ -125,7 +125,7 @@ __global__ void sortPerAtomArrays(
         float *qsFrom, float *qsTo,
 
         cudaSurfaceObject_t idToIdx,
-        int *gridCellArrayIdxs, int *idxInGridCell, int nAtoms, float3 os, float3 ds, int3 ns) {
+        uint32_t *gridCellArrayIdxs, uint16_t *idxInGridCell, int nAtoms, float3 os, float3 ds, int3 ns) {
 
     int idx = GETIDX();
     if (idx < nAtoms) {
@@ -162,7 +162,7 @@ __global__ void sortPerAtomArrays(
 }
 
 
-__global__ void gridNonSort(float4 *xs, float4 *xsGrid, uint *ids, uint *idsGrid, int nAtoms, int *gridCellArrayIdxs, int *idxInGridCell, float3 os, float3 ds, int3 ns) {
+__global__ void gridNonSort(float4 *xs, float4 *xsGrid, uint *ids, uint *idsGrid, int nAtoms, uint32_t *gridCellArrayIdxs, uint16_t *idxInGridCell, float3 os, float3 ds, int3 ns) {
     int idx = GETIDX();
     if (idx < nAtoms) {
 
@@ -181,9 +181,9 @@ __global__ void gridNonSort(float4 *xs, float4 *xsGrid, uint *ids, uint *idsGrid
 
 
 
-__device__ void checkCell(float3 pos, int idx, uint myId, int myIdx, float4 *xs, uint *ids, int &myCount, int *gridCellArrayIdxs, cudaTextureObject_t idToIdxs, int squareIdx, float3 offset, float3 trace, float neighCutSqr) {
-    int idxMin = gridCellArrayIdxs[squareIdx];
-    int idxMax = gridCellArrayIdxs[squareIdx+1];
+__device__ void checkCell(float3 pos, int idx, uint myId, int myIdx, float4 *xs, uint *ids, int &myCount, uint32_t *gridCellArrayIdxs, cudaTextureObject_t idToIdxs, int squareIdx, float3 offset, float3 trace, float neighCutSqr) {
+    uint32_t idxMin = gridCellArrayIdxs[squareIdx];
+    uint32_t idxMax = gridCellArrayIdxs[squareIdx+1];
     float3 loop = offset * trace;
     for (int i=idxMin; i<idxMax; i++) {
         float4 otherPosWhole = xs[i];
@@ -197,7 +197,7 @@ __device__ void checkCell(float3 pos, int idx, uint myId, int myIdx, float4 *xs,
 
     }
 }
-__global__ void countNumNeighbors(float4 *xs, int nAtoms, cudaTextureObject_t idToIdxs, uint *ids, int *neighborCounts, int *gridCellArrayIdxs, float3 os, float3 ds, int3 ns, float3 periodic, float3 trace, float neighCutSqr, bool justSorted) {
+__global__ void countNumNeighbors(float4 *xs, int nAtoms, cudaTextureObject_t idToIdxs, uint *ids, uint16_t *neighborCounts, uint32_t *gridCellArrayIdxs, float3 os, float3 ds, int3 ns, float3 periodic, float3 trace, float neighCutSqr, bool justSorted) {
 
     int idx = GETIDX();
     if (idx < nAtoms) {
@@ -265,7 +265,7 @@ __device__ uint addExclusion(uint otherId, uint *exclusionIds_shr, int idxLo, in
     return 0;
 }
 
-__device__ int assignFromCell(float3 pos, int idx, uint myId, float4 *xs, uint *ids, int *nlistIdxs, int *gridCellArrayIdxs, cudaTextureObject_t idToIdxs, int squareIdx, float3 offset, float3 trace, float neighCutSqr, int currentNeighborIdx, uint *neighborlist, bool justSorted, uint *exclusionIds_shr, int exclIdxLo_shr, int exclIdxHi_shr, int warpSize) {
+__device__ int assignFromCell(float3 pos, int idx, uint myId, float4 *xs, uint *ids, uint32_t *gridCellArrayIdxs, cudaTextureObject_t idToIdxs, int squareIdx, float3 offset, float3 trace, float neighCutSqr, int currentNeighborIdx, uint *neighborlist, bool justSorted, uint *exclusionIds_shr, int exclIdxLo_shr, int exclIdxHi_shr, int warpSize) {
     uint idxMin = gridCellArrayIdxs[squareIdx];
     uint idxMax = gridCellArrayIdxs[squareIdx+1];
     for (uint i=idxMin; i<idxMax; i++) {
@@ -300,7 +300,7 @@ __device__ int assignFromCell(float3 pos, int idx, uint myId, float4 *xs, uint *
     }
     return currentNeighborIdx;
 }
-__global__ void assignNeighbors(float4 *xs, int nAtoms, cudaTextureObject_t idToIdxs, uint *ids, int *nlistIdxs, int *gridCellArrayIdxs, int *cumulSumMaxPerBlock, float3 os, float3 ds, int3 ns, float3 periodic, float3 trace, float neighCutSqr, bool justSorted, uint *neighborlist, int warpSize, int *exclusionIndexes, uint *exclusionIds, int maxExclusionsPerAtom) {
+__global__ void assignNeighbors(float4 *xs, int nAtoms, cudaTextureObject_t idToIdxs, uint *ids, uint32_t *gridCellArrayIdxs, uint32_t *cumulSumMaxPerBlock, float3 os, float3 ds, int3 ns, float3 periodic, float3 trace, float neighCutSqr, bool justSorted, uint *neighborlist, int warpSize, int *exclusionIndexes, uint *exclusionIds, int maxExclusionsPerAtom) {
   ///  extern __shared__ int exclusions_shr[]; 
 
     extern __shared__ uint exclusionIds_shr[];
@@ -344,16 +344,14 @@ __global__ void assignNeighbors(float4 *xs, int nAtoms, cudaTextureObject_t idTo
     //YOU JUST NEED TO UPDATE HOW WE CHECK EXCLUSIONS (IDXS IN SHEARED)
     if (idx < nAtoms) {
         //printf("threadid %d idx %x has lo, hi of %d, %d\n", threadIdx.x, idx, exclIdxLo_shr, exclIdxHi_shr);
-        //not really template, figure out if can link externs later
-        //HEY, so this is a problem, because it gets the index as if it were the index in the active list, BUT IF YOU DIDN'T SORT, THAT'S NOT TRUE.  So what you need to do is if you didn't sort, index = idxFromId, otherwise threadIdx
         int currentNeighborIdx;
         if (justSorted) {
-            currentNeighborIdx = baseNeighlistIdx<void>(cumulSumMaxPerBlock, warpSize);
+            currentNeighborIdx = baseNeighlistIdx(cumulSumMaxPerBlock, warpSize);
         } else {
             int xIdxID = XIDX(myId, sizeof(int));
             int yIdxID = YIDX(myId, sizeof(int));
             uint myIdx = tex2D<int>(idToIdxs, xIdxID, yIdxID);
-            currentNeighborIdx = baseNeighlistIdxFromIndex<void>(cumulSumMaxPerBlock, warpSize, myIdx);
+            currentNeighborIdx = baseNeighlistIdxFromIndex(cumulSumMaxPerBlock, warpSize, myIdx);
 
         }
 
@@ -386,7 +384,7 @@ __global__ void assignNeighbors(float4 *xs, int nAtoms, cudaTextureObject_t idTo
                                 int sqrIdxOtherLin = LINEARIDX(sqrIdxOther, ns);
 
 //__device__ int assignFromCell(float3 pos, int idx, uint myId, float4 *xs, uint *ids, int *nlistIdxs, int *gridCellArrayIdxs, cudaTextureObject_t idToIdxs, int squareIdx, float3 offset, float3 trace, float neighCutSqr, int currentNeighborIdx, cudaSurfaceObject_t neighborlist, bool justSorted, uint *exclusionIds_shr, int exclIdxLo_shr, int exclIdxHi_shr) {
-                                currentNeighborIdx = assignFromCell(pos, idx, myId, xs, ids, nlistIdxs, gridCellArrayIdxs, idToIdxs, sqrIdxOtherLin, -offset, trace, neighCutSqr, currentNeighborIdx, neighborlist, justSorted, exclusionIds_shr, exclIdxLo_shr, exclIdxHi_shr, warpSize);
+                                currentNeighborIdx = assignFromCell(pos, idx, myId, xs, ids, gridCellArrayIdxs, idToIdxs, sqrIdxOtherLin, -offset, trace, neighCutSqr, currentNeighborIdx, neighborlist, justSorted, exclusionIds_shr, exclIdxLo_shr, exclIdxHi_shr, warpSize);
 
                             }
                         }
@@ -400,9 +398,9 @@ __global__ void assignNeighbors(float4 *xs, int nAtoms, cudaTextureObject_t idTo
 }
 
 void GridGPU::initArrays() {
-    perCellArray = GPUArray<int>(prod(ns) + 1);
-    perAtomArray = GPUArray<int>(state->atoms.size()+1);
-    perBlockArray = GPUArray<int>(NBLOCK(state->atoms.size()) + 1); //also cumulative sum, tracking cumul. sum of max per block
+    perCellArray = GPUArray<uint32_t>(prod(ns) + 1);
+    perAtomArray = GPUArray<uint16_t>(state->atoms.size()+1);
+    perBlockArray = GPUArray<uint32_t>(NBLOCK(state->atoms.size()) + 1); //also cumulative sum, tracking cumul. sum of max per block
     xsLastBuild = GPUArrayDeviceGlobal<float4>(state->atoms.size());
     //in prepare for run, you make GPU grid _after_ copying xs to device
     buildFlag = GPUArray<int>(1);
@@ -547,13 +545,13 @@ void __global__ addExclusions(int nAtoms, cudaSurfaceObject_t nlist, int *nlistI
 }
 */
 
-void setPerBlockCounts(vector<int> &neighborCounts, vector<int> &numNeighborsInBlocks) {
+void setPerBlockCounts(vector<uint16_t> &neighborCounts, vector<uint32_t> &numNeighborsInBlocks) {
     numNeighborsInBlocks[0] = 0;
     for (int i=0; i<numNeighborsInBlocks.size()-1; i++) {
-        int maxNeigh = 0;
+        uint16_t maxNeigh = 0;
         int maxIdx = fmin(neighborCounts.size()-1, (i+1)*PERBLOCK);
         for (int j=i*PERBLOCK; j<maxIdx; j++) {
-            int numNeigh = neighborCounts[j];
+            uint16_t numNeigh = neighborCounts[j];
             //cout << "summing at idx " << j << ", it has " << numNeigh << endl;
             maxNeigh = fmax(numNeigh, maxNeigh);
         }
@@ -625,7 +623,7 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort, bool force
         //}
         int numGridCells = prod(ns);
         if (numGridCells + 1 != perCellArray.size()) {
-            perCellArray = GPUArray<int>(numGridCells + 1);
+            perCellArray = GPUArray<uint32_t>(numGridCells + 1);
         }
         perCellArray.d_data.memset(0);
         perAtomArray.d_data.memset(0);
@@ -635,8 +633,8 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort, bool force
         //countNumInGridCells<<<NBLOCK(nAtoms), PERBLOCK>>>(state->gpd.xs(activeIdx), nAtoms, perCellArray.d_data.data(), perAtomArray.d_data.data(), os, ds, ns);
         perCellArray.dataToHost();
         cudaDeviceSynchronize();
-        int *gridCellCounts_h = perCellArray.h_data.data();
-        
+        uint32_t *gridCellCounts_h = perCellArray.h_data.data();
+        // maybe can do this on gpu amd avoid data transfer
         cumulativeSum(gridCellCounts_h, perCellArray.size());//repurposing this as starting indexes for each grid square
         perCellArray.dataToDevice();
         int gridIdx;
@@ -669,6 +667,7 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort, bool force
             gridIdx = activeIdx;
         } else { //otherwise, just use non-active xs array as grid storage
             //gridCPU(state->gpd.xs, activeIdx, nAtoms, perCellArray, perAtomArray, os, ds, ns);
+            assert(false); // this option does not work and should never be used anyway b/c need to sort each build to run on multiple gpus
             gridNonSort<<<NBLOCK(nAtoms), PERBLOCK>>>(state->gpd.xs(activeIdx), state->gpd.xs(!activeIdx), state->gpd.ids(activeIdx), state->gpd.ids(!activeIdx), nAtoms, perCellArray.d_data.data(), perAtomArray.d_data.data(), os, ds, ns);
             gridIdx = !activeIdx;
 
@@ -711,7 +710,6 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort, bool force
                 nAtoms, 
                 state->gpd.idToIdxs.getTex(), 
                 state->gpd.ids(gridIdx),
-                perAtomArray.d_data.data(),
                 perCellArray.d_data.data(),
                 perBlockArray.d_data.data(),
                 os, ds, ns, bounds.periodic, trace, neighCut*neighCut, doSort, neighborlist.data(), warpSize,
@@ -753,7 +751,7 @@ bool GridGPU::verifyNeighborlists(float neighCut) {
     uint *nlist = neighborlist.get((uint *) NULL);
     float cutSqr = neighCut * neighCut;
     perAtomArray.dataToHost();
-    int *neighCounts = perAtomArray.h_data.data();
+    uint16_t *neighCounts = perAtomArray.h_data.data();
     state->gpd.xs.dataToHost();
     state->gpd.ids.dataToHost();
     cudaDeviceSynchronize();

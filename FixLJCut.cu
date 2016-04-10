@@ -11,7 +11,7 @@ FixLJCut::FixLJCut(SHARED(State) state_, string handle_, string groupHandle_) : 
 
 
 
-__global__ void compute_cu(int nAtoms, float4 *xs, float4 *fs, int *neighborCounts, uint *neighborlist, int *cumulSumMaxPerBlock, int warpSize, float *sigs, float *eps, float *rCutSqrs, int numTypes,  BoundsGPU bounds, float onetwoStr, float onethreeStr, float onefourStr) {
+__global__ void compute_cu(int nAtoms, float4 *xs, float4 *fs, uint16_t *neighborCounts, uint *neighborlist, uint32_t *cumulSumMaxPerBlock, int warpSize, float *sigs, float *eps, float *rCutSqrs, int numTypes,  BoundsGPU bounds, float onetwoStr, float onethreeStr, float onefourStr) {
     float multipliers[4] = {1, onetwoStr, onethreeStr, onefourStr};
     extern __shared__ float paramsAll[];
     int sqrSize = numTypes*numTypes;
@@ -25,7 +25,7 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *fs, int *neighborCoun
 
     int idx = GETIDX();
     if (idx < nAtoms) {
-        int baseIdx = baseNeighlistIdx<void>(cumulSumMaxPerBlock, warpSize);
+        int baseIdx = baseNeighlistIdx(cumulSumMaxPerBlock, warpSize);
         float4 posWhole = xs[idx];
         int type = * (int *) &posWhole.w;
        // printf("type is %d\n", type);
@@ -81,7 +81,7 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *fs, int *neighborCoun
 
 }
 
-__global__ void computeEng_cu(int nAtoms, float4 *xs, float *perParticleEng, int *neighborCounts, uint *neighborlist, int *cumulSumMaxPerBlock, int warpSize, float *sigs, float *eps, float *rCuts, int numTypes, BoundsGPU bounds, float onetwoStr, float onethreeStr, float onefourStr) {
+__global__ void computeEng_cu(int nAtoms, float4 *xs, float *perParticleEng, uint16_t *neighborCounts, uint *neighborlist, uint32_t *cumulSumMaxPerBlock, int warpSize, float *sigs, float *eps, float *rCuts, int numTypes, BoundsGPU bounds, float onetwoStr, float onethreeStr, float onefourStr) {
     float multipliers[4] = {1, onetwoStr, onethreeStr, onefourStr};
     extern __shared__ float paramsAll[];
     int sqrSize = numTypes*numTypes;
@@ -95,7 +95,7 @@ __global__ void computeEng_cu(int nAtoms, float4 *xs, float *perParticleEng, int
 
     int idx = GETIDX();
     if (idx < nAtoms) {
-        int baseIdx = baseNeighlistIdx<void>(cumulSumMaxPerBlock, warpSize);
+        int baseIdx = baseNeighlistIdx(cumulSumMaxPerBlock, warpSize);
         float4 posWhole = xs[idx];
         int type = * (int *) &posWhole.w;
        // printf("type is %d\n", type);
@@ -148,7 +148,7 @@ void FixLJCut::compute(bool computeVirials) {
     GPUData &gpd = state->gpd;
     GridGPU &grid = state->gridGPU;
     int activeIdx = gpd.activeIdx();
-    int *neighborCounts = grid.perAtomArray.d_data.data();
+    uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
     float *neighborCoefs = state->specialNeighborCoefs;
 
     compute_cu<<<NBLOCK(nAtoms), PERBLOCK, 3*numTypes*numTypes*sizeof(float)>>>(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx), neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, sigmas.getDevData(), epsilons.getDevData(), rCuts.getDevData(), numTypes, state->boundsGPU, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2]);
@@ -163,7 +163,7 @@ void FixLJCut::singlePointEng(float *perParticleEng) {
     GPUData &gpd = state->gpd;
     GridGPU &grid = state->gridGPU;
     int activeIdx = gpd.activeIdx();
-    int *neighborCounts = grid.perAtomArray.d_data.data();
+    uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
     float *neighborCoefs = state->specialNeighborCoefs;
 
     computeEng_cu<<<NBLOCK(nAtoms), PERBLOCK, 3*numTypes*numTypes*sizeof(float)>>>(nAtoms, gpd.xs(activeIdx), perParticleEng, neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, sigmas.getDevData(), epsilons.getDevData(), rCuts.getDevData(), numTypes, state->boundsGPU, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2]);

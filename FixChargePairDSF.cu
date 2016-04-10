@@ -15,7 +15,7 @@
 
 
 //    compute_cu<<<NBLOCK(nAtoms), PERBLOCK>>>(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx), neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), gpd.qs(activeIdx), alpha, r_cut, A, shift, state->boundsGPU, state->devManager.prop.warpSize, 0.5);// state->devManager.prop.warpSize, sigmas.getDevData(), epsilons.getDevData(), numTypes, state->rCut, state->boundsGPU, oneFourStrength);
-__global__ void compute_charge_pair_DSF_cu(int nAtoms, float4 *xs, float4 *fs, int *neighborCounts, uint *neighborlist, int *cumulSumMaxPerBlock, float *qs, float alpha, float rCut,float A, float shift, BoundsGPU bounds, int warpSize, float onetwoStr, float onethreeStr, float onefourStr) {
+__global__ void compute_charge_pair_DSF_cu(int nAtoms, float4 *xs, float4 *fs, uint16_t *neighborCounts, uint *neighborlist, uint32_t *cumulSumMaxPerBlock, float *qs, float alpha, float rCut,float A, float shift, BoundsGPU bounds, int warpSize, float onetwoStr, float onethreeStr, float onefourStr) {
 
     float multipliers[4] = {1, onetwoStr, onethreeStr, onefourStr};
     int idx = GETIDX();
@@ -27,7 +27,7 @@ __global__ void compute_charge_pair_DSF_cu(int nAtoms, float4 *xs, float4 *fs, i
         float qi = qs[idx];//tex2D<float>(qs, XIDX(idx, sizeof(float)), YIDX(idx, sizeof(float)));
 
         //printf("start, end %d %d\n", start, end);
-        int baseIdx = baseNeighlistIdx<void>(cumulSumMaxPerBlock, warpSize);
+        int baseIdx = baseNeighlistIdx(cumulSumMaxPerBlock, warpSize);
         int numNeigh = neighborCounts[idx];
         for (int i=0; i<numNeigh; i++) {
             int nlistIdx = baseIdx + warpSize * i;
@@ -76,7 +76,7 @@ void FixChargePairDSF::compute(bool computeVirials) {
     GPUData &gpd = state->gpd;
     GridGPU &grid = state->gridGPU;
     int activeIdx = gpd.activeIdx();
-    int *neighborCounts = grid.perAtomArray.d_data.data();
+    uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
     float *neighborCoefs = state->specialNeighborCoefs;
     compute_charge_pair_DSF_cu<<<NBLOCK(nAtoms), PERBLOCK>>>(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx), neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), gpd.qs(activeIdx), alpha, r_cut, A, shift, state->boundsGPU, state->devManager.prop.warpSize, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2]);// state->devManager.prop.warpSize, sigmas.getDevData(), epsilons.getDevData(), numTypes, state->rCut, state->boundsGPU, oneFourStrength);
   //  compute_charge_pair_DSF_cu<<<NBLOCK(nAtoms), PERBLOCK>>>(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx), neighborIdxs, grid.neighborlist.tex, gpd.qs(activeIdx), alpha,r_cut, A,shift, state->boundsGPU, 0.5);

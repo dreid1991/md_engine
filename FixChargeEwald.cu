@@ -294,7 +294,7 @@ __global__ void Ewald_long_range_forces_order_3_cu(int nAtoms, float4 *xs, float
 }
 
 
-__global__ void compute_short_range_forces_cu(int nAtoms, float4 *xs, float4 *fs, int *neighborCounts, uint *neighborlist, int *cumulSumMaxPerBlock, float *qs, float alpha, float rCut, BoundsGPU bounds, int warpSize, float onetwoStr, float onethreeStr, float onefourStr) {
+__global__ void compute_short_range_forces_cu(int nAtoms, float4 *xs, float4 *fs, uint16_t *neighborCounts, uint *neighborlist, uint32_t *cumulSumMaxPerBlock, float *qs, float alpha, float rCut, BoundsGPU bounds, int warpSize, float onetwoStr, float onethreeStr, float onefourStr) {
 
     float multipliers[4] = {1, onetwoStr, onethreeStr, onefourStr};
     int idx = GETIDX();
@@ -305,7 +305,7 @@ __global__ void compute_short_range_forces_cu(int nAtoms, float4 *xs, float4 *fs
         float3 forceSum = make_float3(0, 0, 0);
         float qi = qs[idx];
 
-        int baseIdx = baseNeighlistIdx<void>(cumulSumMaxPerBlock, warpSize);
+        int baseIdx = baseNeighlistIdx(cumulSumMaxPerBlock, warpSize);
         int numNeigh = neighborCounts[idx];
         for (int i=0; i<numNeigh; i++) {
             int nlistIdx = baseIdx + warpSize * i;
@@ -469,7 +469,7 @@ void FixChargeEwald::compute(bool computeVirials) {
     GPUData &gpd = state->gpd;
     GridGPU &grid = state->gridGPU;
     int activeIdx = gpd.activeIdx();
-    int *neighborCounts = grid.perAtomArray.d_data.data();
+    uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
     
     if (first_run){
         first_run=false;
