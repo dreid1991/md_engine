@@ -40,6 +40,10 @@ public:
      */
     size_t capacity() const { return cap; }
 
+private:
+    /*! \brief Allocate memory for the array */
+    virtual void allocate() = 0;
+
 protected:
     size_t n; //!< Number of elements stored in the array
     size_t cap; //!< Capacity of allocated memory

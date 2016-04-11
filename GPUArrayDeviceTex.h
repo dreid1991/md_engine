@@ -48,7 +48,7 @@ public:
           channelDesc(desc)
     {
         initializeDescriptions();
-        allocDevice();
+        allocate();
         createTexSurfObjs();
     }
 
@@ -61,7 +61,7 @@ public:
           channelDesc(other.channelDesc)
     {
         initializeDescriptions();
-        allocDevice();
+        allocate();
         CUCHECK(cudaMemcpy2DArrayToArray(data(), 0, 0, other.data(), 0, 0,
                                          NX() * sizeof(T), NY(),
                                          cudaMemcpyDeviceToDevice));
@@ -145,16 +145,6 @@ public:
         texDesc.readMode = cudaReadModeElementType;
     }
 
-    /*! \brief Allocate memory on the Texture device */
-    void allocDevice() {
-        int x = NX();
-        int y = NY();
-        CUCHECK(cudaMallocArray(&d_data, &channelDesc, x, y) );
-        cap = x*y;
-        //assuming address gets set in blocking manner
-        resDesc.res.array.array = data();
-    }
-
     /*! \brief Create Texture and Surface Objects */
     void createTexSurfObjs() {
 
@@ -217,7 +207,7 @@ public:
         if (n_ > capacity()) {
             destroyDevice();
             n = n_;
-            allocDevice();
+            allocate();
             createTexSurfObjs();
         } else {
             n = n_;
@@ -308,6 +298,19 @@ public:
         MEMSETFUNC(surf, &val_, size(), sizeof(T));
     }
 
+private:
+    /*! \brief Allocate memory on the Texture device */
+    void allocate() {
+        int x = NX();
+        int y = NY();
+        CUCHECK(cudaMallocArray(&d_data, &channelDesc, x, y) );
+        cap = x*y;
+        //assuming address gets set in blocking manner
+        resDesc.res.array.array = data();
+    }
+
+
+public:
     cudaTextureObject_t tex; //!< Texture object
     cudaSurfaceObject_t surf; //!< Texture surface
     cudaResourceDesc resDesc; //!< Resource descriptor
