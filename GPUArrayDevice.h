@@ -19,16 +19,30 @@ protected:
      *
      * \param size Size of the array
      */
-    GPUArrayDevice(size_t size = 0) : n(size) {}
+    GPUArrayDevice(size_t size = 0) : n(size), cap(0) {}
 
 public:
     /*! \brief Destructor */
     virtual ~GPUArrayDevice() = default;
 
+    /*! \brief Get the size of the array
+     *
+     * \return Number of elements stored in the array
+     */
     size_t size() const { return n; }
+
+    /*! \brief Get the capacity of the array
+     *
+     * \return Capacity
+     *
+     * The capacity is the number of elements that can be stored in the
+     * currently allocated memory.
+     */
+    size_t capacity() const { return cap; }
 
 protected:
     size_t n; //!< Number of elements stored in the array
+    size_t cap; //!< Capacity of allocated memory
 };
 
 #endif

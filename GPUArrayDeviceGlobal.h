@@ -41,6 +41,7 @@ public:
         : GPUArrayDevice(other.n), ptr(other.ptr)
     {
         other.n = 0;
+        other.cap = 0;
         other.ptr = (T *) NULL;
     }
 
@@ -67,6 +68,7 @@ public:
         n = other.n;
         ptr = other.ptr;
         other.n = 0;
+        other.cap = 0;
         other.ptr = (T *) NULL;
         return *this;
     }
@@ -190,11 +192,13 @@ public:
 
 private:
     /*! \brief Allocate memory */
-    void allocate() { CUCHECK(cudaMalloc(&ptr, n * sizeof(T))); }
+    void allocate() { CUCHECK(cudaMalloc(&ptr, n * sizeof(T))); cap = size(); }
 
     /*! \brief Deallocate memory */
     void deallocate() {
         CUCHECK(cudaFree(ptr));
+        n = 0;
+        cap = 0;
         ptr = (T *) NULL;
     }
 

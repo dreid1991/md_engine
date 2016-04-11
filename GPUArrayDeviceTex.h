@@ -25,14 +25,14 @@ public:
 
     /*! \brief Default constructor */
     GPUArrayDeviceTex()
-        : GPUArrayDevice(0), madeTex(false), d_data(nullptr), cap(0) {}
+        : GPUArrayDevice(0), madeTex(false), d_data(nullptr) {}
 
     /*! \brief Constructor
      *
      * \param desc_ Channel descriptor
      */
     GPUArrayDeviceTex(cudaChannelFormatDesc desc_)
-        : GPUArrayDevice(0), madeTex(false), d_data(nullptr), cap(0),
+        : GPUArrayDevice(0), madeTex(false), d_data(nullptr),
           channelDesc(desc_)
     {
         initializeDescriptions();
@@ -44,7 +44,7 @@ public:
      * \param desc Channel descriptor
      */
     GPUArrayDeviceTex(size_t size, cudaChannelFormatDesc desc)
-        : GPUArrayDevice(size), madeTex(false), d_data(nullptr), cap(0),
+        : GPUArrayDevice(size), madeTex(false), d_data(nullptr),
           channelDesc(desc)
     {
         initializeDescriptions();
@@ -58,7 +58,7 @@ public:
      */
     GPUArrayDeviceTex(const GPUArrayDeviceTex<T> &other)
         : GPUArrayDevice(other.size()), madeTex(false), d_data(nullptr),
-          cap(0), channelDesc(other.channelDesc)
+          channelDesc(other.channelDesc)
     {
         initializeDescriptions();
         allocDevice();
@@ -189,15 +189,6 @@ public:
         d_data = other.d_data;
     }
 
-    /*! \brief Get the capacity of the array
-     *
-     * \return Capacity
-     *
-     * The capacity is the number of elements that can be stored in the
-     * currently allocated memory.
-     */
-    size_t capacity() const { return cap; }
-
     /*! \brief Get size in x-dimension of Texture Array
      *
      * \return Size in x-dimension
@@ -324,8 +315,6 @@ public:
     bool madeTex; //!< True if texture has been created.
 
 private:
-    size_t cap; //!< Number of elements fitting into the currently allocated
-                //!< memory
     cudaArray *d_data; //!< Pointer to the data
     cudaChannelFormatDesc channelDesc; //!< Descriptor for the texture
 };
