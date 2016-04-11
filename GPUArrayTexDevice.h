@@ -5,7 +5,7 @@
 #include <cuda_runtime.h>
 #include <cassert>
 
-#include "GPUArrayTexBase.h"
+#include "globalDefs.h"
 
 void MEMSETFUNC(cudaSurfaceObject_t, void *, int, int);
 
@@ -19,7 +19,7 @@ void MEMSETFUNC(cudaSurfaceObject_t, void *, int, int);
  * storage.
  */
 template <class T>
-class GPUArrayTexDevice : public GPUArrayTexBase {
+class GPUArrayTexDevice {
 public:
 
     /*! \brief Default constructor */
@@ -30,7 +30,7 @@ public:
      * \param desc_ Channel descriptor
      */
     GPUArrayTexDevice(cudaChannelFormatDesc desc_)
-        : GPUArrayTexBase(desc_), madeTex(false), d_data(nullptr), n(0), cap(0)
+        : madeTex(false), d_data(nullptr), n(0), cap(0), channelDesc(desc_)
     {
         initializeDescriptions();
     }
@@ -41,8 +41,7 @@ public:
      * \param desc Channel descriptor
      */
     GPUArrayTexDevice(int size, cudaChannelFormatDesc desc)
-        : GPUArrayTexBase(desc), madeTex(false), d_data(nullptr),
-          n(size), cap(0)
+        : madeTex(false), d_data(nullptr), n(size), cap(0), channelDesc(desc)
     {
         initializeDescriptions();
         allocDevice();
@@ -54,8 +53,8 @@ public:
      * \param other GPUArrayTexDevice to copy from
      */
     GPUArrayTexDevice(const GPUArrayTexDevice<T> &other)
-        : GPUArrayTexBase(other.channelDesc), madeTex(false), d_data(nullptr),
-          n(other.size()), cap(0)
+        : madeTex(false), d_data(nullptr), n(other.size()), cap(0),
+          channelDesc(other.channelDesc)
     {
         initializeDescriptions();
         allocDevice();
@@ -306,8 +305,9 @@ public:
      */
     void copyToDeviceArray(void *dest) { //DEST HAD BETTER BE ALLOCATED
         int numBytes = size() * sizeof(T);
-        copyToDeviceArrayInternal(dest, data(), numBytes);
-
+        //! \todo Make sure this works for copying from 2d arrays
+        CUCHECK(cudaMemcpyFromArray(dest, data(), 0, 0, numBytes,
+                                                cudaMemcpyDeviceToDevice));
     }
 
     /*! \brief Set all elements of GPUArrayTexDevice to specific value
@@ -330,6 +330,7 @@ private:
     size_t cap; //!< Number of elements fitting into the currently allocated
                 //!< memory
     cudaArray *d_data; //!< Pointer to the data
+    cudaChannelFormatDesc channelDesc; //!< Descriptor for the texture
 };
 
 #endif
