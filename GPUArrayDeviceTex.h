@@ -1,6 +1,6 @@
 #pragma once
-#ifndef GPUARRAYTEXDEVICE_H
-#define GPUARRAYTEXDEVICE_H
+#ifndef GPUARRAYDEVICETEX_H
+#define GPUARRAYDEVICETEX_H
 
 #include <cuda_runtime.h>
 #include <cassert>
@@ -19,17 +19,17 @@ void MEMSETFUNC(cudaSurfaceObject_t, void *, int, int);
  * storage.
  */
 template <class T>
-class GPUArrayTexDevice {
+class GPUArrayDeviceTex {
 public:
 
     /*! \brief Default constructor */
-    GPUArrayTexDevice() : madeTex(false), d_data(nullptr), n(0), cap(0) {}
+    GPUArrayDeviceTex() : madeTex(false), d_data(nullptr), n(0), cap(0) {}
 
     /*! \brief Constructor
      *
      * \param desc_ Channel descriptor
      */
-    GPUArrayTexDevice(cudaChannelFormatDesc desc_)
+    GPUArrayDeviceTex(cudaChannelFormatDesc desc_)
         : madeTex(false), d_data(nullptr), n(0), cap(0), channelDesc(desc_)
     {
         initializeDescriptions();
@@ -40,7 +40,7 @@ public:
      * \param size Size of the array (number of elements)
      * \param desc Channel descriptor
      */
-    GPUArrayTexDevice(int size, cudaChannelFormatDesc desc)
+    GPUArrayDeviceTex(int size, cudaChannelFormatDesc desc)
         : madeTex(false), d_data(nullptr), n(size), cap(0), channelDesc(desc)
     {
         initializeDescriptions();
@@ -50,9 +50,9 @@ public:
 
     /*! \brief Copy constructor
      *
-     * \param other GPUArrayTexDevice to copy from
+     * \param other GPUArrayDeviceTex to copy from
      */
-    GPUArrayTexDevice(const GPUArrayTexDevice<T> &other)
+    GPUArrayDeviceTex(const GPUArrayDeviceTex<T> &other)
         : madeTex(false), d_data(nullptr), n(other.size()), cap(0),
           channelDesc(other.channelDesc)
     {
@@ -66,9 +66,9 @@ public:
 
     /*! \brief Move constructor
      *
-     * \param other GPUArrayTexDevice containing the data to move
+     * \param other GPUArrayDeviceTex containing the data to move
      */
-    GPUArrayTexDevice(GPUArrayTexDevice<T> &&other) {
+    GPUArrayDeviceTex(GPUArrayDeviceTex<T> &&other) {
         copyFromOther(other);
         d_data = other.data();
         initializeDescriptions();
@@ -82,7 +82,7 @@ public:
     }
 
     /*! \brief Desctructor */
-    ~GPUArrayTexDevice() {
+    ~GPUArrayDeviceTex() {
         destroyDevice();
     }
 
@@ -92,7 +92,7 @@ public:
      *
      * \return This object
      */
-    GPUArrayTexDevice<T> &operator=(const GPUArrayTexDevice<T> &other) {
+    GPUArrayDeviceTex<T> &operator=(const GPUArrayDeviceTex<T> &other) {
         channelDesc = other.channelDesc;
         if (other.size()) {
             resize(other.size()); //creates tex surf objs
@@ -111,7 +111,7 @@ public:
      *
      * \return This object
      */
-    GPUArrayTexDevice<T> &operator=(GPUArrayTexDevice<T> &&other) {
+    GPUArrayDeviceTex<T> &operator=(GPUArrayDeviceTex<T> &&other) {
         destroyDevice();
         copyFromOther(other);
         initializeDescriptions();
@@ -175,9 +175,9 @@ public:
 
     /*! \brief Custom copy operator
      *
-     * \param other GPUArrayTexDevice to copy from
+     * \param other GPUArrayDeviceTex to copy from
      */
-    void copyFromOther(const GPUArrayTexDevice<T> &other) {
+    void copyFromOther(const GPUArrayDeviceTex<T> &other) {
         //I should own no pointers at this point, am just copying other's
         channelDesc = other.channelDesc;
         n = other.size();
@@ -310,7 +310,7 @@ public:
                                                 cudaMemcpyDeviceToDevice));
     }
 
-    /*! \brief Set all elements of GPUArrayTexDevice to specific value
+    /*! \brief Set all elements of GPUArrayDeviceTex to specific value
      *
      * \param val_ Value to set data to
      */

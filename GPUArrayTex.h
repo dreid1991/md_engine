@@ -5,7 +5,7 @@
 #include <vector>
 
 #include "GPUArrayBase.h"
-#include "GPUArrayTexDevice.h"
+#include "GPUArrayDeviceTex.h"
 
 /*! \brief Manage data on the CPU and a GPU Texture
  *
@@ -19,7 +19,7 @@
 template <class T>
 class GPUArrayTex : public GPUArrayBase {
     public:
-        GPUArrayTexDevice<T> d_data; //!< Array storing data on the GPU
+        GPUArrayDeviceTex<T> d_data; //!< Array storing data on the GPU
         std::vector<T> h_data; //!< Array storing data on the CPU
 
         /*! \brief Default constructor */
@@ -107,7 +107,7 @@ class GPUArrayTex : public GPUArrayBase {
 
         }
 
-        /*! \brief Return texture object from GPUArrayTexDevice
+        /*! \brief Return texture object from GPUArrayDeviceTex
          *
          * \return Cuda Texture Object used for GPU memory storage
          */
@@ -115,7 +115,7 @@ class GPUArrayTex : public GPUArrayBase {
             return d_data.tex;
         }
 
-        /*! \brief Return surface object from GPUArrayTexDevice
+        /*! \brief Return surface object from GPUArrayDeviceTex
          *
          * \return Cuda Surface Object used to write to GPU texture memory
          */

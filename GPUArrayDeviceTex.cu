@@ -1,4 +1,4 @@
-#include "GPUArrayTexDevice.h"
+#include "GPUArrayDeviceTex.h"
 
 #include "memset_defs.h"
 
