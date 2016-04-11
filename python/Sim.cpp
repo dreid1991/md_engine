@@ -43,12 +43,12 @@ BOOST_PYTHON_MODULE(Sim) {
     export_IntegraterVerlet();
     export_IntegraterRelax();
     export_IntegraterLangevin();
+    export_TypedItemHolder();
     export_Fix();
     export_FixBondHarmonic();
     export_FixAngleHarmonic();
     export_FixImproperHarmonic();
     export_FixDihedralOPLS();
-    export_TypedItemHolder();
     export_FixWallHarmonic();
     export_FixSpringStatic();
     export_Fix2d();

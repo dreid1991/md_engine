@@ -1,5 +1,7 @@
 import re
 import sys
+import math
+DEGREES_TO_RADIANS = math.pi / 180.
 class LAMMPS_Reader:
     def __init__(self, state=None, nonbondFix=None, bondFix=None, angleFix=None, dihedralFix=None, improperFix=None, unitLen = 0, unitEng = 0, unitMass = 0, atomTypePrefix = '', setBounds=True):
         assert(state != None)
