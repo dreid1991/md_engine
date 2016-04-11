@@ -6,6 +6,7 @@
 #include <cassert>
 
 #include "globalDefs.h"
+#include "GPUArrayDevice.h"
 
 void MEMSETFUNC(cudaSurfaceObject_t, void *, int, int);
 
@@ -19,18 +20,20 @@ void MEMSETFUNC(cudaSurfaceObject_t, void *, int, int);
  * storage.
  */
 template <class T>
-class GPUArrayDeviceTex {
+class GPUArrayDeviceTex : GPUArrayDevice {
 public:
 
     /*! \brief Default constructor */
-    GPUArrayDeviceTex() : madeTex(false), d_data(nullptr), n(0), cap(0) {}
+    GPUArrayDeviceTex()
+        : GPUArrayDevice(), madeTex(false), d_data(nullptr), n(0), cap(0) {}
 
     /*! \brief Constructor
      *
      * \param desc_ Channel descriptor
      */
     GPUArrayDeviceTex(cudaChannelFormatDesc desc_)
-        : madeTex(false), d_data(nullptr), n(0), cap(0), channelDesc(desc_)
+        : GPUArrayDevice(), madeTex(false), d_data(nullptr), n(0), cap(0),
+          channelDesc(desc_)
     {
         initializeDescriptions();
     }
@@ -41,7 +44,8 @@ public:
      * \param desc Channel descriptor
      */
     GPUArrayDeviceTex(int size, cudaChannelFormatDesc desc)
-        : madeTex(false), d_data(nullptr), n(size), cap(0), channelDesc(desc)
+        : GPUArrayDevice(), madeTex(false), d_data(nullptr), n(size), cap(0),
+          channelDesc(desc)
     {
         initializeDescriptions();
         allocDevice();
@@ -53,8 +57,8 @@ public:
      * \param other GPUArrayDeviceTex to copy from
      */
     GPUArrayDeviceTex(const GPUArrayDeviceTex<T> &other)
-        : madeTex(false), d_data(nullptr), n(other.size()), cap(0),
-          channelDesc(other.channelDesc)
+        : GPUArrayDevice(), madeTex(false), d_data(nullptr), n(other.size()),
+          cap(0), channelDesc(other.channelDesc)
     {
         initializeDescriptions();
         allocDevice();

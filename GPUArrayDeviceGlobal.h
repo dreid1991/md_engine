@@ -3,6 +3,7 @@
 #define GPUARRAYDEVICEGLOBAL_H
 
 #include "globalDefs.h"
+#include "GPUArrayDevice.h"
 
 /*! \brief Global function to set the device memory */
 void MEMSETFUNC(void *, const void *, size_t, size_t);
@@ -14,7 +15,7 @@ void MEMSETFUNC(void *, const void *, size_t, size_t);
  * Array storing data on the GPU device.
  */
 template <typename T>
-class GPUArrayDeviceGlobal {
+class GPUArrayDeviceGlobal : GPUArrayDevice {
 public:
     /*! \brief Constructor
      *
@@ -24,11 +25,11 @@ public:
      * enough memory to store n_ elements.
      */
     explicit GPUArrayDeviceGlobal(size_t n_ = 0)
-        : n(n_) { allocate(); }
+        : GPUArrayDevice(), n(n_) { allocate(); }
 
     /*! \brief Copy constructor */
     GPUArrayDeviceGlobal(const GPUArrayDeviceGlobal<T> &other)
-        : n(other.n)
+        : GPUArrayDevice(), n(other.n)
     {
         allocate();
         CUCHECK(cudaMemcpy(ptr, other.ptr, n*sizeof(T),
@@ -37,7 +38,7 @@ public:
 
     /*! \brief Move constructor */
     GPUArrayDeviceGlobal(GPUArrayDeviceGlobal<T> &&other)
-        : ptr(other.ptr), n(other.n)
+        : GPUArrayDevice(), ptr(other.ptr), n(other.n)
     {
         other.n = 0;
         other.ptr = (T *) NULL;
