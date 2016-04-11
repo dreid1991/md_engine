@@ -5,7 +5,6 @@
 #include <vector>
 
 #include "GPUArrayBase.h"
-#include "GPUArrayTexBase.h"
 #include "GPUArrayTexDevice.h"
 
 /*! \brief Manage data on the CPU and a GPU Texture
@@ -18,7 +17,7 @@
  * not for general storage.
  */
 template <class T>
-class GPUArrayTex : public GPUArrayBase, public GPUArrayTexBase {
+class GPUArrayTex : public GPUArrayBase {
     public:
         GPUArrayTexDevice<T> d_data; //!< Array storing data on the GPU
         std::vector<T> h_data; //!< Array storing data on the CPU
