@@ -90,6 +90,8 @@ public:
 
     /*! \brief Convert vector to float4
      *
+     * \return float4 containing values of this Vector
+     *
      * The first three entries correspond to the vector elements, the forth
      * entry will be set to zero.
      */
@@ -98,6 +100,8 @@ public:
     }
 
     /*! \brief Convert vector to int4
+     *
+     * \return int4 containing values from this Vector
      *
      * The first three entries correspond to the vector elements, the forth
      * entry will be set to zero.
@@ -157,6 +161,7 @@ public:
     /*! \brief rotation in x-y plane
      *
      * \param rotation Rotation angle
+     * \return New rotated Vector
      *
      * The z-component of the vector remains unchanged.
      */
@@ -214,13 +219,20 @@ public:
         return newVec;
     }
 
-    /*! \brief Multiplication-assignment operator with int */
+    /*! \brief Multiplication-assignment operator with scalar value
+     *
+     * \param scale Scale factor, value to be multiplied with each element
+     * \return This Vector
+     */
     template<typename U>
     const VectorGeneric<T> &operator*=( const U &scale ){
         vals[0]*=scale;vals[1]*=scale;vals[2]*=scale;return *this;
     }
 
     /*! \brief Multiplication-assignment operator with other vector
+     *
+     * \param q Other Vector used for element-wise multiplication
+     * \return This Vector
      *
      * Performs element-wise multiplication.
      */
@@ -229,13 +241,20 @@ public:
         vals[0]*=q[0];vals[1]*=q[1];vals[2]*=q[2];return *this;
     }
 
-    /*! \brief Division-assignment operator with int */
+    /*! \brief Division-assignment operator with int
+     *
+     * \param scale Scale factor by which each element is divided
+     * \return This Vector
+     */
     template<typename U>
     const VectorGeneric<T> &operator/=( const U &scale ){
         vals[0]/=scale;vals[1]/=scale;vals[2]/=scale;return *this;
     }
 
     /*! \brief Division-assignment operator with other vector
+     *
+     * \param q Vector for element-wise division
+     * \return This Vector
      *
      * Performs element-wise division.
      */
@@ -258,6 +277,9 @@ public:
 
     /*! \brief Smaller than comparison operator
      *
+     * \param q Other Vector to compare this Vector to
+     * \return True if this Vector is smaller than other Vector
+     *
      * The comparison is element-wise. v < q returns true if v[0] < q[0]
      * or (v[0] == q[0] && v[1] < q[1]) or (v[0] == q[0] && v[1] == q[1] &&
      * v[2] < q[2]).
@@ -270,6 +292,9 @@ public:
     }
 
     /*! \brief Larger than comparison operator
+     *
+     * \param q Other Vector to compare this Vector to
+     * \return True if this Vector is larger than other Vector
      *
      * The comparison is element-wise. Thus, v > q returns true if v[0] > q[0]
      * or (v[0] == q[0] && v[1] > q[1]) or (v[0] == q[0] && v[1] == q[1] &&
@@ -294,13 +319,21 @@ public:
         return !(*this == q);
     }
 
-    /* \brief Larger-equal comparison operator */
+    /*! \brief Larger-equal comparison operator
+     *
+     * \param q Other Vector to compare this Vector to
+     * \return True if This Vector is larger or equal to other Vector
+     */
     template<typename U>
     bool operator>=( const VectorGeneric<U> &q ) const {
         return (*this == q) || (*this > q);
     }
 
-    /* \brief Smaller-equal comparison operator */
+    /*! \brief Smaller-equal comparison operator
+     *
+     * \param q Other Vector to compare this Vector to
+     * \return True if this Vector is smaller or equal to other Vector
+     */
     template<typename U>
     bool operator<=( const VectorGeneric<U> &q ) const {
         return (*this == q) || (*this < q);
@@ -329,6 +362,9 @@ public:
     }
 
     /*! \brief Distance between two points
+     *
+     * \param q Vector determining other point
+     * \return Distance between the points
      *
      * The points are specified by this and by the q vector.
      */
@@ -375,10 +411,11 @@ public:
         vals[i] = val;
     }
 
-    /*! \brief I have no idea
+    /*! \brief Distance between two points, with periodic boundary conditions
      *
-     * |param other Second point for distance calculation
+     * \param other Second point for distance calculation
      * \param trace X-, y-, and z- length of the simulation bounding box
+     * \return Distance vector
      *
      * This function calcuates the distance from this vector to another vector
      * taking periodic boundary conditions into accound. Thus calculating the
