@@ -46,6 +46,7 @@ void export_Fix() {
         "Fix"
     )
     .def_readonly("handle", &Fix::handle)
+    .def_readonly("type", &Fix::type)
     .def_readwrite("applyEvery", &Fix::applyEvery)
     .def_readwrite("groupTag", &Fix::groupTag)
     ;

@@ -2,6 +2,9 @@ import re
 import sys
 import math
 DEGREES_TO_RADIANS = math.pi / 180.
+
+
+
 class LAMMPS_Reader:
     def __init__(self, state=None, nonbondFix=None, bondFix=None, angleFix=None, dihedralFix=None, improperFix=None, unitLen = 0, unitEng = 0, unitMass = 0, atomTypePrefix = '', setBounds=True):
         assert(state != None)
@@ -43,14 +46,12 @@ class LAMMPS_Reader:
             self.readBounds()
         self.readAtoms()
         if self.nonbondFix:
-            self.readPairCoefs() #implement this
-        for a in self.state.atoms:
-            print a.pos
+            self.readPairCoefs()
         if self.bondFix != None:
             self.readBonds()
             self.readBondCoefs()
         if self.angleFix != None:
-            self.readAngles() #todo
+            self.readAngles()
             self.readAngleCoefs()
         if self.dihedralFix != None:
             self.readDihedrals()
@@ -151,8 +152,8 @@ class LAMMPS_Reader:
         else:
             typeOffset = 0
         for line in raw:
-            type = int(bondLine[1])
-            ids = [int(x) for a in [line[2], line[3], line[4]]]
+            type = int(line[1])
+            ids = [int(x) for x in [line[2], line[3], line[4]]]
             idxs = [self.atomIdToIdx[id] for id in ids]
             simType = typeOffset + type
             self.angleFix.createAngle(self.state.atoms[idxs[0]], self.state.atoms[idxs[1]], self.state.atoms[idxs[2]], type=simType)
@@ -168,7 +169,7 @@ class LAMMPS_Reader:
             typeOffset = 0
         for line in raw:
             type = int(bondLine[1])
-            ids = [int(x) for a in [line[2], line[3], line[4]]]
+            ids = [int(x) for x in [line[2], line[3], line[4]]]
             idxs = [self.atomIdToIdx[id] for id in ids]
             simType = typeOffset + type
             self.angleFix.createAngle(self.state.atoms[idxs[0]], self.state.atoms[idxs[1]], self.state.atoms[idxs[2]], self.state.atoms[idxs[3]], type=simType)
@@ -183,7 +184,7 @@ class LAMMPS_Reader:
             typeOffset = 0
         for line in raw:
             type = int(bondLine[1])
-            ids = [int(x) for a in [line[2], line[3], line[4]]]
+            ids = [int(x) for x in [line[2], line[3], line[4]]]
             idxs = [self.atomIdToIdx[id] for id in ids]
             simType = typeOffset + type
             self.angleFix.createAngle(self.state.atoms[idxs[0]], self.state.atoms[idxs[1]], self.state.atoms[idxs[2]], self.state.atoms[idxs[3]], type=simType)
@@ -193,62 +194,86 @@ class LAMMPS_Reader:
     def readPairCoefs(self):
         rawData = self.readSection(self.dataFileLines, re.compile('Pair Coeffs'))
         for line in rawData:
-#            type = self.LMPTypeToSimTypeBond[int(line[0])]
-#            rest = [float(x) for x in line[1:]]
-#            self.bondFix.setBondTypeCoefs(type, *rest)
-#FINISH THIS
+#will have to generalize this at some point
+            handle = self.myAtomHandles[int(line[0]) - 1]
+            eps = float(line[1]) / self.unitEng
+            sig = float(line[2]) / self.unitLen
+            self.nonbondFix.setParameter('sig', handleA=handle, handleB=handle, val=sig)
+            self.nonbondFix.setParameter('eps', handleA=handle, handleB=handle, val=eps)
+            if len(line) > 3:
+                rCut = float(line[3]) / self.unitLen
+                self.nonbondFix.setParameter('rCut', handleA=handle, handleB=handle, val=rCut)
 
-    def readBondTypes(self):
+
+        rawInput = self.scanFilesForOccurance(re.compile('pair coeff[\s\d\-\.]+'), self.inFileLines, num=-1)
+        for line in rawInput:
+            handleA = self.myAtomHandles[int(line[1]) - 1]
+            handleB = self.myAtomHandles[int(line[2]) - 1]
+            eps = float(line[3]) / self.unitEng
+            sig = float(line[4]) / self.unitLen
+            self.nonbondFix.setParameter('sig', handleA=handleA, handleB=handleB, val=sig)
+            self.nonbondFix.setParameter('eps', handleA=handleA, handleB=handleB, val=eps)
+            if len(line) > 4:
+                rCut = float(line[4]) / self.unitLen
+                self.nonbondFix.setParameter('rCut', handleA=handleA, handleB=handleB, val=rCut)
+
+
+
+
+
+
+
+
+    def readBondCoefs(self):
         rawData = self.readSection(self.dataFileLines, re.compile('Bond Coeffs'))
+        dataConverter = argumentConverters['data'][self.bondFix.type]
+        inputConverter = argumentConverters['input'][self.bondFix.type]
         for line in rawData:
-            type = self.LMPTypeToSimTypeBond[int(line[0])]
-            rest = [float(x) for x in line[1:]]
-            self.bondFix.setBondTypeCoefs(type, *rest)
-        rawInput = self.scanFilesForOccurance(re.compile('bond coeff[\s\d\-\.]+'), self.inFileLine, num=-1)
+            args = dataConverter(self, line)
+            self.bondFix.setBondTypeCoefs(*args)
+        rawInput = self.scanFilesForOccurance(re.compile('bond coeff[\s\d\-\.]+'), self.inFileLines, num=-1)
         for line in rawInput:
-            type = self.LMPTypeToSimTypeBond[int(line[1])]
-            rest = [float(x) for x in line[2:]]
-            self.bondFix.setBondTypeCoefs(type, *rest)
+            args = inputConverter(self, line)
+            self.bondFix.setBondTypeCoefs(*args)
 
-    def readAngleTypes(self):
+    def readAngleCoefs(self):
         rawData = self.readSection(self.dataFileLines, re.compile('Angle Coeffs'))
+        dataConverter = argumentConverters['data'][self.angleFix.type]
+        inputConverter = argumentConverters['input'][self.angleFix.type]
         for line in rawData:
-            type = self.LMPTypeToSimTypeAngle[int(line[0])]
-            rest = [float(x) for x in line[1:]]
-            self.angleFix.setAngleTypeCoefs(type, *rest)
-        rawInput = self.scanFilesForOccurance(re.compile('angle coeff[\s\d\-\.]+'), self.inFileLine, num=-1)
+            args = dataConverter(self, line)
+            self.angleFix.setAngleTypeCoefs(*args)
+        rawInput = self.scanFilesForOccurance(re.compile('angle coeff[\s\d\-\.]+'), self.inFileLines, num=-1)
         for line in rawInput:
-            type = self.LMPTypeToSimTypeAngle[int(line[1])]
-            rest = [float(x) for x in line[2:]]
-        self.angleFix.setAngleTypesCoefs(type, *rest)
+            args = inputConverter(self, line)
+            self.angleFix.setAngleTypeCoefs(*args)
 
 
-
-    def readDihedralTypes(self):
+    def readDihedralCoefs(self):
         rawData = self.readSection(self.dataFileLines, re.compile('Dihedral Coeffs'))
+        dataConverter = argumentConverters['data'][self.dihedralFix.type]
+        inputConverter = argumentConverters['input'][self.dihedralFix.type]
         for line in rawData:
-            type = self.LMPTypeToSimTypeDihedral[int(line[0])]
-            rest = [float(x) for x in line[1:]]
-            self.dihedralFix.setDihedralTypeCoefs(type, *rest)
-        rawInput = self.scanFilesForOccurance(re.compile('dihedral coeff[\s\d\-\.]+'), self.inFileLine, num=-1)
+            args = dataConverter(self, line)
+            self.dihedralFix.setDihedralTypeCoefs(*args)
+        rawInput = self.scanFilesForOccurance(re.compile('dihedral coeff[\s\d\-\.]+'), self.inFileLines, num=-1)
         for line in rawInput:
-            type = self.LMPTypeToSimTypeDihedral[int(line[1])]
-            rest = [float(x) for x in line[2:]]
-            self.dihedralFix.setDihedralTypesCoefs(type, *rest)
+            args = inputConverter(self, line)
+            self.dihedralFix.setDihedralTypeCoefs(*args)
 
 
 
-    def readImproperTypes(self):
+    def readImproperCoefs(self):
         rawData = self.readSection(self.dataFileLines, re.compile('Improper Coeffs'))
+        dataConverter = argumentConverters['data'][self.improperFix.type]
+        inputConverter = argumentConverters['input'][self.improperFix.type]
         for line in rawData:
-            type = self.LMPTypeToSimTypeImproper[int(line[0])]
-            rest = [float(x) for x in line[1:]]
-            self.improperFix.setImproperTypeCoefs(type, *rest)
-        rawInput = self.scanFilesForOccurance(re.compile('improper coeff[\s\d\-\.]+'), self.inFileLine, num=-1)
+            args = dataConverter(self, line)
+            self.improperFix.setImproperTypeCoefs(*args)
+        rawInput = self.scanFilesForOccurance(re.compile('improper coeff[\s\d\-\.]+'), self.inFileLines, num=-1)
         for line in rawInput:
-            type = self.LMPTypeToSimTypeImproper[int(line[1])]
-            rest = [float(x) for x in line[2:]]
-            self.improperFix.setImproperTypesCoefs(type, *rest)
+            args = inputConverter(self, line)
+            self.improperFix.setImproperTypeCoefs(*args)
 
 
     def stripComments(self, line):
@@ -294,3 +319,68 @@ class LAMMPS_Reader:
             fIdx+=1
         return res
 
+#argument parsers for coefficients
+
+def bondHarmonic_data(reader, args):
+    type = reader.LMPTypeToSimTypeBond[int(args[0])]
+    k = float(args[1]) / reader.unitEng
+    rEq = float(args[2]) / reader.unitLen
+    return [type, k, rEq]
+
+def bondHarmonic_input(reader, args):
+    type = reader.LMPTypeToSimTypeBond[int(args[1])]
+    k = float(args[2]) / reader.unitEng
+    rEq = float(args[3]) / reader.unitLen
+    return [type, k, rEq]
+
+def angleHarmonic_data(reader, args):
+    type = reader.LMPTypeToSimTypeAngle[int(args[0])]
+    k = float(args[1]) / reader.unitEng
+    rEq = float(args[2]) / reader.unitLen
+    return [type, k, rEq]
+
+def angleHarmonic_input(reader, args):
+    type = reader.LMPTypeToSimTypeAngle[int(args[1])]
+    k = float(args[2]) / reader.unitEng
+    thetaEq = float(args[3]) * DEGREES_TO_RADIANS
+    return [type, k, thetaEq]
+
+def dihedralOPLS_data(reader, args):
+    type = reader.LMPTypeToSimTypeDihedral[int(args[0])]
+    coefs = [float(x) / reader.unitEng for x in args[2:6]]
+    return [type, coefs]
+
+def dihedralOPLS_input(reader, args):
+    type = reader.LMPTypeToSimTypeDihedral[int(args[1])]
+    coefs = [float(x) / reader.unitEng for x in args[2:6]]
+    return [type, coefs]
+
+
+def improperHarmonic_data(reader, args):
+    type = reader.LMPTypeToSimTypeDihedral[int(args[1])]
+    k = float(args[1]) / reader.unitEng
+    thetaEq = float(args[2]) * DEGREES_TO_RADIANS
+    return [type, k, thetaEq]
+
+def improperHarmonic_input(reader, args):
+    type = reader.LMPTypeToSimTypeImproper[int(args[1])]
+    k = float(args[2]) / reader.unitEng
+    thetaEq = float(args[3]) * DEGREES_TO_RADIANS
+    return [type, k, thetaEq]
+
+argumentConverters = {
+        'data':
+        {
+            'bondHarm': bondHarmonic_data,
+            'angleHarm': angleHarmonic_data,
+            'dihedralOPLS': dihedralOPLS_data,
+            'improperHarmonic': improperHarmonic_data
+            },
+        'input':
+        {
+            'bondHarm': bondHarmonic_input,
+            'angleHarm': angleHarmonic_input,
+            'dihedralOPLS': dihedralOPLS_input,
+            'improperHarmonic': improperHarmonic_input
+            }
+        }

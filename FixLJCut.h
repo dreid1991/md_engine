@@ -17,7 +17,7 @@ void export_FixLJCut();
 class FixLJCut : public FixPair {
     public:
         /*! \brief Constructor */
-        FixLJCut(SHARED(State), string handle, string groupHandle);
+        FixLJCut(SHARED(State), string handle);
 
         //! Compute forces
         void compute(bool);

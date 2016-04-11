@@ -282,6 +282,8 @@ void FixDihedralOPLS::setDihedralTypeCoefs(int type, py::list coefs) {
     setForcerType(type, dummy);
 }
 
+
+
 string FixDihedralOPLS::restartChunk(string format) {
     stringstream ss;
 
@@ -306,6 +308,7 @@ void export_FixDihedralOPLS() {
             (python::arg("type"), 
              python::arg("coefs"))
             )
+
     ;
 
 }

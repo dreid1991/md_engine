@@ -3,7 +3,7 @@
 #include "AtomParams.h"
 #include "boost_for_export.h"
 #include "State.h"
-
+#define ARG_DEFAULT -1
 int AtomParams::addSpecies(std::string handle, double mass, double atomicNum) {
     //this is wrapped by state b/c fixes may need to update to accomodate more
     //atom types
@@ -33,6 +33,15 @@ int AtomParams::typeFromHandle(const std::string &handle) const {
     return -1;
 }
 
+void AtomParams::setValues(string handle, double mass, double atomicNum) {
+    int idx = typeFromHandle(handle);
+    if (mass != ARG_DEFAULT) {
+        masses[idx] = mass;
+    }
+    if (atomicNum != ARG_DEFAULT) {
+        atomicNums[idx] = atomicNum;
+    }
+}
 void export_AtomParams() {
     boost::python::class_<AtomParams >(
         "AtomParams"
@@ -43,6 +52,7 @@ void export_AtomParams() {
              boost::python::arg("atomicNum")=-1)
         )
     .def("typeFromHandle",  &AtomParams::typeFromHandle, (python::arg("handle")))
+    .def("setValues", &AtomParams::setValues, ( python::arg("handle"), python::arg("mass")=ARG_DEFAULT, python::arg("atomicNum")=ARG_DEFAULT))
     .def_readwrite("masses", &AtomParams::masses)
     .def_readonly("handles", &AtomParams::handles)
     .def_readonly("numTypes", &AtomParams::numTypes)

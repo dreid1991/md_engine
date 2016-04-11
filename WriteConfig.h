@@ -11,13 +11,14 @@
 void export_WriteConfig();
 
 class WriteConfig {
-	void (*writeFormat)(State *, string, int64_t, bool);	
+	void (*writeFormat)(State *, string, int64_t, bool, double);	
 	public:
 		State *state;
 		string fn;
 		string handle;
 		string format;
 		int writeEvery;
+        double unitLen;
         bool isXML;
 		void write(int64_t turn);
 		void finish();

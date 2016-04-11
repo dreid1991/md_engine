@@ -48,7 +48,7 @@ void writeAtomParams(ofstream &outFile, AtomParams &params) {
 
 }
 
-void writeXMLfileBase64(State *state, string fnFinal, int64_t turn, bool oneFilePerWrite) {
+void writeXMLfileBase64(State *state, string fnFinal, int64_t turn, bool oneFilePerWrite, double unitLen) {
 	vector<Atom> &atoms = state->atoms;
 	ofstream outFile;
 	Bounds b = state->bounds;
@@ -117,7 +117,7 @@ void writeXMLfileBase64(State *state, string fnFinal, int64_t turn, bool oneFile
 }
 
 
-void writeXYZFile(State *state, string fn, int64_t turn, bool oneFilePerWrite) {
+void writeXYZFile(State *state, string fn, int64_t turn, bool oneFilePerWrite, double unitLen) {
     vector<Atom> &atoms = state->atoms;
     AtomParams &params = state->atomParams;
     bool useAtomicNums = true;
@@ -140,13 +140,13 @@ void writeXYZFile(State *state, string fn, int64_t turn, bool oneFilePerWrite) {
         } else {
             atomicNum = a.type;
         }
-        outFile << endl << atomicNum << " " << a.pos[0] << " " << a.pos[1] << " " << a.pos[2];
+        outFile << endl << atomicNum << " " << (a.pos[0] / unitLen) << " " << (a.pos[1] / unitLen) << " " << (a.pos[2] / unitLen);
     }
     outFile << endl;
     outFile.close();
 }
 
-void writeXMLfile(State *state, string fnFinal, int64_t turn, bool oneFilePerWrite) {
+void writeXMLfile(State *state, string fnFinal, int64_t turn, bool oneFilePerWrite, double unitLen) {
 	vector<Atom> &atoms = state->atoms;
 	ofstream outFile;
 	Bounds b = state->bounds;
@@ -260,7 +260,7 @@ string WriteConfig::getCurrentFn(int64_t turn) {
     return string(buffer);
 }
 
-WriteConfig::WriteConfig(SHARED(State) state_, string fn_, string handle_, string format_, int writeEvery_) : state(state_.get()), fn(fn_), handle(handle_), format(format_), writeEvery(writeEvery_) {
+WriteConfig::WriteConfig(SHARED(State) state_, string fn_, string handle_, string format_, int writeEvery_) : state(state_.get()), fn(fn_), handle(handle_), format(format_), writeEvery(writeEvery_), unitLen(1) {
     if (format == "base64") {
         writeFormat = &writeXMLfileBase64;
         isXML = true;
@@ -294,7 +294,7 @@ void WriteConfig::finish() {
     }
 }
 void WriteConfig::write(int64_t turn) {
-	writeFormat(state, getCurrentFn(turn), turn, oneFilePerWrite);
+	writeFormat(state, getCurrentFn(turn), turn, oneFilePerWrite, unitLen);
 }
 
 
@@ -307,5 +307,6 @@ void export_WriteConfig() {
     )
     .def_readwrite("writeEvery", &WriteConfig::writeEvery)
     .def_readonly("handle", &WriteConfig::handle)
+    .def_readwrite("unitLen", &WriteConfig::unitLen);
     ;
 }

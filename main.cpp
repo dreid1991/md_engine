@@ -47,7 +47,7 @@ void testFire() {
     state->periodicInterval = 9;
     SHARED(Fix2d) f2d = SHARED(Fix2d) (new Fix2d(state, "2d", 1));
     state->activateFix(f2d);
-    SHARED(FixLJCut) nonbond = SHARED(FixLJCut) (new FixLJCut(state, "ljcut", "all"));
+    SHARED(FixLJCut) nonbond = SHARED(FixLJCut) (new FixLJCut(state, "ljcut"));
     nonbond->setParameter("sig", "handle", "handle", 1);
     nonbond->setParameter("eps", "handle", "handle", 1);
     state->activateFix(nonbond);
@@ -110,7 +110,7 @@ void testCharge() {
 
 
     state->periodicInterval = 5;
-    SHARED(FixLJCut) nonbond = SHARED(FixLJCut) (new FixLJCut(state, "ljcut", "all"));
+    SHARED(FixLJCut) nonbond = SHARED(FixLJCut) (new FixLJCut(state, "ljcut"));
     nonbond->setParameter("sig", "anion", "anion", 0.1);
     nonbond->setParameter("sig", "anion", "cation", 0.1);
     nonbond->setParameter("sig", "cation", "cation", 0.1);
@@ -247,7 +247,7 @@ void testRead() {
     state->addAtom("handle", Vector(1, 1, 1), 0);
     state->addAtom("handle", Vector(3.8, 1, 1), 0);
 
-    SHARED(FixLJCut) nonbond = SHARED(FixLJCut) (new FixLJCut(state, "ljcut", "all"));
+    SHARED(FixLJCut) nonbond = SHARED(FixLJCut) (new FixLJCut(state, "ljcut"));
     nonbond->setParameter("sig", "handle", "handle", 1);
     nonbond->setParameter("eps", "handle", "handle", 1);
     state->activateFix(nonbond);
@@ -282,7 +282,7 @@ void testWallHarmonic() {
     state->periodicInterval = 9;
     SHARED(Fix2d) f2d = SHARED(Fix2d) (new Fix2d(state, "2d", 1));
     state->activateFix(f2d);
-    SHARED(FixLJCut) nonbond = SHARED(FixLJCut) (new FixLJCut(state, "ljcut", "all"));
+    SHARED(FixLJCut) nonbond = SHARED(FixLJCut) (new FixLJCut(state, "ljcut"));
     nonbond->setParameter("sig", "handle", "handle", 1);
     nonbond->setParameter("eps", "handle", "handle", 1);
     nonbond->setParameter("sig", "other", "other", 1);
@@ -327,7 +327,7 @@ void testBondHarmonic() {
     state->periodicInterval = 9;
     SHARED(Fix2d) f2d = SHARED(Fix2d) (new Fix2d(state, "2d", 1));
     state->activateFix(f2d);
-    SHARED(FixLJCut) nonbond = SHARED(FixLJCut) (new FixLJCut(state, "ljcut", "all"));
+    SHARED(FixLJCut) nonbond = SHARED(FixLJCut) (new FixLJCut(state, "ljcut"));
     nonbond->setParameter("sig", "handle", "handle", 1);
     nonbond->setParameter("eps", "handle", "handle", 1);
     state->activateFix(nonbond);
@@ -403,7 +403,7 @@ void testBondHarmonicGrid() {
     
     SHARED(Fix2d) f2d = SHARED(Fix2d) (new Fix2d(state, "2d", 1));
     state->activateFix(f2d);
-    SHARED(FixLJCut) nonbond = SHARED(FixLJCut) (new FixLJCut(state, "ljcut", "all"));
+    SHARED(FixLJCut) nonbond = SHARED(FixLJCut) (new FixLJCut(state, "ljcut"));
     nonbond->setParameter("sig", "handle", "handle", 1);
     nonbond->setParameter("eps", "handle", "handle", 1);
     //state->activateFix(nonbond);
@@ -486,7 +486,7 @@ void testBondHarmonicGridToGPU() {
     //return;
     SHARED(Fix2d) f2d = SHARED(Fix2d) (new Fix2d(state, "2d", 1));
     state->activateFix(f2d);
-    SHARED(FixLJCut) nonbond = SHARED(FixLJCut) (new FixLJCut(state, "ljcut", "all"));
+    SHARED(FixLJCut) nonbond = SHARED(FixLJCut) (new FixLJCut(state, "ljcut"));
     state->activateFix(nonbond);
     nonbond->setParameter("sig", "handle", "handle", 1);
     nonbond->setParameter("eps", "handle", "handle", 1);
@@ -523,7 +523,7 @@ void hoomdBench() {
     state->periodicInterval = 7;
    // SHARED(Fix2d) f2d = SHARED(Fix2d) (new Fix2d(state, "2d", 1));
   //  state->activateFix(f2d);
-    SHARED(FixLJCut) nonbond = SHARED(FixLJCut) (new FixLJCut(state, "ljcut", "all"));
+    SHARED(FixLJCut) nonbond = SHARED(FixLJCut) (new FixLJCut(state, "ljcut"));
     nonbond->setParameter("sig", "handle", "handle", 1);
     nonbond->setParameter("eps", "handle", "handle", 1);
     state->activateFix(nonbond);
@@ -611,7 +611,7 @@ void testLJ() {
     state->periodicInterval = 9;
    // SHARED(Fix2d) f2d = SHARED(Fix2d) (new Fix2d(state, "2d", 1));
   //  state->activateFix(f2d);
-    SHARED(FixLJCut) nonbond = SHARED(FixLJCut) (new FixLJCut(state, "ljcut", "all"));
+    SHARED(FixLJCut) nonbond = SHARED(FixLJCut) (new FixLJCut(state, "ljcut"));
     nonbond->setParameter("sig", "handle", "handle", 1);
     nonbond->setParameter("eps", "handle", "handle", 1);
     state->activateFix(nonbond);
@@ -706,7 +706,7 @@ int main(int argc, char **argv) {
     state->rCut = 2.9;
     state->grid = AtomGrid(state.get(), 3, 3, 3);
     state->atomParams.addSpecies("handle", 2);
-    SHARED(FixLJCut) nonbond = SHARED(FixLJCut) (new FixLJCut(state, "nb", "all"));
+    SHARED(FixLJCut) nonbond = SHARED(FixLJCut) (new FixLJCut(state, "nb"));
     SHARED(Fix2d) f2d = SHARED(Fix2d) (new Fix2d(state, "2d", 30));
     state->activateFix(nonbond);
     state->activateFix(f2d);

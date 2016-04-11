@@ -1,7 +1,7 @@
 #include "FixLJCut.h"
 #include "State.h"
 #include "cutils_func.h"
-FixLJCut::FixLJCut(SHARED(State) state_, string handle_, string groupHandle_) : FixPair(state_, handle_, groupHandle_, LJCutType, 1), epsHandle("eps"), sigHandle("sig"), rCutHandle("rCut") {
+FixLJCut::FixLJCut(SHARED(State) state_, string handle_) : FixPair(state_, handle_, "all", LJCutType, 1), epsHandle("eps"), sigHandle("sig"), rCutHandle("rCut") {
     initializeParameters(epsHandle, epsilons);
     initializeParameters(sigHandle, sigmas);
     initializeParameters(rCutHandle, rCuts);
@@ -248,8 +248,8 @@ void export_FixLJCut() {
                           SHARED(FixLJCut),
                           boost::python::bases<FixPair>, boost::noncopyable > (
         "FixLJCut",
-        boost::python::init<SHARED(State), string, string> (
-            boost::python::args("state", "handle", "groupHandle"))
+        boost::python::init<SHARED(State), string> (
+            boost::python::args("state", "handle"))
     );
 
 }

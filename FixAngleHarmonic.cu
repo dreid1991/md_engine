@@ -117,21 +117,20 @@ void FixAngleHarmonic::compute(bool computeVirials) {
 //void cumulativeSum(int *data, int n);
 //okay, so the net result of this function is that two arrays (items, idxs of items) are on the gpu and we know how many bonds are in bondiest  block
 
-void FixAngleHarmonic::setAngleTypeCoefs(int type, double k, double rEq) {
-    cout << type << " " << k << " " << rEq << endl;
-    assert(rEq>=0);
-    AngleHarmonic dummy(k, rEq);
+void FixAngleHarmonic::setAngleTypeCoefs(int type, double k, double thetaEq) {
+    cout << type << " " << k << " " << thetaEq << endl;
+    assert(thetaEq>=0);
+    AngleHarmonic dummy(k, thetaEq);
     setForcerType(type, dummy);
 }
 
-
-void FixAngleHarmonic::createAngle(Atom *a, Atom *b, Atom *c, double k, double rEq, int type) {
+void FixAngleHarmonic::createAngle(Atom *a, Atom *b, Atom *c, double k, double thetaEq, int type) {
     vector<Atom *> atoms = {a, b, c};
     validAtoms(atoms);
     if (type == -1) {
-        assert(k!=COEF_DEFAULT and rEq!=COEF_DEFAULT);
+        assert(k!=COEF_DEFAULT and thetaEq!=COEF_DEFAULT);
     }
-    forcers.push_back(AngleHarmonic(a, b, c, k, rEq, type));
+    forcers.push_back(AngleHarmonic(a, b, c, k, thetaEq, type));
     std::array<int, 3> angleIds = {a->id, b->id, c->id};
     forcerAtomIds.push_back(angleIds);
 }
