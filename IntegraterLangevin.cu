@@ -13,7 +13,8 @@ IntegraterLangevin::IntegraterLangevin(SHARED(State) state_,float T_) : Integrat
     finished=true;
     temps.push_back(T_);
     VDotV=GPUArray<float>(1);
-    
+    thermoBounds=SHARED(Bounds)(NULL);
+    usingBounds=false;
 }
 
 

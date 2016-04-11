@@ -6,6 +6,7 @@
 #include <cassert>
 
 #include "globalDefs.h"
+#include "GPUArrayDevice.h"
 
 void MEMSETFUNC(cudaSurfaceObject_t, void *, int, int);
 
@@ -19,18 +20,20 @@ void MEMSETFUNC(cudaSurfaceObject_t, void *, int, int);
  * storage.
  */
 template <class T>
-class GPUArrayDeviceTex {
+class GPUArrayDeviceTex : public GPUArrayDevice {
 public:
 
     /*! \brief Default constructor */
-    GPUArrayDeviceTex() : madeTex(false), d_data(nullptr), n(0), cap(0) {}
+    GPUArrayDeviceTex()
+        : GPUArrayDevice(0), madeTex(false), d_data(nullptr) {}
 
     /*! \brief Constructor
      *
      * \param desc_ Channel descriptor
      */
     GPUArrayDeviceTex(cudaChannelFormatDesc desc_)
-        : madeTex(false), d_data(nullptr), n(0), cap(0), channelDesc(desc_)
+        : GPUArrayDevice(0), madeTex(false), d_data(nullptr),
+          channelDesc(desc_)
     {
         initializeDescriptions();
     }
@@ -40,11 +43,12 @@ public:
      * \param size Size of the array (number of elements)
      * \param desc Channel descriptor
      */
-    GPUArrayDeviceTex(int size, cudaChannelFormatDesc desc)
-        : madeTex(false), d_data(nullptr), n(size), cap(0), channelDesc(desc)
+    GPUArrayDeviceTex(size_t size, cudaChannelFormatDesc desc)
+        : GPUArrayDevice(size), madeTex(false), d_data(nullptr),
+          channelDesc(desc)
     {
         initializeDescriptions();
-        allocDevice();
+        allocate();
         createTexSurfObjs();
     }
 
@@ -53,11 +57,11 @@ public:
      * \param other GPUArrayDeviceTex to copy from
      */
     GPUArrayDeviceTex(const GPUArrayDeviceTex<T> &other)
-        : madeTex(false), d_data(nullptr), n(other.size()), cap(0),
+        : GPUArrayDevice(other.size()), madeTex(false), d_data(nullptr),
           channelDesc(other.channelDesc)
     {
         initializeDescriptions();
-        allocDevice();
+        allocate();
         CUCHECK(cudaMemcpy2DArrayToArray(data(), 0, 0, other.data(), 0, 0,
                                          NX() * sizeof(T), NY(),
                                          cudaMemcpyDeviceToDevice));
@@ -141,16 +145,6 @@ public:
         texDesc.readMode = cudaReadModeElementType;
     }
 
-    /*! \brief Allocate memory on the Texture device */
-    void allocDevice() {
-        int x = NX();
-        int y = NY();
-        CUCHECK(cudaMallocArray(&d_data, &channelDesc, x, y) );
-        cap = x*y;
-        //assuming address gets set in blocking manner
-        resDesc.res.array.array = data();
-    }
-
     /*! \brief Create Texture and Surface Objects */
     void createTexSurfObjs() {
 
@@ -185,21 +179,6 @@ public:
         d_data = other.d_data;
     }
 
-    /*! \brief Get the number of elements in the array
-     *
-     * \return Number of elements
-     */
-    size_t size() const { return n; }
-
-    /*! \brief Get the capacity of the array
-     *
-     * \return Capacity
-     *
-     * The capacity is the number of elements that can be stored in the
-     * currently allocated memory.
-     */
-    size_t capacity() const { return cap; }
-
     /*! \brief Get size in x-dimension of Texture Array
      *
      * \return Size in x-dimension
@@ -228,7 +207,7 @@ public:
         if (n_ > capacity()) {
             destroyDevice();
             n = n_;
-            allocDevice();
+            allocate();
             createTexSurfObjs();
         } else {
             n = n_;
@@ -319,6 +298,19 @@ public:
         MEMSETFUNC(surf, &val_, size(), sizeof(T));
     }
 
+private:
+    /*! \brief Allocate memory on the Texture device */
+    void allocate() {
+        int x = NX();
+        int y = NY();
+        CUCHECK(cudaMallocArray(&d_data, &channelDesc, x, y) );
+        cap = x*y;
+        //assuming address gets set in blocking manner
+        resDesc.res.array.array = data();
+    }
+
+
+public:
     cudaTextureObject_t tex; //!< Texture object
     cudaSurfaceObject_t surf; //!< Texture surface
     cudaResourceDesc resDesc; //!< Resource descriptor
@@ -326,9 +318,6 @@ public:
     bool madeTex; //!< True if texture has been created.
 
 private:
-    size_t n; //!< Number of elements currently stored
-    size_t cap; //!< Number of elements fitting into the currently allocated
-                //!< memory
     cudaArray *d_data; //!< Pointer to the data
     cudaChannelFormatDesc channelDesc; //!< Descriptor for the texture
 };
