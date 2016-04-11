@@ -23,22 +23,16 @@ class GPUArrayTexDevice : public GPUArrayTexBase {
 public:
 
     /*! \brief Default constructor */
-    GPUArrayTexDevice() : madeTex(false) {
-        d_data = (cudaArray *) NULL;
-        n = 0;
-        cap = 0;
-    }
+    GPUArrayTexDevice() : madeTex(false), d_data(nullptr), n(0), cap(0) {}
 
     /*! \brief Constructor
      *
      * \param desc_ Channel descriptor
      */
-    GPUArrayTexDevice(cudaChannelFormatDesc desc_) : madeTex(false) {
-        d_data = (cudaArray *) NULL;
-        channelDesc = desc_;
+    GPUArrayTexDevice(cudaChannelFormatDesc desc_)
+        : GPUArrayTexBase(desc_), madeTex(false), d_data(nullptr), n(0), cap(0)
+    {
         initializeDescriptions();
-        n = 0;
-        cap = 0;
     }
 
     /*! \brief Constructor
@@ -47,28 +41,22 @@ public:
      * \param desc Channel descriptor
      */
     GPUArrayTexDevice(int size, cudaChannelFormatDesc desc)
-        : madeTex(false)
+        : GPUArrayTexBase(desc), madeTex(false), d_data(nullptr),
+          n(size), cap(0)
     {
-        n = size;
-        channelDesc = desc;
         initializeDescriptions();
         allocDevice();
         createTexSurfObjs();
-    }
-
-    /*! \brief Desctructor */
-    ~GPUArrayTexDevice() {
-        destroyDevice();
     }
 
     /*! \brief Copy constructor
      *
      * \param other GPUArrayTexDevice to copy from
      */
-    GPUArrayTexDevice(const GPUArrayTexDevice<T> &other) {
-        channelDesc = other.channelDesc;
-        n = other.size();
-        cap = other.capacity();
+    GPUArrayTexDevice(const GPUArrayTexDevice<T> &other)
+        : GPUArrayTexBase(other.channelDesc), madeTex(false), d_data(nullptr),
+          n(other.size()), cap(0)
+    {
         initializeDescriptions();
         allocDevice();
         CUCHECK(cudaMemcpy2DArrayToArray(data(), 0, 0, other.data(), 0, 0,
@@ -92,6 +80,11 @@ public:
         other.d_data = nullptr;
         other.n = 0;
         other.cap = 0;
+    }
+
+    /*! \brief Desctructor */
+    ~GPUArrayTexDevice() {
+        destroyDevice();
     }
 
     /*! \brief Assignment operator
