@@ -28,7 +28,8 @@ class LAMMPS_Reader:
         self.inputFiles = [open(inputFn, 'r') for inputFn in inputFns]
         self.allFiles = [self.dataFile ] + self.inputFiles
         self.dataFileLines = self.dataFile.readlines()
-        self.allFileLines = [f.readlines() for f in self.allFiles]
+        self.inFileLines = [f.readlines() for f in self.inputFiles]
+        self.allFileLines = [self.dataFileLines] + self.inFileLines
         self.isMolecular = len(self.readSection(self.dataFileLines, re.compile('Bonds'))) #this is slow, should write something to test if section exists
 
         self.readAtomTypes()
@@ -39,16 +40,22 @@ class LAMMPS_Reader:
         if self.setBounds:
             self.readBounds()
         self.readAtoms()
+        if self.nonbondFix:
+            self.readPairCoefs() #implement this
         for a in self.state.atoms:
             print a.pos
         if self.bondFix != None:
             self.readBonds()
+            self.readBondCoefs()
         if self.angleFix != None:
             self.readAngles() #todo
+            self.readAngleCoefs()
         if self.dihedralFix != None:
             self.readDihedrals()
+            self.readDihedralCoefs()
         if self.improperFix != None:
             self.readImpropers()
+            self.readImproperCoefs()
         #now read parameters
     def isNums(self, bits):
         for b in bits:
@@ -181,6 +188,65 @@ class LAMMPS_Reader:
 
             self.LMPTypeToSimTypeImproper[type] = simType
 
+    def readPairCoefs(self):
+        rawData = self.readSection(self.dataFileLines, re.compile('Pair Coeffs'))
+        for line in rawData:
+#            type = self.LMPTypeToSimTypeBond[int(line[0])]
+#            rest = [float(x) for x in line[1:]]
+#            self.bondFix.setBondTypeCoefs(type, *rest)
+#FINISH THIS
+
+    def readBondTypes(self):
+        rawData = self.readSection(self.dataFileLines, re.compile('Bond Coeffs'))
+        for line in rawData:
+            type = self.LMPTypeToSimTypeBond[int(line[0])]
+            rest = [float(x) for x in line[1:]]
+            self.bondFix.setBondTypeCoefs(type, *rest)
+        rawInput = self.scanFilesForOccurance(re.compile('bond coeff[\s\d\-\.]+'), self.inFileLine, num=-1)
+        for line in rawInput:
+            type = self.LMPTypeToSimTypeBond[int(line[1])]
+            rest = [float(x) for x in line[2:]]
+            self.bondFix.setBondTypeCoefs(type, *rest)
+
+    def readAngleTypes(self):
+        rawData = self.readSection(self.dataFileLines, re.compile('Angle Coeffs'))
+        for line in rawData:
+            type = self.LMPTypeToSimTypeAngle[int(line[0])]
+            rest = [float(x) for x in line[1:]]
+            self.angleFix.setAngleTypeCoefs(type, *rest)
+        rawInput = self.scanFilesForOccurance(re.compile('angle coeff[\s\d\-\.]+'), self.inFileLine, num=-1)
+        for line in rawInput:
+            type = self.LMPTypeToSimTypeAngle[int(line[1])]
+            rest = [float(x) for x in line[2:]]
+        self.angleFix.setAngleTypesCoefs(type, *rest)
+
+
+
+    def readDihedralTypes(self):
+        rawData = self.readSection(self.dataFileLines, re.compile('Dihedral Coeffs'))
+        for line in rawData:
+            type = self.LMPTypeToSimTypeDihedral[int(line[0])]
+            rest = [float(x) for x in line[1:]]
+            self.dihedralFix.setDihedralTypeCoefs(type, *rest)
+        rawInput = self.scanFilesForOccurance(re.compile('dihedral coeff[\s\d\-\.]+'), self.inFileLine, num=-1)
+        for line in rawInput:
+            type = self.LMPTypeToSimTypeDihedral[int(line[1])]
+            rest = [float(x) for x in line[2:]]
+            self.dihedralFix.setDihedralTypesCoefs(type, *rest)
+
+
+
+    def readImproperTypes(self):
+        rawData = self.readSection(self.dataFileLines, re.compile('Improper Coeffs'))
+        for line in rawData:
+            type = self.LMPTypeToSimTypeImproper[int(line[0])]
+            rest = [float(x) for x in line[1:]]
+            self.improperFix.setImproperTypeCoefs(type, *rest)
+        rawInput = self.scanFilesForOccurance(re.compile('improper coeff[\s\d\-\.]+'), self.inFileLine, num=-1)
+        for line in rawInput:
+            type = self.LMPTypeToSimTypeImproper[int(line[1])]
+            rest = [float(x) for x in line[2:]]
+            self.improperFix.setImproperTypesCoefs(type, *rest)
 
 
     def stripComments(self, line):
