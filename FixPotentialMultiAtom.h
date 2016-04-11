@@ -11,10 +11,12 @@
 #include <boost/variant.hpp>
 #include <climits>
 #define COEF_DEFAULT INT_MAX //invaled coef value
+#include "TypedItemHolder.h"
+void export_FixPotentialMuliAtom();
 //#include "FixHelpers.h"
 //FixDihedralOPLS::FixDihedralOPLS(SHARED(State) state_, string handle) : Fix(state_, handle, string("None"), dihedralOPLSType, 1), dihedralsGPU(1), dihedralIdxs(1)  {
 template <class CPUVariant, class CPUMember, class GPUMember, int N>
-class FixPotentialMultiAtom : public Fix {
+class FixPotentialMultiAtom : public Fix, public TypedItemHolder {
 	public:
         FixPotentialMultiAtom (SHARED(State) state_, std::string handle_, std::string type_) : Fix(state_, handle_, "None", type_, 1), forcersGPU(1), forcerIdxs(1) {
             forceSingle = true;
@@ -80,6 +82,14 @@ class FixPotentialMultiAtom : public Fix {
         //vector<pair<int, vector<int> > > neighborlistExclusions();
         //string restartChunk(string format);
         int maxForcersPerBlock;
+        vector<int> getTypeIds() {
+            vector<int> types;
+            for (auto it = forcerTypes.begin(); it != forcerTypes.end(); it++) {
+                types.push_back(it->first);
+            }
+            return types;
+
+        }
 
 
 };

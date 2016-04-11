@@ -201,7 +201,7 @@ void export_FixImproperHarmonic() {
 
     boost::python::class_<FixImproperHarmonic,
                           SHARED(FixImproperHarmonic),
-                          boost::python::bases<Fix> > (
+                          boost::python::bases<Fix, TypedItemHolder> > (
         "FixImproperHarmonic",
         boost::python::init<SHARED(State), string> (
                 boost::python::args("state", "handle"))

@@ -29,6 +29,7 @@ using namespace std;
 #include "DataSetEnergy.h"
 #include "DataSetBounds.h"
 #include "ReadConfig.h"
+#include "TypedItemHolder.h"
 //#include "DataTools.h"
 BOOST_PYTHON_MODULE(Sim) {
     export_stls();	
@@ -47,6 +48,7 @@ BOOST_PYTHON_MODULE(Sim) {
     export_FixAngleHarmonic();
     export_FixImproperHarmonic();
     export_FixDihedralOPLS();
+    export_TypedItemHolder();
     export_FixWallHarmonic();
     export_FixSpringStatic();
     export_Fix2d();

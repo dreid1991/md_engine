@@ -119,7 +119,7 @@ string FixBondHarmonic::restartChunk(string format) {
 void export_FixBondHarmonic() {
     boost::python::class_<FixBondHarmonic,
                           SHARED(FixBondHarmonic),
-                          boost::python::bases<Fix> > (
+                          boost::python::bases<Fix, TypedItemHolder> > (
         "FixBondHarmonic",
         boost::python::init<SHARED(State), string> (
             boost::python::args("state", "handle"))

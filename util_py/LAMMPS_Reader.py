@@ -18,6 +18,11 @@ class LAMMPS_Reader:
         self.atomTypePrefix = atomTypePrefix
         self.setBounds = setBounds
 
+        self.LMPTypeToSimTypeBond = {}
+        self.LMPTypeToSimTypeAngle = {}
+        self.LMPTypeToSimTypeDihedral = {}
+        self.LMPTypeToSimTypeImproper = {}
+
     def read(self, dataFn='', inputFns=[]):
         self.dataFile = open(dataFn, 'r')
         self.inputFiles = [open(inputFn, 'r') for inputFn in inputFns]
@@ -30,14 +35,21 @@ class LAMMPS_Reader:
         self.atomIdToIdx = {}
 
 
-#might not want to change bounds if you just adding parameters to an existing simulation
+        #might not want to change bounds if you just adding parameters to an existing simulation
         if self.setBounds:
             self.readBounds()
         self.readAtoms()
         for a in self.state.atoms:
             print a.pos
-        if self.isMolecular and self.bondFix != None:
+        if self.bondFix != None:
             self.readBonds()
+        if self.angleFix != None:
+            self.readAngles() #todo
+        if self.dihedralFix != None:
+            self.readDihedrals()
+        if self.improperFix != None:
+            self.readImpropers()
+        #now read parameters
     def isNums(self, bits):
         for b in bits:
             if b[0] == '#':
@@ -105,15 +117,69 @@ class LAMMPS_Reader:
             self.atomIdToIdx[int(atomLine[0])] = len(self.state.atoms)
             self.state.addAtom(handle = handle, pos = pos, q = charge)
     def readBonds(self):
-##HEY - NEED TO BE ABLE TO READ CURRENT MAX OF STATE, THEN HAVE INPUT TYPE = MAX + bondType
         raw = self.readSection(self.dataFileLines, re.compile('Bonds'))
+        currentTypes = self.bondFix.getTypeIds()
+        if len(currentTypes):
+            typeOffset = max(currentTypes) + 1
+        else:
+            typeOffset = 0
         for bondLine in raw:
             bondType = int(bondLine[1])
             idA = int(bondLine[2])
             idB = int(bondLine[3])
             idxA = self.atomIdToIdx[idA]
             idxB = self.atomIdToIdx[idB]
-            self.bondFix.createBond(self.state.atoms[idxA], self.state.atoms[idxB], type=bondType)
+            simType = typeOffset + bondType
+            self.bondFix.createBond(self.state.atoms[idxA], self.state.atoms[idxB], type=simType)
+
+            self.LMPTypeToSimTypeBond[bondType] = simType
+
+    def readAngles(self):
+        raw = self.readSection(self.dataFileLines, re.compile('Angles'))
+        currentTypes = self.angleFix.getTypeIds()
+        if len(currentTypes):
+            typeOffset = max(currentTypes) + 1
+        else:
+            typeOffset = 0
+        for line in raw:
+            type = int(bondLine[1])
+            ids = [int(x) for a in [line[2], line[3], line[4]]]
+            idxs = [self.atomIdToIdx[id] for id in ids]
+            simType = typeOffset + type
+            self.angleFix.createAngle(self.state.atoms[idxs[0]], self.state.atoms[idxs[1]], self.state.atoms[idxs[2]], type=simType)
+
+            self.LMPTypeToSimTypeAngle[type] = simType
+
+    def readDihedrals(self):
+        raw = self.readSection(self.dataFileLines, re.compile('Dihedrals'))
+        currentTypes = self.dihedralFix.getTypeIds()
+        if len(currentTypes):
+            typeOffset = max(currentTypes) + 1
+        else:
+            typeOffset = 0
+        for line in raw:
+            type = int(bondLine[1])
+            ids = [int(x) for a in [line[2], line[3], line[4]]]
+            idxs = [self.atomIdToIdx[id] for id in ids]
+            simType = typeOffset + type
+            self.angleFix.createAngle(self.state.atoms[idxs[0]], self.state.atoms[idxs[1]], self.state.atoms[idxs[2]], self.state.atoms[idxs[3]], type=simType)
+
+            self.LMPTypeToSimTypeDihedral[type] = simType
+    def readImpropers(self):
+        raw = self.readSection(self.dataFileLines, re.compile('Impropers'))
+        currentTypes = self.improperFix.getTypeIds()
+        if len(currentTypes):
+            typeOffset = max(currentTypes) + 1
+        else:
+            typeOffset = 0
+        for line in raw:
+            type = int(bondLine[1])
+            ids = [int(x) for a in [line[2], line[3], line[4]]]
+            idxs = [self.atomIdToIdx[id] for id in ids]
+            simType = typeOffset + type
+            self.angleFix.createAngle(self.state.atoms[idxs[0]], self.state.atoms[idxs[1]], self.state.atoms[idxs[2]], self.state.atoms[idxs[3]], type=simType)
+
+            self.LMPTypeToSimTypeImproper[type] = simType
 
 
 

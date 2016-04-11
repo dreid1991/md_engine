@@ -144,7 +144,7 @@ string FixAngleHarmonic::restartChunk(string format) {
 void export_FixAngleHarmonic() {
     boost::python::class_<FixAngleHarmonic,
                           SHARED(FixAngleHarmonic),
-                          boost::python::bases<Fix> > (
+                          boost::python::bases<Fix, TypedItemHolder> > (
         "FixAngleHarmonic",
         boost::python::init<SHARED(State), string> (
                                         boost::python::args("state", "handle"))

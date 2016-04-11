@@ -7,6 +7,7 @@
 
 #include "helpers.h" //cumulative sum
 #include <unordered_map>
+#include "TypedItemHolder.h"
 
 template <class SRC, class DEST>
 int copyBondsToGPU(vector<Atom> &atoms, vector<BondVariant> &src, GPUArrayDeviceGlobal<DEST> *dest, GPUArrayDeviceGlobal<int> *destIdxs) {
@@ -54,7 +55,7 @@ int copyBondsToGPU(vector<Atom> &atoms, vector<BondVariant> &src, GPUArrayDevice
 
 
 template <class CPUMember, class GPUMember>
-class FixBond : public Fix {
+class FixBond : public Fix, public TypedItemHolder {
     public:
         vector<int2> bondAtomIds;
         GPUArrayDeviceGlobal<GPUMember> bondsGPU;
@@ -103,6 +104,13 @@ class FixBond : public Fix {
 
             return true;
 
+        }
+        vector<int> getTypeIds() {
+            vector<int> ids;
+            for (auto it=forcerTypes.begin(); it!=forcerTypes.end(); it++) {
+                ids.push_back(it->first);
+            }
+            return ids;
         }
         
 

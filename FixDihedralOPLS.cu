@@ -291,7 +291,7 @@ string FixDihedralOPLS::restartChunk(string format) {
 void export_FixDihedralOPLS() {
     boost::python::class_<FixDihedralOPLS,
                           SHARED(FixDihedralOPLS),
-                          boost::python::bases<Fix> > (
+                          boost::python::bases<Fix, TypedItemHolder> > (
         "FixDihedralOPLS",
         boost::python::init<SHARED(State), string> (
             boost::python::args("state", "handle")
