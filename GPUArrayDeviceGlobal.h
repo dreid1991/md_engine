@@ -15,7 +15,7 @@ void MEMSETFUNC(void *, const void *, size_t, size_t);
  * Array storing data on the GPU device.
  */
 template <typename T>
-class GPUArrayDeviceGlobal : GPUArrayDevice {
+class GPUArrayDeviceGlobal : public GPUArrayDevice {
 public:
     /*! \brief Constructor
      *
@@ -24,12 +24,12 @@ public:
      * This constructor creates the array on the GPU device and allocates
      * enough memory to store n_ elements.
      */
-    explicit GPUArrayDeviceGlobal(size_t n_ = 0)
-        : GPUArrayDevice(), n(n_) { allocate(); }
+    explicit GPUArrayDeviceGlobal(size_t size = 0)
+        : GPUArrayDevice(size) { allocate(); }
 
     /*! \brief Copy constructor */
     GPUArrayDeviceGlobal(const GPUArrayDeviceGlobal<T> &other)
-        : GPUArrayDevice(), n(other.n)
+        : GPUArrayDevice(other.n)
     {
         allocate();
         CUCHECK(cudaMemcpy(ptr, other.ptr, n*sizeof(T),
@@ -38,7 +38,7 @@ public:
 
     /*! \brief Move constructor */
     GPUArrayDeviceGlobal(GPUArrayDeviceGlobal<T> &&other)
-        : GPUArrayDevice(), ptr(other.ptr), n(other.n)
+        : GPUArrayDevice(other.n), ptr(other.ptr)
     {
         other.n = 0;
         other.ptr = (T *) NULL;
@@ -70,9 +70,6 @@ public:
         other.ptr = (T *) NULL;
         return *this;
     }
-
-    /*! \brief Get size (number of elements) of array */
-    size_t size() const { return n; }
 
     /*! \brief Access pointer to data */
     T *data() { return ptr; }
@@ -129,7 +126,7 @@ public:
      * the the GPUArrayDeviceGlobal.
      */
     void set(const T *copyFrom) {
-        CUCHECK(cudaMemcpy(ptr, copyFrom, n*sizeof(T),
+        CUCHECK(cudaMemcpy(ptr, copyFrom, size()*sizeof(T),
                                                 cudaMemcpyHostToDevice));
     }
 
@@ -203,7 +200,6 @@ private:
 
 private:
     T *ptr; //!< Pointer to the data
-    size_t n; //!< Number of entries stored in the device
 };
 
 #endif

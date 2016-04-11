@@ -15,12 +15,20 @@
  */
 class GPUArrayDevice {
 protected:
-    /*! \brief Default constructor */
-    GPUArrayDevice() = default;
+    /*! \brief Constructor
+     *
+     * \param size Size of the array
+     */
+    GPUArrayDevice(size_t size = 0) : n(size) {}
 
 public:
     /*! \brief Destructor */
     virtual ~GPUArrayDevice() = default;
+
+    size_t size() const { return n; }
+
+protected:
+    size_t n; //!< Number of elements stored in the array
 };
 
 #endif

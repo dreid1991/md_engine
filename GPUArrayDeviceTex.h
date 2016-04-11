@@ -20,19 +20,19 @@ void MEMSETFUNC(cudaSurfaceObject_t, void *, int, int);
  * storage.
  */
 template <class T>
-class GPUArrayDeviceTex : GPUArrayDevice {
+class GPUArrayDeviceTex : public GPUArrayDevice {
 public:
 
     /*! \brief Default constructor */
     GPUArrayDeviceTex()
-        : GPUArrayDevice(), madeTex(false), d_data(nullptr), n(0), cap(0) {}
+        : GPUArrayDevice(0), madeTex(false), d_data(nullptr), cap(0) {}
 
     /*! \brief Constructor
      *
      * \param desc_ Channel descriptor
      */
     GPUArrayDeviceTex(cudaChannelFormatDesc desc_)
-        : GPUArrayDevice(), madeTex(false), d_data(nullptr), n(0), cap(0),
+        : GPUArrayDevice(0), madeTex(false), d_data(nullptr), cap(0),
           channelDesc(desc_)
     {
         initializeDescriptions();
@@ -43,8 +43,8 @@ public:
      * \param size Size of the array (number of elements)
      * \param desc Channel descriptor
      */
-    GPUArrayDeviceTex(int size, cudaChannelFormatDesc desc)
-        : GPUArrayDevice(), madeTex(false), d_data(nullptr), n(size), cap(0),
+    GPUArrayDeviceTex(size_t size, cudaChannelFormatDesc desc)
+        : GPUArrayDevice(size), madeTex(false), d_data(nullptr), cap(0),
           channelDesc(desc)
     {
         initializeDescriptions();
@@ -57,7 +57,7 @@ public:
      * \param other GPUArrayDeviceTex to copy from
      */
     GPUArrayDeviceTex(const GPUArrayDeviceTex<T> &other)
-        : GPUArrayDevice(), madeTex(false), d_data(nullptr), n(other.size()),
+        : GPUArrayDevice(other.size()), madeTex(false), d_data(nullptr),
           cap(0), channelDesc(other.channelDesc)
     {
         initializeDescriptions();
@@ -188,12 +188,6 @@ public:
         cap = other.capacity();
         d_data = other.d_data;
     }
-
-    /*! \brief Get the number of elements in the array
-     *
-     * \return Number of elements
-     */
-    size_t size() const { return n; }
 
     /*! \brief Get the capacity of the array
      *
@@ -330,7 +324,6 @@ public:
     bool madeTex; //!< True if texture has been created.
 
 private:
-    size_t n; //!< Number of elements currently stored
     size_t cap; //!< Number of elements fitting into the currently allocated
                 //!< memory
     cudaArray *d_data; //!< Pointer to the data
