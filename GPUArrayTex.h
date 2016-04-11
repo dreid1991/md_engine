@@ -87,6 +87,8 @@ class GPUArrayTex : public GPUArrayBase {
 
         /*! \brief Copy data from GPU to CPU asynchronously
          *
+         * \param stream CUDA Stream object
+         *
          * \todo It would be nicer to call dataToHost and have it copy
          *       asynchronously if a stream is passed and synchronously
          *       otherwise
@@ -121,9 +123,9 @@ class GPUArrayTex : public GPUArrayBase {
             return d_data.surf;
         }
 
-        /*! \brief
+        /*! \brief Set all elements to a given value
          *
-         * \param
+         * \param val Value the elements are set to
          */
         void memsetByVal(T val) {
             d_data.memsetByVal(val);
