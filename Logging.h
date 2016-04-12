@@ -30,7 +30,7 @@ struct AssertFailedException : std::exception
 #endif
 
 #define cudaDebug(fmt, ...) \
-    do { if (DBG) printf("DEBUG: " fmt "(in %s:%d:%s())\n", \
+    do { if (DBG) printf("DEBUG: " fmt " (in %s:%d:%s())\n", \
                          ##__VA_ARGS__, \
                          __FILE__, __LINE__, __func__); \
     } while (false)
@@ -39,7 +39,7 @@ struct AssertFailedException : std::exception
     do { printf(fmt, ##__VA_ARGS__); } while(false)
 
 #define mdDebug(fmt, ...) \
-    do { if (DBG) fprintf(stdout, "DEBUG: " fmt "(in %s:%d:%s())\n", \
+    do { if (DBG) fprintf(stdout, "DEBUG: " fmt " (in %s:%d:%s())\n", \
                           ##__VA_ARGS__, \
                           __FILENAME__, __LINE__, __func__); \
     } while(false)
