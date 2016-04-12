@@ -183,22 +183,23 @@ public:
 
     /*! \brief Resize the Texture Array
      *
-     * \param n_ New size
+     * \param newSize New size of the array
+     * \param force Force reallocation of memory
+     * \return True if memory was reallocated
      *
      * Resize the Texture array. If the new size is larger than capacity,
      * new memory is allocated. This function can destroy the data on the
      * GPU texture device.
      */
-    void resize(int n_) {
-        if (n_ > capacity()) {
-            deallocate();
-            n = n_;
-            allocate();
+    virtual bool resize(size_t newSize, bool force = false) {
+        // Create new Texture objects if they existed before and have been
+        // destroyed in the resizing.
+        bool memoryReallocated = GPUArrayDevice::resize(newSize, force);
+        if (madeTex && memoryReallocated) {
             createTexSurfObjs();
-        } else {
-            n = n_;
         }
 
+        return memoryReallocated;
     }
 
     /*! \brief Access data pointer

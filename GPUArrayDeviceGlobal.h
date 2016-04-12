@@ -57,9 +57,9 @@ public:
     /*! \brief Assignment operator */
     GPUArrayDeviceGlobal<T> &operator=(const GPUArrayDeviceGlobal<T> &other) {
         if (n != other.n) {
-            deallocate();
-            n = other.n;
-            allocate();
+            //! \todo Think about if it would be better not to force
+            //!       reallocation here
+            resize(other.n, true); // Force resizing
         }
         CUCHECK(cudaMemcpy(ptr, other.ptr, n*sizeof(T),
                                                 cudaMemcpyDeviceToDevice));
