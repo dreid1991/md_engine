@@ -15,6 +15,6 @@ void MEMSETFUNC(void *ptr, const void *val, size_t n, size_t Tsize) {
         memsetByValList_128<<<NBLOCK(n), PERBLOCK>>>((int4 *) ptr,
                                                      *(const int4 *)val, n);
     } else {
-        assert(false);
+        mdError("Type parameter for memset has incompatible size");
     }
 }

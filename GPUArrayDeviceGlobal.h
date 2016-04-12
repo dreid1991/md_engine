@@ -2,8 +2,11 @@
 #ifndef GPUARRAYDEVICEGLOBAL_H
 #define GPUARRAYDEVICEGLOBAL_H
 
+#include <cuda_runtime.h>
+
 #include "globalDefs.h"
 #include "GPUArrayDevice.h"
+#include "Logging.h"
 
 /*! \brief Global function to set the device memory */
 void MEMSETFUNC(void *, const void *, size_t, size_t);
@@ -195,8 +198,9 @@ public:
      * Set all array elements to the value specified by the parameter val
      */
     void memsetByVal(const T &val) {
-        assert(sizeof(T) == 4  || sizeof(T) == 8 ||
-               sizeof(T) == 12 || sizeof(T) == 16);
+        mdAssert(sizeof(T) == 4  || sizeof(T) == 8 ||
+                 sizeof(T) == 12 || sizeof(T) == 16,
+                 "Type parameter incompatible size");
         MEMSETFUNC(ptr, &val, n, sizeof(T));
     }
 

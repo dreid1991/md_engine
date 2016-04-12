@@ -3,10 +3,10 @@
 #define GPUARRAYDEVICETEX_H
 
 #include <cuda_runtime.h>
-#include <cassert>
 
 #include "globalDefs.h"
 #include "GPUArrayDevice.h"
+#include "Logging.h"
 
 void MEMSETFUNC(cudaSurfaceObject_t, void *, int, int);
 
@@ -280,7 +280,8 @@ public:
      * \param val_ Value to set data to
      */
     void memsetByVal(T val_) {
-        assert(sizeof(T) == 4 || sizeof(T) == 8 || sizeof(T) == 16);
+        mdAssert(sizeof(T) == 4 || sizeof(T) == 8 || sizeof(T) == 16,
+                 "Type T has incompatible size");
         MEMSETFUNC(surf, &val_, size(), sizeof(T));
     }
 

@@ -13,6 +13,6 @@ void MEMSETFUNC(cudaSurfaceObject_t surf, void *val_, int n, int Tsize) {
         int4 val = * (int4 *) val_;
         memsetByValSurf_128<<<NBLOCK(n), PERBLOCK>>>(surf, val, n);
     } else {
-        assert(false);
+        mdError("Data type has incompatible size");
     }
 }
