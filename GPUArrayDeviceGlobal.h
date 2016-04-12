@@ -2,8 +2,11 @@
 #ifndef GPUARRAYDEVICEGLOBAL_H
 #define GPUARRAYDEVICEGLOBAL_H
 
+#include <cuda_runtime.h>
+
 #include "globalDefs.h"
 #include "GPUArrayDevice.h"
+#include "Logging.h"
 
 /*! \brief Global function to set the device memory */
 void MEMSETFUNC(void *, const void *, size_t, size_t);
@@ -38,11 +41,12 @@ public:
 
     /*! \brief Move constructor */
     GPUArrayDeviceGlobal(GPUArrayDeviceGlobal<T> &&other)
-        : GPUArrayDevice(other.n), ptr(other.ptr)
+        : GPUArrayDevice(other.n)
     {
+        ptr = other.ptr;
         other.n = 0;
         other.cap = 0;
-        other.ptr = (T *) NULL;
+        other.ptr = nullptr;
     }
 
     /*! \brief Destructor */
@@ -69,13 +73,21 @@ public:
         ptr = other.ptr;
         other.n = 0;
         other.cap = 0;
-        other.ptr = (T *) NULL;
+        other.ptr = nullptr;
         return *this;
     }
 
-    /*! \brief Access pointer to data */
-    T *data() { return ptr; }
-    const T *data() const { return ptr; }
+    /*! \brief Access pointer to data
+     *
+     * \return Pointer to memory location
+     */
+    T *data() { return (T*)ptr; }
+
+    /* \brief Const access pointer to data
+     *
+     * \return Const pointer to memory location
+     */
+    T const *data() const { return (T const*)ptr; }
 
     /*! \brief Copy data to given pointer
      *
@@ -96,7 +108,8 @@ public:
         if (copyTo == (T *) NULL) {
             copyTo = (T *) malloc(n*sizeof(T));
         }
-        CUCHECK(cudaMemcpy(copyTo, ptr+offset, num*sizeof(T),
+        T *pointer = data();
+        CUCHECK(cudaMemcpy(copyTo, pointer+offset, num*sizeof(T),
                                                 cudaMemcpyDeviceToHost));
         return copyTo;
     }
@@ -185,9 +198,10 @@ public:
      * Set all array elements to the value specified by the parameter val
      */
     void memsetByVal(const T &val) {
-        assert(sizeof(T) == 4  || sizeof(T) == 8 ||
-               sizeof(T) == 12 || sizeof(T) == 16);
-        MEMSETFUNC((void *) ptr, &val, n, sizeof(T));
+        mdAssert(sizeof(T) == 4  || sizeof(T) == 8 ||
+                 sizeof(T) == 12 || sizeof(T) == 16,
+                 "Type parameter incompatible size");
+        MEMSETFUNC(ptr, &val, n, sizeof(T));
     }
 
 private:
@@ -199,11 +213,8 @@ private:
         CUCHECK(cudaFree(ptr));
         n = 0;
         cap = 0;
-        ptr = (T *) NULL;
+        ptr = nullptr;
     }
-
-private:
-    T *ptr; //!< Pointer to the data
 };
 
 #endif
