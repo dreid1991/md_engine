@@ -121,7 +121,7 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
                 if (dx < 0) {
                     phi = -phi;
                 }
-              //  printf("phi is %f\n", phi);
+            //    printf("phi is %f\n", phi);
                 float sinPhi = sinf(phi);
                 float absSinPhi = sinPhi < 0 ? -sinPhi : sinPhi;
                 if (absSinPhi < EPSILON) {
@@ -136,11 +136,16 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
                     - 4.0f * dihedral.coefs[3] * sinf(4.0f*phi) * invSinPhi
                     )
                     ;
-              //  printf("deriv is %f\n", derivOfPotential);
+            //    printf("deriv is %f\n", derivOfPotential);
+            //    printf("coefs %f %f %f %f\n", dihedral.coefs[0],dihedral.coefs[1] , dihedral.coefs[2] , dihedral.coefs[3]);
+
+
+
+
                 c *= derivOfPotential;
                 scValues[2] *= derivOfPotential;
                 float a11 = c * invLenSqrs[0] * scValues[0];
-                float a22 = -invLenSqrs[1] * (2.0f*c0*scValues[2] - c*(scValues[0]*scValues[1]));
+                float a22 = -invLenSqrs[1] * (2.0f*c0*scValues[2] - c*(scValues[0]+scValues[1]));
                 float a33 = c*invLenSqrs[2]*scValues[1];
                 float a12 = -invMagProds[0] * (c12Mags[0] * c * scValues[0] + c12Mags[1] * scValues[2]);
                 float a13 = -invLens[0] * invLens[2] * scValues[2];
@@ -151,6 +156,9 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
                         ,  a12*directors[0].y + a22*directors[1].y + a23*directors[2].y
                         ,  a12*directors[0].z + a22*directors[1].z + a23*directors[2].z
                         );
+                //printf("ssomething valyes %f %f %f\n", sFloat3.x, sFloat3.y, sFloat3.z);
+                //printf("comps %f %f %f %f %f %f\n", a12, directors[0].x,  a22, directors[1].x,  a23, directors[2].x);
+
                 if (dihedral.myIdx <= 1) {
                     float3 a11Dir1 = directors[0] * a11;
                     float3 a12Dir2 = directors[1] * a12;
@@ -162,11 +170,11 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
                     if (dihedral.myIdx == 1) {
                         
                         myForce = -sFloat3 - myForce;
-                    }
                   //      printf("dihedral idx 1 gets force %f %f %f\n", myForce.x, myForce.y, myForce.z);
-                 //   } else {
-                   //     printf("dihedral idx 0 gets force %f %f %f\n", myForce.x, myForce.y, myForce.z);
-                  //  }
+                    }
+                    //} else {
+                     //   printf("dihedral idx 0 gets force %f %f %f\n", myForce.x, myForce.y, myForce.z);
+                    //}
                 } else {
                     float3 a13Dir1 = directors[0] * a13;
                     float3 a23Dir2 = directors[1] * a23;
@@ -181,7 +189,7 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
 
                    // } else {
                    //     printf("dihedral idx 3 gets force %f %f %f\n", myForce.x, myForce.y, myForce.z);
-                  //  }
+                    //}
 
 
                 }
