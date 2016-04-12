@@ -44,6 +44,9 @@ private:
     /*! \brief Allocate memory for the array */
     virtual void allocate() = 0;
 
+    /*! \brief Deallocate memory */
+    virtual void deallocate() = 0;
+
 protected:
     size_t n; //!< Number of elements stored in the array
     size_t cap; //!< Capacity of allocated memory

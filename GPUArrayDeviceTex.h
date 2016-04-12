@@ -87,7 +87,7 @@ public:
 
     /*! \brief Desctructor */
     ~GPUArrayDeviceTex() {
-        destroyDevice();
+        deallocate();
     }
 
     /*! \brief Assignment operator
@@ -116,7 +116,7 @@ public:
      * \return This object
      */
     GPUArrayDeviceTex<T> &operator=(GPUArrayDeviceTex<T> &&other) {
-        destroyDevice();
+        deallocate();
         copyFromOther(other);
         initializeDescriptions();
         resDesc.res.array.array = data();
@@ -153,18 +153,6 @@ public:
         cudaCreateTextureObject(&tex, &resDesc, &texDesc, NULL);
         cudaCreateSurfaceObject(&surf, &resDesc);
         madeTex = true;
-    }
-
-    /*! \brief Destroy Texture and Surface objects, deallocate memory */
-    void destroyDevice() {
-        if (madeTex) {
-            CUCHECK(cudaDestroyTextureObject(tex));
-            CUCHECK(cudaDestroySurfaceObject(surf));
-        }
-        if (data() != (cudaArray *) NULL) {
-            CUCHECK(cudaFreeArray(data()));
-        }
-        madeTex = false;
     }
 
     /*! \brief Custom copy operator
@@ -205,7 +193,7 @@ public:
      */
     void resize(int n_) {
         if (n_ > capacity()) {
-            destroyDevice();
+            deallocate();
             n = n_;
             allocate();
             createTexSurfObjs();
@@ -309,6 +297,17 @@ private:
         resDesc.res.array.array = data();
     }
 
+    /*! \brief Destroy Texture and Surface objects, deallocate memory */
+    void deallocate() {
+        if (madeTex) {
+            CUCHECK(cudaDestroyTextureObject(tex));
+            CUCHECK(cudaDestroySurfaceObject(surf));
+        }
+        if (data() != (cudaArray *) NULL) {
+            CUCHECK(cudaFreeArray(data()));
+        }
+        madeTex = false;
+    }
 
 public:
     cudaTextureObject_t tex; //!< Texture object
