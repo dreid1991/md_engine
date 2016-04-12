@@ -231,6 +231,20 @@ public:
         saved = raw;
     }
 
+    /*! \brief Compile vector of neighbors of grid coordinates
+     *
+     * \param coords Pointer to three-element array storing Grid coordinates
+     * \param loops Pointer storing if boundaries are periodic
+     * \param trace Trace of the boundary box
+     * \return vector storing neigbors and the mirror box they occupy
+     *
+     * Compile vector of neighbors to a given Grid coordinate. Neighbors are
+     * objects at the 8 nearest and next-nearest neighbor coordinates. The
+     * returned vector consists of the neighbor objects and the mirror box
+     * they are currently in.
+     *
+     * \todo Inner Loop uses same variable as outer loop!
+     */
     vector<OffsetObj<T*> > getNeighbors(int coords[3],
                                         bool loops[3],
                                         Vector trace)
@@ -278,6 +292,19 @@ public:
 
     }
 
+    /*! \brief Compile vector of neighbors to Grid coordinate
+     *
+     * \param coords Pointer to 3-element array storing Grid coordinates
+     * \param loops Pointer to array storing if box is periodic
+     * \param trace Trace of the box
+     * \return vector storing neighbors with their unwrapped coordinates
+     *
+     * This function does the same thing as getNeighbors() but stores the
+     * unwrapped coordinate instead of the mirror box as the offset.
+     *
+     * \todo Code duplication is a very bad thing. Rewrite this function and
+     *       getNeighbors so that they do not overlap as much.
+     */
     vector<OffsetObj<T> > getNeighborVals(int coords[3],
                                           bool loops[3],
                                           Vector trace)
