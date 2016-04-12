@@ -25,15 +25,14 @@ public:
 
     /*! \brief Default constructor */
     GPUArrayDeviceTex()
-        : GPUArrayDevice(0), madeTex(false), d_data(nullptr) {}
+        : GPUArrayDevice(0), madeTex(false) {}
 
     /*! \brief Constructor
      *
      * \param desc_ Channel descriptor
      */
     GPUArrayDeviceTex(cudaChannelFormatDesc desc_)
-        : GPUArrayDevice(0), madeTex(false), d_data(nullptr),
-          channelDesc(desc_)
+        : GPUArrayDevice(0), madeTex(false), channelDesc(desc_)
     {
         initializeDescriptions();
     }
@@ -44,8 +43,7 @@ public:
      * \param desc Channel descriptor
      */
     GPUArrayDeviceTex(size_t size, cudaChannelFormatDesc desc)
-        : GPUArrayDevice(size), madeTex(false), d_data(nullptr),
-          channelDesc(desc)
+        : GPUArrayDevice(size), madeTex(false), channelDesc(desc)
     {
         initializeDescriptions();
         allocate();
@@ -57,7 +55,7 @@ public:
      * \param other GPUArrayDeviceTex to copy from
      */
     GPUArrayDeviceTex(const GPUArrayDeviceTex<T> &other)
-        : GPUArrayDevice(other.size()), madeTex(false), d_data(nullptr),
+        : GPUArrayDevice(other.size()), madeTex(false),
           channelDesc(other.channelDesc)
     {
         initializeDescriptions();
@@ -74,13 +72,13 @@ public:
      */
     GPUArrayDeviceTex(GPUArrayDeviceTex<T> &&other) {
         copyFromOther(other);
-        d_data = other.data();
+        ptr = (void *)other.data();
         initializeDescriptions();
         resDesc.res.array.array = data();
         if (other.madeTex) {
             createTexSurfObjs();
         }
-        other.d_data = nullptr;
+        other.ptr = nullptr;
         other.n = 0;
         other.cap = 0;
     }
@@ -124,7 +122,7 @@ public:
             createTexSurfObjs();
 
         }
-        other.d_data = nullptr;
+        other.ptr = nullptr;
         other.n = 0;
         other.cap = 0;
         return *this;
@@ -164,7 +162,7 @@ public:
         channelDesc = other.channelDesc;
         n = other.size();
         cap = other.capacity();
-        d_data = other.d_data;
+        ptr = other.ptr;
     }
 
     /*! \brief Get size in x-dimension of Texture Array
@@ -207,13 +205,13 @@ public:
      *
      * \return Pointer to device memory
      */
-    cudaArray *data() { return d_data; }
+    cudaArray *data() { return (cudaArray *)ptr; }
 
     /*! \brief Const access to data pointer
      *
      * \return Pointer to const device memory
      */
-     cudaArray const* data() const { return d_data; }
+     cudaArray const* data() const { return (cudaArray const*)ptr; }
 
     /*! \brief Copy data from device to a given memory
      *
@@ -241,7 +239,7 @@ public:
     void set(T *copyFrom) {
         int x = NX();
         int y = NY();
-        cudaMemcpy2DToArray(d_data, 0, 0, copyFrom, x*sizeof(T),
+        cudaMemcpy2DToArray(data(), 0, 0, copyFrom, x*sizeof(T),
                             x * sizeof(T), y, cudaMemcpyHostToDevice );
     }
 
@@ -291,7 +289,7 @@ private:
     void allocate() {
         int x = NX();
         int y = NY();
-        CUCHECK(cudaMallocArray(&d_data, &channelDesc, x, y) );
+        CUCHECK(cudaMallocArray((cudaArray_t *)(&ptr), &channelDesc, x, y) );
         cap = x*y;
         //assuming address gets set in blocking manner
         resDesc.res.array.array = data();
@@ -317,7 +315,6 @@ public:
     bool madeTex; //!< True if texture has been created.
 
 private:
-    cudaArray *d_data; //!< Pointer to the data
     cudaChannelFormatDesc channelDesc; //!< Descriptor for the texture
 };
 

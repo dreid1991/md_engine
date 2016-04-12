@@ -19,7 +19,7 @@ protected:
      *
      * \param size Size of the array
      */
-    GPUArrayDevice(size_t size = 0) : n(size), cap(0) {}
+    GPUArrayDevice(size_t size = 0) : n(size), cap(0), ptr(nullptr) {}
 
 public:
     /*! \brief Destructor */
@@ -50,6 +50,7 @@ private:
 protected:
     size_t n; //!< Number of elements stored in the array
     size_t cap; //!< Capacity of allocated memory
+    void *ptr; //!< Pointer to memory location
 };
 
 #endif
