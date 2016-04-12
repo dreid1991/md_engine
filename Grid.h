@@ -27,24 +27,9 @@ using namespace std;
 template <class T>
 class Grid {
 public:
-    vector<T> saved; //!< Saved state of the Grid
-    vector<T> raw; //!< Raw state of the Grid
-    Vector trace; //!< Vector containing trace for periodic boundary conditions
 
-    VectorInt ns; //!< Number of grid points in each direction
-    Vector ds; //!< Grid resolution in each direction
-    Vector os; //!< Point of origin
-
-    Vector dsOrig; //!< Original resolution of the grid
-
-    T fillVal; //!< Default value
-    bool is2d; //!< True for 2d Simulations
-
-    /*! \brief Default constructor
-     *
-     * \todo Better use c++11's "= default"
-     */
-    Grid(){};
+    /*! \brief Default constructor */
+    Grid() = default;
 
     /*! \brief Constructor
      *
@@ -345,7 +330,19 @@ public:
 
     }
 
+public:
+    vector<T> saved; //!< Saved state of the Grid
+    vector<T> raw; //!< Raw state of the Grid
+    Vector trace; //!< Vector containing trace for periodic boundary conditions
 
+    VectorInt ns; //!< Number of grid points in each direction
+    Vector ds; //!< Grid resolution in each direction
+    Vector os; //!< Point of origin
+
+    Vector dsOrig; //!< Original resolution of the grid
+
+    T fillVal; //!< Default value
+    bool is2d; //!< True for 2d Simulations
 };
 
 #endif
