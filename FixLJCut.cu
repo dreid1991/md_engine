@@ -28,13 +28,11 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *fs, uint16_t *neighbo
         int baseIdx = baseNeighlistIdx(cumulSumMaxPerBlock, warpSize);
         float4 posWhole = xs[idx];
         int type = * (int *) &posWhole.w;
-       // printf("type is %d\n", type);
         float3 pos = make_float3(posWhole);
 
         float3 forceSum = make_float3(0, 0, 0);
 
         int numNeigh = neighborCounts[idx];
-        //printf("start, end %d %d\n", start, end);
         for (int i=0; i<numNeigh; i++) {
             int nlistIdx = baseIdx + warpSize * i;
             uint otherIdxRaw = neighborlist[nlistIdx];
@@ -52,13 +50,7 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *fs, uint16_t *neighbo
                 float lenSqr = lengthSqr(dr);
                 //PRE-SQR THIS VALUE ON CPU
                 float rCutSqr = squareVectorItem(rCutSqrs_shr, numTypes, type, otherType);
-                //if (threadIdx.x == 100) {
-                //    printf("%f %f %f\n", sig, eps, rCut);
-               // }
-             //   printf("dist is %f %f %f\n", dr.x, dr.y, dr.z);
                 if (lenSqr < rCutSqr) {
-                   // printf("mult is %f between idxs %d %d\n", multiplier, idx, otherIdx);
-                    //HEY - PRECOMPUTE THESE VALUES ON CPU IN PREPARE FOR RUN
                     float p1 = epstimes24*2*sig6*sig6;
                     float p2 = epstimes24*sig6;
                     float r2inv = 1/lenSqr;

@@ -89,7 +89,6 @@ namespace SquareVector {
                 T val = squareVectorRef<T>(vec->data(), size, i, i);
                 if (val == DEFAULT_FILL) {
                     squareVectorRef<T>(vec->data(), size, i, i) = fillFunction();
-                    cout << squareVectorRef<T>(vec->data(), size, i, i) << endl;
                 }
             }
         }

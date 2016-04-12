@@ -14,30 +14,43 @@ state.periodicInterval = 7
 state.shoutEvery = 1000
 state.grid = AtomGrid(state, 3.6, 3.6, 3.6)
 
+state.dt = 0.0005
 
 ljcut = FixLJCut(state, 'ljcut')
 bondHarm = FixBondHarmonic(state, 'bondharm')
 angleHarm = FixAngleHarmonic(state, 'angleHarm')
+dihedralOPLS = FixDihedralOPLS(state, 'opls')
 
+tempData = state.dataManager.recordTemperature('all', 100)
 state.activateFix(ljcut)
-#state.activateFix(bondHarm)
-#state.activateFix(angleHarm)
+state.activateFix(bondHarm)
+state.activateFix(angleHarm)
+state.activateFix(dihedralOPLS)
 
 unitLen = 3.55
-writeconfig = WriteConfig(state, fn='dio_out', writeEvery=1, format='xyz', handle='writer')
+writeconfig = WriteConfig(state, fn='dio_out', writeEvery=10, format='xyz', handle='writer')
 writeconfig.unitLen = 1/unitLen
 state.activateWriteConfig(writeconfig)
 
-reader = LAMMPS_Reader(state=state, unitLen = unitLen, unitMass = 12, unitEng = 0.07, bondFix = bondHarm, angleFix = angleHarm, nonbondFix = ljcut, atomTypePrefix = 'DIO_', setBounds=False)
+fixNVT = FixNVTRescale(state, 'temp', 'all', [0, 1], [0.1, 0.1], 1)
+state.activateFix(fixNVT)
+reader = LAMMPS_Reader(state=state, unitLen = unitLen, unitMass = 12, unitEng = 0.07, bondFix = bondHarm, angleFix = angleHarm, nonbondFix = ljcut, dihedralFix = dihedralOPLS, atomTypePrefix = 'DIO_', setBounds=False)
 reader.read(dataFn = 'DIO_VMD.data')
 
+InitializeAtoms.initTemp(state, 'all', 0.1)
 state.atomParams.setValues('DIO_0', atomicNum=6)
 state.atomParams.setValues('DIO_1', atomicNum=1)
 state.atomParams.setValues('DIO_2', atomicNum=53)
 
-integVerlet = IntegraterVerlet(state)
+print state.atoms[0].pos.dist(state.atoms[1].pos)
+integVerlet = IntegraterRelax(state)
+integVerlet.run(10000, 1e-9)
+InitializeAtoms.initTemp(state, 'all', 0.1)
 
-integVerlet.run(1)
+integVerlet = IntegraterVerlet(state)
+integVerlet.run(10000)
+#print state.atoms[0].pos.dist(state.atoms[1].pos)
+#print tempData.vals
 
 
 

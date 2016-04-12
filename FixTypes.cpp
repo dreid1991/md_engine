@@ -2,7 +2,7 @@
 const string _2dType = "2d";
 const string bondHarmType = "bondHarm";
 const string angleHarmType = "angleHarm";
-const string dihedralOPLSType = "diheralOPLS";
+const string dihedralOPLSType = "dihedralOPLS";
 const string constPressureType = "constPress";
 const string springStaticType;
 const string dampType = "damp";

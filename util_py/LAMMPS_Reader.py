@@ -72,6 +72,8 @@ class LAMMPS_Reader:
     def emptyLine(self, line):
         bits = line.split()
         return len(bits)==0 or bits[0][0]=='#'
+    def emptyLineSplit(self, bits):
+        return len(bits)==0 or bits[0][0]=='#'
 
     def readAtomTypes(self):
         numAtomTypesRE = re.compile('^[\s][\d]+[\s]+atom[\s]+types')
@@ -168,11 +170,11 @@ class LAMMPS_Reader:
         else:
             typeOffset = 0
         for line in raw:
-            type = int(bondLine[1])
-            ids = [int(x) for x in [line[2], line[3], line[4]]]
+            type = int(line[1])
+            ids = [int(x) for x in [line[2], line[3], line[4], line[5]]]
             idxs = [self.atomIdToIdx[id] for id in ids]
             simType = typeOffset + type
-            self.angleFix.createAngle(self.state.atoms[idxs[0]], self.state.atoms[idxs[1]], self.state.atoms[idxs[2]], self.state.atoms[idxs[3]], type=simType)
+            self.dihedralFix.createDihedral(self.state.atoms[idxs[0]], self.state.atoms[idxs[1]], self.state.atoms[idxs[2]], self.state.atoms[idxs[3]], type=simType)
 
             self.LMPTypeToSimTypeDihedral[type] = simType
     def readImpropers(self):
@@ -183,11 +185,11 @@ class LAMMPS_Reader:
         else:
             typeOffset = 0
         for line in raw:
-            type = int(bondLine[1])
-            ids = [int(x) for x in [line[2], line[3], line[4]]]
+            type = int(line[1])
+            ids = [int(x) for x in [line[2], line[3], line[4], line[5]]]
             idxs = [self.atomIdToIdx[id] for id in ids]
             simType = typeOffset + type
-            self.angleFix.createAngle(self.state.atoms[idxs[0]], self.state.atoms[idxs[1]], self.state.atoms[idxs[2]], self.state.atoms[idxs[3]], type=simType)
+            self.improperFix.createImproper(self.state.atoms[idxs[0]], self.state.atoms[idxs[1]], self.state.atoms[idxs[2]], self.state.atoms[idxs[3]], type=simType)
 
             self.LMPTypeToSimTypeImproper[type] = simType
 
@@ -296,7 +298,7 @@ class LAMMPS_Reader:
         while lineIdx < len(dataFileLines) and len(dataFileLines[lineIdx]):
             line = self.stripComments(dataFileLines[lineIdx])
             bits = line.split()
-            if self.isNums(bits):
+            if not self.emptyLineSplit(bits):
                 readData.append(bits)
                 lineIdx+=1
             else:
@@ -336,8 +338,9 @@ def bondHarmonic_input(reader, args):
 def angleHarmonic_data(reader, args):
     type = reader.LMPTypeToSimTypeAngle[int(args[0])]
     k = float(args[1]) / reader.unitEng
-    rEq = float(args[2]) / reader.unitLen
-    return [type, k, rEq]
+    thetaEq = float(args[2]) * DEGREES_TO_RADIANS
+    print k, thetaEq
+    return [type, k, thetaEq]
 
 def angleHarmonic_input(reader, args):
     type = reader.LMPTypeToSimTypeAngle[int(args[1])]
@@ -348,6 +351,7 @@ def angleHarmonic_input(reader, args):
 def dihedralOPLS_data(reader, args):
     type = reader.LMPTypeToSimTypeDihedral[int(args[0])]
     coefs = [float(x) / reader.unitEng for x in args[2:6]]
+    print type, coefs
     return [type, coefs]
 
 def dihedralOPLS_input(reader, args):

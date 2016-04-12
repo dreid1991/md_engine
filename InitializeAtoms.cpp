@@ -102,17 +102,19 @@ void InitializeAtoms::initTemp(SHARED(State) state, string groupHandle, double t
 			dists[a->mass] = normal_distribution<double> (0, sqrt(temp / a->mass));
 		}
 	}
-    Vector sumVels;
+    Vector sumMoms;
+    double sumMass = 0;
     for (Atom *a : atoms) {
         for (int i=0; i<3; i++) {
             a->vel[i] = dists[a->mass](generator);
         }
-        sumVels += a->vel;
+        sumMoms += a->vel * a->mass;
+        sumMass += a->mass;
     }
     if (atoms.size()>1) {
-        sumVels /= (double) atoms.size();
+        sumMoms /= sumMass;
         for (Atom *a : atoms) {
-            a->vel -= sumVels;
+            a->vel -= sumMoms * a->mass;
         }
     }
 	double sumKe = 0;

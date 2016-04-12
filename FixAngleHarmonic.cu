@@ -104,6 +104,7 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
 
 
 FixAngleHarmonic::FixAngleHarmonic(SHARED(State) state_, string handle) : FixPotentialMultiAtom(state_, handle, angleHarmType) {
+    forceSingle = true;
 }
 
 
@@ -118,7 +119,7 @@ void FixAngleHarmonic::compute(bool computeVirials) {
 //okay, so the net result of this function is that two arrays (items, idxs of items) are on the gpu and we know how many bonds are in bondiest  block
 
 void FixAngleHarmonic::setAngleTypeCoefs(int type, double k, double thetaEq) {
-    cout << type << " " << k << " " << thetaEq << endl;
+    //cout << type << " " << k << " " << thetaEq << endl;
     assert(thetaEq>=0);
     AngleHarmonic dummy(k, thetaEq);
     setForcerType(type, dummy);
@@ -154,9 +155,10 @@ void export_FixAngleHarmonic() {
              boost::python::arg("type")=-1)
         )
     .def("setAngleTypeCoefs", &FixAngleHarmonic::setAngleTypeCoefs,
-            (boost::python::arg("type")=-1),
+            (boost::python::arg("type")=-1,
              boost::python::arg("k")=COEF_DEFAULT,
              boost::python::arg("thetaEq")=COEF_DEFAULT
+            )
         )
     ;
 

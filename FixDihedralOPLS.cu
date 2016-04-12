@@ -121,7 +121,7 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
                 if (dx < 0) {
                     phi = -phi;
                 }
-                printf("phi is %f\n", phi);
+              //  printf("phi is %f\n", phi);
                 float sinPhi = sinf(phi);
                 float absSinPhi = sinPhi < 0 ? -sinPhi : sinPhi;
                 if (absSinPhi < EPSILON) {
@@ -136,7 +136,7 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
                     - 4.0f * dihedral.coefs[3] * sinf(4.0f*phi) * invSinPhi
                     )
                     ;
-                printf("deriv is %f\n", derivOfPotential);
+              //  printf("deriv is %f\n", derivOfPotential);
                 c *= derivOfPotential;
                 scValues[2] *= derivOfPotential;
                 float a11 = c * invLenSqrs[0] * scValues[0];
@@ -229,6 +229,7 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
 
 
 FixDihedralOPLS::FixDihedralOPLS(SHARED(State) state_, string handle) : FixPotentialMultiAtom (state_, handle, dihedralOPLSType) {
+    forceSingle = true;
 }
 
 
