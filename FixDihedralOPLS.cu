@@ -12,7 +12,7 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
     int idxEndCopy = startstops[min(nAtoms, blockDim.x*(blockIdx.x+1))];
     copyToShared<DihedralOPLSGPU>(dihedrals + idxBeginCopy, dihedrals_shr, idxEndCopy - idxBeginCopy);
     __syncthreads();
-    if (idx < nAtoms) { //HEY - THIS SHOULD BE < nAtoms
+    if (idx < nAtoms) {
   //      printf("going to compute %d\n", idx);
         int startIdx = startstops[idx];
         int endIdx = startstops[idx+1];
@@ -21,7 +21,7 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
         int shr_idx = startIdx - idxBeginCopy;
         int n = endIdx - startIdx;
         if (n) {
-            int idSelf = dihedrals_shr[startIdx].ids[dihedrals_shr[startIdx].myIdx];
+            int idSelf = dihedrals_shr[shr_idx].ids[dihedrals_shr[shr_idx].myIdx];
             
             int idxSelf = tex2D<int>(idToIdxs, XIDX(idSelf, sizeof(int)), YIDX(idSelf, sizeof(int)));
         
@@ -196,39 +196,6 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
                 forceSum += myForce;
 
 
-                /*
-
-
-                float distSqrs[2];
-                float dists[2];
-                for (int i=0; i<2; i++) {
-                    distSqrs[i] = lengthSqr(directors[i]);
-                    dists[i] = sqrtf(distSqrs[i]);
-                }
-                float c = dot(directors[0], directors[1]);
-                float invDistProd = 1.0f / (dists[0]*dists[1]);
-                c *= invDistProd;
-                if (c>1) {
-                    c=1;
-                } else if (c<-1) {
-                    c=-1;
-                }
-                float s = sqrtf(1-c*c);
-                float dTheta = acosf(c) - angle.thetaEq;
-                float forceConst = angle.k * dTheta;
-                float a = -2 * forceConst * s;
-                float a11 = a*c/distSqrs[0];
-                float a12 = -a*invDistProd;
-                float a22 = a*c/distSqrs[1];
-
-                if (angle.myIdx==0) {
-                    forceSum += ((directors[0] * a11) + (directors[1] * a12)) * 0.5;
-                } else if (angle.myIdx==1) {
-                    forceSum -= ((directors[0] * a11) + (directors[1] * a12) + (directors[1] * a22) + (directors[0] * a12)) * 0.5; 
-                } else {
-                    forceSum += ((directors[1] * a22) + (directors[0] * a12)) * 0.5;
-                }
-                */
             }
             forces[idxSelf] += forceSum;
         }
@@ -244,6 +211,7 @@ FixDihedralOPLS::FixDihedralOPLS(SHARED(State) state_, string handle) : FixPoten
 void FixDihedralOPLS::compute(bool computeVirials) {
     int nAtoms = state->atoms.size();
     int activeIdx = state->gpd.activeIdx();
+    //cout << "max forcers " << maxForcersPerBlock << endl;
     compute_cu<<<NBLOCK(nAtoms), PERBLOCK, sizeof(DihedralOPLSGPU) * maxForcersPerBlock>>>(nAtoms, state->gpd.xs(activeIdx), state->gpd.fs(activeIdx), state->gpd.idToIdxs.getTex(), forcersGPU.data(), forcerIdxs.data(), state->boundsGPU);
 
 }

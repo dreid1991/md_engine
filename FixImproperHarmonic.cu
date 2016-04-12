@@ -20,7 +20,7 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
         int shr_idx = startIdx - idxBeginCopy;
         int n = endIdx - startIdx;
         if (n) {
-            int idSelf = impropers_shr[startIdx].ids[impropers_shr[startIdx].myIdx];
+            int idSelf = impropers_shr[shr_idx].ids[impropers_shr[shr_idx].myIdx];
             
             int idxSelf = tex2D<int>(idToIdxs, XIDX(idSelf, sizeof(int)), YIDX(idSelf, sizeof(int)));
         

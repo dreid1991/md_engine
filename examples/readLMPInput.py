@@ -6,7 +6,7 @@ from LAMMPS_Reader import LAMMPS_Reader
 from Sim import *
 from math import *
 state = State()
-state.deviceManager.setDevice(1)
+state.deviceManager.setDevice(0)
 state.bounds = Bounds(state, lo = Vector(-10, -10, -10), hi = Vector(55.12934875488, 55.12934875488, 55.12934875488))
 state.rCut = 3.0
 state.padding = 0.6
@@ -33,7 +33,7 @@ writeconfig.unitLen = 1/unitLen
 state.activateWriteConfig(writeconfig)
 
 fixNVT = FixNVTRescale(state, 'temp', 'all', [0, 1], [0.1, 0.1], 1)
-state.activateFix(fixNVT)
+#state.activateFix(fixNVT)
 reader = LAMMPS_Reader(state=state, unitLen = unitLen, unitMass = 12, unitEng = 0.07, bondFix = bondHarm, angleFix = angleHarm, nonbondFix = ljcut, dihedralFix = dihedralOPLS, atomTypePrefix = 'DIO_', setBounds=False)
 reader.read(dataFn = 'DIO_VMD.data')
 
@@ -43,12 +43,12 @@ state.atomParams.setValues('DIO_1', atomicNum=1)
 state.atomParams.setValues('DIO_2', atomicNum=53)
 
 print state.atoms[0].pos.dist(state.atoms[1].pos)
-integVerlet = IntegraterRelax(state)
-integVerlet.run(10000, 1e-9)
+integRelax = IntegraterRelax(state)
+integRelax.run(100000, 1e-9)
 InitializeAtoms.initTemp(state, 'all', 0.1)
 
 integVerlet = IntegraterVerlet(state)
-integVerlet.run(10000)
+integVerlet.run(100000)
 #print state.atoms[0].pos.dist(state.atoms[1].pos)
 #print tempData.vals
 

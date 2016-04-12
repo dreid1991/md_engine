@@ -12,6 +12,7 @@ deps/*.Td
 python/test/*xml
 python/test/*png
 benchmark/*xyz
+examples/*xyz
 ./*xml
 # Emacs backups:
 *~
