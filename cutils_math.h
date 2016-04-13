@@ -1227,6 +1227,11 @@ inline __host__ __device__ float lengthSqrOverW(float4 v)
     float3 v3 = make_float3(v);
     return dot(v3, v3) / v.w;
 }
+inline __host__ __device__ float4 xyzOverW(float4 v) 
+{
+    float3 v3 = make_float3(v);
+    return make_float4(v3 / v.w);
+}
 ////////////////////////////////////////////////////////////////////////////////
 // normalize
 ////////////////////////////////////////////////////////////////////////////////

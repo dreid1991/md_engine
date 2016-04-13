@@ -645,7 +645,7 @@ void testLJ() {
 }
 void testGPUArrayTex() {
 
-    GPUArrayDeviceTex<int> xs(10, cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindSigned));
+    /*GPUArrayDeviceTex<int> xs(10, cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindSigned));
     vector<int> vals;
     for (int i=0; i<10; i++) {
         vals.push_back(i+1);
@@ -653,6 +653,7 @@ void testGPUArrayTex() {
     xs.set(vals.data());
     cout << xs.size() << endl;
     cout << xs.capacity() << endl;
+    */
 
 }
 

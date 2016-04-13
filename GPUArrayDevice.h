@@ -52,7 +52,7 @@ public:
      * memory is deallocated and new memory is allocated. In this case, the
      * stored memory is lost and the function returns false.
      */
-    virtual bool resize(size_t newSize, bool force = false);
+    virtual bool resize(size_t newSize, bool force = false){return (void *) NULL;};
 
 private:
     /*! \brief Allocate memory for the array */

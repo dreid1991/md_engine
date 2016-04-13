@@ -5,7 +5,8 @@
 #include <vector>
 
 #include "GPUArrayBase.h"
-#include "GPUArrayDeviceTex.h"
+#include "GPUArrayTexBase.h"
+#include "GPUArrayTexDevice.h"
 
 /*! \brief Manage data on the CPU and a GPU Texture
  *
@@ -17,9 +18,9 @@
  * not for general storage.
  */
 template <class T>
-class GPUArrayTex : public GPUArrayBase {
+class GPUArrayTex : public GPUArrayBase, public GPUArrayTexBase {
     public:
-        GPUArrayDeviceTex<T> d_data; //!< Array storing data on the GPU
+        GPUArrayTexDevice<T> d_data; //!< Array storing data on the GPU
         std::vector<T> h_data; //!< Array storing data on the CPU
 
         /*! \brief Default constructor */
@@ -87,8 +88,6 @@ class GPUArrayTex : public GPUArrayBase {
 
         /*! \brief Copy data from GPU to CPU asynchronously
          *
-         * \param stream CUDA Stream object
-         *
          * \todo It would be nicer to call dataToHost and have it copy
          *       asynchronously if a stream is passed and synchronously
          *       otherwise
@@ -107,7 +106,7 @@ class GPUArrayTex : public GPUArrayBase {
 
         }
 
-        /*! \brief Return texture object from GPUArrayDeviceTex
+        /*! \brief Return texture object from GPUArrayTexDevice
          *
          * \return Cuda Texture Object used for GPU memory storage
          */
@@ -115,7 +114,7 @@ class GPUArrayTex : public GPUArrayBase {
             return d_data.tex;
         }
 
-        /*! \brief Return surface object from GPUArrayDeviceTex
+        /*! \brief Return surface object from GPUArrayTexDevice
          *
          * \return Cuda Surface Object used to write to GPU texture memory
          */
@@ -123,9 +122,9 @@ class GPUArrayTex : public GPUArrayBase {
             return d_data.surf;
         }
 
-        /*! \brief Set all elements to a given value
+        /*! \brief
          *
-         * \param val Value the elements are set to
+         * \param
          */
         void memsetByVal(T val) {
             d_data.memsetByVal(val);

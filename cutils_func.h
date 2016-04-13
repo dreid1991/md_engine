@@ -122,12 +122,12 @@ __global__ void NAME (K *dest, T *src, int n, unsigned int groupTag, float4 *fs,
         unsigned int atomGroup = * (unsigned int *) &(fs[potentialIdx].w);\
         if (atomGroup & groupTag) {\
             tmp[threadIdx.x] = OPERATOR ( WRAPPER (src[blockDim.x*blockIdx.x + threadIdx.x]) ) ;\
-            atomicAdd(dest+1, 1);/*I TRIED DOING ATOMIC ADD IN SHARED MEMORY, BUT IT SET A BUNCH OF THE OTHER SHARED MEMORY VALUES TO ZERO.  VERY CONFUSING*/\
+            atomicAdd((int *) (dest+1), 1);/*I TRIED DOING ATOMIC ADD IN SHARED MEMORY, BUT IT SET A BUNCH OF THE OTHER SHARED MEMORY VALUES TO ZERO.  VERY CONFUSING*/\
         } else {\
-            tmp[threadIdx.x] = 0;\
+            tmp[threadIdx.x] = K();\
         }\
     } else {\
-        tmp[threadIdx.x] = 0;\
+        tmp[threadIdx.x] = K();\
     }\
     __syncthreads();\
     int curLookahead = 1;\
@@ -149,5 +149,6 @@ __global__ void NAME (K *dest, T *src, int n, unsigned int groupTag, float4 *fs,
 SUM_TAGS(sumPlain, , );
 SUM_TAGS(sumVectorSqr3DTags, lengthSqr, make_float3);
 SUM_TAGS(sumVectorSqr3DTagsOverW, lengthSqrOverW, ); // for temperature
+SUM_TAGS(sumVector3DTagsOverW, xyzOverW, ); //for linear momentum
 
 #endif

@@ -2,11 +2,7 @@
 #ifndef GPUARRAYDEVICEGLOBAL_H
 #define GPUARRAYDEVICEGLOBAL_H
 
-#include <cuda_runtime.h>
-
 #include "globalDefs.h"
-#include "GPUArrayDevice.h"
-#include "Logging.h"
 
 /*! \brief Global function to set the device memory */
 void MEMSETFUNC(void *, const void *, size_t, size_t);
@@ -18,7 +14,7 @@ void MEMSETFUNC(void *, const void *, size_t, size_t);
  * Array storing data on the GPU device.
  */
 template <typename T>
-class GPUArrayDeviceGlobal : public GPUArrayDevice {
+class GPUArrayDeviceGlobal {
 public:
     /*! \brief Constructor
      *
@@ -27,12 +23,12 @@ public:
      * This constructor creates the array on the GPU device and allocates
      * enough memory to store n_ elements.
      */
-    explicit GPUArrayDeviceGlobal(size_t size = 0)
-        : GPUArrayDevice(size) { allocate(); }
+    explicit GPUArrayDeviceGlobal(size_t n_ = 0)
+        : n(n_) { allocate(); }
 
     /*! \brief Copy constructor */
     GPUArrayDeviceGlobal(const GPUArrayDeviceGlobal<T> &other)
-        : GPUArrayDevice(other.n)
+        : n(other.n)
     {
         allocate();
         CUCHECK(cudaMemcpy(ptr, other.ptr, n*sizeof(T),
@@ -41,12 +37,10 @@ public:
 
     /*! \brief Move constructor */
     GPUArrayDeviceGlobal(GPUArrayDeviceGlobal<T> &&other)
-        : GPUArrayDevice(other.n)
+        : ptr(other.ptr), n(other.n)
     {
-        ptr = other.ptr;
         other.n = 0;
-        other.cap = 0;
-        other.ptr = nullptr;
+        other.ptr = (T *) NULL;
     }
 
     /*! \brief Destructor */
@@ -57,9 +51,9 @@ public:
     /*! \brief Assignment operator */
     GPUArrayDeviceGlobal<T> &operator=(const GPUArrayDeviceGlobal<T> &other) {
         if (n != other.n) {
-            //! \todo Think about if it would be better not to force
-            //!       reallocation here
-            resize(other.n, true); // Force resizing
+            deallocate();
+            n = other.n;
+            allocate();
         }
         CUCHECK(cudaMemcpy(ptr, other.ptr, n*sizeof(T),
                                                 cudaMemcpyDeviceToDevice));
@@ -72,22 +66,16 @@ public:
         n = other.n;
         ptr = other.ptr;
         other.n = 0;
-        other.cap = 0;
-        other.ptr = nullptr;
+        other.ptr = (T *) NULL;
         return *this;
     }
 
-    /*! \brief Access pointer to data
-     *
-     * \return Pointer to memory location
-     */
-    T *data() { return (T*)ptr; }
+    /*! \brief Get size (number of elements) of array */
+    size_t size() const { return n; }
 
-    /* \brief Const access pointer to data
-     *
-     * \return Const pointer to memory location
-     */
-    T const *data() const { return (T const*)ptr; }
+    /*! \brief Access pointer to data */
+    T *data() { return ptr; }
+    const T *data() const { return ptr; }
 
     /*! \brief Copy data to given pointer
      *
@@ -108,8 +96,7 @@ public:
         if (copyTo == (T *) NULL) {
             copyTo = (T *) malloc(n*sizeof(T));
         }
-        T *pointer = data();
-        CUCHECK(cudaMemcpy(copyTo, pointer+offset, num*sizeof(T),
+        CUCHECK(cudaMemcpy(copyTo, ptr+offset, num*sizeof(T),
                                                 cudaMemcpyDeviceToHost));
         return copyTo;
     }
@@ -141,7 +128,7 @@ public:
      * the the GPUArrayDeviceGlobal.
      */
     void set(const T *copyFrom) {
-        CUCHECK(cudaMemcpy(ptr, copyFrom, size()*sizeof(T),
+        CUCHECK(cudaMemcpy(ptr, copyFrom, n*sizeof(T),
                                                 cudaMemcpyHostToDevice));
     }
 
@@ -198,23 +185,24 @@ public:
      * Set all array elements to the value specified by the parameter val
      */
     void memsetByVal(const T &val) {
-        mdAssert(sizeof(T) == 4  || sizeof(T) == 8 ||
-                 sizeof(T) == 12 || sizeof(T) == 16,
-                 "Type parameter incompatible size");
-        MEMSETFUNC(ptr, &val, n, sizeof(T));
+        assert(sizeof(T) == 4  || sizeof(T) == 8 ||
+               sizeof(T) == 12 || sizeof(T) == 16);
+        MEMSETFUNC((void *) ptr, &val, n, sizeof(T));
     }
 
 private:
     /*! \brief Allocate memory */
-    void allocate() { CUCHECK(cudaMalloc(&ptr, n * sizeof(T))); cap = size(); }
+    void allocate() { CUCHECK(cudaMalloc(&ptr, n * sizeof(T))); }
 
     /*! \brief Deallocate memory */
     void deallocate() {
         CUCHECK(cudaFree(ptr));
-        n = 0;
-        cap = 0;
-        ptr = nullptr;
+        ptr = (T *) NULL;
     }
+
+private:
+    T *ptr; //!< Pointer to the data
+    size_t n; //!< Number of entries stored in the device
 };
 
 #endif

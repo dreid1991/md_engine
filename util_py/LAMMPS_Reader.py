@@ -207,7 +207,7 @@ class LAMMPS_Reader:
         for line in rawData:
 #will have to generalize this at some point
             handle = self.myAtomHandles[int(line[0]) - 1]
-            eps = float(line[1]) / self.unitEng
+            eps = 1.5*float(line[1]) #/ self.unitEng
             sig = float(line[2]) / self.unitLen
             self.nonbondFix.setParameter('sig', handleA=handle, handleB=handle, val=sig)
             self.nonbondFix.setParameter('eps', handleA=handle, handleB=handle, val=eps)
@@ -352,7 +352,7 @@ def bondHarmonic_data(reader, args):
         print 'Ignoring LAMMPS bond type %d from data file.  Bond not used in data file' % LMPType
         return False
     type = reader.LMPTypeToSimTypeBond[LMPType]
-    k = float(args[1]) / reader.unitEng
+    k =  reader.unitLen * reader.unitLen * float(args[1]) / reader.unitEng
     rEq = float(args[2]) / reader.unitLen
     return [type, k, rEq]
 
