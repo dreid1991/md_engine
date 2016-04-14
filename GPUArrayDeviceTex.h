@@ -25,14 +25,14 @@ public:
 
     /*! \brief Default constructor */
     GPUArrayDeviceTex()
-        : GPUArrayDevice(0), madeTex(false) {}
+        : GPUArrayDevice(0), tex(0), surf(0) {}
 
     /*! \brief Constructor
      *
      * \param desc_ Channel descriptor
      */
     GPUArrayDeviceTex(cudaChannelFormatDesc desc_)
-        : GPUArrayDevice(0), madeTex(false), channelDesc(desc_)
+        : GPUArrayDevice(0), tex(0), surf(0), channelDesc(desc_)
     {
         initializeDescriptions();
     }
@@ -43,7 +43,7 @@ public:
      * \param desc Channel descriptor
      */
     GPUArrayDeviceTex(size_t size, cudaChannelFormatDesc desc)
-        : GPUArrayDevice(size), madeTex(false), channelDesc(desc)
+        : GPUArrayDevice(size), tex(0), surf(0), channelDesc(desc)
     {
         initializeDescriptions();
         allocate();
@@ -55,7 +55,7 @@ public:
      * \param other GPUArrayDeviceTex to copy from
      */
     GPUArrayDeviceTex(const GPUArrayDeviceTex<T> &other)
-        : GPUArrayDevice(other.size()), madeTex(false),
+        : GPUArrayDevice(other.size()), tex(0), surf(0),
           channelDesc(other.channelDesc)
     {
         initializeDescriptions();
@@ -75,7 +75,7 @@ public:
         ptr = (void *)other.data();
         initializeDescriptions();
         resDesc.res.array.array = data();
-        if (other.madeTex) {
+        if (other.tex != 0) {
             createTexSurfObjs();
         }
         other.ptr = nullptr;
@@ -118,9 +118,8 @@ public:
         copyFromOther(other);
         initializeDescriptions();
         resDesc.res.array.array = data();
-        if (other.madeTex) {
+        if (other.tex != 0) {
             createTexSurfObjs();
-
         }
         other.ptr = nullptr;
         other.n = 0;
@@ -150,7 +149,6 @@ public:
         surf = 0;
         cudaCreateTextureObject(&tex, &resDesc, &texDesc, NULL);
         cudaCreateSurfaceObject(&surf, &resDesc);
-        madeTex = true;
     }
 
     /*! \brief Custom copy operator
@@ -194,11 +192,8 @@ public:
      * \todo Create Texture and Surface only if they have been created before.
      */
     virtual bool resize(size_t newSize, bool force = false) {
-        // // Create new Texture objects if they existed before and have been
-        // // destroyed in the resizing.
-        // bool texMadeBefore = madeTex;
         bool memoryReallocated = GPUArrayDevice::resize(newSize, force);
-        if (/*texMadeBefore &&*/ memoryReallocated) {
+        if (memoryReallocated) {
             createTexSurfObjs();
         }
 
@@ -302,14 +297,17 @@ private:
 
     /*! \brief Destroy Texture and Surface objects, deallocate memory */
     void deallocate() {
-        if (madeTex) {
+        if (tex != 0) {
             CUCHECK(cudaDestroyTextureObject(tex));
+            tex = 0;
+        }
+        if (surf != 0) {
             CUCHECK(cudaDestroySurfaceObject(surf));
+            surf = 0;
         }
         if (data() != (cudaArray *) NULL) {
             CUCHECK(cudaFreeArray(data()));
         }
-        madeTex = false;
     }
 
 public:
@@ -317,7 +315,6 @@ public:
     cudaSurfaceObject_t surf; //!< Texture surface
     cudaResourceDesc resDesc; //!< Resource descriptor
     cudaTextureDesc texDesc; //!< Texture descriptor
-    bool madeTex; //!< True if texture has been created.
 
 private:
     cudaChannelFormatDesc channelDesc; //!< Descriptor for the texture
