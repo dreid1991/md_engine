@@ -30,7 +30,7 @@ state.activateFix(dihedralOPLS)
 state.activateFix(improperHarm)
 
 unitLen = 3.5
-writeconfig = WriteConfig(state, fn='poly_out', writeEvery=1, format='xyz', handle='writer')
+writeconfig = WriteConfig(state, fn='poly_out', writeEvery=100, format='xyz', handle='writer')
 writeconfig.unitLen = 1/unitLen
 state.activateWriteConfig(writeconfig)
 
@@ -74,11 +74,11 @@ integRelax = IntegraterRelax(state)
 integRelax.writeOutput()
 #integRelax.run(11, 1e-9)
 InitializeAtoms.initTemp(state, 'all', 0.1)
-fixNVT = FixNVTRescale(state, 'temp', 'all', [0, 1], [0.1, 0.8], 1)
+fixNVT = FixNVTRescale(state, 'temp', 'all', [0, 1], [0.1, 3.8], 100)
 state.activateFix(fixNVT)
 
 integVerlet = IntegraterVerlet(state)
-integVerlet.run(10000)
+integVerlet.run(150000)
 
 #integVerlet = IntegraterVerlet(state)
 #integVerlet.run(100000)

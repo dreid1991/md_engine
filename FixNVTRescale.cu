@@ -66,19 +66,19 @@ bool FixNVTRescale::prepareForRun() {
 }
 
 void __global__ rescale(int nAtoms, uint groupTag, float4 *vs, float4 *fs, float tempSet, float *tempCurPtr) {
+    int idx = GETIDX();
     float2 vals = ((float2 *) tempCurPtr)[0];
-    if (vals.x > 0) {
-        float tempCur = vals.x / vals.y / 3.0f; //1th entry is #in group
-        int idx = GETIDX();
-        if (idx < nAtoms) {
-            uint groupTagAtom = ((uint *) (fs+idx))[3];
-            if (groupTag & groupTagAtom) {
-                float4 vel = vs[idx];
-                float w = vel.w;
-                vel *= sqrtf(tempSet / tempCur);
-                vel.w = w;
-                vs[idx] = vel;
-            }
+    float sumKe = vals.x;
+    int n = * (int *) &(vals.y);
+    if (vals.x > 0 and idx < nAtoms) {
+        float tempCur = sumKe / n / 3.0f; //1th entry is #in group
+        uint groupTagAtom = ((uint *) (fs+idx))[3];
+        if (groupTag & groupTagAtom) {
+            float4 vel = vs[idx];
+            float w = vel.w;
+            vel *= sqrtf(tempSet / tempCur);
+            vel.w = w;
+            vs[idx] = vel;
         }
     }
 }
@@ -87,8 +87,10 @@ void __global__ rescale(int nAtoms, uint groupTag, float4 *vs, float4 *fs, float
 void __global__ rescaleInBounds(int nAtoms, uint groupTag, float4 *xs, float4 *vs, float4 *fs, float tempSet, float *tempCurPtr, BoundsGPU bounds) {
     int idx = GETIDX();
     float2 vals = ((float2 *) tempCurPtr)[0];
+    float sumKe = vals.x;
+    int n = * (int *) &(vals.y);
     if (vals.x > 0 and idx < nAtoms) {
-        float tempCur = vals.x / vals.y / 3.0f; //1th entry is #in group
+        float tempCur = sumKe / n / 3.0f; //1th entry is #in group
         uint groupTagAtom = ((uint *) (fs+idx))[3];
         if (groupTag & groupTagAtom) {
             float3 x = make_float3(xs[idx]);
