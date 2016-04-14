@@ -190,12 +190,15 @@ public:
      * Resize the Texture array. If the new size is larger than capacity,
      * new memory is allocated. This function can destroy the data on the
      * GPU texture device.
+     *
+     * \todo Create Texture and Surface only if they have been created before.
      */
     virtual bool resize(size_t newSize, bool force = false) {
-        // Create new Texture objects if they existed before and have been
-        // destroyed in the resizing.
+        // // Create new Texture objects if they existed before and have been
+        // // destroyed in the resizing.
+        // bool texMadeBefore = madeTex;
         bool memoryReallocated = GPUArrayDevice::resize(newSize, force);
-        if (madeTex && memoryReallocated) {
+        if (/*texMadeBefore &&*/ memoryReallocated) {
             createTexSurfObjs();
         }
 
