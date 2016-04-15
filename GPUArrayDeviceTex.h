@@ -25,14 +25,14 @@ public:
 
     /*! \brief Default constructor */
     GPUArrayDeviceTex()
-        : GPUArrayDevice(0), tex(0), surf(0) {}
+        : GPUArrayDevice(0), texObject(0), surfObject(0) {}
 
     /*! \brief Constructor
      *
      * \param desc_ Channel descriptor
      */
     GPUArrayDeviceTex(cudaChannelFormatDesc desc_)
-        : GPUArrayDevice(0), tex(0), surf(0), channelDesc(desc_)
+        : GPUArrayDevice(0), texObject(0), surfObject(0), channelDesc(desc_)
     {
         initializeDescriptions();
     }
@@ -43,7 +43,7 @@ public:
      * \param desc Channel descriptor
      */
     GPUArrayDeviceTex(size_t size, cudaChannelFormatDesc desc)
-        : GPUArrayDevice(size), tex(0), surf(0), channelDesc(desc)
+        : GPUArrayDevice(size), texObject(0), surfObject(0), channelDesc(desc)
     {
         initializeDescriptions();
         allocate();
@@ -55,7 +55,7 @@ public:
      * \param other GPUArrayDeviceTex to copy from
      */
     GPUArrayDeviceTex(const GPUArrayDeviceTex<T> &other)
-        : GPUArrayDevice(other.size()), tex(0), surf(0),
+        : GPUArrayDevice(other.size()), texObject(0), surfObject(0),
           channelDesc(other.channelDesc)
     {
         initializeDescriptions();
@@ -75,7 +75,7 @@ public:
         ptr = (void *)other.data();
         initializeDescriptions();
         resDesc.res.array.array = data();
-        if (other.tex != 0) {
+        if (other.tex() != 0) {
             createTexSurfObjs();
         }
         other.ptr = nullptr;
@@ -118,7 +118,7 @@ public:
         copyFromOther(other);
         initializeDescriptions();
         resDesc.res.array.array = data();
-        if (other.tex != 0) {
+        if (other.tex() != 0) {
             createTexSurfObjs();
         }
         other.ptr = nullptr;
@@ -147,11 +147,11 @@ public:
      * Objects are only created if they don't exist yet.
      */
     void createTexSurfObjs() {
-        if (tex == 0) {
-            cudaCreateTextureObject(&tex, &resDesc, &texDesc, NULL);
+        if (tex() == 0) {
+            cudaCreateTextureObject(&texObject, &resDesc, &texDesc, NULL);
         }
-        if (surf == 0) {
-            cudaCreateSurfaceObject(&surf, &resDesc);
+        if (surf() == 0) {
+            cudaCreateSurfaceObject(&surfObject, &resDesc);
         }
     }
 
@@ -214,7 +214,19 @@ public:
      *
      * \return Pointer to const device memory
      */
-     cudaArray const* data() const { return (cudaArray const*)ptr; }
+    cudaArray const* data() const { return (cudaArray const*)ptr; }
+
+    /*! \brief Access Texture Object
+     *
+     * \return Texture object to access current memory
+     */
+    cudaTextureObject_t tex() const { return texObject; }
+
+    /*! \brief Access Surface Object
+     *
+     * \return Surface object to access current memory
+     */
+    cudaSurfaceObject_t surf() const { return surfObject; }
 
     /*! \brief Copy data from device to a given memory
      *
@@ -285,7 +297,7 @@ public:
     void memsetByVal(T val_) {
         mdAssert(sizeof(T) == 4 || sizeof(T) == 8 || sizeof(T) == 16,
                  "Type T has incompatible size");
-        MEMSETFUNC(surf, &val_, size(), sizeof(T));
+        MEMSETFUNC(surfObject, &val_, size(), sizeof(T));
     }
 
 private:
@@ -301,26 +313,24 @@ private:
 
     /*! \brief Destroy Texture and Surface objects, deallocate memory */
     void deallocate() {
-        if (tex != 0) {
-            CUCHECK(cudaDestroyTextureObject(tex));
-            tex = 0;
+        if (tex() != 0) {
+            CUCHECK(cudaDestroyTextureObject(texObject));
+            texObject = 0;
         }
-        if (surf != 0) {
-            CUCHECK(cudaDestroySurfaceObject(surf));
-            surf = 0;
+        if (surf() != 0) {
+            CUCHECK(cudaDestroySurfaceObject(surfObject));
+            surfObject = 0;
         }
         if (data() != (cudaArray *) NULL) {
             CUCHECK(cudaFreeArray(data()));
         }
     }
 
-public:
-    cudaTextureObject_t tex; //!< Texture object
-    cudaSurfaceObject_t surf; //!< Texture surface
+private:
+    cudaTextureObject_t texObject; //!< Texture object
+    cudaSurfaceObject_t surfObject; //!< Texture surface
     cudaResourceDesc resDesc; //!< Resource descriptor
     cudaTextureDesc texDesc; //!< Texture descriptor
-
-private:
     cudaChannelFormatDesc channelDesc; //!< Descriptor for the texture
 };
 

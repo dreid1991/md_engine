@@ -112,7 +112,7 @@ class GPUArrayTex : public GPUArrayBase {
          * \return Cuda Texture Object used for GPU memory storage
          */
         cudaTextureObject_t getTex() {
-            return d_data.tex;
+            return d_data.tex();
         }
 
         /*! \brief Return surface object from GPUArrayDeviceTex
@@ -120,7 +120,7 @@ class GPUArrayTex : public GPUArrayBase {
          * \return Cuda Surface Object used to write to GPU texture memory
          */
         cudaSurfaceObject_t getSurf() {
-            return d_data.surf;
+            return d_data.surf();
         }
 
         /*! \brief Set all elements to a given value
