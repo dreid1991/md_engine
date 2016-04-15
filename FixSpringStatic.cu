@@ -27,13 +27,10 @@ void FixSpringStatic::updateTethers() {
 }
 
 
-bool FixSpringStatic::dataToDevice() {
-    tethers.dataToDevice();
-    return true;
-}
 
 bool FixSpringStatic::prepareForRun() {
-    return dataToDevice();
+    tethers.dataToDevice();
+    return true;
 }
 
 

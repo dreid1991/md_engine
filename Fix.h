@@ -36,8 +36,6 @@ class Fix {
 		bool forceSingle;
         int orderPreference;
         void updateGroupTag();
-        virtual bool dataToDevice() {return true;};
-        virtual bool dataToHost() {return true;};
         //prepareForRun and downloadFromRun ARE called before a run.  data to device and host and NOT. prepare from run should call those if needed
         virtual void addSpecies(string handle) {};
         virtual bool prepareForRun() {return true;};
