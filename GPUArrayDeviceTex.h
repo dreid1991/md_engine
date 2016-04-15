@@ -47,7 +47,6 @@ public:
     {
         initializeDescriptions();
         allocate();
-        createTexSurfObjs();
     }
 
     /*! \brief Copy constructor
@@ -63,7 +62,6 @@ public:
         CUCHECK(cudaMemcpy2DArrayToArray(data(), 0, 0, other.data(), 0, 0,
                                          NX() * sizeof(T), NY(),
                                          cudaMemcpyDeviceToDevice));
-        createTexSurfObjs();
     }
 
     /*! \brief Move constructor
@@ -101,7 +99,7 @@ public:
     GPUArrayDeviceTex<T> &operator=(const GPUArrayDeviceTex<T> &other) {
         channelDesc = other.channelDesc;
         if (other.size()) {
-            resize(other.size()); //creates tex surf objs
+            resize(other.size());
         }
         int x = NX();
         int y = NY();
@@ -194,15 +192,9 @@ public:
      * Resize the Texture array. If the new size is larger than capacity,
      * new memory is allocated. This function can destroy the data on the
      * GPU texture device.
-     *
-     * \todo Create Texture and Surface only if they have been created before.
      */
     virtual bool resize(size_t newSize, bool force = false) {
         bool memoryReallocated = GPUArrayDevice::resize(newSize, force);
-        if (memoryReallocated) {
-            createTexSurfObjs();
-        }
-
         return memoryReallocated;
     }
 
@@ -222,13 +214,13 @@ public:
      *
      * \return Texture object to access current memory
      */
-    cudaTextureObject_t tex() const { return texObject; }
+    cudaTextureObject_t tex() { createTexSurfObjs(); return texObject; }
 
     /*! \brief Access Surface Object
      *
      * \return Surface object to access current memory
      */
-    cudaSurfaceObject_t surf() const { return surfObject; }
+    cudaSurfaceObject_t surf() { createTexSurfObjs(); return surfObject; }
 
     /*! \brief Copy data from device to a given memory
      *
@@ -299,6 +291,7 @@ public:
     void memsetByVal(T val_) {
         mdAssert(sizeof(T) == 4 || sizeof(T) == 8 || sizeof(T) == 16,
                  "Type T has incompatible size");
+        createTexSurfObjs();
         MEMSETFUNC(surfObject, &val_, size(), sizeof(T));
     }
 
