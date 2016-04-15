@@ -62,6 +62,7 @@ public:
      * Get the atom type for a given handle.
      */
     int typeFromHandle(const std::string &handle) const;
+    
     void setValues(std::string handle, double mass, double atomicNum);
 
 public:

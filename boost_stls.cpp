@@ -4,6 +4,9 @@ void export_stls() {
     boost::python::class_<std::map<std::string, int> >("stringInt")
         .def(boost::python::map_indexing_suite<std::map<std::string, int> >())
         ;
+    boost::python::class_<std::vector<std::string> >("vecstring")
+        .def(boost::python::vector_indexing_suite<std::vector<std::string> >())
+        ;        
     boost::python::class_<std::vector<double> >("vecdouble")
         .def(boost::python::vector_indexing_suite<std::vector<double> >() )
         ;
@@ -20,14 +23,24 @@ void export_stls() {
     boost::python::class_<std::vector<Atom> >("vecAtom")
         .def(boost::python::vector_indexing_suite<std::vector<Atom> >() )
         ;
-
     boost::python::class_<std::vector<Atom *> >("vecAtomPtr")
         .def(boost::python::vector_indexing_suite<std::vector<Atom *> >() )
         ;
     boost::python::class_<std::vector<Bond> >("vecBond")
         .def(boost::python::vector_indexing_suite<std::vector<Bond> >() )
         ;
-
+    boost::python::class_<std::vector<BondHarmonic> >("vecBondHarmonic")
+        .def(boost::python::vector_indexing_suite<std::vector<BondHarmonic> >() )
+        ;
+    boost::python::class_<std::vector<BondHarmonic*> >("vecBondHarmonicPtr")
+        .def(boost::python::vector_indexing_suite<std::vector<BondHarmonic*> >() )
+        ;
+    boost::python::class_<std::vector<boost::shared_ptr<BondHarmonic>> >("vecSharedBondHarmonic")
+        .def(boost::python::vector_indexing_suite<std::vector<boost::shared_ptr<BondHarmonic>> >() )
+        ;        
+//     boost::python::class_<std::vector<BondVariant> >("vecBondVariant")
+//         .def(boost::python::vector_indexing_suite<std::vector<BondVariant> >() )
+//         ;
     boost::python::class_<std::vector<Neighbor> >("vecNeighbor")
         .def(boost::python::vector_indexing_suite<std::vector<Neighbor> >() )
         ;

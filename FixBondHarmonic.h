@@ -16,7 +16,7 @@ class FixBondHarmonic : public FixBond<BondHarmonic, BondHarmonicGPU> {
        // bool refreshAtoms();
         //vector<pair<int, vector<int> > > neighborlistExclusions();
 
-        void createBond(Atom *, Atom *, double, double, int);
+        void createBond(Atom *, Atom *, double, double, int);//by ids
         void setBondTypeCoefs(int, double, double);
         ~FixBondHarmonic(){};
         string restartChunk(string format);
@@ -28,7 +28,13 @@ class FixBondHarmonic : public FixBond<BondHarmonic, BondHarmonicGPU> {
         virtual vector<BondVariant> *getBonds() {
             return &bonds;
         }
-
+        
+        //python export
+        boost::python::list pythonbonds; 
+        void refresh_pythonbonds();
+        
+  
+        
 };
 
 

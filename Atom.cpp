@@ -13,6 +13,7 @@ void export_Atom () {
         .def_readwrite("groupTag", &Atom::groupTag)
         .def_readonly("neighbors", &Atom::neighbors)
         .def_readwrite("mass", &Atom::mass)
+        .def_readwrite("q", &Atom::q)
         .def_readwrite("type", &Atom::type)
         .def("kinetic", &Atom::kinetic)
         ;
