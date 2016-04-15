@@ -71,16 +71,20 @@ public:
      * \param other GPUArrayDeviceTex containing the data to move
      */
     GPUArrayDeviceTex(GPUArrayDeviceTex<T> &&other) {
-        copyFromOther(other);
-        ptr = (void *)other.data();
-        initializeDescriptions();
-        resDesc.res.array.array = data();
-        if (other.tex() != 0) {
-            createTexSurfObjs();
-        }
-        other.ptr = nullptr;
+        // Take the values of the other object
+        texObject = other.texObject;
+        surfObject = other.surfObject;
+        resDesc = other.resDesc;
+        texDesc = other.texDesc;
+        n = other.n;
+        cap = other.cap;
+        ptr = other.ptr;
+        // Set the other object to zero
+        other.texObject = 0;
+        other.surfObject = 0;
         other.n = 0;
         other.cap = 0;
+        other.ptr = nullptr;
     }
 
     /*! \brief Desctructor */
@@ -114,16 +118,26 @@ public:
      * \return This object
      */
     GPUArrayDeviceTex<T> &operator=(GPUArrayDeviceTex<T> &&other) {
+        // Clear this object
         deallocate();
-        copyFromOther(other);
-        initializeDescriptions();
-        resDesc.res.array.array = data();
-        if (other.tex() != 0) {
-            createTexSurfObjs();
-        }
-        other.ptr = nullptr;
+
+        // Take the values of the other object
+        texObject = other.texObject;
+        surfObject = other.surfObject;
+        resDesc = other.resDesc;
+        texDesc = other.texDesc;
+        n = other.n;
+        cap = other.cap;
+        ptr = other.ptr;
+
+        // Set other object to zero
+        other.texObject = 0;
+        other.surfObject = 0;
         other.n = 0;
         other.cap = 0;
+        other.ptr = nullptr;
+
+        // Return this object
         return *this;
     }
 
@@ -153,18 +167,6 @@ public:
         if (surf() == 0) {
             cudaCreateSurfaceObject(&surfObject, &resDesc);
         }
-    }
-
-    /*! \brief Custom copy operator
-     *
-     * \param other GPUArrayDeviceTex to copy from
-     */
-    void copyFromOther(const GPUArrayDeviceTex<T> &other) {
-        //I should own no pointers at this point, am just copying other's
-        channelDesc = other.channelDesc;
-        n = other.size();
-        cap = other.capacity();
-        ptr = other.ptr;
     }
 
     /*! \brief Get size in x-dimension of Texture Array
