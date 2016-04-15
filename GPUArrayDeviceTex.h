@@ -142,13 +142,17 @@ public:
         texDesc.readMode = cudaReadModeElementType;
     }
 
-    /*! \brief Create Texture and Surface Objects */
+    /*! \brief Create Texture and Surface Objects
+     *
+     * Objects are only created if they don't exist yet.
+     */
     void createTexSurfObjs() {
-
-        tex = 0;
-        surf = 0;
-        cudaCreateTextureObject(&tex, &resDesc, &texDesc, NULL);
-        cudaCreateSurfaceObject(&surf, &resDesc);
+        if (tex == 0) {
+            cudaCreateTextureObject(&tex, &resDesc, &texDesc, NULL);
+        }
+        if (surf == 0) {
+            cudaCreateSurfaceObject(&surf, &resDesc);
+        }
     }
 
     /*! \brief Custom copy operator
