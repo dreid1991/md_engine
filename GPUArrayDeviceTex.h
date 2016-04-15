@@ -60,7 +60,7 @@ public:
         initializeDescriptions();
         allocate();
         CUCHECK(cudaMemcpy2DArrayToArray(data(), 0, 0, other.data(), 0, 0,
-                                         NX() * sizeof(T), NY(),
+                                         nX() * sizeof(T), nY(),
                                          cudaMemcpyDeviceToDevice));
     }
 
@@ -101,8 +101,8 @@ public:
         if (other.size()) {
             resize(other.size());
         }
-        int x = NX();
-        int y = NY();
+        int x = nX();
+        int y = nY();
         CUCHECK(cudaMemcpy2DArrayToArray(data(), 0, 0, other.data(), 0, 0,
                                          x*sizeof(T), y,
                                          cudaMemcpyDeviceToDevice));
@@ -167,22 +167,6 @@ public:
         }
     }
 
-    /*! \brief Get size in x-dimension of Texture Array
-     *
-     * \return Size in x-dimension
-     */
-    int NX() {
-        return std::fmin((int) (PERLINE/sizeof(T)), (int) size());
-    }
-
-    /*! \brief Get size in y-dimension of Texture Array
-     *
-     * \return Size in y-dimension
-     */
-    int NY() {
-        return std::ceil(size() / (float) (PERLINE/sizeof(T)));
-    }
-
     /*! \brief Resize the Texture Array
      *
      * \param newSize New size of the array
@@ -229,8 +213,8 @@ public:
      * \return Pointer to the position data is copied to
      */
     T *get(T *copyTo) {
-        int x = NX();
-        int y = NY();
+        int x = nX();
+        int y = nY();
 
         if (copyTo == (T *) NULL) {
             copyTo = (T *) malloc(x*y*sizeof(T));
@@ -246,8 +230,8 @@ public:
      * \param copyFrom Pointer to memory where to copy from
      */
     void set(T *copyFrom) {
-        int x = NX();
-        int y = NY();
+        int x = nX();
+        int y = nY();
         cudaMemcpy2DToArray(data(), 0, 0, copyFrom, x*sizeof(T),
                             x * sizeof(T), y, cudaMemcpyHostToDevice );
     }
@@ -260,8 +244,8 @@ public:
      * \return Pointer to memory where data was copied to
      */
     T *getAsync(T *copyTo, cudaStream_t stream) {
-        int x = NX();
-        int y = NY();
+        int x = nX();
+        int y = nY();
 
         if (copyTo == (T *) NULL) {
             copyTo = (T *) malloc(x*y*sizeof(T));
@@ -298,8 +282,8 @@ public:
 private:
     /*! \brief Allocate memory on the Texture device */
     void allocate() {
-        int x = NX();
-        int y = NY();
+        int x = nX();
+        int y = nY();
         CUCHECK(cudaMallocArray((cudaArray_t *)(&ptr), &channelDesc, x, y) );
         cap = x*y;
         //assuming address gets set in blocking manner
@@ -319,6 +303,22 @@ private:
         if (data() != (cudaArray *) NULL) {
             CUCHECK(cudaFreeArray(data()));
         }
+    }
+
+    /*! \brief Get size in x-dimension of Texture Array
+     *
+     * \return Size in x-dimension
+     */
+    int nX() {
+        return std::fmin((int) (PERLINE/sizeof(T)), (int) size());
+    }
+
+    /*! \brief Get size in y-dimension of Texture Array
+     *
+     * \return Size in y-dimension
+     */
+    int nY() {
+        return std::ceil(size() / (float) (PERLINE/sizeof(T)));
     }
 
 private:
