@@ -18,7 +18,29 @@
 class Bond {
     public:
         Atom *atoms[2]; //!< Pointer to the bonded atoms
-
+        int id1;
+        int id2;
+        int type; //!< Bond type
+        /*! \brief Default constructor
+         *
+         * \todo Set member variables to default values
+         */
+                Bond (){};        
+        /*! \brief Constructor
+         *
+         * \param a Pointer to the first Atom in the Bond
+         * \param b Pointer to the second Atom in the Bond
+         * \param k_ Spring constant
+         * \param rEq_ Equilibrium distance
+         * \param type_ Bond type
+         */
+        Bond(Atom *a, Atom *b,  int type_=-1) {
+            atoms[0]=a;
+            atoms[1]=b;
+            if (a!=NULL) id1=a->id;
+            if (b!=NULL) id2=b->id;
+            type=type_;
+        }
         /*! \brief Equality operator
          *
          * \param other Bond to compare this Bond to
@@ -99,8 +121,6 @@ class BondHarmonic : public Bond {
         //offset is how you have to offset the second atom to be in the same periodic cell as the first
 		double k; //!< Spring constant
 		double rEq; //!< Equilibrium distance
-        int type; //!< Bond type
-
         /*! \brief Default constructor
          *
          * \todo Set member variables to default values
@@ -116,12 +136,9 @@ class BondHarmonic : public Bond {
          * This constructor sets the connected \link Atom Atoms\endlink to
          * NULL.
          */
-		BondHarmonic (double k_, double rEq_, int type_=-1) {
-            atoms[0] = (Atom *) NULL;
-            atoms[1] = (Atom *) NULL;
-			k=k_;
-			rEq=rEq_;
-            type=type_;
+		BondHarmonic (double k_, double rEq_, int type_=-1):Bond((Atom *) NULL,(Atom *) NULL,type_) {
+                        k=k_;
+                        rEq=rEq_;
         }
 
         /*! \brief Constructor
@@ -132,12 +149,9 @@ class BondHarmonic : public Bond {
          * \param rEq_ Equilibrium distance
          * \param type_ Bond type
          */
-		BondHarmonic (Atom *a, Atom *b, double k_, double rEq_, int type_=-1) {
-			atoms[0]=a;
-			atoms[1]=b;
+		BondHarmonic (Atom *a, Atom *b, double k_, double rEq_, int type_=-1):Bond(a,b,type_) {
 			k=k_;
 			rEq=rEq_;
-            type=type_;
 
 		}
 
@@ -154,6 +168,7 @@ class BondHarmonic : public Bond {
 
 
 };	
+void export_BondHarmonic();
 
 /*! \brief Harmonic Bond on the GPU with aligned memory
  *
@@ -217,6 +232,8 @@ class BondSave {
 			return not (k==other.k and rEq==other.rEq and other.ids[0]==ids[0] and other.ids[1]==ids[1]);
 		}
 };
+
+
 
 // lets us store a list of vectors to any kind of bonds we want
 

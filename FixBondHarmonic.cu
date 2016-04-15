@@ -50,6 +50,18 @@ FixBondHarmonic::FixBondHarmonic(SHARED(State) state_, string handle) : FixBond(
 //void cumulativeSum(int *data, int n);
 //okay, so the net result of this function is that two arrays (items, idxs of items) are on the gpu and we know how many bonds are in bondiest  block
 
+void Deleter( BondHarmonic* ptr)
+   {
+   }
+   
+void FixBondHarmonic::refresh_pythonbonds(){
+    pythonbonds=boost::python::list();
+    for (BondVariant &bv : bonds) {
+        BondHarmonic*  bp=get<BondHarmonic>(&bv);
+        pythonbonds.append(boost::shared_ptr<BondHarmonic>(bp,Deleter));
+    }
+}
+
 
 void FixBondHarmonic::createBond(Atom *a, Atom *b, double k, double rEq, int type) {
     vector<Atom *> atoms = {a, b};
@@ -57,8 +69,16 @@ void FixBondHarmonic::createBond(Atom *a, Atom *b, double k, double rEq, int typ
     if (type == -1) {
         assert(k!=-1 and rEq!=-1);
     }
+    BondVariant* flag_ptr=bonds.data();
     bonds.push_back(BondHarmonic(a, b, k, rEq, type));
-    bondAtomIds.push_back(make_int2(a->id, b->id));
+    if (flag_ptr!=bonds.data()) 
+        refresh_pythonbonds();
+    else{
+        BondHarmonic*  bp=get<BondHarmonic>(&bonds.back());
+        pythonbonds.append(boost::shared_ptr<BondHarmonic>(bp,Deleter));
+    }
+    bondAtomIds.push_back(make_int2(a->id, b->id));//todo redundant interface remove
+    
 }
 
 void FixBondHarmonic::setBondTypeCoefs(int type, double k, double rEq) {
@@ -118,6 +138,9 @@ string FixBondHarmonic::restartChunk(string format) {
 }
 
 void export_FixBondHarmonic() {
+  
+
+  
     boost::python::class_<FixBondHarmonic,
                           SHARED(FixBondHarmonic),
                           boost::python::bases<Fix, TypedItemHolder> > (
@@ -135,6 +158,7 @@ void export_FixBondHarmonic() {
              boost::python::arg("k"),
              boost::python::arg("rEq"))
         )
+    .def_readonly("bonds", &FixBondHarmonic::pythonbonds)    
     ;
 
 }

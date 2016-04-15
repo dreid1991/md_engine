@@ -21,7 +21,7 @@ class Atom {
 		//Vector posAtNeighborListing; //can do this elsewhere
 		Atom *next;
 		double mass;
-        double q;
+                double q;
 		int type;  //do this here, since otherwise would have to get it from some other array in the heap
 		int id;
 		uint32_t groupTag;
