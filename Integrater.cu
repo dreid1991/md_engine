@@ -262,8 +262,10 @@ double Integrater::singlePointEngPythonAvg(string groupHandle) {
     eng.dataToHost();
     cudaDeviceSynchronize();
     CUT_CHECK_ERROR("Calculation of single point average energy failed");
+    basicFinish();
     return eng.h_data[0] / *((int *)eng.h_data.data()+1);
 }
+
 boost::python::list Integrater::singlePointEngPythonPerParticle() {
     basicPrepare(0);
     singlePointEng();
@@ -282,6 +284,7 @@ boost::python::list Integrater::singlePointEngPythonPerParticle() {
         sortedEngs[idxWriteTo] = engs[i];
     }
     boost::python::list asPy(sortedEngs);
+    basicFinish();
     return asPy;
 
 }
