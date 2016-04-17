@@ -159,10 +159,10 @@ public:
      * Objects are only created if they don't exist yet.
      */
     void createTexSurfObjs() {
-        if (tex() == 0) {
+        if (texObject == 0) {
             cudaCreateTextureObject(&texObject, &resDesc, &texDesc, NULL);
         }
-        if (surf() == 0) {
+        if (surfObject == 0) {
             cudaCreateSurfaceObject(&surfObject, &resDesc);
         }
     }
@@ -292,11 +292,11 @@ private:
 
     /*! \brief Destroy Texture and Surface objects, deallocate memory */
     void deallocate() {
-        if (tex() != 0) {
+        if (texObject != 0) {
             CUCHECK(cudaDestroyTextureObject(texObject));
             texObject = 0;
         }
-        if (surf() != 0) {
+        if (surfObject != 0) {
             CUCHECK(cudaDestroySurfaceObject(surfObject));
             surfObject = 0;
         }
