@@ -101,8 +101,8 @@ public:
         if (other.size()) {
             resize(other.size());
         }
-        int x = nX();
-        int y = nY();
+        size_t x = nX();
+        size_t y = nY();
         CUCHECK(cudaMemcpy2DArrayToArray(data(), 0, 0, other.data(), 0, 0,
                                          x*sizeof(T), y,
                                          cudaMemcpyDeviceToDevice));
@@ -213,8 +213,8 @@ public:
      * \return Pointer to the position data is copied to
      */
     T *get(T *copyTo) {
-        int x = nX();
-        int y = nY();
+        size_t x = nX();
+        size_t y = nY();
 
         if (copyTo == (T *) NULL) {
             copyTo = (T *) malloc(x*y*sizeof(T));
@@ -230,8 +230,8 @@ public:
      * \param copyFrom Pointer to memory where to copy from
      */
     void set(T *copyFrom) {
-        int x = nX();
-        int y = nY();
+        size_t x = nX();
+        size_t y = nY();
         cudaMemcpy2DToArray(data(), 0, 0, copyFrom, x*sizeof(T),
                             x * sizeof(T), y, cudaMemcpyHostToDevice );
     }
@@ -244,8 +244,8 @@ public:
      * \return Pointer to memory where data was copied to
      */
     T *getAsync(T *copyTo, cudaStream_t stream) {
-        int x = nX();
-        int y = nY();
+        size_t x = nX();
+        size_t y = nY();
 
         if (copyTo == (T *) NULL) {
             copyTo = (T *) malloc(x*y*sizeof(T));
@@ -282,8 +282,8 @@ public:
 private:
     /*! \brief Allocate memory on the Texture device */
     void allocate() {
-        int x = nX();
-        int y = nY();
+        size_t x = nX();
+        size_t y = nY();
         CUCHECK(cudaMallocArray((cudaArray_t *)(&ptr), &channelDesc, x, y) );
         cap = x*y;
         //assuming address gets set in blocking manner
@@ -309,7 +309,7 @@ private:
      *
      * \return Size in x-dimension
      */
-    int nX() const {
+    size_t nX() const {
         return std::fmin((int) (PERLINE/sizeof(T)), (int) size());
     }
 
@@ -317,7 +317,7 @@ private:
      *
      * \return Size in y-dimension
      */
-    int nY() const {
+    size_t nY() const {
         return std::ceil(size() / (float) (PERLINE/sizeof(T)));
     }
 
