@@ -309,7 +309,7 @@ private:
      *
      * \return Size in x-dimension
      */
-    int nX() {
+    int nX() const {
         return std::fmin((int) (PERLINE/sizeof(T)), (int) size());
     }
 
@@ -317,7 +317,7 @@ private:
      *
      * \return Size in y-dimension
      */
-    int nY() {
+    int nY() const {
         return std::ceil(size() / (float) (PERLINE/sizeof(T)));
     }
 
