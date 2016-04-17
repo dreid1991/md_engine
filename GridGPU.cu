@@ -792,6 +792,7 @@ bool GridGPU::verifyNeighborlists(float neighCut) {
     uint16_t *neighCounts = perAtomArray.h_data.data();
     state->gpd.xs.dataToHost();
     state->gpd.ids.dataToHost();
+    perBlockArray.dataToHost();
     cudaDeviceSynchronize();
  //   cout << "Neighborlist" << endl;
   //  for (int i=0; i<neighborlist.size(); i++) {
