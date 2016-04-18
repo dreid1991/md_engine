@@ -24,6 +24,9 @@ class GPUArrayDeviceTex : public GPUArrayDevice {
 public:
 
     //! Default constructor
+    /*!
+     * \param size Size (numer of elements) of the array
+     */
     GPUArrayDeviceTex(size_t size = 0)
         : GPUArrayDevice(size), texObject(0), surfObject(0) { allocate(); }
 
