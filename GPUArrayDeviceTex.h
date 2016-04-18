@@ -12,14 +12,14 @@ void MEMSETFUNC(cudaSurfaceObject_t, void *, int, int);
 
 /*! \brief Manager for data on a GPU Texture
  *
- * \tparam T type of data stored in the Texture
+ * \tparam T Type of data stored in the Texture
  *
  * This class manages data stored in a GPU Texture device. This type of memory
  * is often faster than the standard global or shared memory on the GPU. This
  * type of storage should be used only for runtime loop, not for general
  * storage.
  */
-template <class T>
+template <typename T>
 class GPUArrayDeviceTex : public GPUArrayDevice {
 public:
 
