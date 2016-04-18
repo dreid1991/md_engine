@@ -24,8 +24,8 @@ class GPUArrayDeviceTex : public GPUArrayDevice {
 public:
 
     //! Default constructor
-    GPUArrayDeviceTex()
-        : GPUArrayDevice(0), texObject(0), surfObject(0) {}
+    GPUArrayDeviceTex(size_t size = 0)
+        : GPUArrayDevice(size), texObject(0), surfObject(0) { allocate(); }
 
     //! Constructor
     /*!
