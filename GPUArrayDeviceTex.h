@@ -206,12 +206,23 @@ public:
     /*! \brief Copy data to GPU device
      *
      * \param dest Pointer to GPU memory
+     * \param stream Optional stream object for asynchronous copying
+     *
+     * This function copies data from the array to another memory location on
+     * the GPU device. If the function is called with a cudaStream object, the
+     * data will be copied asynchronously using this stream. Otherwise, the
+     * data will be copied synchronously.
      */
-    void copyToDeviceArray(void *dest) { //DEST HAD BETTER BE ALLOCATED
+    void copyToDeviceArray(void *dest, cudaStream_t stream = nullptr) {
         int numBytes = size() * sizeof(T);
         //! \todo Make sure this works for copying from 2d arrays
-        CUCHECK(cudaMemcpyFromArray(dest, data(), 0, 0, numBytes,
-                                                cudaMemcpyDeviceToDevice));
+        if (stream) {
+            CUCHECK(cudaMemcpyFromArrayAsync(dest, data(), 0, 0, numBytes,
+                                            cudaMemcpyDeviceToDevice, stream));
+        } else {
+            CUCHECK(cudaMemcpyFromArray(dest, data(), 0, 0, numBytes,
+                                                    cudaMemcpyDeviceToDevice));
+        }
     }
 
     /*! \brief Set all elements of GPUArrayDeviceTex to specific value
