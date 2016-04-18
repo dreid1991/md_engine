@@ -197,7 +197,7 @@ public:
         size_t x = nX();
         size_t y = nY();
 
-        if (copyTo == (T *) NULL) {
+        if (nullptr) {
             copyTo = (T *) malloc(x*y*sizeof(T));
         }
 
@@ -269,7 +269,7 @@ private:
      */
     void createTexSurfObjs() {
         if (texObject == 0) {
-            cudaCreateTextureObject(&texObject, &resDesc, &texDesc, NULL);
+            cudaCreateTextureObject(&texObject, &resDesc, &texDesc, nullptr);
         }
         if (surfObject == 0) {
             cudaCreateSurfaceObject(&surfObject, &resDesc);
@@ -296,7 +296,7 @@ private:
             CUCHECK(cudaDestroySurfaceObject(surfObject));
             surfObject = 0;
         }
-        if (data() != (cudaArray *) NULL) {
+        if (data() != nullptr) {
             CUCHECK(cudaFreeArray(data()));
         }
     }
