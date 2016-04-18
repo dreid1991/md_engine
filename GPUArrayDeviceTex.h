@@ -139,21 +139,6 @@ public:
         return *this;
     }
 
-    /*! \brief Resize the Texture Array
-     *
-     * \param newSize New size of the array
-     * \param force Force reallocation of memory
-     * \return True if memory was reallocated
-     *
-     * Resize the Texture array. If the new size is larger than capacity,
-     * new memory is allocated. This function can destroy the data on the
-     * GPU texture device.
-     */
-    virtual bool resize(size_t newSize, bool force = false) {
-        bool memoryReallocated = GPUArrayDevice::resize(newSize, force);
-        return memoryReallocated;
-    }
-
     /*! \brief Access data pointer
      *
      * \return Pointer to device memory
