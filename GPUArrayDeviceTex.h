@@ -10,8 +10,8 @@
 
 void MEMSETFUNC(cudaSurfaceObject_t, void *, int, int);
 
-/*! \brief Manager for data on a GPU Texture
- *
+//! Manager for data on a GPU Texture
+/*!
  * \tparam T Type of data stored in the Texture
  *
  * This class manages data stored in a GPU Texture device. This type of memory
@@ -23,12 +23,12 @@ template <typename T>
 class GPUArrayDeviceTex : public GPUArrayDevice {
 public:
 
-    /*! \brief Default constructor */
+    //! Default constructor
     GPUArrayDeviceTex()
         : GPUArrayDevice(0), texObject(0), surfObject(0) {}
 
-    /*! \brief Constructor
-     *
+    //! Constructor
+    /*!
      * \param desc_ Channel descriptor
      */
     GPUArrayDeviceTex(cudaChannelFormatDesc desc_)
@@ -37,8 +37,8 @@ public:
         initializeDescriptions();
     }
 
-    /*! \brief Constructor
-     *
+    //! Constructor
+    /*!
      * \param size Size of the array (number of elements)
      * \param desc Channel descriptor
      */
@@ -49,8 +49,8 @@ public:
         allocate();
     }
 
-    /*! \brief Copy constructor
-     *
+    //! Copy constructor
+    /*!
      * \param other GPUArrayDeviceTex to copy from
      */
     GPUArrayDeviceTex(const GPUArrayDeviceTex<T> &other)
@@ -64,8 +64,8 @@ public:
                                          cudaMemcpyDeviceToDevice));
     }
 
-    /*! \brief Move constructor
-     *
+    //! Move constructor
+    /*!
      * \param other GPUArrayDeviceTex containing the data to move
      */
     GPUArrayDeviceTex(GPUArrayDeviceTex<T> &&other) {
@@ -85,13 +85,13 @@ public:
         other.ptr = nullptr;
     }
 
-    /*! \brief Desctructor */
+    //! Desctructor
     ~GPUArrayDeviceTex() {
         deallocate();
     }
 
-    /*! \brief Assignment operator
-     *
+    //! Assignment operator
+    /*!
      * \param other Right hand side of assignment operator
      *
      * \return This object
@@ -109,8 +109,8 @@ public:
         return *this;
     }
 
-    /*! \brief Move assignment operator
-     *
+    //! Move assignment operator
+    /*!
      * \param other Right hand side of assignment operator
      *
      * \return This object
@@ -139,32 +139,32 @@ public:
         return *this;
     }
 
-    /*! \brief Access data pointer
-     *
+    //! Access data pointer
+    /*!
      * \return Pointer to device memory
      */
     cudaArray *data() { return (cudaArray *)ptr; }
 
-    /*! \brief Const access to data pointer
-     *
+    //! Const access to data pointer
+    /*!
      * \return Pointer to const device memory
      */
     cudaArray const* data() const { return (cudaArray const*)ptr; }
 
-    /*! \brief Access Texture Object
-     *
+    //! Access Texture Object
+    /*!
      * \return Texture object to access current memory
      */
     cudaTextureObject_t tex() { createTexSurfObjs(); return texObject; }
 
-    /*! \brief Access Surface Object
-     *
+    //! Access Surface Object
+    /*!
      * \return Surface object to access current memory
      */
     cudaSurfaceObject_t surf() { createTexSurfObjs(); return surfObject; }
 
-    /*! \brief Copy data from device to a given memory
-     *
+    //! Copy data from device to a given memory
+    /*!
      * \param copyTo Pointer pointing to the memory taking the data
      * \param stream CUDA Stream for asynchronous copying
      *
@@ -192,8 +192,8 @@ public:
         }
     }
 
-    /*! \brief Copy data from pointer to device
-     *
+    //! Copy data from pointer to device
+    /*!
      * \param copyFrom Pointer to memory where to copy from
      */
     void set(T *copyFrom) {
@@ -203,8 +203,8 @@ public:
                             x * sizeof(T), y, cudaMemcpyHostToDevice );
     }
 
-    /*! \brief Copy data to GPU device
-     *
+    //! Copy data to GPU device
+    /*!
      * \param dest Pointer to GPU memory
      * \param stream Optional stream object for asynchronous copying
      *
@@ -225,8 +225,8 @@ public:
         }
     }
 
-    /*! \brief Set all elements of GPUArrayDeviceTex to specific value
-     *
+    //! Set all elements of GPUArrayDeviceTex to specific value
+    /*!
      * \param val_ Value to set data to
      */
     void memsetByVal(T val_) {
@@ -237,8 +237,8 @@ public:
     }
 
 private:
-    /*! \brief Initialize descriptors
-     *
+    //! Initialize descriptors
+    /*!
      * The default values are cudaResourceTypeArray for the resource type of
      * the resource descriptor and cudaReadModeElementType for the read mode
      * of the texture descriptor. All other values of the resource and texture
@@ -252,8 +252,8 @@ private:
         texDesc.readMode = cudaReadModeElementType;
     }
 
-    /*! \brief Create Texture and Surface Objects
-     *
+    //! Create Texture and Surface Objects
+    /*!
      * Objects are only created if they don't exist yet.
      */
     void createTexSurfObjs() {
@@ -265,7 +265,7 @@ private:
         }
     }
 
-    /*! \brief Allocate memory on the Texture device */
+    //! Allocate memory on the Texture device
     void allocate() {
         size_t x = nX();
         size_t y = nY();
@@ -275,7 +275,7 @@ private:
         resDesc.res.array.array = data();
     }
 
-    /*! \brief Destroy Texture and Surface objects, deallocate memory */
+    //! Destroy Texture and Surface objects, deallocate memory
     void deallocate() {
         if (texObject != 0) {
             CUCHECK(cudaDestroyTextureObject(texObject));
@@ -290,16 +290,16 @@ private:
         }
     }
 
-    /*! \brief Get size in x-dimension of Texture Array
-     *
+    //! Get size in x-dimension of Texture Array
+    /*!
      * \return Size in x-dimension
      */
     size_t nX() const {
         return std::fmin((int) (PERLINE/sizeof(T)), (int) size());
     }
 
-    /*! \brief Get size in y-dimension of Texture Array
-     *
+    //! Get size in y-dimension of Texture Array
+    /*!
      * \return Size in y-dimension
      */
     size_t nY() const {
