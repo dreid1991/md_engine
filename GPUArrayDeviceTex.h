@@ -139,34 +139,6 @@ public:
         return *this;
     }
 
-    /*! \brief Initialize descriptors
-     *
-     * The default values are cudaResourceTypeArray for the resource type of
-     * the resource descriptor and cudaReadModeElementType for the read mode
-     * of the texture descriptor. All other values of the resource and texture
-     * descriptors are set to zero.
-     */
-    void initializeDescriptions() {
-        memset(&resDesc, 0, sizeof(resDesc));
-        resDesc.resType = cudaResourceTypeArray;
-        //.res.array.array is unset.  Set when allocing on device
-        memset(&texDesc, 0, sizeof(texDesc));
-        texDesc.readMode = cudaReadModeElementType;
-    }
-
-    /*! \brief Create Texture and Surface Objects
-     *
-     * Objects are only created if they don't exist yet.
-     */
-    void createTexSurfObjs() {
-        if (texObject == 0) {
-            cudaCreateTextureObject(&texObject, &resDesc, &texDesc, NULL);
-        }
-        if (surfObject == 0) {
-            cudaCreateSurfaceObject(&surfObject, &resDesc);
-        }
-    }
-
     /*! \brief Resize the Texture Array
      *
      * \param newSize New size of the array
@@ -225,17 +197,6 @@ public:
         return copyTo;
     }
 
-    /*! \brief Copy data from pointer to device
-     *
-     * \param copyFrom Pointer to memory where to copy from
-     */
-    void set(T *copyFrom) {
-        size_t x = nX();
-        size_t y = nY();
-        cudaMemcpy2DToArray(data(), 0, 0, copyFrom, x*sizeof(T),
-                            x * sizeof(T), y, cudaMemcpyHostToDevice );
-    }
-
     /*! \brief Copy data from device asynchronously
      *
      * \param copyTo Pointer where to copy data to
@@ -255,6 +216,17 @@ public:
                                            cudaMemcpyDeviceToHost, stream));
         return copyTo;
 
+    }
+
+    /*! \brief Copy data from pointer to device
+     *
+     * \param copyFrom Pointer to memory where to copy from
+     */
+    void set(T *copyFrom) {
+        size_t x = nX();
+        size_t y = nY();
+        cudaMemcpy2DToArray(data(), 0, 0, copyFrom, x*sizeof(T),
+                            x * sizeof(T), y, cudaMemcpyHostToDevice );
     }
 
     /*! \brief Copy data to GPU device
@@ -280,6 +252,34 @@ public:
     }
 
 private:
+    /*! \brief Initialize descriptors
+     *
+     * The default values are cudaResourceTypeArray for the resource type of
+     * the resource descriptor and cudaReadModeElementType for the read mode
+     * of the texture descriptor. All other values of the resource and texture
+     * descriptors are set to zero.
+     */
+    void initializeDescriptions() {
+        memset(&resDesc, 0, sizeof(resDesc));
+        resDesc.resType = cudaResourceTypeArray;
+        //.res.array.array is unset.  Set when allocing on device
+        memset(&texDesc, 0, sizeof(texDesc));
+        texDesc.readMode = cudaReadModeElementType;
+    }
+
+    /*! \brief Create Texture and Surface Objects
+     *
+     * Objects are only created if they don't exist yet.
+     */
+    void createTexSurfObjs() {
+        if (texObject == 0) {
+            cudaCreateTextureObject(&texObject, &resDesc, &texDesc, NULL);
+        }
+        if (surfObject == 0) {
+            cudaCreateSurfaceObject(&surfObject, &resDesc);
+        }
+    }
+
     /*! \brief Allocate memory on the Texture device */
     void allocate() {
         size_t x = nX();
