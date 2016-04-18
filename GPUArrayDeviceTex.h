@@ -179,12 +179,11 @@ public:
      * GPUArrayDeviceTex::copyToDeviceArray().
      */
     T *get(T *copyTo, cudaStream_t stream = nullptr) {
+        if (copyTo == nullptr) {
+            return nullptr;
+        }
         size_t x = nX();
         size_t y = nY();
-
-        if (nullptr) {
-            copyTo = (T *) malloc(x*y*sizeof(T));
-        }
 
         if (stream) {
             CUCHECK(cudaMemcpy2DFromArrayAsync(copyTo, x * sizeof(T), data(),
