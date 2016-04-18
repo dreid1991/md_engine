@@ -168,8 +168,6 @@ public:
      * \param copyTo Pointer pointing to the memory taking the data
      * \param stream CUDA Stream for asynchronous copying
      *
-     * \return Pointer to the position data is copied to
-     *
      * This function copies data from the GPU device array to a given memory
      * location on the CPU host. If a stream object is specified, the data
      * will be copied asynchronously. Otherwise, it will be copied
@@ -178,10 +176,8 @@ public:
      * To copy data to a memory location on the GPU device, use
      * GPUArrayDeviceTex::copyToDeviceArray().
      */
-    T *get(T *copyTo, cudaStream_t stream = nullptr) {
-        if (copyTo == nullptr) {
-            return nullptr;
-        }
+     void get(T *copyTo, cudaStream_t stream = nullptr) {
+        if (copyTo == nullptr) { return; }
         size_t x = nX();
         size_t y = nY();
 
@@ -194,8 +190,6 @@ public:
                                           0, 0, x * sizeof(T), y,
                                           cudaMemcpyDeviceToHost));
         }
-
-        return copyTo;
     }
 
     /*! \brief Copy data from pointer to device
