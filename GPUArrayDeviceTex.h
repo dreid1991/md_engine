@@ -181,41 +181,37 @@ public:
     /*! \brief Copy data from device to a given memory
      *
      * \param copyTo Pointer pointing to the memory taking the data
+     * \param stream CUDA Stream for asynchronous copying
      *
      * \return Pointer to the position data is copied to
+     *
+     * This function copies data from the GPU device array to a given memory
+     * location on the CPU host. If a stream object is specified, the data
+     * will be copied asynchronously. Otherwise, it will be copied
+     * synchronously.
+     *
+     * To copy data to a memory location on the GPU device, use
+     * GPUArrayDeviceTex::copyToDeviceArray().
      */
-    T *get(T *copyTo) {
+    T *get(T *copyTo, cudaStream_t stream = nullptr) {
         size_t x = nX();
         size_t y = nY();
 
         if (copyTo == (T *) NULL) {
             copyTo = (T *) malloc(x*y*sizeof(T));
         }
-        CUCHECK(cudaMemcpy2DFromArray(copyTo, x * sizeof(T), data(), 0, 0,
-                                      x * sizeof(T), y,
-                                      cudaMemcpyDeviceToHost));
-        return copyTo;
-    }
 
-    /*! \brief Copy data from device asynchronously
-     *
-     * \param copyTo Pointer where to copy data to
-     * \param stream Cuda Stream object for asynchronous copying
-     *
-     * \return Pointer to memory where data was copied to
-     */
-    T *getAsync(T *copyTo, cudaStream_t stream) {
-        size_t x = nX();
-        size_t y = nY();
-
-        if (copyTo == (T *) NULL) {
-            copyTo = (T *) malloc(x*y*sizeof(T));
+        if (stream) {
+            CUCHECK(cudaMemcpy2DFromArrayAsync(copyTo, x * sizeof(T), data(),
+                                               0, 0, x * sizeof(T), y,
+                                               cudaMemcpyDeviceToHost, stream));
+        } else {
+            CUCHECK(cudaMemcpy2DFromArray(copyTo, x * sizeof(T), data(),
+                                          0, 0, x * sizeof(T), y,
+                                          cudaMemcpyDeviceToHost));
         }
-        CUCHECK(cudaMemcpy2DFromArrayAsync(copyTo, x * sizeof(T), data(), 0, 0,
-                                           x * sizeof(T), y,
-                                           cudaMemcpyDeviceToHost, stream));
-        return copyTo;
 
+        return copyTo;
     }
 
     /*! \brief Copy data from pointer to device

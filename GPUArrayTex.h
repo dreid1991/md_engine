@@ -94,7 +94,7 @@ class GPUArrayTex : public GPUArrayBase {
          *       otherwise
          */
         void dataToHostAsync(cudaStream_t stream) {
-            d_data.getAsync(h_data.data(), stream);
+            d_data.get(h_data.data(), stream);
         }
 
         /*! \brief Copy data from GPU texture to other GPU memory
