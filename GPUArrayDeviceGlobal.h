@@ -151,35 +151,23 @@ public:
                                                 cudaMemcpyHostToDevice));
     }
 
-    //! Copy data to pointer
+    //! Copy data to GPU memory location
     /*!
      * \param dest Pointer to the memory to which the data should be copied
+     * \param stream CUDA stream object
      *
-     * Copy data from the device to the memory specified by the pointer
-     * dest.
-     *
-     * \todo This function is essential identical to get(). Can we have one
-     * function that covers both cases (void* and T* pointers)?
+     * Copy data from the device to the GPU memory location specified. If a
+     * stream object is passed, the data is copied asynchronously using this
+     * stream object. Otherwise, the data is copied synchronously.
      */
-    void copyToDeviceArray(void *dest) const {
-        CUCHECK(cudaMemcpy(dest, ptr, n*sizeof(T),
-                                                cudaMemcpyDeviceToDevice));
-    }
-
-    //! Copy data to pointer asynchronously
-    /*!
-     * \param dest Pointer to the memory to which the data should be copied
-     * \param stream cudaStream_t object for asynchronous copy
-     *
-     * Copy data from the device to the memory specified by the dest
-     * pointer using cudaMemcpyAsync.
-     *
-     * \todo This function is essentially identical to getAsync(). Can we
-     * have one function that covers both cases (void* and T* pointers)?
-     */
-    void copyToDeviceArrayAsync(void *dest, cudaStream_t stream) const {
-        CUCHECK(cudaMemcpyAsync(dest, ptr, n*sizeof(T),
-                                        cudaMemcpyDeviceToDevice, stream));
+    void copyToDeviceArray(void *dest, cudaStream_t stream = nullptr) const {
+        if (stream) {
+            CUCHECK(cudaMemcpyAsync(dest, ptr, n*sizeof(T),
+                                            cudaMemcpyDeviceToDevice, stream));
+        } else {
+            CUCHECK(cudaMemcpy(dest, ptr, n*sizeof(T),
+                                                    cudaMemcpyDeviceToDevice));
+        }
     }
 
     //! Set all bytes in the array to a specific value
