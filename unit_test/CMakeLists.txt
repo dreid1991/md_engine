@@ -1,6 +1,7 @@
 include_directories (${GTEST_INCLUDE_DIRS})
 
-set (CPUTESTS "VectorTest")
+set (CPUTESTS "VectorTest"
+              "RandomNumberGenerationTest")
 set (GPUTESTS "CudaMathTest"
               "GPUArrayDeviceGlobalTest")
 set (ALLTESTS ${GPUTESTS} ${CPUTESTS})
