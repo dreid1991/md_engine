@@ -759,7 +759,7 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort, bool force
 
         //printNeighbors<<<NBLOCK(state->atoms.size()), PERBLOCK>>>(perAtomArray.ptr, neighborlist.tex, state->atoms.size());
         /*
-        int *neighCounts = perAtomArray.get((int *) NULL);
+        //int *neighCounts = perAtomArray.get((int *) NULL); // Warning: usage changed
         cudaDeviceSynchronize();
        printNeighborCounts(neighCounts, state->atoms.size());
        free(neighCounts);
@@ -786,7 +786,8 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort, bool force
 
 bool GridGPU::verifyNeighborlists(float neighCut) {
     cout << "going to verify" << endl;
-    uint *nlist = neighborlist.get((uint *) NULL);
+    uint *nlist = (uint *) malloc(neighborlist.size()*sizeof(uint));
+    neighborlist.get(nlist);
     float cutSqr = neighCut * neighCut;
     perAtomArray.dataToHost();
     uint16_t *neighCounts = perAtomArray.h_data.data();

@@ -109,8 +109,8 @@ public:
      * position specified by the pointer *copyTo using cudaMemcpy
      */
     T *get(T *copyTo) const {
-        if (copyTo == (T *) NULL) {
-            copyTo = (T *) malloc(n*sizeof(T));
+        if (copyTo == nullptr) {
+            return nullptr;
         }
         CUCHECK(cudaMemcpy(copyTo, ptr, n*sizeof(T),
                                                 cudaMemcpyDeviceToHost));
