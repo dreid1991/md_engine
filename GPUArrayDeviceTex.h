@@ -35,10 +35,7 @@ public:
      * \param desc_ Channel descriptor
      */
     GPUArrayDeviceTex(cudaChannelFormatDesc desc_)
-        : GPUArrayDevice(0), texObject(0), surfObject(0), channelDesc(desc_)
-    {
-        initializeDescriptions();
-    }
+        : GPUArrayDevice(0), texObject(0), surfObject(0), channelDesc(desc_) {}
 
     //! Constructor
     /*!
@@ -48,7 +45,6 @@ public:
     GPUArrayDeviceTex(size_t size, cudaChannelFormatDesc desc)
         : GPUArrayDevice(size), texObject(0), surfObject(0), channelDesc(desc)
     {
-        initializeDescriptions();
         allocate();
     }
 
@@ -60,7 +56,6 @@ public:
         : GPUArrayDevice(other.size()), texObject(0), surfObject(0),
           channelDesc(other.channelDesc)
     {
-        initializeDescriptions();
         allocate();
         CUCHECK(cudaMemcpy2DArrayToArray(data(), 0, 0, other.data(), 0, 0,
                                          nX() * sizeof(T), nY(),
@@ -240,28 +235,16 @@ public:
     }
 
 private:
-    //! Initialize descriptors
-    /*!
-     * The default values are cudaResourceTypeArray for the resource type of
-     * the resource descriptor and cudaReadModeElementType for the read mode
-     * of the texture descriptor. All other values of the resource and texture
-     * descriptors are set to zero.
-     */
-    void initializeDescriptions() {
-        memset(&resDesc, 0, sizeof(resDesc));
-        resDesc.resType = cudaResourceTypeArray;
-        //.res.array.array is unset.  Set when allocing on device
-        memset(&texDesc, 0, sizeof(texDesc));
-        texDesc.readMode = cudaReadModeElementType;
-    }
-
     //! Create Texture and Surface Objects
     /*!
      * Objects are only created if they don't exist yet.
      */
     void createTexSurfObjs() {
         if (texObject == 0) {
+            resDesc.resType = cudaResourceTypeArray;
+            texDesc.readMode = cudaReadModeElementType;
             cudaCreateTextureObject(&texObject, &resDesc, &texDesc, nullptr);
+            // resDesc.res.array.array has been or will be set in allocate()
         }
         if (surfObject == 0) {
             cudaCreateSurfaceObject(&surfObject, &resDesc);
