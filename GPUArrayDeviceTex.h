@@ -223,6 +223,21 @@ public:
         }
     }
 
+    //! Set all bytes in the array to specific value
+    /*!
+     * \param val Value to set bytes
+     *
+     * This function sets all bytes to a specific value. To this end, val is
+     * transformed to unsigned char. To set all elements of the array to a
+     * specific value, use GPUArrayDeviceTex::memsetByVal().
+     */
+    void memset(int val)
+    {
+        size_t x = nX();
+        size_t y = nY();
+        CUCHECK(cudaMemset2D(data(), x*sizeof(T), val, x*sizeof(T), y));
+    }
+
     //! Set all elements of GPUArrayDeviceTex to specific value
     /*!
      * \param val_ Value to set data to

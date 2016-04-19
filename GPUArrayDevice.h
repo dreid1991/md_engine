@@ -75,6 +75,16 @@ public:
      * This function copies data from the CPU to the device array.
      */
     virtual void set(void const *copyFrom) = 0;
+
+    //! Set all bytes in the array to a specific value
+    /*!
+     * \param val Value the elements are set to
+     *
+     * Set all bytes to the value specified in val. Note that val will be cast
+     * to unsigned char. To set all values of the array, use memsetByVal
+     */
+    virtual void memset(int val) = 0;
+
 private:
     //! Allocate memory for the array
     virtual void allocate() = 0;
