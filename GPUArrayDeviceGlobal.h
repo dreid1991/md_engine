@@ -102,16 +102,22 @@ public:
     //! Copy data to given pointer
     /*!
      * \param copyTo Pointer to the memory to where the data will be copied
+     * \param stream CUDA stream object for asynchronous copy
      *
-     * This function copies the data stored in the GPU array to the
-     * position specified by the pointer *copyTo using cudaMemcpy
+     * This function copies the data stored in the GPU array to the given
+     * host memory location. If a CUDA stream object is passed, the data will
+     * be copied asynchronously using this stream. Otherwise, it will be copied
+     * synchronously.
      */
-    void get(T *copyTo) const {
-        if (copyTo == nullptr) {
-            return;
+    void get(T *copyTo, cudaStream_t stream = nullptr) const {
+        if (copyTo == nullptr) { return; }
+        if (stream) {
+            CUCHECK(cudaMemcpyAsync(copyTo, ptr, n*sizeof(T),
+                                            cudaMemcpyDeviceToHost, stream));
+        } else {
+            CUCHECK(cudaMemcpy(copyTo, ptr, n*sizeof(T),
+                                                    cudaMemcpyDeviceToHost));
         }
-        CUCHECK(cudaMemcpy(copyTo, ptr, n*sizeof(T),
-                                                cudaMemcpyDeviceToHost));
     }
 
     //! Copy a given amount of data from a specific position of the array
@@ -129,25 +135,6 @@ public:
         T *pointer = data();
         CUCHECK(cudaMemcpy(copyTo, pointer+offset, num*sizeof(T),
                                                 cudaMemcpyDeviceToHost));
-        return copyTo;
-    }
-
-    //! Copy data to pointer asynchronously
-    /*!
-     * \param copyTo Pointer to the memory where the data will be copied to
-     * \param stream cudaStream_t object used for asynchronous copy
-     *
-     * \return Pointer to CPU memory location where data was copied to
-     *
-     * Copy data stored in the GPU array to the address specified by the
-     * pointer copyTo using cudaMemcpyAsync.
-     */
-    T *getAsync(T *copyTo, cudaStream_t stream) const {
-        if (copyTo == (T *) NULL) {
-            copyTo = (T *) malloc(n*sizeof(T));
-        }
-        CUCHECK(cudaMemcpyAsync(copyTo, ptr, n*sizeof(T),
-                                        cudaMemcpyDeviceToHost, stream));
         return copyTo;
     }
 

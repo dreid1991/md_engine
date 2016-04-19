@@ -77,7 +77,7 @@ public:
 
     /*! \brief Send data from GPU to CPU asynchronously */
     void dataToHostAsync(cudaStream_t stream) {
-        d_data.getAsync(h_data.data(), stream);
+        d_data.get(h_data.data(), stream);
     }
 
     /*! \brief Send data from GPU to CPU synchronously */
