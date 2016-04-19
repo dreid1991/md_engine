@@ -43,7 +43,7 @@ void InitializeAtoms::populateOnGrid(SHARED(State) state, Bounds &bounds, string
 void InitializeAtoms::populateRand(SHARED(State) state, Bounds &bounds, string handle, int n, double distMin) {
 	assert(n>=0);
 
-	std::mt19937 generator = state->getRNG();
+	std::mt19937 &generator = state->getRNG();
 	vector<Atom> &atoms = state->atoms;
 	AtomParams &params = state->atomParams;
 	vector<string> handles = params.handles;
