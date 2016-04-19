@@ -4,8 +4,8 @@
 
 #include <cstddef>
 
-/*! \brief Base class for GPUArrayDevices
- *
+//! Base class for GPUArrayDevices
+/*!
  * A GPUArrayDevice is a memory-managed pointer for storgage on the GPU. It is
  * mainly used by the GPUArray which manages the GPU memory and takes care of
  * sending data from CPU to GPU and back.
@@ -17,24 +17,24 @@
  */
 class GPUArrayDevice {
 protected:
-    /*! \brief Constructor
-     *
+    //! Constructor
+    /*!
      * \param size Size of the array
      */
     GPUArrayDevice(size_t size = 0) : n(size), cap(0), ptr(nullptr) {}
 
 public:
-    /*! \brief Destructor */
+    //! Destructor
     virtual ~GPUArrayDevice() = default;
 
-    /*! \brief Get the size of the array
-     *
+    //! Get the size of the array
+    /*!
      * \return Number of elements stored in the array
      */
     size_t size() const { return n; }
 
-    /*! \brief Get the capacity of the array
-     *
+    //! Get the capacity of the array
+    /*!
      * \return Capacity
      *
      * The capacity is the number of elements that can be stored in the
@@ -42,8 +42,8 @@ public:
      */
     size_t capacity() const { return cap; }
 
-    /*! \brief Change size of the array
-     *
+    //! Change size of the array
+    /*!
      * \param newSize New size of the array
      * \param force Force reallocation of memory
      * \return True if memory is reallocated. Else return false.
@@ -55,10 +55,10 @@ public:
     virtual bool resize(size_t newSize, bool force = false);
 
 private:
-    /*! \brief Allocate memory for the array */
+    //! Allocate memory for the array
     virtual void allocate() = 0;
 
-    /*! \brief Deallocate memory */
+    //! Deallocate memory
     virtual void deallocate() = 0;
 
 protected:
