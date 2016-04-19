@@ -103,18 +103,15 @@ public:
     /*!
      * \param copyTo Pointer to the memory to where the data will be copied
      *
-     * \return Pointer to CPU memory location where data was copied to
-     *
      * This function copies the data stored in the GPU array to the
      * position specified by the pointer *copyTo using cudaMemcpy
      */
-    T *get(T *copyTo) const {
+    void get(T *copyTo) const {
         if (copyTo == nullptr) {
-            return nullptr;
+            return;
         }
         CUCHECK(cudaMemcpy(copyTo, ptr, n*sizeof(T),
                                                 cudaMemcpyDeviceToHost));
-        return copyTo;
     }
 
     //! Copy a given amount of data from a specific position of the array
