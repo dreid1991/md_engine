@@ -76,6 +76,18 @@ public:
      */
     virtual void set(void const *copyFrom) = 0;
 
+    //! Copy data to GPU memory location
+    /*!
+     * \param dest Pointer to the memory to which the data should be copied
+     * \param stream CUDA stream object
+     *
+     * Copy data from the device to the GPU memory location specified. If a
+     * stream object is passed, the data is copied asynchronously using this
+     * stream object. Otherwise, the data is copied synchronously.
+     */
+    virtual void copyToDeviceArray(void *dest,
+                                   cudaStream_t stream = nullptr) const = 0;
+
     //! Set all bytes in the array to a specific value
     /*!
      * \param val Value the elements are set to

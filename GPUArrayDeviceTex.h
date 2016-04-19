@@ -211,7 +211,7 @@ public:
      * data will be copied asynchronously using this stream. Otherwise, the
      * data will be copied synchronously.
      */
-    void copyToDeviceArray(void *dest, cudaStream_t stream = nullptr) {
+    void copyToDeviceArray(void *dest, cudaStream_t stream = nullptr) const {
         int numBytes = size() * sizeof(T);
         //! \todo Make sure this works for copying from 2d arrays
         if (stream) {
