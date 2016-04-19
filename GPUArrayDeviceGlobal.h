@@ -109,7 +109,7 @@ public:
      * be copied asynchronously using this stream. Otherwise, it will be copied
      * synchronously.
      */
-    void get(T *copyTo, cudaStream_t stream = nullptr) const {
+    void get(void *copyTo, cudaStream_t stream = nullptr) const {
         if (copyTo == nullptr) { return; }
         if (stream) {
             CUCHECK(cudaMemcpyAsync(copyTo, ptr, n*sizeof(T),
@@ -146,7 +146,7 @@ public:
      * the GPU array. The number of bytes copied from memory is the size of
      * the the GPUArrayDeviceGlobal.
      */
-    void set(const T *copyFrom) {
+    void set(void const *copyFrom) {
         CUCHECK(cudaMemcpy(ptr, copyFrom, size()*sizeof(T),
                                                 cudaMemcpyHostToDevice));
     }

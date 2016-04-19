@@ -179,7 +179,7 @@ public:
      * To copy data to a memory location on the GPU device, use
      * GPUArrayDeviceTex::copyToDeviceArray().
      */
-     void get(T *copyTo, cudaStream_t stream = nullptr) {
+     void get(void *copyTo, cudaStream_t stream = nullptr) const {
         if (copyTo == nullptr) { return; }
         size_t x = nX();
         size_t y = nY();
@@ -199,7 +199,7 @@ public:
     /*!
      * \param copyFrom Pointer to memory where to copy from
      */
-    void set(T *copyFrom) {
+    void set(void const *copyFrom) {
         size_t x = nX();
         size_t y = nY();
         cudaMemcpy2DToArray(data(), 0, 0, copyFrom, x*sizeof(T),

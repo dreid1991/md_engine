@@ -3,6 +3,7 @@
 #define GPUARRAYDEVICE_H
 
 #include <cstddef>
+#include <cuda_runtime.h>
 
 //! Base class for GPUArrayDevices
 /*!
@@ -54,6 +55,26 @@ public:
      */
     virtual bool resize(size_t newSize, bool force = false);
 
+    //! Get function for device arrays
+    /*!
+     * \param copyTo Pointer to CPU host memory location
+     * \param stream CUDA stream object
+     *
+     * This function copies data from the device array to the specified
+     * memory location on the CPU. To copy data to a different memory location
+     * on the GPU, use GPUArrayDevice::copyToDevice().
+     *
+     * This virtual function is implemented by the child classes.
+     */
+    virtual void get(void *copyTo, cudaStream_t stream = nullptr) const = 0;
+
+    //! Set function to copy data to device array
+    /*!
+     * \param copyFrom Memory location on the CPU to copy data from
+     *
+     * This function copies data from the CPU to the device array.
+     */
+    virtual void set(void const *copyFrom) = 0;
 private:
     //! Allocate memory for the array
     virtual void allocate() = 0;
