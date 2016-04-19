@@ -126,16 +126,15 @@ public:
      * \param offset Initial array index to be copied (0 is first element)
      * \param num Number of elements to be copied
      *
-     * \return Pointer to memory location where data was copied to
+     * This function copies a range of the array to a given location in memory.
      */
-    T *getWithOffset(T *copyTo, int offset, int num) {
-        if (copyTo == (T *) NULL) {
-            copyTo = (T *) malloc(n*sizeof(T));
+    void getWithOffset(T *copyTo, int offset, int num) {
+        if (copyTo == nullptr) {
+            return;
         }
         T *pointer = data();
         CUCHECK(cudaMemcpy(copyTo, pointer+offset, num*sizeof(T),
                                                 cudaMemcpyDeviceToHost));
-        return copyTo;
     }
 
     //! Copy data from pointer
