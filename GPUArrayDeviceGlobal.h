@@ -110,31 +110,39 @@ public:
      * synchronously.
      */
     void get(void *copyTo, cudaStream_t stream = nullptr) const {
-        if (copyTo == nullptr) { return; }
-        if (stream) {
-            CUCHECK(cudaMemcpyAsync(copyTo, ptr, n*sizeof(T),
-                                            cudaMemcpyDeviceToHost, stream));
-        } else {
-            CUCHECK(cudaMemcpy(copyTo, ptr, n*sizeof(T),
-                                                    cudaMemcpyDeviceToHost));
-        }
+        get(copyTo, 0, size(), stream);
     }
 
-    //! Copy a given amount of data from a specific position of the array
+    //! Copy sequence from the device array
     /*!
-     * \param copyTo CPU Memory location where the data is copied to
-     * \param offset Initial array index to be copied (0 is first element)
-     * \param num Number of elements to be copied
+     * \param copyTo Pointer to CPU memory location where data is copied to
+     * \param offset Index of first element to copy (array indices start at 0)
+     * \param nElements Number of elements to copy
+     * \param stream CUDA stream object for asynchronous copying
+
+     * This function copies a given number of elements from the device, where
+     * offset is the index of the first element and nElements is the number of
+     * elements to copy. Make sure that offset + nElements <= size().
      *
-     * This function copies a range of the array to a given location in memory.
+     * get() calls this function to copy the whole array with offset=0 and
+     * nElements = size().
+     *
+     * If a CUDA stream object is passed to this function, it will copy the
+     * data asynchronously using this stream. Otherwise, it will copy the data
+     * synchronously.
      */
-    void getWithOffset(T *copyTo, int offset, int num) {
-        if (copyTo == nullptr) {
-            return;
+    void get(void *copyTo, size_t offset, size_t nElements,
+                                        cudaStream_t stream = nullptr) const
+    {
+        if (copyTo == nullptr) { return; }
+        T *pointer = (T*)ptr;
+        if (stream) {
+            CUCHECK(cudaMemcpyAsync(copyTo, pointer+offset, nElements*sizeof(T),
+                                            cudaMemcpyDeviceToHost, stream));
+        } else {
+            CUCHECK(cudaMemcpy(copyTo, pointer+offset, nElements*sizeof(T),
+                                                    cudaMemcpyDeviceToHost));
         }
-        T *pointer = data();
-        CUCHECK(cudaMemcpy(copyTo, pointer+offset, num*sizeof(T),
-                                                cudaMemcpyDeviceToHost));
     }
 
     //! Copy data from pointer

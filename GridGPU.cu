@@ -710,7 +710,7 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort, bool force
         setCumulativeSumPerBlock<<<NBLOCK(numBlocks+1), PERBLOCK>>>(numBlocks, perBlockArray.d_data.data(), perBlockArray_maxNeighborsInBlock.data());
         uint32_t cumulSumPerBlock;
 
-        perBlockArray.d_data.getWithOffset(&cumulSumPerBlock, numBlocks, 1);
+        perBlockArray.d_data.get(&cumulSumPerBlock, numBlocks, 1);
         cudaDeviceSynchronize();
         
        // perAtomArray.dataToHost();
