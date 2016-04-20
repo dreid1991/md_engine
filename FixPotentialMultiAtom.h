@@ -14,7 +14,6 @@
 #include "TypedItemHolder.h"
 void export_FixPotentialMuliAtom();
 //#include "FixHelpers.h"
-//FixDihedralOPLS::FixDihedralOPLS(SHARED(State) state_, string handle) : Fix(state_, handle, string("None"), dihedralOPLSType, 1), dihedralsGPU(1), dihedralIdxs(1)  {
 template <class CPUVariant, class CPUMember, class GPUMember, int N>
 class FixPotentialMultiAtom : public Fix, public TypedItemHolder {
 	public:
@@ -24,6 +23,7 @@ class FixPotentialMultiAtom : public Fix, public TypedItemHolder {
         }
         std::vector<std::array<int, N> > forcerAtomIds;
         std::vector<CPUVariant> forcers;
+        boost::python::list pyForcers; //to be managed by the variant-pylist interface member of parent classes
         std::unordered_map<int, CPUMember> forcerTypes;
         GPUArrayDeviceGlobal<GPUMember> forcersGPU;
         GPUArrayDeviceGlobal<int> forcerIdxs;

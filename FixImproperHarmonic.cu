@@ -160,7 +160,7 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
 }
 
 
-FixImproperHarmonic::FixImproperHarmonic(SHARED(State) state_, string handle) : FixPotentialMultiAtom (state_, handle, improperHarmonicType) {
+FixImproperHarmonic::FixImproperHarmonic(SHARED(State) state_, string handle) : FixPotentialMultiAtom (state_, handle, improperHarmonicType), pyListInterface(&forcers, &pyForcers) {
     forceSingle = true;
 }
 
@@ -182,6 +182,7 @@ void FixImproperHarmonic::createImproper(Atom *a, Atom *b, Atom *c, Atom *d, dou
     std::array<int, 4> ids = {a->id, b->id, c->id, d->id};
     forcerAtomIds.push_back(ids);
     forcers.push_back(ImproperHarmonic(a, b, c, d, k, thetaEq, type));
+    pyListInterface.updateAppendedMember();
 }
 void FixImproperHarmonic::setImproperTypeCoefs(int type, double k, double thetaEq) {
     assert(thetaEq>=0);

@@ -4,11 +4,13 @@
 #include "FixPotentialMultiAtom.h"
 #include "Dihedral.h"
 #include <boost/python.hpp>
+#include "VariantPyListInterface.h"
 
 void export_FixDihedralOPLS();
 class FixDihedralOPLS : public FixPotentialMultiAtom<DihedralVariant, DihedralOPLS, DihedralOPLSGPU, 4> {
 	public:
         FixDihedralOPLS(SHARED(State) state_, string handle);
+        VariantPyListInterface<DihedralVariant, DihedralOPLS> pyListInterface;
 		void compute(bool);
 		//DataSet *eng;
 		//DataSet *press;

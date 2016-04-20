@@ -41,7 +41,7 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
 }
 
 
-FixBondHarmonic::FixBondHarmonic(SHARED(State) state_, string handle) : FixBond(state_, handle, string("None"), bondHarmType, 1) {
+FixBondHarmonic::FixBondHarmonic(SHARED(State) state_, string handle) : FixBond(state_, handle, string("None"), bondHarmType, 1), pyListInterface(&bonds, &pyBonds) {
     forceSingle = true;
 }
 
@@ -50,17 +50,7 @@ FixBondHarmonic::FixBondHarmonic(SHARED(State) state_, string handle) : FixBond(
 //void cumulativeSum(int *data, int n);
 //okay, so the net result of this function is that two arrays (items, idxs of items) are on the gpu and we know how many bonds are in bondiest  block
 
-void Deleter( BondHarmonic* ptr)
-   {
-   }
    
-void FixBondHarmonic::refresh_pythonbonds(){
-    pythonbonds=boost::python::list();
-    for (BondVariant &bv : bonds) {
-        BondHarmonic*  bp=get<BondHarmonic>(&bv);
-        pythonbonds.append(boost::shared_ptr<BondHarmonic>(bp,Deleter));
-    }
-}
 
 
 void FixBondHarmonic::createBond(Atom *a, Atom *b, double k, double rEq, int type) {
@@ -69,15 +59,8 @@ void FixBondHarmonic::createBond(Atom *a, Atom *b, double k, double rEq, int typ
     if (type == -1) {
         assert(k!=-1 and rEq!=-1);
     }
-    BondVariant* flag_ptr=bonds.data();
     bonds.push_back(BondHarmonic(a, b, k, rEq, type));
-    if (flag_ptr!=bonds.data()) 
-        refresh_pythonbonds();
-    else{
-        BondHarmonic*  bp=get<BondHarmonic>(&bonds.back());
-        pythonbonds.append(boost::shared_ptr<BondHarmonic>(bp,Deleter));
-    }
-    bondAtomIds.push_back(make_int2(a->id, b->id));//todo redundant interface remove
+    pyListInterface.updateAppendedMember();
     
 }
 
@@ -158,7 +141,7 @@ void export_FixBondHarmonic() {
              boost::python::arg("k"),
              boost::python::arg("rEq"))
         )
-    .def_readonly("bonds", &FixBondHarmonic::pythonbonds)    
+    .def_readonly("bonds", &FixBondHarmonic::pyBonds)    
     ;
 
 }

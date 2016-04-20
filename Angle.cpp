@@ -1,5 +1,5 @@
 #include "Angle.h"
-
+#include <boost/python.hpp>
 AngleHarmonic::AngleHarmonic(Atom *a, Atom *b, Atom *c, double k_, double thetaEq_, int type_) {
     atoms[0] = a;
     atoms[1] = b;
@@ -32,4 +32,15 @@ void AngleHarmonicGPU::takeIds(int *ids_) {
 void AngleHarmonicGPU::takeValues(AngleHarmonic &other) {
     k = other.k;
     thetaEq = other.thetaEq;
+}
+
+
+void export_AngleHarmonic() {
+//need to expose ids or atoms somehow.  Could just do id1, 2, 3. Would prefer not to use any heap memory or pointers to make it trivially copyable  
+    boost::python::class_<AngleHarmonic, SHARED(AngleHarmonic)> ( "AngleHarmonic", boost::python::init<>())
+        .def_readwrite("thetaEq", &AngleHarmonic::thetaEq)
+        .def_readwrite("k", &AngleHarmonic::k)
+        .def_readwrite("type", &AngleHarmonic::type)
+
+    ;
 }

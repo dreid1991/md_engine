@@ -3,10 +3,12 @@
 #define FIXBONDHARMONIC_H
 #include "Bond.h"
 #include "FixBond.h"
+#include "VariantPyListInterface.h"
 void export_FixBondHarmonic();
 class FixBondHarmonic : public FixBond<BondHarmonic, BondHarmonicGPU> {
 	public:
 		FixBondHarmonic(SHARED(State) state_, string handle);
+        VariantPyListInterface<BondVariant, BondHarmonic> pyListInterface;
 		//DataSet *eng;
 		//DataSet *press;
         //bool prepareForRun();
@@ -28,10 +30,6 @@ class FixBondHarmonic : public FixBond<BondHarmonic, BondHarmonicGPU> {
         virtual vector<BondVariant> *getBonds() {
             return &bonds;
         }
-        
-        //python export
-        boost::python::list pythonbonds; 
-        void refresh_pythonbonds();
         
   
         
