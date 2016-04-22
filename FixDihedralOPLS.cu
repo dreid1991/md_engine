@@ -203,7 +203,7 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
 }
 
 
-FixDihedralOPLS::FixDihedralOPLS(SHARED(State) state_, string handle) : FixPotentialMultiAtom (state_, handle, dihedralOPLSType) {
+FixDihedralOPLS::FixDihedralOPLS(SHARED(State) state_, string handle) : FixPotentialMultiAtom (state_, handle, dihedralOPLSType), pyListInterface(&forcers, &pyForcers) {
     forceSingle = true;
 }
 
@@ -227,6 +227,7 @@ void FixDihedralOPLS::createDihedral(Atom *a, Atom *b, Atom *c, Atom *d, double 
     forcers.push_back(DihedralOPLS(a, b, c, d, vs, type));
     std::array<int, 4> ids = {a->id, b->id, c->id, d->id};
     forcerAtomIds.push_back(ids);
+    pyListInterface.updateAppendedMember();
 }
 
 

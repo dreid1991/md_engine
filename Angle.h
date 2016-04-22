@@ -7,11 +7,14 @@
 #include "cutils_math.h"
 #include <boost/variant.hpp>
 
+void export_AngleHarmonic();
+
 class Angle {
     public:
         //going to try storing by id instead.  Makes preparing for a run less intensive
         Atom *atoms[3];
         int type;
+        int ids[3];
 };
 
 

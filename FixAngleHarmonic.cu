@@ -103,7 +103,7 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
 }
 
 
-FixAngleHarmonic::FixAngleHarmonic(SHARED(State) state_, string handle) : FixPotentialMultiAtom(state_, handle, angleHarmType) {
+FixAngleHarmonic::FixAngleHarmonic(SHARED(State) state_, string handle) : FixPotentialMultiAtom(state_, handle, angleHarmType), pyListInterface(&forcers, &pyForcers) {
     forceSingle = true;
 }
 
@@ -134,6 +134,7 @@ void FixAngleHarmonic::createAngle(Atom *a, Atom *b, Atom *c, double k, double t
     forcers.push_back(AngleHarmonic(a, b, c, k, thetaEq, type));
     std::array<int, 3> angleIds = {a->id, b->id, c->id};
     forcerAtomIds.push_back(angleIds);
+    pyListInterface.updateAppendedMember();
 }
 string FixAngleHarmonic::restartChunk(string format) {
     stringstream ss;
@@ -160,6 +161,7 @@ void export_FixAngleHarmonic() {
              boost::python::arg("thetaEq")=COEF_DEFAULT
             )
         )
+    .def_readonly("angles", &FixAngleHarmonic::pyForcers)
     ;
 
 }

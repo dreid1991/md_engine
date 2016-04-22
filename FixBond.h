@@ -57,10 +57,10 @@ int copyBondsToGPU(vector<Atom> &atoms, vector<BondVariant> &src, GPUArrayDevice
 template <class CPUMember, class GPUMember>
 class FixBond : public Fix, public TypedItemHolder {
     public:
-        vector<int2> bondAtomIds;
         GPUArrayDeviceGlobal<GPUMember> bondsGPU;
         GPUArrayDeviceGlobal<int> bondIdxs;
         vector<BondVariant> bonds;
+        boost::python::list pyBonds;
         int maxBondsPerBlock;
         std::unordered_map<int, CPUMember> forcerTypes;
         FixBond(SHARED(State) state_, string handle_, string groupHandle_, string type_, int applyEvery_) : Fix(state_, handle_, groupHandle_, type_, applyEvery_) {
@@ -78,12 +78,12 @@ class FixBond : public Fix, public TypedItemHolder {
         bool refreshAtoms() {
             vector<int> idxFromIdCache = state->idxFromIdCache;
             vector<Atom> &atoms = state->atoms;
-            for (int i=0; i<bondAtomIds.size(); i++) {
-                int2 ids = bondAtomIds[i];
-                get<CPUMember>(bonds[i]).atoms[0] = &atoms[idxFromIdCache[ids.x]];//state->atomFromId(ids.x);
-                get<CPUMember>(bonds[i]).atoms[1] = &atoms[idxFromIdCache[ids.y]];//state->atomFromId(ids.y);
+            for (BondVariant &bv : bonds) {
+                CPUMember *cpuMem = &get<CPUMember>(bv);
+                cpuMem->atoms[0] = &atoms[idxFromIdCache[cpuMem->id1]];
+                cpuMem->atoms[1] = &atoms[idxFromIdCache[cpuMem->id2]];
             }
-            return bondAtomIds.size() == bonds.size();
+            return true;
         }
 
         bool prepareForRun() {

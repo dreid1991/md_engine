@@ -45,6 +45,7 @@ angleHarm.setAngleTypeCoefs(type=0, k=7000, thetaEq=2);
 angleHarm.createAngle(state.atoms[0], state.atoms[1], state.atoms[2], thetaEq=3*pi/4, k=3)
 angleHarm.createAngle(state.atoms[1], state.atoms[2], state.atoms[3], thetaEq=3*pi/4, k=3)
 state.activateFix(angleHarm)
+print angleHarm.angles[0].thetaEq
 '''
 
 #improper testing

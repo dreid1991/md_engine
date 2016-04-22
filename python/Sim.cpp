@@ -30,6 +30,7 @@ using namespace std;
 #include "DataSetBounds.h"
 #include "ReadConfig.h"
 #include "TypedItemHolder.h"
+#include "Angle.h"
 //#include "DataTools.h"
 BOOST_PYTHON_MODULE(Sim) {
     export_stls();	
@@ -49,6 +50,8 @@ BOOST_PYTHON_MODULE(Sim) {
     export_BondHarmonic();
     
     export_FixAngleHarmonic();
+    export_AngleHarmonic();
+
     export_FixImproperHarmonic();
     export_FixDihedralOPLS();
     export_FixWallHarmonic();

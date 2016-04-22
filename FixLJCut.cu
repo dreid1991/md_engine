@@ -48,7 +48,6 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *fs, uint16_t *neighbo
                 float epstimes24 = squareVectorItem(eps_shr, numTypes, type, otherType);
                 float3 dr = bounds.minImage(pos - otherPos);
                 float lenSqr = lengthSqr(dr);
-                //PRE-SQR THIS VALUE ON CPU
                 float rCutSqr = squareVectorItem(rCutSqrs_shr, numTypes, type, otherType);
                 if (lenSqr < rCutSqr) {
                     float p1 = epstimes24*2*sig6*sig6;

@@ -4,11 +4,13 @@
 
 #include "FixPotentialMultiAtom.h"
 #include "Improper.h"
+#include "VariantPyListInterface.h"
 
 void export_FixImproperHarmonic();
 class FixImproperHarmonic: public FixPotentialMultiAtom<ImproperVariant, ImproperHarmonic, ImproperHarmonicGPU, 4> {
 	public:
         FixImproperHarmonic(SHARED(State) state_, string handle);
+        VariantPyListInterface<ImproperVariant, ImproperHarmonic> pyListInterface;
 		void compute(bool);
 		//DataSet *eng;
 		//DataSet *press;
