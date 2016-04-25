@@ -5,7 +5,7 @@
 #include <map>
 #include <set>
 
-#include "GPUArray.h"
+#include "GPUArrayGlobal.h"
 #include "GPUArrayDeviceGlobal.h"
 
 class State;
@@ -59,14 +59,14 @@ class GridGPU {
      */
     bool checkSorting(int gridIdx, int *gridIdxs, GPUArrayDeviceGlobal<int> &grid);
     public: 
-        GPUArray<uint32_t> perCellArray; //!< Number of atoms in a given grid cell, later starting index of cell in neighborlist
-        GPUArray<uint32_t> perBlockArray; //!< Number of neighbors in a GPU block
+        GPUArrayGlobal<uint32_t> perCellArray; //!< Number of atoms in a given grid cell, later starting index of cell in neighborlist
+        GPUArrayGlobal<uint32_t> perBlockArray; //!< Number of neighbors in a GPU block
         GPUArrayDeviceGlobal<uint16_t> perBlockArray_maxNeighborsInBlock; //!< array for holding max # neighs of atoms in a GPU block
-        GPUArray<uint16_t> perAtomArray; //!< For each atom, store the place in the
+        GPUArrayGlobal<uint16_t> perAtomArray; //!< For each atom, store the place in the
                                     //!< grid
         GPUArrayDeviceGlobal<float4> xsLastBuild; //!< Contains the atom positions at
                                             //!< the time of the last build.
-        GPUArray<int> buildFlag; //!< If buildFlag[0] == true, neighbor list
+        GPUArrayGlobal<int> buildFlag; //!< If buildFlag[0] == true, neighbor list
                                  //!< will be rebuilt
         float3 ds; //!< Grid spacing in x-, y-, and z-dimension
         float3 dsOrig; //!< Grid spacing at the time of construction

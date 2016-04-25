@@ -3,7 +3,7 @@
 #define DATASETTEMPERATURE_H
 
 #include "DataSet.h"
-#include "GPUArray.h"
+#include "GPUArrayGlobal.h"
 
 void export_DataSetTemperature();
 class DataSetTemperature : public DataSet {
@@ -13,7 +13,7 @@ class DataSetTemperature : public DataSet {
         DataSetTemperature(uint32_t);
         std::vector<double> vals;
         void prepareForRun();
-        GPUArray<float> tempGPU;
+        GPUArrayGlobal<float> tempGPU;
 
 };
 

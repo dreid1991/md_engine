@@ -398,13 +398,13 @@ __global__ void assignNeighbors(float4 *xs, int nAtoms, cudaTextureObject_t idTo
 }
 
 void GridGPU::initArrays() {
-    perCellArray = GPUArray<uint32_t>(prod(ns) + 1);
-    perAtomArray = GPUArray<uint16_t>(state->atoms.size()+1);
-    perBlockArray = GPUArray<uint32_t>(NBLOCK(state->atoms.size()) + 1); //also cumulative sum, tracking cumul. sum of max per block
+    perCellArray = GPUArrayGlobal<uint32_t>(prod(ns) + 1);
+    perAtomArray = GPUArrayGlobal<uint16_t>(state->atoms.size()+1);
+    perBlockArray = GPUArrayGlobal<uint32_t>(NBLOCK(state->atoms.size()) + 1); //also cumulative sum, tracking cumul. sum of max per block
     perBlockArray_maxNeighborsInBlock = GPUArrayDeviceGlobal<uint16_t>(NBLOCK(state->atoms.size())); //not +1 on this one, isn't cumul sum
     xsLastBuild = GPUArrayDeviceGlobal<float4>(state->atoms.size());
     //in prepare for run, you make GPU grid _after_ copying xs to device
-    buildFlag = GPUArray<int>(1);
+    buildFlag = GPUArrayGlobal<int>(1);
     buildFlag.d_data.memset(0);
 }
 void GridGPU::initStream() {
@@ -651,7 +651,7 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort, bool force
    
         int numGridCells = prod(ns);
         if (numGridCells + 1 != perCellArray.size()) {
-            perCellArray = GPUArray<uint32_t>(numGridCells + 1);
+            perCellArray = GPUArrayGlobal<uint32_t>(numGridCells + 1);
         }
         perCellArray.d_data.memset(0);
         perAtomArray.d_data.memset(0);

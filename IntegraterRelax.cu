@@ -110,10 +110,10 @@ double IntegraterRelax::run(int numTurns, num fTol) {
     CUT_CHECK_ERROR("zero_vel_cu kernel execution failed");
 
     //vars to store kernels outputs
-    GPUArray<float>VDotV(1);
-    GPUArray<float>VDotF(1);
-    GPUArray<float>FDotF(1);
-    GPUArray<float>force(1);
+    GPUArrayGlobal<float>VDotV(1);
+    GPUArrayGlobal<float>VDotF(1);
+    GPUArrayGlobal<float>FDotF(1);
+    GPUArrayGlobal<float>force(1);
 
 
     //neiblist build

@@ -383,7 +383,7 @@ void FixChargeEwald::setParameters(int szx_,int szy_,int szz_,float rcut_,int in
     cudaMalloc((void**)&FFT_Ey, sizeof(cufftComplex)*sz.x*sz.y*sz.z);
     cudaMalloc((void**)&FFT_Ez, sizeof(cufftComplex)*sz.x*sz.y*sz.z);
     
-    Green_function=GPUArray<float>(sz.x*sz.y*sz.z);
+    Green_function=GPUArrayGlobal<float>(sz.x*sz.y*sz.z);
     CUT_CHECK_ERROR("setParameters execution failed");
     
 

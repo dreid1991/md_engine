@@ -7,7 +7,7 @@
 #include "Atom.h"
 #include "list_macro.h"
 #include <iostream>
-#include "GPUArray.h"
+#include "GPUArrayGlobal.h"
 #include "GPUArrayTex.h"
 #include "State.h"
 #include "FixTypes.h"

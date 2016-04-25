@@ -57,9 +57,9 @@ class FixLJCut : public FixPair {
         const string epsHandle; //!< Handle for parameter epsilon
         const string sigHandle; //!< Handle for parameter sigma
         const string rCutHandle; //!< Handle for parameter rCut
-        GPUArray<float> epsilons; //!< Array of epsilon values
-        GPUArray<float> sigmas; //!< Array of sigma values
-        GPUArray<float> rCuts; //!< Array of type-specific cutoff values
+        GPUArrayGlobal<float> epsilons; //!< Array of epsilon values
+        GPUArrayGlobal<float> sigmas; //!< Array of sigma values
+        GPUArrayGlobal<float> rCuts; //!< Array of type-specific cutoff values
         vector<float> getRCuts();
 
         void postRun();

@@ -32,7 +32,7 @@ void Integrater::forceSingle(bool computeVirials) {
 
 
 void Integrater::singlePointEng() {
-    GPUArray<float> &perParticleEng = state->gpd.perParticleEng;
+    GPUArrayGlobal<float> &perParticleEng = state->gpd.perParticleEng;
     perParticleEng.d_data.memset(0);
 	for (Fix *f : state->fixes) {
         f->singlePointEng(perParticleEng.getDevData());
@@ -248,7 +248,7 @@ void Integrater::writeOutput() {
 
 
 double Integrater::singlePointEngPythonAvg(string groupHandle) {
-    GPUArray<float> eng(2);
+    GPUArrayGlobal<float> eng(2);
     eng.d_data.memset(0);
     basicPreRunChecks();
     basicPrepare(0);

@@ -1,6 +1,6 @@
 #pragma once
-#ifndef GPUARRAY_H
-#define GPUARRAY_H
+#ifndef GPUARRAYGLOBAL_H
+#define GPUARRAYGLOBAL_H
 
 #include <vector>
 
@@ -16,14 +16,14 @@
  * move the data from the CPU to the GPU and back again.
  */
 template <typename T>
-class GPUArray : public GPUArrayBase {
+class GPUArrayGlobal : public GPUArrayBase {
 
 public:
     /*! \brief Constructor
      *
      * Constructor creating empty host CPU data vector.
      */
-    GPUArray() {}
+    GPUArrayGlobal() {}
 
     /*! \brief Constructor
      *
@@ -32,7 +32,7 @@ public:
      * Constructor creating empty arrays of the specified size on the CPU
      * and the GPU.
      */
-    explicit GPUArray(int size_)
+    explicit GPUArrayGlobal(int size_)
         : h_data(std::vector<T>(size_,T())), d_data(GPUArrayDeviceGlobal<T>(size_)) {}
 
     /*! \brief Constructor
@@ -41,7 +41,7 @@ public:
      *
      * Constructor setting the CPU data array with the specified vector.
      */
-    explicit GPUArray(std::vector<T> &vals) {
+    explicit GPUArrayGlobal(std::vector<T> &vals) {
         set(vals);
         d_data = GPUArrayDeviceGlobal<T>(vals.size());
     }

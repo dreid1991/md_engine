@@ -1,11 +1,12 @@
 #include "FixPair.h"
+#include "GPUArrayGlobal.h"
 #include "State.h"
 
 #include <cmath>
 
 void FixPair::prepareParameters(string handle,
                             std::function<float (float, float)> fillFunction, std::function<float (float)> processFunction, bool fillDiag, std::function<float ()> fillDiagFunction) {
-    GPUArray<float> &array = *paramMap[handle];
+    GPUArrayGlobal<float> &array = *paramMap[handle];
     vector<float> *preproc = &paramMapPreproc[handle];
     int desiredSize = state->atomParams.numTypes;
     ensureParamSize(array);
@@ -21,12 +22,12 @@ void FixPair::prepareParameters(string handle,
 }
 
 void FixPair::resetToPreproc(string handle) {
-    GPUArray<float> &array = *paramMap[handle];
+    GPUArrayGlobal<float> &array = *paramMap[handle];
     vector<float> &preproc = paramMapPreproc[handle];
     array.set(preproc);
 }
 
-void FixPair::ensureParamSize(GPUArray<float> &array) {
+void FixPair::ensureParamSize(GPUArrayGlobal<float> &array) {
 
     int desiredSize = state->atomParams.numTypes;
     if (array.size() != desiredSize*desiredSize) {
@@ -39,7 +40,7 @@ void FixPair::ensureParamSize(GPUArray<float> &array) {
 
 void FixPair::sendAllToDevice() {
     for (auto it=paramMap.begin(); it!=paramMap.end(); it++) {
-        GPUArray<float> &params = *it->second;
+        GPUArrayGlobal<float> &params = *it->second;
         params.dataToDevice();
     }
 }
@@ -53,7 +54,7 @@ bool FixPair::setParameter(std::string param,
     int j = state->atomParams.typeFromHandle(handleB);
     if (paramMap.find(param) != paramMap.end()) {
         int numTypes = state->atomParams.numTypes;
-        GPUArray<float> &arr = *paramMap[param];
+        GPUArrayGlobal<float> &arr = *paramMap[param];
         ensureParamSize(arr);
         if (i>=numTypes or j>=numTypes or i<0 or j<0) {
             std::cout << "Tried to set param " << param
@@ -70,7 +71,7 @@ bool FixPair::setParameter(std::string param,
 }
 
 void FixPair::initializeParameters(std::string paramHandle,
-                                   GPUArray<float> &params) {
+                                   GPUArrayGlobal<float> &params) {
     ensureParamSize(params);
     paramMap[paramHandle] = &params;
     paramMapPreproc[paramHandle] = vector<float>();

@@ -22,7 +22,7 @@ void DataSetTemperature::appendValues() {
 }
 
 void DataSetTemperature::prepareForRun() {
-    tempGPU = GPUArray<float>(2);
+    tempGPU = GPUArrayGlobal<float>(2);
 }
 
 void export_DataSetTemperature() {
