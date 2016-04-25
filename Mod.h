@@ -32,8 +32,6 @@ namespace Mod {
     
 
     //HEY JUST COPY FROM MAIN FOLDER
-	vector<vector<Bond *> > musterBonds(State *state, vector<Bond *> &bonds);
-	vector<vector<Angle *> > musterAngles(State *state, vector<Angle *> &angles);
 	__global__ void unskewAtoms(float4 *xs, int nAtoms, float3 xOrig, float3 yOrig, float3 lo);
 	__global__ void skewAtomsFromZero(float4 *xs, int nAtoms, float3 xFinal, float3 yFinal, float3 lo);
 	//__global__ void skewAtomsFromZero(cudaSurfaceObject_t xs, float4 xFinal, float4 yFinal);

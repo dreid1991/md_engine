@@ -111,6 +111,12 @@ FixAngleHarmonic::FixAngleHarmonic(SHARED(State) state_, string handle) : FixPot
 void FixAngleHarmonic::compute(bool computeVirials) {
     int nAtoms = state->atoms.size();
     int activeIdx = state->gpd.activeIdx();
+    /*
+    for (AngleVariant &aVar : forcers) {
+        AngleHarmonic &a = get<AngleHarmonic>(aVar);
+        printf("Angle ids k theta %d %d %d %f %f\n", a.ids[0], a.ids[1], a.ids[2], a.k, a.thetaEq);
+    }
+    */
     compute_cu<<<NBLOCK(nAtoms), PERBLOCK, sizeof(AngleHarmonicGPU) * maxForcersPerBlock>>>(nAtoms, state->gpd.xs(activeIdx), state->gpd.fs(activeIdx), state->gpd.idToIdxs.getTex(), forcersGPU.data(), forcerIdxs.data(), state->boundsGPU);
 
 }
@@ -132,8 +138,6 @@ void FixAngleHarmonic::createAngle(Atom *a, Atom *b, Atom *c, double k, double t
         assert(k!=COEF_DEFAULT and thetaEq!=COEF_DEFAULT);
     }
     forcers.push_back(AngleHarmonic(a, b, c, k, thetaEq, type));
-    std::array<int, 3> angleIds = {a->id, b->id, c->id};
-    forcerAtomIds.push_back(angleIds);
     pyListInterface.updateAppendedMember();
 }
 string FixAngleHarmonic::restartChunk(string format) {

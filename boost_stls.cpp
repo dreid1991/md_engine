@@ -1,64 +1,56 @@
 #include "boost_stls.h"
 #include "Bounds.h"
+#include "array_indexing_suite.hpp"
+//#include "array_ref.hpp"
+namespace py = boost::python;
 void export_stls() {
-    boost::python::class_<std::map<std::string, int> >("stringInt")
-        .def(boost::python::map_indexing_suite<std::map<std::string, int> >())
+    py::class_<std::map<std::string, int> >("stringInt")
+        .def(py::map_indexing_suite<std::map<std::string, int> >())
         ;
-    boost::python::class_<std::vector<std::string> >("vecstring")
-        .def(boost::python::vector_indexing_suite<std::vector<std::string> >())
+    py::class_<std::vector<std::string> >("vecstring")
+        .def(py::vector_indexing_suite<std::vector<std::string> >())
         ;        
-    boost::python::class_<std::vector<double> >("vecdouble")
-        .def(boost::python::vector_indexing_suite<std::vector<double> >() )
+    py::class_<std::vector<double> >("vecdouble")
+        .def(py::vector_indexing_suite<std::vector<double> >() )
         ;
-    boost::python::class_<std::vector<vector<double> > >("vecdouble")
-        .def(boost::python::vector_indexing_suite<std::vector< vector<double> > >() )
+    py::class_<std::vector<vector<double> > >("vecdouble")
+        .def(py::vector_indexing_suite<std::vector< vector<double> > >() )
         ;
-    boost::python::class_<std::vector<int> >("vecInt")
-        .def(boost::python::vector_indexing_suite<std::vector<int> >() )
+    py::class_<std::vector<int> >("vecInt")
+        .def(py::vector_indexing_suite<std::vector<int> >() )
         ;
 
-    boost::python::class_<std::vector<int64_t> >("vecLong")
-        .def(boost::python::vector_indexing_suite<std::vector<int64_t> >() )
+    py::class_<std::vector<int64_t> >("vecLong")
+        .def(py::vector_indexing_suite<std::vector<int64_t> >() )
         ;
-    boost::python::class_<std::vector<Atom> >("vecAtom")
-        .def(boost::python::vector_indexing_suite<std::vector<Atom> >() )
+    py::class_<std::vector<Atom> >("vecAtom")
+        .def(py::vector_indexing_suite<std::vector<Atom> >() )
         ;
-    boost::python::class_<std::vector<Atom *> >("vecAtomPtr")
-        .def(boost::python::vector_indexing_suite<std::vector<Atom *> >() )
+    py::class_<std::vector<Atom *> >("vecAtomPtr")
+        .def(py::vector_indexing_suite<std::vector<Atom *> >() )
         ;
-    boost::python::class_<std::vector<Bond> >("vecBond")
-        .def(boost::python::vector_indexing_suite<std::vector<Bond> >() )
+    py::class_<std::vector<Neighbor> >("vecNeighbor")
+        .def(py::vector_indexing_suite<std::vector<Neighbor> >() )
         ;
-    boost::python::class_<std::vector<BondHarmonic> >("vecBondHarmonic")
-        .def(boost::python::vector_indexing_suite<std::vector<BondHarmonic> >() )
+    py::class_<std::vector<SHARED(WriteConfig) > >("vecWriteConfig")
+        .def(py::vector_indexing_suite<std::vector<SHARED(WriteConfig) > >() )
         ;
-    boost::python::class_<std::vector<BondHarmonic*> >("vecBondHarmonicPtr")
-        .def(boost::python::vector_indexing_suite<std::vector<BondHarmonic*> >() )
-        ;
-    boost::python::class_<std::vector<boost::shared_ptr<BondHarmonic>> >("vecSharedBondHarmonic")
-        .def(boost::python::vector_indexing_suite<std::vector<boost::shared_ptr<BondHarmonic>> >() )
-        ;        
-//     boost::python::class_<std::vector<BondVariant> >("vecBondVariant")
-//         .def(boost::python::vector_indexing_suite<std::vector<BondVariant> >() )
-//         ;
-    boost::python::class_<std::vector<Neighbor> >("vecNeighbor")
-        .def(boost::python::vector_indexing_suite<std::vector<Neighbor> >() )
-        ;
-    boost::python::class_<std::vector<SHARED(WriteConfig) > >("vecWriteConfig")
-        .def(boost::python::vector_indexing_suite<std::vector<SHARED(WriteConfig) > >() )
-        ;
-    boost::python::class_<std::vector<BondSave > >("vecBondSave")
-        .def(boost::python::vector_indexing_suite<std::vector<BondSave > >() )
-        ;
-    boost::python::class_<std::vector<SHARED(Fix) > >("vecFix")
-        .def(boost::python::vector_indexing_suite<std::vector<SHARED(Fix) > >() )
+    py::class_<std::vector<SHARED(Fix) > >("vecFix")
+        .def(py::vector_indexing_suite<std::vector<SHARED(Fix) > >() )
         //	.def("remove", &vectorRemove<Fix>)
         //	.staticmethod("remove")
         ;
-    boost::python::class_<std::vector<SHARED(Bounds)> >("vecBounds")
-        .def(boost::python::vector_indexing_suite<std::vector<SHARED(Bounds)> >() )
+
+    py::class_<std::array<int, 2> >("arrayInt2")
+        .def(array_indexing_suite<std::array<int, 2> >() )
         ;
-    boost::python::class_<std::vector<Bounds> >("vecBoundsRaw")
-        .def(boost::python::vector_indexing_suite<std::vector<Bounds> >() )
+    py::class_<std::array<int, 3> >("arrayInt3")
+        .def(array_indexing_suite<std::array<int, 3> >() )
+        ;
+    py::class_<std::array<int, 4> >("arrayInt4")
+        .def(array_indexing_suite<std::array<int, 4> >() )
+        ;
+    py::class_<std::array<double, 4> >("arrayDouble4")
+        .def(array_indexing_suite<std::array<double, 4> >() )
         ;
 }

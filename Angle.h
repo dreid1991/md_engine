@@ -6,15 +6,15 @@
 
 #include "cutils_math.h"
 #include <boost/variant.hpp>
+#include <array>
 
 void export_AngleHarmonic();
 
 class Angle {
     public:
         //going to try storing by id instead.  Makes preparing for a run less intensive
-        Atom *atoms[3];
         int type;
-        int ids[3];
+        std::array<int, 3> ids;
 };
 
 
@@ -26,7 +26,8 @@ class AngleHarmonic : public Angle {
         AngleHarmonic(Atom *a, Atom *b, Atom *c, double k_, double thetaEq_, int type_=1);
         AngleHarmonic(double k_, double thetaEq_, int type_=-1);
         AngleHarmonic(){};
-        void takeValues(AngleHarmonic &);
+        void takeParameters(AngleHarmonic &);
+        void takeIds(AngleHarmonic &);
     
 };
 
@@ -36,8 +37,8 @@ class AngleHarmonicGPU {
         int myIdx;
         float k;
         float thetaEq;
-        void takeIds(int *);
-        void takeValues(AngleHarmonic &);
+        void takeParameters(AngleHarmonic &);
+        void takeIds(AngleHarmonic &);
 
 
 };

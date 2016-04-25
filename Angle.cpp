@@ -1,9 +1,9 @@
 #include "Angle.h"
 #include <boost/python.hpp>
 AngleHarmonic::AngleHarmonic(Atom *a, Atom *b, Atom *c, double k_, double thetaEq_, int type_) {
-    atoms[0] = a;
-    atoms[1] = b;
-    atoms[2] = c;
+    ids[0] = a->id;
+    ids[1] = b->id;
+    ids[2] = c->id;
     k = k_;
     thetaEq = thetaEq_;
     type = type_;
@@ -11,7 +11,7 @@ AngleHarmonic::AngleHarmonic(Atom *a, Atom *b, Atom *c, double k_, double thetaE
 
 AngleHarmonic::AngleHarmonic(double k_, double thetaEq_, int type_) {
     for (int i=0; i<3; i++) {
-        atoms[i] = (Atom *) NULL;
+        ids[i] = -1;
     }
     k = k_;
     thetaEq = thetaEq_;
@@ -19,19 +19,25 @@ AngleHarmonic::AngleHarmonic(double k_, double thetaEq_, int type_) {
 }
 
 
-void AngleHarmonic::takeValues(AngleHarmonic &angle) {
-    k = angle.k;
-    thetaEq = angle.thetaEq;
-}
-
-void AngleHarmonicGPU::takeIds(int *ids_) {
-    ids[0] = ids_[0];
-    ids[1] = ids_[1];
-    ids[2] = ids_[2];
-}
-void AngleHarmonicGPU::takeValues(AngleHarmonic &other) {
+void AngleHarmonic::takeParameters(AngleHarmonic &other) {
     k = other.k;
     thetaEq = other.thetaEq;
+}
+void AngleHarmonic::takeIds(AngleHarmonic &other) {
+    for (int i=0; i<3; i++) {
+        ids[i] = other.ids[i];
+    }
+
+}
+
+void AngleHarmonicGPU::takeParameters(AngleHarmonic &other) {
+    k = other.k;
+    thetaEq = other.thetaEq;
+}
+void AngleHarmonicGPU::takeIds(AngleHarmonic &other) {
+    for (int i=0; i<3; i++) {
+        ids[i] = other.ids[i];
+    }
 }
 
 
@@ -41,6 +47,7 @@ void export_AngleHarmonic() {
         .def_readwrite("thetaEq", &AngleHarmonic::thetaEq)
         .def_readwrite("k", &AngleHarmonic::k)
         .def_readwrite("type", &AngleHarmonic::type)
+        .def_readonly("ids", &AngleHarmonic::ids)
 
     ;
 }

@@ -1076,8 +1076,8 @@ GridGPU::ExclusionList GridGPU::generateExclusionList(const int16_t maxDepth) {
 			// boost variant magic that takes any BondVariant and turns it into a Bond
             const Bond &bond = boost::apply_visitor(bondDowncast(bondVariant), bondVariant);
             // atoms in the same bond are 1 away from each other
-            exclude[bond.getAtomId(0)][depthi].insert(bond.getAtomId(1));
-            exclude[bond.getAtomId(1)][depthi].insert(bond.getAtomId(0));
+            exclude[bond.ids[0]][depthi].insert(bond.ids[1]);
+            exclude[bond.ids[1]][depthi].insert(bond.ids[0]);
         }
     }
     depthi++;

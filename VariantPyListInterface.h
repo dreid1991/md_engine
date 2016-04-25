@@ -35,8 +35,6 @@ class VariantPyListInterface {
         void updateAppendedMember() {
 
             if (CPUMembers->data() != CPUData) {
-                cout << "refreshing list!" << endl;
-                cout << CPUMembers->data() << endl;
                 refreshPyList();
                 CPUData = CPUMembers->data();
             }

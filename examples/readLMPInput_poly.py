@@ -30,11 +30,11 @@ state.activateFix(dihedralOPLS)
 state.activateFix(improperHarm)
 
 unitLen = 3.5
-writeconfig = WriteConfig(state, fn='poly_out', writeEvery=100, format='xyz', handle='writer')
+writeconfig = WriteConfig(state, fn='poly_out', writeEvery=10, format='xyz', handle='writer')
 writeconfig.unitLen = 1/unitLen
 state.activateWriteConfig(writeconfig)
 
-reader = LAMMPS_Reader(state=state, unitLen = unitLen, unitMass = 12, unitEng = 0.066, bondFix = bondHarm, angleFix = angleHarm, nonbondFix = ljcut, dihedralFix = dihedralOPLS, atomTypePrefix = 'PTB7_', setBounds=False)
+reader = LAMMPS_Reader(state=state, unitLen = unitLen, unitMass = 12, unitEng = 0.066, bondFix = bondHarm, angleFix = angleHarm, nonbondFix = ljcut, dihedralFix = dihedralOPLS, improperFix=improperHarm, atomTypePrefix = 'PTB7_', setBounds=False)
 reader.read(dataFn = 'poly_min.data')
 
 InitializeAtoms.initTemp(state, 'all', 0.1)

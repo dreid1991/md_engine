@@ -66,7 +66,7 @@ void FixBondHarmonic::createBond(Atom *a, Atom *b, double k, double rEq, int typ
 
 void FixBondHarmonic::setBondTypeCoefs(int type, double k, double rEq) {
     assert(rEq>=0);
-    BondHarmonic dummy((Atom *) NULL, (Atom *) NULL, k, rEq);
+    BondHarmonic dummy(k, rEq, type);
     setForcerType(type, dummy);
 }
 
@@ -112,7 +112,7 @@ string FixBondHarmonic::restartChunk(string format) {
     ss << "<" << restartHandle << ">\n";
     for (BondVariant &bv : bonds) {
         BondHarmonic &b = get<BondHarmonic>(bv);
-        ss << b.atoms[0]->id << " " << b.atoms[1]->id << " " << b.k << " " << b.rEq << "\n";
+        //ss << b.atoms[0]->id << " " << b.atoms[1]->id << " " << b.k << " " << b.rEq << "\n";
     }
     ss << "</" << restartHandle << ">\n";
     //NOT DONE

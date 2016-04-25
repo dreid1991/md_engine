@@ -36,8 +36,11 @@ state.activateFix(bondHarm)
 dihedralOPLS = FixDihedralOPLS(state, 'dihedral')
 dihedralOPLS.setDihedralTypeCoefs(type=0, coefs=[15, -10, 4, -12])
 
-dihedralOPLS.createDihedral(state.atoms[0], state.atoms[1], state.atoms[2], state.atoms[3], type=0)
+dihedralOPLS.createDihedral(state.atoms[0], state.atoms[1], state.atoms[2], state.atoms[3], coefs=[3,4,5,6])
 state.activateFix(dihedralOPLS)
+print dihedralOPLS.dihedrals
+print dihedralOPLS.dihedrals[0].coefs[2]
+
 
 
 angleHarm = FixAngleHarmonic(state, 'angHarm')

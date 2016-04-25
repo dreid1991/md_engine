@@ -497,7 +497,7 @@ void testBondHarmonicGridToGPU() {
     integraterR.run(5000, 1e-3);
     for (BondVariant &bv : bond->bonds) {
         Bond single = get<BondHarmonic>(bv);
-        cout << single.atoms[0]->pos << " " << single.atoms[1]->pos << endl;
+        //cout << single.atoms[0]->pos << " " << single.atoms[1]->pos << endl;
     }
 
 
