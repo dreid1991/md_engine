@@ -179,8 +179,6 @@ void FixImproperHarmonic::createImproper(Atom *a, Atom *b, Atom *c, Atom *d, dou
     if (type == -1) {
         assert(k!=COEF_DEFAULT and thetaEq!=COEF_DEFAULT);
     }
-    std::array<int, 4> ids = {a->id, b->id, c->id, d->id};
-    forcerAtomIds.push_back(ids);
     forcers.push_back(ImproperHarmonic(a, b, c, d, k, thetaEq, type));
     pyListInterface.updateAppendedMember();
 }

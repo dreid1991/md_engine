@@ -1,10 +1,12 @@
 #include "Improper.h"
+#include "boost_for_export.h"
+namespace py = boost::python;
 
 ImproperHarmonic::ImproperHarmonic(Atom *a, Atom *b, Atom *c, Atom *d, double k_, double thetaEq_, int type_) {
-    atoms[0] = a;
-    atoms[1] = b;
-    atoms[2] = c;
-    atoms[4] = d;
+    ids[0] = a->id;
+    ids[1] = b->id;
+    ids[2] = c->id;
+    ids[3] = d->id;
     k = k_;
     thetaEq = thetaEq_;
     type = type_;
@@ -12,24 +14,46 @@ ImproperHarmonic::ImproperHarmonic(Atom *a, Atom *b, Atom *c, Atom *d, double k_
 }
 ImproperHarmonic::ImproperHarmonic(double k_, double thetaEq_, int type_) {
     for (int i=0; i<4; i++) {
-        atoms[i] = (Atom *) NULL;
+        ids[i] = -1;
     }
     k = k_;
     thetaEq = thetaEq_;
     type = type_;
 
 }
-void ImproperHarmonic::takeValues(ImproperHarmonic &other) {
+void ImproperHarmonic::takeParameters(ImproperHarmonic &other) {
     k = other.k;
     thetaEq = other.thetaEq;
 }
-void ImproperHarmonicGPU::takeIds(int *ids_) {
-    ids[0] = ids_[0];
-    ids[1] = ids_[1];
-    ids[2] = ids_[2];
-    ids[3] = ids_[3];
+
+void ImproperHarmonic::takeIds(ImproperHarmonic &other) {
+    for (int i=0; i<4; i++) {
+        ids[i] = other.ids[i];
+    }
 }
-void ImproperHarmonicGPU::takeValues(ImproperHarmonic &other) {
+
+
+void ImproperHarmonicGPU::takeParameters(ImproperHarmonic &other) {
     k = other.k;
     thetaEq = other.thetaEq;
+}
+
+void ImproperHarmonicGPU::takeIds(ImproperHarmonic &other) {
+    for (int i=0; i<4; i++) {
+        ids[i] = other.ids[i];
+    }
+}
+
+
+
+
+void export_Impropers() {
+    py::class_<ImproperHarmonic, SHARED(ImproperHarmonic)> ( "SimImproperHarmonic", py::init<>())
+        .def_readwrite("type", &ImproperHarmonic::type)
+        .def_readonly("thetaEq", &ImproperHarmonic::thetaEq)
+        .def_readonly("k", &ImproperHarmonic::k)
+        .def_readonly("ids", &ImproperHarmonic::ids)
+
+    ;
+
 }

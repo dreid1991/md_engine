@@ -6,20 +6,17 @@
 
 #include "globalDefs.h"
 #include "Atom.h"
+#include <array>
 
 /*! \brief Bond connecting atoms
  *
  * \link Atom Atoms\endlink can be connected by Bonds. Bonds are defined by a
  * potential depending on the separation of the two bonded \link Atom
- * Atoms\endlink. Thus, Bonds do not exist per se in the simulation and Bonds
- * can cross each other if the interaction parameters are not chosen in a way
- * that prohibits bond crossing.
+ * Atoms\endlink. 
  */
 class Bond {
     public:
-        Atom *atoms[2]; //!< Pointer to the bonded atoms
-        int id1;
-        int id2;
+        std::array<int, 2> ids;
         int type; //!< Bond type
         /*! \brief Default constructor
          *
@@ -35,36 +32,13 @@ class Bond {
          * \param type_ Bond type
          */
         Bond(Atom *a, Atom *b,  int type_=-1) {
-            atoms[0]=a;
-            atoms[1]=b;
-            if (a!=NULL) id1=a->id;
-            if (b!=NULL) id2=b->id;
+            ids[0] = a->id;
+            ids[1] = b->id;
             type=type_;
         }
-        /*! \brief Equality operator
-         *
-         * \param other Bond to compare this Bond to
-         * \return True if both bonds connect the same atoms
-         *
-         * Two bonds are considered equal if they connect the same atoms. This
-         * holds also if they are not of the same type.
-         */
-		bool operator==(const Bond &other ) {
-			return (atoms[0] == other.atoms[0] || atoms[0] == other.atoms[1]) && (atoms[1] == other.atoms[0] || atoms[1] == other.atoms[1]);
-		}
-
-        /*! \brief Not-equal operator
-         *
-         * \param other Bond to compare this Bond to
-         * \return True if both bonds connect different atoms
-         *
-         * See Bond::operator==()
-         *
-         * \todo This could be simplified by using the equality operator
-         */
-		bool operator!=(const Bond &other ) {
-			return not ((atoms[0] == other.atoms[0] || atoms[0] == other.atoms[1]) && (atoms[1] == other.atoms[0] || atoms[1] == other.atoms[1]));
-		}
+        Bond (int type_) {
+            type = type_;
+        }
 
         /*! Get index of one of the connected atoms
          *
@@ -74,38 +48,22 @@ class Bond {
          * Return the index of one of the \link Atom Atoms\endlink connected
          * via the bond.
          */
-		int getAtomId(int x) const {
-			assert(x==0 or x==1);
-			Atom *a = atoms[x];
-			return a->id;
-		}
 
         /*! \brief Check if a given Atom is part of this bond
          *
          * \param a Pointer to Atom to check
          * \return True if Atom is part of the Bond
          */
-		bool hasAtom(Atom *a);
+		bool hasAtomId(int id);
 
         /*! \brief For one Atom in the bond, get the other Atom
          *
-         * \param a Pointer to Atom in the Bond
-         * \return Pointer to the other Atom in the Bond. If the given Atom is
-         *         not part of the Bond, return NULL
+         * \return id of other atom in bond or -1 if not in bond
          */
-		Atom *other(const Atom *a) const;
-
-        /*! \brief Return a copy of one of the two \link Atom Atoms\endlink
-         *
-         * \param i Index which of the two Atoms in the Bond to return (0 or 1)
-         * \return Copy of the requested Atom
-         *
-         * \todo This will crash if index i is > 1
-         */
-        Atom getAtom(int i);
+		int otherId(int id) const;
 
         /*! \brief Swap the position of the two atoms in the internal memory */
-        void swap();
+        //void swap();
 };
 
 /*! \brief Bond with a harmonic potential (a spring)
@@ -127,39 +85,20 @@ class BondHarmonic : public Bond {
          */
 		BondHarmonic (){};
 
-        /*! \brief Constructor
-         *
-         * \param k_ Spring constant
-         * \param rEq_ Equilibrium distance
-         * \param type_ Bond type
-         *
-         * This constructor sets the connected \link Atom Atoms\endlink to
-         * NULL.
-         */
-		BondHarmonic (double k_, double rEq_, int type_=-1):Bond((Atom *) NULL,(Atom *) NULL,type_) {
-                        k=k_;
-                        rEq=rEq_;
-        }
-
-        /*! \brief Constructor
-         *
-         * \param a Pointer to the first Atom in the Bond
-         * \param b Pointer to the second Atom in the Bond
-         * \param k_ Spring constant
-         * \param rEq_ Equilibrium distance
-         * \param type_ Bond type
-         */
-		BondHarmonic (Atom *a, Atom *b, double k_, double rEq_, int type_=-1):Bond(a,b,type_) {
+		BondHarmonic (Atom *a, Atom *b, double k_, double rEq_, int type_=-1) : Bond(a,b,type_) {
 			k=k_;
 			rEq=rEq_;
-
 		}
+        BondHarmonic (double k_, double rEq_, int type_) : Bond(type) {
+			k=k_;
+			rEq=rEq_;
+        }
 
         /*! \brief Copy parameters from other bond
          *
          * \param b Other bond to copy parameters from
          */
-        void takeValues(BondHarmonic &b) {
+        void takeParameters(BondHarmonic &b) {
             k = b.k;
             rEq = b.rEq;
         }
@@ -170,9 +109,9 @@ class BondHarmonic : public Bond {
 };	
 void export_BondHarmonic();
 
-/*! \brief Harmonic Bond on the GPU with aligned memory
+/*! \brief Harmonic Bond on the GPU 
  *
- * Aligned memory means faster access. The Bond is stored for each Atom.
+ * 
  */
 class __align__(16) BondHarmonicGPU {
     public:
@@ -194,7 +133,7 @@ class __align__(16) BondHarmonicGPU {
          *
          * \param b Other bond to copy parameters from
          */
-        void takeValues(BondHarmonic &b) {
+        void takeParameters(BondHarmonic &b) {
             k = b.k;
             rEq = b.rEq;
         }
@@ -203,39 +142,6 @@ class __align__(16) BondHarmonicGPU {
         BondHarmonicGPU(){};
 };
 
-/*! \brief Harmonic Bond not derived from universal bond
- *
- * \todo Do we really continue to need this class?
- */
-class BondSave {
-	public:
-		double k;
-		double rEq;
-		int ids[2];
-		BondSave(){};
-		BondSave (int *ids_, double k_, double rEq_) {
-			ids[0] = ids_[0];
-			ids[1] = ids_[1];
-			k = k_;
-			rEq = rEq_;
-		}
-		int get (int i) {
-			return ids[i];
-		}
-		void set (int i, double x) {
-			ids[i] = x;
-		}
-		bool operator == (const BondSave &other) {
-			return k==other.k and rEq==other.rEq and other.ids[0]==ids[0] and other.ids[1]==ids[1];
-		}
-		bool operator != (const BondSave &other) {
-			return not (k==other.k and rEq==other.rEq and other.ids[0]==ids[0] and other.ids[1]==ids[1]);
-		}
-};
-
-
-
-// lets us store a list of vectors to any kind of bonds we want
 
 /*! \typedef Boost Variant for any bond */
 typedef boost::variant<
@@ -243,23 +149,5 @@ typedef boost::variant<
 	Bond
 > BondVariant;
 
-/* ugh
-class BondVariantIterator : public std::iterator<std::input_iterator_tag, BondVariant> {
-    BondVariant *outer;
-    Bond *itBond;
-    vector<BondHarmonic> *itBondHarmonic;
-
-    BondVariantIterator &operator++() {
-		if(std::vector<Bond> *b = boost::get<std::vector<Bond>>(outer)) {
-			if (
-			++itBond;
-		} else if(std::vector<BondHarmonic> *bh = boost::get<std::vector<BondHarmonic>>(itr)) {
-			++itBondHarmonic;
-		}
-		++itr;
-        return *this;
-    }
-}
-*/
 
 #endif

@@ -107,55 +107,6 @@ vector<int> Mod::computeNumBonds(SHARED(State) state, string groupHandle) {
 
 */
 
-vector<vector<Bond *> > Mod::musterBonds(State *state, vector<Bond *> &bonds) { //no group handle for now, can deal later
-	vector<vector<Bond *> > bondss;
-	Atom *begin = &state->atoms[0];
-	bondss.reserve(state->atoms.size());
-	for (int i=0, ii=state->atoms.size(); i<ii; i++) {
-		bondss.push_back(vector<Bond *>());
-	}
-
-	for (Bond *b : bonds) {
-		bondss[b->atoms[0] - begin].push_back(b);
-		bondss[b->atoms[1] - begin].push_back(b);
-	}
-	//if (groupHandle == "all") {
-	return bondss;
-//	}
-	//int groupTag = raw->groupTagFromHandle(group); //compute for all b/c it's n^2 otherwise.  Then just prune
-	//make work with groups later
-	//vector<Atom *> inGroup = LISTMAPREFTEST(Atom, Atom *, a, atoms, &a, a.groupTag & groupTag);
-	//for (int i=inGroup.size()-1; i>=0; i++) {
-
-	//}
-}
-
-//TRYING a different structure from bonds.
-vector<vector<Angle *> > Mod::musterAngles(State *state, vector<Angle *> &angles) {
-    cout << "REMOVE THIS WHEN YOU FEEL LIKE RECOMPILING" << endl;
-    return vector<vector<Angle *> >();
-}
-/*
-vector<vector<Angle *> > Mod::musterAngles(State *state, vector<Angle *> &angles) {
-    vector<vector<Angle *> > angless;
-    angless.reserve(state->atoms.size());
-    //hmm, since IDs are pretty dense, can just make idx be id, and there will be none for from of them
-    for (Angle *angle : angles) {
-        int *atoms = angle->atoms;
-        for (int i=0; i<3; i++) {
-            while (angless.size() < atoms[i]) {
-                angless.push_back(vector<Angle *>());
-            }
-        }
-        for (int i=0; i<3; i++) {
-            angless[atoms[i]].push_back(angle);
-        }
-
-    }
-    return angless;
-
-}
-*/
 /*
 bool Mod::singleSideFromVectors(vector<Vector> &dirVectors, bool is2d, Vector &trace) {
 	bool allOnSide = false;

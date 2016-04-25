@@ -8,33 +8,35 @@
 #include "helpers.h" //cumulative sum
 #include <unordered_map>
 #include "TypedItemHolder.h"
+#include <array>
 
 template <class SRC, class DEST>
-int copyBondsToGPU(vector<Atom> &atoms, vector<BondVariant> &src, GPUArrayDeviceGlobal<DEST> *dest, GPUArrayDeviceGlobal<int> *destIdxs) {
+int copyBondsToGPU(vector<Atom> &atoms, vector<BondVariant> &src, vector<int> &idxFromIdCache, GPUArrayDeviceGlobal<DEST> *dest, GPUArrayDeviceGlobal<int> *destIdxs) {
     vector<int> idxs(atoms.size()+1, 0); //started out being used as counts
     vector<int> numAddedPerAtom(atoms.size(), 0);
     //so I can arbitrarily order.  I choose to do it by the the way atoms happen to be sorted currently.  Could be improved.
-    for (BondVariant &s : src) {
-        idxs[get<SRC>(s).atoms[0] - atoms.data()]++;
-        idxs[get<SRC>(s).atoms[1] - atoms.data()]++;
+    for (BondVariant &sVar : src) {
+        SRC &s = get<SRC>(sVar);
+        for (int i=0; i<2; i++) {
+            idxs[idxFromIdCache[s.ids[i]]] ++;
+        }
     }
     cumulativeSum(idxs.data(), atoms.size()+1);  
     vector<DEST> destHost(idxs.back());
     for (BondVariant &sv : src) {
         SRC &s = get<SRC>(sv);
-        int bondAtomIds[2];
-        int bondAtomIndexes[2];
-        bondAtomIds[0] = s.atoms[0]->id;
-        bondAtomIds[1] = s.atoms[1]->id;
-        bondAtomIndexes[0] = s.atoms[0] - atoms.data();
-        bondAtomIndexes[1] = s.atoms[1] - atoms.data();
+        std::array<int, 2> atomIds = s.ids;
+        std::array<int, 2> atomIndexes;
+        for (int i=0; i<2; i++) {
+            atomIndexes[i] = idxFromIdCache[atomIds[i]];
+        }
         for (int i=0; i<2; i++) {
             DEST a;
-            a.myId = bondAtomIds[i];
-            a.idOther = bondAtomIds[!i];
-            a.takeValues(s);
-            destHost[idxs[bondAtomIndexes[i]] + numAddedPerAtom[bondAtomIndexes[i]]] = a;
-            numAddedPerAtom[bondAtomIndexes[i]]++;
+            a.myId = atomIds[i];
+            a.idOther = atomIds[!i];
+            a.takeParameters(s);
+            destHost[idxs[atomIndexes[i]] + numAddedPerAtom[atomIndexes[i]]] = a;
+            numAddedPerAtom[atomIndexes[i]]++;
         }
     }
     *dest = GPUArrayDeviceGlobal<DEST>(destHost.size());
@@ -75,16 +77,6 @@ class FixBond : public Fix, public TypedItemHolder {
             forcerTypes[n] = forcer;
         }
 
-        bool refreshAtoms() {
-            vector<int> idxFromIdCache = state->idxFromIdCache;
-            vector<Atom> &atoms = state->atoms;
-            for (BondVariant &bv : bonds) {
-                CPUMember *cpuMem = &get<CPUMember>(bv);
-                cpuMem->atoms[0] = &atoms[idxFromIdCache[cpuMem->id1]];
-                cpuMem->atoms[1] = &atoms[idxFromIdCache[cpuMem->id2]];
-            }
-            return true;
-        }
 
         bool prepareForRun() {
             vector<Atom> &atoms = state->atoms;
@@ -97,10 +89,10 @@ class FixBond : public Fix, public TypedItemHolder {
                         cout << "Invalid bonded potential type " << bond.type << endl;
                         assert(it != forcerTypes.end());
                     }
-                    bond.takeValues(it->second); 
+                    bond.takeParameters(it->second); 
                 }
             }
-            maxBondsPerBlock = copyBondsToGPU<CPUMember, GPUMember>(atoms, bonds, &bondsGPU, &bondIdxs);
+            maxBondsPerBlock = copyBondsToGPU<CPUMember, GPUMember>(atoms, bonds, state->idxFromIdCache, &bondsGPU, &bondIdxs);
 
             return true;
 

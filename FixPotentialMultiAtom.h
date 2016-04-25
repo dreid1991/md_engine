@@ -21,7 +21,6 @@ class FixPotentialMultiAtom : public Fix, public TypedItemHolder {
             forceSingle = true;
             maxForcersPerBlock = 0;
         }
-        std::vector<std::array<int, N> > forcerAtomIds;
         std::vector<CPUVariant> forcers;
         boost::python::list pyForcers; //to be managed by the variant-pylist interface member of parent classes
         std::unordered_map<int, CPUMember> forcerTypes;
@@ -30,8 +29,6 @@ class FixPotentialMultiAtom : public Fix, public TypedItemHolder {
 		//DataSet *eng;
         //DataSet *press;
         bool prepareForRun() {
-            std::vector<Atom> &atoms = state->atoms;
-            refreshAtoms();
             for (CPUVariant &forcerVar : forcers) { //applying types to individual elements
                 CPUMember &forcer= boost::get<CPUMember>(forcerVar);
                 if (forcer.type != -1) {
@@ -40,10 +37,10 @@ class FixPotentialMultiAtom : public Fix, public TypedItemHolder {
                         cout << "Invalid bonded potential type " << forcer.type << endl;
                         assert(it != forcerTypes.end());
                     }
-                    forcer.takeValues(it->second); 
+                    forcer.takeParameters(it->second); 
                 }
             }
-            maxForcersPerBlock = copyMultiAtomToGPU<CPUVariant, CPUMember, GPUMember, N>(atoms, forcers, &forcersGPU, &forcerIdxs);
+            maxForcersPerBlock = copyMultiAtomToGPU<CPUVariant, CPUMember, GPUMember, N>(state->atoms.size(), forcers, state->idxFromIdCache, &forcersGPU, &forcerIdxs);
 
             return true;
         }
@@ -65,19 +62,6 @@ class FixPotentialMultiAtom : public Fix, public TypedItemHolder {
         }
         bool downloadFromRun(){return true;};
         //HEY - NEED TO IMPLEMENT REFRESHATOMS
-        bool refreshAtoms() {
-            std::vector<int> idxFromIdCache = state->idxFromIdCache;
-            std::vector<Atom> &atoms = state->atoms;
-            for (int i=0; i<forcerAtomIds.size(); i++) {
-                CPUMember &forcer = boost::get<CPUMember>(forcers[i]);
-                std::array<int, N> &ids = forcerAtomIds[i];
-                for (int j=0; j<N; j++) {
-                    forcer.atoms[j] = &atoms[idxFromIdCache[ids[j]]];
-                }
-            }
-            return forcerAtomIds.size() == forcers.size();
-
-        }
         //void createDihedral(Atom *, Atom *, Atom *, Atom *, double, double, double, double);
         //vector<pair<int, vector<int> > > neighborlistExclusions();
         //string restartChunk(string format);

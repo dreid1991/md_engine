@@ -7,10 +7,12 @@
 
 #include "cutils_math.h"
 #include <boost/variant.hpp>
-
+#include <array>
+void export_Impropers();
 class Improper {
     public:
-        Atom *atoms[4];
+
+        std::array<int, 4> ids;
         int type;
 };
 
@@ -23,7 +25,8 @@ class ImproperHarmonic : public Improper {
         ImproperHarmonic(Atom *a, Atom *b, Atom *c, Atom *d, double k, double thetaEq, int type_=-1);
         ImproperHarmonic(double k, double thetaEq, int type_=-1);
         ImproperHarmonic(){};
-        void takeValues(ImproperHarmonic &);
+        void takeParameters(ImproperHarmonic &);
+        void takeIds(ImproperHarmonic &);
     
 };
 
@@ -33,8 +36,8 @@ class ImproperHarmonicGPU {
         int myIdx;
         float k;
         float thetaEq;
-        void takeIds(int *);
-        void takeValues(ImproperHarmonic &);
+        void takeParameters(ImproperHarmonic &);
+        void takeIds(ImproperHarmonic &);
 
 
 };

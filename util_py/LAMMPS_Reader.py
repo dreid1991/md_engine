@@ -207,7 +207,7 @@ class LAMMPS_Reader:
         for line in rawData:
 #will have to generalize this at some point
             handle = self.myAtomHandles[int(line[0]) - 1]
-            eps = 1.5*float(line[1]) #/ self.unitEng
+            eps = float(line[1]) / self.unitEng
             sig = float(line[2]) / self.unitLen
             self.nonbondFix.setParameter('sig', handleA=handle, handleB=handle, val=sig)
             self.nonbondFix.setParameter('eps', handleA=handle, handleB=handle, val=eps)

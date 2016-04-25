@@ -31,6 +31,8 @@ using namespace std;
 #include "ReadConfig.h"
 #include "TypedItemHolder.h"
 #include "Angle.h"
+#include "Dihedral.h"
+#include "Improper.h"
 //#include "DataTools.h"
 BOOST_PYTHON_MODULE(Sim) {
     export_stls();	
@@ -53,7 +55,9 @@ BOOST_PYTHON_MODULE(Sim) {
     export_AngleHarmonic();
 
     export_FixImproperHarmonic();
+    export_Impropers();
     export_FixDihedralOPLS();
+    export_Dihedrals();
     export_FixWallHarmonic();
     export_FixSpringStatic();
     export_Fix2d();

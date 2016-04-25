@@ -4,7 +4,9 @@
 #include "cutils_func.h"
 
 #define EPSILON 0.00001f
+//using namespace boost::python;
 namespace py = boost::python;
+
 __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureObject_t idToIdxs, DihedralOPLSGPU *dihedrals, int *startstops, BoundsGPU bounds) {
     int idx = GETIDX();
     extern __shared__ DihedralOPLSGPU dihedrals_shr[];
@@ -50,6 +52,8 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
                     toGet[1] = 1;
                     toGet[2] = 2;
                 }
+
+
                 for (int i=0; i<3; i++) {
                     positions[toGet[i]] = make_float3(perAtomFromId(idToIdxs, xs, dihedral.ids[toGet[i]]));
                 }
@@ -211,6 +215,8 @@ FixDihedralOPLS::FixDihedralOPLS(SHARED(State) state_, string handle) : FixPoten
 void FixDihedralOPLS::compute(bool computeVirials) {
     int nAtoms = state->atoms.size();
     int activeIdx = state->gpd.activeIdx();
+
+
     //cout << "max forcers " << maxForcersPerBlock << endl;
     compute_cu<<<NBLOCK(nAtoms), PERBLOCK, sizeof(DihedralOPLSGPU) * maxForcersPerBlock>>>(nAtoms, state->gpd.xs(activeIdx), state->gpd.fs(activeIdx), state->gpd.idToIdxs.getTex(), forcersGPU.data(), forcerIdxs.data(), state->boundsGPU);
 
@@ -225,20 +231,18 @@ void FixDihedralOPLS::createDihedral(Atom *a, Atom *b, Atom *c, Atom *d, double 
         }
     }
     forcers.push_back(DihedralOPLS(a, b, c, d, vs, type));
-    std::array<int, 4> ids = {a->id, b->id, c->id, d->id};
-    forcerAtomIds.push_back(ids);
     pyListInterface.updateAppendedMember();
 }
 
 
-void FixDihedralOPLS::createDihedralPy(Atom *a, Atom *b, Atom *c, Atom *d, boost::python::list coefs, int type) {
+void FixDihedralOPLS::createDihedralPy(Atom *a, Atom *b, Atom *c, Atom *d, py::list coefs, int type) {
     double coefs_c[4];
     if (type!=-1) {
         createDihedral(a, b, c, d, COEF_DEFAULT, COEF_DEFAULT, COEF_DEFAULT, COEF_DEFAULT, type);
     } else {
-        assert(boost::python::len(coefs) == 4);
+        assert(len(coefs) == 4);
         for (int i=0; i<4; i++) {
-            boost::python::extract<double> coef(coefs[i]);
+            py::extract<double> coef(coefs[i]);
             assert(coef.check());
             coefs_c[i] = coef;
         }
@@ -248,7 +252,7 @@ void FixDihedralOPLS::createDihedralPy(Atom *a, Atom *b, Atom *c, Atom *d, boost
 }
 
 void FixDihedralOPLS::setDihedralTypeCoefs(int type, py::list coefs) {
-    assert(py::len(coefs)==4);
+    assert(len(coefs)==4);
     double coefs_c[4];
     for (int i=0; i<4; i++) {
         py::extract<double> coef(coefs[i]);
@@ -269,23 +273,24 @@ string FixDihedralOPLS::restartChunk(string format) {
 }
 
 void export_FixDihedralOPLS() {
-    boost::python::class_<FixDihedralOPLS,
+    py::class_<FixDihedralOPLS,
                           SHARED(FixDihedralOPLS),
-                          boost::python::bases<Fix, TypedItemHolder> > (
+                          py::bases<Fix, TypedItemHolder> > (
         "FixDihedralOPLS",
-        boost::python::init<SHARED(State), string> (
-            boost::python::args("state", "handle")
+        py::init<SHARED(State), string> (
+            py::args("state", "handle")
         )
     )
     .def("createDihedral", &FixDihedralOPLS::createDihedralPy,
-            (boost::python::arg("coefs")=boost::python::list(),
-             boost::python::arg("type")=-1)
+            (py::arg("coefs")=py::list(),
+             py::arg("type")=-1)
         )
 
     .def("setDihedralTypeCoefs", &FixDihedralOPLS::setDihedralTypeCoefs, 
-            (python::arg("type"), 
-             python::arg("coefs"))
+            (py::arg("type"), 
+             py::arg("coefs"))
             )
+    .def_readonly("dihedrals", &FixDihedralOPLS::pyForcers)
 
     ;
 
