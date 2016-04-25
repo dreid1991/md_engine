@@ -2,106 +2,112 @@
 #include "State.h"
 #include "Atom.h"
 #include "list_macro.h"
-/*
-make a 'ready' flag in state, which means am ready to run.  creating atoms makes false, 
-		make ready by re-doing all atom pointers 
 
-		nah, am making ready on each
-*/
+//make a 'ready' flag in state, which means am ready to run.  creating atoms
+//makes false, make ready by re-doing all atom pointers
+//
+//nah, am making ready on each
+
 int max_id(vector<Atom> &atoms) {
-	int id = -1;
-	for (Atom &a : atoms) {
-		if (a.id > id) {
-			id = a.id;
-		}
-	}
-	return id;
+    int id = -1;
+    for (Atom &a : atoms) {
+        if (a.id > id) {
+            id = a.id;
+        }
+    }
+    return id;
 }
 
-void InitializeAtoms::populateOnGrid(SHARED(State) state, Bounds &bounds, string handle, int n) {
-	assert(n>=0);
-	vector<Atom> &atoms = state->atoms;
+void InitializeAtoms::populateOnGrid(SHARED(State) state, Bounds &bounds,
+                                     string handle, int n) {
+    assert(n>=0);
+    vector<Atom> &atoms = state->atoms;
 
+    int n_final = atoms.size() + n;
 
-	int n_final = atoms.size() + n;
-
-	int nPerSide = ceil(pow(n, 1.0/3.0));
-	Vector deltaPerSide = bounds.trace / nPerSide;
-	for (int i=0; i<nPerSide; i++) {
-		for (int j=0; j<nPerSide; j++) {
-			for (int k=0; k<nPerSide; k++) {
-				if ((int) atoms.size() == n_final) {
-					return;
-				}
-				Vector pos = bounds.lo + Vector(i, j, k) * deltaPerSide;
+    int nPerSide = ceil(pow(n, 1.0/3.0));
+    Vector deltaPerSide = bounds.trace / nPerSide;
+    for (int i=0; i<nPerSide; i++) {
+        for (int j=0; j<nPerSide; j++) {
+            for (int k=0; k<nPerSide; k++) {
+                if ((int) atoms.size() == n_final) {
+                    return;
+                }
+                Vector pos = bounds.lo + Vector(i, j, k) * deltaPerSide;
                 state->addAtom(handle, pos, 0);
-			}
-		}
-	}
-	state->changedAtoms = true;
+            }
+        }
+    }
+    state->changedAtoms = true;
 }
-void InitializeAtoms::populateRand(SHARED(State) state, Bounds &bounds, string handle, int n, double distMin) {
-	assert(n>=0);
 
-	std::mt19937 &generator = state->getRNG();
-	vector<Atom> &atoms = state->atoms;
-	AtomParams &params = state->atomParams;
-	vector<string> handles = params.handles;
-	int type = find(handles.begin(), handles.end(), handle) - handles.begin();
+void InitializeAtoms::populateRand(SHARED(State) state, Bounds &bounds,
+                                   string handle, int n, double distMin) {
+    assert(n>=0);
 
-	assert(type != (int) handles.size()); //makes sure it found one
-	unsigned int n_final = atoms.size() + n;
-	uniform_real_distribution<double> dists[3];
-	for (int i=0; i<3; i++) {
-		dists[i] = uniform_real_distribution<double>(bounds.lo[i], bounds.hi[i]);
-	}
-	if (state->is2d) {
-		dists[2] = uniform_real_distribution<double>(0, 0);
-	}
+    std::mt19937 &generator = state->getRNG();
+    vector<Atom> &atoms = state->atoms;
+    AtomParams &params = state->atomParams;
+    vector<string> handles = params.handles;
+    int type = find(handles.begin(), handles.end(), handle) - handles.begin();
 
-	int id = max_id(atoms) + 1;
-	while (atoms.size() < n_final) {
-		Vector pos;
-		for (int i=0; i<3; i++) {
-			pos[i] = dists[i](generator);
-		}
-		bool is_overlap = false;
-		for (Atom &a : atoms) {
-			int typeA = a.type;
-			/*! \todo Check only for overlap across boundary if boundary
-			 * is periodic. */
-			Vector dist = state->bounds.minImage(pos - a.pos);
-			if (dist.lenSqr() < distMin * distMin) {
-				is_overlap = true;
-				break;
-			}
-		}
-		if (not is_overlap) {
+    assert(type != (int) handles.size()); //makes sure it found one
+    unsigned int n_final = atoms.size() + n;
+    uniform_real_distribution<double> dists[3];
+    for (int i=0; i<3; i++) {
+        dists[i] = uniform_real_distribution<double>(bounds.lo[i],
+                                                     bounds.hi[i]);
+    }
+    if (state->is2d) {
+        dists[2] = uniform_real_distribution<double>(0, 0);
+    }
+
+    int id = max_id(atoms) + 1;
+    while (atoms.size() < n_final) {
+        Vector pos;
+        for (int i=0; i<3; i++) {
+            pos[i] = dists[i](generator);
+        }
+        bool is_overlap = false;
+        for (Atom &a : atoms) {
+            int typeA = a.type;
+            /*! \todo Check only for overlap across boundary if boundary
+             * is periodic. */
+            Vector dist = state->bounds.minImage(pos - a.pos);
+            if (dist.lenSqr() < distMin * distMin) {
+                is_overlap = true;
+                break;
+            }
+        }
+        if (not is_overlap) {
             state->addAtom(handle, pos, 0);
-			id++;
-		}
-	}
-	if (state->is2d) {
-		for (Atom &a: atoms) {
-			a.pos[2]=0;
-		}
-	}
-	state->changedAtoms = true;
-
+            id++;
+        }
+    }
+    if (state->is2d) {
+        for (Atom &a: atoms) {
+            a.pos[2]=0;
+        }
+    }
+    state->changedAtoms = true;
 }
-void InitializeAtoms::initTemp(SHARED(State) state, string groupHandle, double temp) { //boltzmann const is 1 for reduced lj units
-	std::mt19937 generator = state->getRNG();
+
+void InitializeAtoms::initTemp(SHARED(State) state, string groupHandle,
+                               double temp) {
+    //boltzmann const is 1 for reduced lj units
+    std::mt19937 generator = state->getRNG();
     int groupTag = state->groupTagFromHandle(groupHandle);
 	
-	vector<Atom *> atoms = LISTMAPREFTEST(Atom, Atom *, a, state->atoms, &a, a.groupTag & groupTag);
+    vector<Atom *> atoms = LISTMAPREFTEST(Atom, Atom *, a, state->atoms, &a,
+                                          a.groupTag & groupTag);
 
     assert(atoms.size());
-	map<double, normal_distribution<double> > dists;
-	for (Atom *a : atoms) {
-		if (dists.find(a->mass) == dists.end()) {
-			dists[a->mass] = normal_distribution<double> (0, sqrt(temp / a->mass));
-		}
-	}
+    map<double, normal_distribution<double> > dists;
+    for (Atom *a : atoms) {
+        if (dists.find(a->mass) == dists.end()) {
+            dists[a->mass] = normal_distribution<double>(0, sqrt(temp/a->mass));
+        }
+    }
     Vector sumMoms;
     double sumMass = 0;
     for (Atom *a : atoms) {
@@ -117,21 +123,19 @@ void InitializeAtoms::initTemp(SHARED(State) state, string groupHandle, double t
             a->vel -= sumMoms * a->mass;
         }
     }
-	double sumKe = 0;
-	for (Atom *a : atoms) {
-		sumKe += a->kinetic();
-	}
-	double curTemp = sumKe / 1.5 / atoms.size();
-	for (Atom *a : atoms) {
-		a->vel *= sqrt(temp / curTemp);
-	}
-	if (state->is2d) {
-		for (Atom *a : atoms) {
-			a->vel[2] = 0;
-		}
-	}
-
-
+    double sumKe = 0;
+    for (Atom *a : atoms) {
+        sumKe += a->kinetic();
+    }
+    double curTemp = sumKe / 1.5 / atoms.size();
+    for (Atom *a : atoms) {
+        a->vel *= sqrt(temp / curTemp);
+    }
+    if (state->is2d) {
+        for (Atom *a : atoms) {
+            a->vel[2] = 0;
+        }
+    }
 }
 
 void export_InitializeAtoms() {
@@ -158,3 +162,4 @@ void export_InitializeAtoms() {
     .staticmethod("initTemp")
     ;
 }
+
