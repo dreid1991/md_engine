@@ -3,6 +3,8 @@
 #include "Atom.h"
 #include "list_macro.h"
 
+#include "Logging.h"
+
 //make a 'ready' flag in state, which means am ready to run.  creating atoms
 //makes false, make ready by re-doing all atom pointers
 //
@@ -63,6 +65,7 @@ void InitializeAtoms::populateRand(SHARED(State) state, Bounds &bounds,
     }
 
     int id = max_id(atoms) + 1;
+    unsigned int tries = 0;
     while (atoms.size() < n_final) {
         Vector pos;
         for (int i=0; i<3; i++) {
@@ -76,12 +79,15 @@ void InitializeAtoms::populateRand(SHARED(State) state, Bounds &bounds,
             Vector dist = state->bounds.minImage(pos - a.pos);
             if (dist.lenSqr() < distMin * distMin) {
                 is_overlap = true;
+                ++tries;
+                if (tries > maxtries) { mdError("Unable to place new atom."); }
                 break;
             }
         }
         if (not is_overlap) {
             state->addAtom(handle, pos, 0);
             id++;
+            tries = 0;
         }
     }
     if (state->is2d) {

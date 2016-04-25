@@ -17,6 +17,9 @@ class State;
 void export_InitializeAtoms();
 using namespace std;
 
+//! Number of tries to place Atom before throwing an error
+const unsigned int maxtries = 10000;
+
 /*! \class InitializeAtomsPythonWrap
  * \brief Python Wrapper for Atom initialization
  *
