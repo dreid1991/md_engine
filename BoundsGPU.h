@@ -4,7 +4,6 @@
 
 #include "cutils_math.h"
 #include "globalDefs.h"
-#include "Vector.h"
 
 /*! \brief store Boundaries on the GPU
  *

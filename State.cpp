@@ -21,6 +21,8 @@
 
 State::State() {
 	groupTags["all"] = (unsigned int) 1;
+    //! \todo I think it would be great to also have the group "none"
+    //!       in addition to "all"
 	is2d = false;
 	buildNeighborlists = true;
 	rCut = RCUT_INIT;
@@ -37,6 +39,8 @@ State::State() {
 	for (int i=0; i<3; i++) {
 		periodic[i]=true;
 	}
+    //! \todo It would be nice to set verbose true/false in Logging.h and use
+    //!       it for mdMessage.
 	verbose = true;
     readConfig = SHARED(ReadConfig) (new ReadConfig(this));
     atomParams = AtomParams(this);
@@ -131,6 +135,7 @@ bool State::removeAtom(Atom *a) {
 
 
 int State::idxFromId(int id) {
+    //! \todo Is variable ii really more efficient?
 	for (int i=0,ii=atoms.size(); i<ii; i++) {
 		if (atoms[i].id == id) {
 			return i;
