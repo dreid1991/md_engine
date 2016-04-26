@@ -16,7 +16,9 @@
 #include <random>
 #include <thread>
 
+
 #include <boost/shared_ptr.hpp>
+#include <boost/type_traits/remove_cv.hpp> //boost 1.58 bug workaround
 #include <boost/variant/get.hpp>
 #include <boost/python.hpp>
 
