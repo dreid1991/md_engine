@@ -87,13 +87,6 @@ public:
      */
     size_t size() const { return h_data.size(); }
 
-    //! Ensure that the GPU data array is large enough to store data
-    void ensureSize() {
-        if (h_data.size() > d_data.size()) {
-            d_data = GPUArrayDeviceGlobal<T>(size());
-        }
-    }
-
     //! Send data from CPU to GPU
     void dataToDevice() {
         d_data.set(h_data.data());
