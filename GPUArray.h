@@ -6,11 +6,11 @@
 class GPUArray {
     protected:
         //! Constructor
-        GPUArray() {};
+        GPUArray() = default;
 
     public:
         //! Destructor
-        virtual ~GPUArray() {};
+        virtual ~GPUArray() = default;
 
         //! Send data from host to GPU device
         virtual void dataToDevice() = 0;
