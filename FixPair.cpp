@@ -23,18 +23,16 @@ void FixPair::prepareParameters(string handle,
 
 void FixPair::resetToPreproc(string handle) {
     GPUArrayGlobal<float> &array = *paramMap[handle];
-    vector<float> &preproc = paramMapPreproc[handle];
-    array.set(preproc);
+    array = paramMapPreproc[handle];
 }
 
 void FixPair::ensureParamSize(GPUArrayGlobal<float> &array) {
 
     int desiredSize = state->atomParams.numTypes;
     if (array.size() != desiredSize*desiredSize) {
-        vector<float> newVals = SquareVector::copyToSize(array.h_data,
-                                            std::sqrt((double) array.size()),
-                                            state->atomParams.numTypes);
-        array.set(newVals);
+        array = SquareVector::copyToSize(array.h_data,
+                                         std::sqrt((double) array.size()),
+                                         state->atomParams.numTypes);
     }
 }
 

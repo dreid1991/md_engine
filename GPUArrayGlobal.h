@@ -45,18 +45,40 @@ public:
         d_data = GPUArrayDeviceGlobal<T>(h_data.size());
     }
 
-    //! Set CPU data
+    //! Move from vector constructor
     /*!
-     * \param other Vector containing new data
-     *
-     * Set the CPU data to to data specified in the given vector.
+     * \param vals vector to be moved to the GPUArray host data
      */
-    void set(std::vector<T> const &other) {
-        if (other.size() > size()) {
-            d_data = GPUArrayDeviceGlobal<T>(other.size());
-        }
-        h_data = other;
+    explicit GPUArrayGlobal(std::vector<T> &&vals)
+    {
+        h_data = std::move(vals);
+        d_data = GPUArrayDeviceGlobal<T>(h_data.size());
+    }
 
+    //! Copy assignment from vector
+    /*!
+     * \param vals vector containing data to be copied to host CPU vector
+     * \return This object
+     */
+    GPUArrayGlobal const &operator=(std::vector<T> const &vals)
+    {
+        d_data.resize(vals.size());
+        h_data = vals;
+
+        return *this;
+    }
+
+    //! Move assignment from vector
+    /*!
+     * \param vals vector containing data to be moved to host CPU vector
+     * \return This object
+     */
+    GPUArrayGlobal const &operator=(std::vector<T> &&vals)
+    {
+        d_data.resize(vals.size());
+        h_data = std::move(vals);
+
+        return *this;
     }
 
     //! Return number of elements stored in the array

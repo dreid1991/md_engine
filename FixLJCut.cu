@@ -206,12 +206,9 @@ string FixLJCut::restartChunk(string format) {
 }
 
 bool FixLJCut::readFromRestart(pugi::xml_node restData) {
-    
-    vector<float> epsilons_raw = xml_readNums<float>(restData, epsHandle);
-    epsilons.set(epsilons_raw);
+    epsilons = xml_readNums<float>(restData, epsHandle);
     initializeParameters(epsHandle, epsilons);
-    vector<float> sigmas_raw = xml_readNums<float>(restData, sigHandle);
-    sigmas.set(sigmas_raw);
+    sigmas = xml_readNums<float>(restData, sigHandle);
     initializeParameters(sigHandle, sigmas);
     //add rcuts
     return true;
