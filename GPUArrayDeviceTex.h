@@ -296,7 +296,8 @@ private:
      * \return Size in x-dimension
      */
     size_t nX() const {
-        return std::fmin((int) (PERLINE/sizeof(T)), (int) size());
+        const size_t elementsPerLine = PERLINE/sizeof(T);
+        return (size() > elementsPerLine) ? elementsPerLine : size();
     }
 
     //! Get size in y-dimension of Texture Array
@@ -304,7 +305,9 @@ private:
      * \return Size in y-dimension
      */
     size_t nY() const {
-        return std::ceil(size() / (float) (PERLINE/sizeof(T)));
+        const size_t elementsPerLine = PERLINE/sizeof(T);
+        return (size() % elementsPerLine == 0) ? size() / elementsPerLine
+                                               : size() / elementsPerLine + 1;
     }
 
 private:
