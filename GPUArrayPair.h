@@ -21,7 +21,7 @@
  * \todo This class does not make sure that a given index is 0 or 1. A few
  *       Assert() calls would help, I think.
  */
-template <class T>
+template <typename T>
 class GPUArrayPair : public GPUArray {
 
 private:

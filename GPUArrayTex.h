@@ -16,7 +16,7 @@
  * between the two. This class is designed only for use in the runtime loop,
  * not for general storage.
  */
-template <class T>
+template <typename T>
 class GPUArrayTex : public GPUArray {
     public:
         GPUArrayDeviceTex<T> d_data; //!< Array storing data on the GPU
