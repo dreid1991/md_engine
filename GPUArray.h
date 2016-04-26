@@ -2,23 +2,25 @@
 #ifndef GPUARRAY_H
 #define GPUARRAY_H
 
-/*! \brief Base class for a GPUArray */
+//! Base class for a GPUArray
 class GPUArray {
     protected:
-        /*! \brief Constructor */
+        //! Constructor
         GPUArray() {};
 
     public:
-        /*! \brief Destructor */
+        //! Destructor
         virtual ~GPUArray() {};
 
-        /*! \brief Send data from host to GPU device */
+        //! Send data from host to GPU device
         virtual void dataToDevice() = 0;
 
-        /*! \brief Send data from GPU device to host */
+        //! Send data from GPU device to host
         virtual void dataToHost() = 0;
 
-        /*! \brief Return number of elements of array
+        //! Return number of elements of array
+        /*!
+         * \return Number of elements
          *
          * This function returns the number of elements in the array. Note,
          * that this is not the size in bytes. For this, use size()*sizeof(T),
