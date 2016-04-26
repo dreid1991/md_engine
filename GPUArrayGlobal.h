@@ -40,7 +40,7 @@ public:
      *
      * Constructor setting the CPU data array with the specified vector.
      */
-    explicit GPUArrayGlobal(std::vector<T> &vals) {
+    explicit GPUArrayGlobal(std::vector<T> const &vals) {
         set(vals);
         d_data = GPUArrayDeviceGlobal<T>(vals.size());
     }
@@ -51,7 +51,7 @@ public:
      *
      * Set the CPU data to to data specified in the given vector.
      */
-    void set(std::vector<T> &other) {
+    void set(std::vector<T> const &other) {
         if (other.size() > size()) {
             d_data = GPUArrayDeviceGlobal<T>(other.size());
         }
