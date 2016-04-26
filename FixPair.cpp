@@ -7,10 +7,8 @@
 void FixPair::prepareParameters(string handle,
                             std::function<float (float, float)> fillFunction, std::function<float (float)> processFunction, bool fillDiag, std::function<float ()> fillDiagFunction) {
     GPUArrayGlobal<float> &array = *paramMap[handle];
-    vector<float> *preproc = &paramMapPreproc[handle];
     int desiredSize = state->atomParams.numTypes;
     ensureParamSize(array);
-    *preproc = array.h_data;
     if (fillDiag) {
         SquareVector::populateDiagonal<float>(&array.h_data, desiredSize, fillDiagFunction);
     }
