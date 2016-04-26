@@ -34,15 +34,15 @@ public:
     explicit GPUArrayGlobal(int size_)
         : h_data(std::vector<T>(size_,T())), d_data(GPUArrayDeviceGlobal<T>(size_)) {}
 
-    //! Constructor
+    //! Copy from vector constructor
     /*!
      * \param vals Vector to be passed to the CPU array
      *
      * Constructor setting the CPU data array with the specified vector.
      */
     explicit GPUArrayGlobal(std::vector<T> const &vals) {
-        set(vals);
-        d_data = GPUArrayDeviceGlobal<T>(vals.size());
+        h_data = vals;
+        d_data = GPUArrayDeviceGlobal<T>(h_data.size());
     }
 
     //! Set CPU data
