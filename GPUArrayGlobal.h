@@ -4,7 +4,7 @@
 
 #include <vector>
 
-#include "GPUArrayBase.h"
+#include "GPUArray.h"
 #include "GPUArrayDeviceGlobal.h"
 
 /*! \class GPUArray
@@ -16,7 +16,7 @@
  * move the data from the CPU to the GPU and back again.
  */
 template <typename T>
-class GPUArrayGlobal : public GPUArrayBase {
+class GPUArrayGlobal : public GPUArray {
 
 public:
     /*! \brief Constructor

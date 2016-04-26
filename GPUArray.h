@@ -1,18 +1,16 @@
 #pragma once
-#ifndef GPUARRAYBASE_H
-#define GPUARRAYBASE_H
+#ifndef GPUARRAY_H
+#define GPUARRAY_H
 
-/*! \class GPUArrayBase
- * \brief Base class for a GPUArray
- */
-class GPUArrayBase {
+/*! \brief Base class for a GPUArray */
+class GPUArray {
     protected:
         /*! \brief Constructor */
-        GPUArrayBase() {};
+        GPUArray() {};
 
     public:
         /*! \brief Destructor */
-        virtual ~GPUArrayBase() {};
+        virtual ~GPUArray() {};
 
         /*! \brief Send data from host to GPU device */
         virtual void dataToDevice() = 0;

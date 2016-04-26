@@ -5,7 +5,7 @@
 #include <cuda_runtime.h>
 #include <vector>
 
-#include "GPUArrayBase.h"
+#include "GPUArray.h"
 #include "GPUArrayDeviceGlobal.h"
 
 /*! \brief GPUArray keeping data on the memory twice
@@ -20,7 +20,7 @@
  *       Assert() calls would help, I think.
  */
 template <class T>
-class GPUArrayPair : public GPUArrayBase {
+class GPUArrayPair : public GPUArray {
 
 private:
     /*! \brief Set the CPU data of the Array
@@ -49,7 +49,7 @@ public:
     GPUArrayDeviceGlobal<T> d_data[2]; //!< Pair of GPU data
 
     /*! \brief Default constructor */
-    GPUArrayPair() : GPUArrayBase(), activeIdx(0) {}
+    GPUArrayPair() : GPUArray(), activeIdx(0) {}
 
     /*! \brief Constructor
      *

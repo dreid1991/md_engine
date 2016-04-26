@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-class GPUArrayBase;
+class GPUArray;
 class State;
 
 void export_Integrater();
@@ -36,7 +36,7 @@ protected:
      * configurations or performing Python operations
      */
     void asyncOperations();
-    std::vector<GPUArrayBase *> activeData; //!< List of pointers to the data
+    std::vector<GPUArray *> activeData; //!< List of pointers to the data
                                             //!< used by this integrator
 
     /*! \brief Simple checks before the run
