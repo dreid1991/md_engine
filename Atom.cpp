@@ -2,11 +2,21 @@
 #include "Atom.h"
 #include "boost_for_export.h"
 using namespace boost::python;
+
+
+void Atom::setPos(Vector pos_) {
+    isChanged = true;
+    pos = pos_;
+}
+Vector Atom::getPos() {
+    return pos;
+}
 void export_Atom () { 
     class_<Atom>("Atom", init<int, int>())
         .def(init<Vector, int, int>())
         .def_readonly("id", &Atom::id)
-        .def_readwrite("pos", &Atom::pos)
+        .add_property("pos", &Atom::getPos, &Atom::setPos)
+        //.def_readwrite("pos", &Atom::pos)
         .def_readwrite("vel", &Atom::vel)
         .def_readwrite("force", &Atom::force)
         .def_readwrite("forceLast", &Atom::forceLast)
@@ -16,6 +26,7 @@ void export_Atom () {
         .def_readwrite("q", &Atom::q)
         .def_readwrite("type", &Atom::type)
         .def("kinetic", &Atom::kinetic)
+        .def_readwrite("isChanged", &Atom::isChanged)
         ;
 
 }

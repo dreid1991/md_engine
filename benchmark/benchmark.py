@@ -37,7 +37,21 @@ integVerlet = IntegraterVerlet(state)
 
 writeconfig = WriteConfig(state, fn='test_out', writeEvery=10, format='xyz', handle='writer')
 #state.activateWriteConfig(writeconfig)
-integVerlet.run(10000)#000000)
+
+
+state.atoms[0].isChanged = False
+print state.atoms[0].isChanged
+
+origPos = state.atoms[0].pos
+print state.atoms[0].pos
+print origPos
+origPos[0] = 100
+print state.atoms[0].pos
+print origPos
+print 'fin'
+state.atoms[0].pos = Vector(1, 2, 3)
+print state.atoms[0].isChanged
+#integVerlet.run(10000)#000000)
 print state.atoms[0].pos
 sumV = 0.
 for a in state.atoms:
