@@ -725,7 +725,9 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool doSort, bool force
         if (totalNumNeighbors > neighborlist.size()) {
             neighborlist = GPUArrayDeviceGlobal<uint>(totalNumNeighbors*1.5);
         } else if (totalNumNeighbors < neighborlist.size() * 0.5) {
-            neighborlist = GPUArrayDeviceGlobal<uint>(totalNumNeighbors*0.8);
+//             neighborlist = GPUArrayDeviceGlobal<uint>(totalNumNeighbors*0.8);//REALLY??
+            neighborlist = GPUArrayDeviceGlobal<uint>(totalNumNeighbors*1.5);//REALLY??
+
         }
         /*
         SAFECALL(assignNeighbors<<<NBLOCK(nAtoms), PERBLOCK, PERBLOCK*maxExclusionsPerAtom*sizeof(uint)>>>(

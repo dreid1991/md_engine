@@ -158,6 +158,12 @@ public:
         CUCHECK(cudaMemcpy(ptr, copyFrom, size()*sizeof(T),
                                                 cudaMemcpyHostToDevice));
     }
+    void set (void const *copyFrom, size_t offset, size_t nElements) {
+        T *pointer = (T*)ptr;
+        CUCHECK(cudaMemcpy(pointer+offset, copyFrom, nElements*sizeof(T),
+                                                cudaMemcpyHostToDevice));
+
+    }
 
     //! Copy data to GPU memory location
     /*!

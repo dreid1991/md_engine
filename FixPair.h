@@ -151,54 +151,6 @@ namespace SquareVector {
     }
 
 }
-
-//template <class T>
-//class SquareVector{
-//    public:
-//        vector<T> vals;
-//        int size;
-//
-//        SquareVector(int n) : size(n) {
-//            vals = vector<T>(size*size, DEFAULT_FILL);
-//
-//        }
-//        T &operator () (int row, int col) {
-//            return vals[row*size + col];
-//        }
-//        void populate(function<T (T, T)> fillFunction) {
-//            for (int i=0; i<size; i++) {
-//                for (int j=0; j<size; j++) {
-//                    T val = (*this)(i, j);
-//                    if (i==j) {
-//                        if (val == DEFAULT_FILL) {
-//                            cout << "You have not defined interaction parameters for atom type with index " << i << endl;
-//                            assert(val != DEFAULT_FILL);
-//                        }
-//                    } else if (val == DEFAULT_FILL) {
-//                    (*this)(i, j) = fillFunction((*this)(i, i), (*this)(j, j));
-//                    }
-//                }
-//            }
-//        }
-//        void setSize(int n) {
-//            vector<T> old = vals;
-//            if (n != size) {
-//                int sizeOld = size;
-//                size = n;
-//                vals = vector<T>(size*size, DEFAULT_FILL);
-//                int copyUpTo = fmin(size, sizeOld);
-//                for (int i=0; i<copyUpTo; i++) {
-//                    for (int j=0; j<copyUpTo; j++) {
-//                        (*this)(i, j) = squareArrayItem<T>(old.data(), sizeOld, i, j);
-//                    }
-//                }
-//            }
-//        }
-//        int totalSize() {
-//            return size*size;
-//        }
-//};
-
 /*! \class FixPair
  * \brief Fix for pair interactions
  *
@@ -209,8 +161,7 @@ class FixPair : public Fix {
     public:
 
         /*! \brief Constructor */
-        FixPair(SHARED(State) state_, std::string handle_,
-                std::string groupHandle_, std::string type_, int applyEvery_)
+        FixPair(SHARED(State) state_, std::string handle_, std::string groupHandle_, std::string type_, int applyEvery_)
             : Fix(state_, handle_, groupHandle_, type_, applyEvery_)
             {
                 // Empty constructor
@@ -230,7 +181,7 @@ class FixPair : public Fix {
          * interaction fix.
          */
         void initializeParameters(std::string paramHandle,
-                                  GPUArrayGlobal<float> &params);
+                                  vector<float> &params);
 
         /*! \brief Fill the vector containing the pair interaction parameters
          *
@@ -258,7 +209,7 @@ class FixPair : public Fix {
          * interaction parameters has the right size. If not, the array is
          * automatically resized.
          */
-        void ensureParamSize(GPUArrayGlobal<float> &array);
+        void ensureParamSize(vector<float> &array);
 
         /*! \brief Read pair parameters from XML node (Not yet implemented)
          *
@@ -289,9 +240,12 @@ class FixPair : public Fix {
         /*! \brief Map mapping string labels onto the GPUArrayGlobals
          *         containing the pair potential parameters
          */
-        std::map<string, GPUArrayGlobal<float> *> paramMap;
-        std::map<string, vector<float> > paramMapPreproc;
-
+        std::map<string, std::vector<float> *> paramMap;
+        std::map<string, std::vector<float> > paramMapPreproc;
+        GPUArrayDeviceGlobal<float> paramsCoalesced;
+        std::vector<string> paramOrder;
+        void ensureOrderGivenForAllParams();
+        
     public:
         /*! \brief Set a specific parameter for specific particle types
          *

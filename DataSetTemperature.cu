@@ -15,7 +15,8 @@ void DataSetTemperature::collect(int64_t turn, BoundsGPU &, int nAtoms, float4 *
     turnsPy.append(turn);
 }
 void DataSetTemperature::appendValues() {
-    double tempCur = (double) tempGPU.h_data[0] / (double) tempGPU.h_data[1] / 3.0; 
+    int n = * (int *) &tempGPU.h_data[1];
+    double tempCur = (double) tempGPU.h_data[0] / n / 3.0; 
     vals.push_back(tempCur);
     valsPy.append(tempCur);
     
