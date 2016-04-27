@@ -5,22 +5,23 @@ FixLJCut::FixLJCut(SHARED(State) state_, string handle_) : FixPair(state_, handl
     initializeParameters(epsHandle, epsilons);
     initializeParameters(sigHandle, sigmas);
     initializeParameters(rCutHandle, rCuts);
+    paramOrder = {epsHandle, sigHandle, rCutHandle}; 
     forceSingle = true;
 
 }
 
 
 
-__global__ void compute_cu(int nAtoms, float4 *xs, float4 *fs, uint16_t *neighborCounts, uint *neighborlist, uint32_t *cumulSumMaxPerBlock, int warpSize, float *sigs, float *eps, float *rCutSqrs, int numTypes,  BoundsGPU bounds, float onetwoStr, float onethreeStr, float onefourStr) {
+__global__ void compute_cu(int nAtoms, float4 *xs, float4 *fs, uint16_t *neighborCounts, uint *neighborlist, uint32_t *cumulSumMaxPerBlock, int warpSize, float *parameters, int numTypes,  BoundsGPU bounds, float onetwoStr, float onethreeStr, float onefourStr) {
+    
     float multipliers[4] = {1, onetwoStr, onethreeStr, onefourStr};
     extern __shared__ float paramsAll[];
     int sqrSize = numTypes*numTypes;
-    float *sigs_shr = paramsAll;
-    float *eps_shr = paramsAll + sqrSize;
+    float *eps_shr = paramsAll;
+    float *sigs_shr = paramsAll + sqrSize;
     float *rCutSqrs_shr = paramsAll + 2*sqrSize;
-    copyToShared<float>(eps, eps_shr, sqrSize);
-    copyToShared<float>(sigs, sigs_shr, sqrSize);
-    copyToShared<float>(rCutSqrs, rCutSqrs_shr, sqrSize);
+    copyToShared<float>(parameters, paramsAll, 3*sqrSize);
+
     __syncthreads();
 
     int idx = GETIDX();
@@ -72,16 +73,14 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *fs, uint16_t *neighbo
 
 }
 
-__global__ void computeEng_cu(int nAtoms, float4 *xs, float *perParticleEng, uint16_t *neighborCounts, uint *neighborlist, uint32_t *cumulSumMaxPerBlock, int warpSize, float *sigs, float *eps, float *rCuts, int numTypes, BoundsGPU bounds, float onetwoStr, float onethreeStr, float onefourStr) {
+__global__ void computeEng_cu(int nAtoms, float4 *xs, float *perParticleEng, uint16_t *neighborCounts, uint *neighborlist, uint32_t *cumulSumMaxPerBlock, int warpSize, float *parameters, int numTypes, BoundsGPU bounds, float onetwoStr, float onethreeStr, float onefourStr) {
     float multipliers[4] = {1, onetwoStr, onethreeStr, onefourStr};
     extern __shared__ float paramsAll[];
     int sqrSize = numTypes*numTypes;
     float *sigs_shr = paramsAll;
     float *eps_shr = paramsAll + sqrSize;
-    float *rCuts_shr = paramsAll + 2*sqrSize;
-    copyToShared<float>(eps, eps_shr, sqrSize);
-    copyToShared<float>(sigs, sigs_shr, sqrSize);
-    copyToShared<float>(rCuts, rCuts_shr, sqrSize);
+    float *rCutSqrs_shr = paramsAll + 2*sqrSize;
+    copyToShared<float>(parameters, paramsAll, 3*sqrSize);
     __syncthreads();
 
     int idx = GETIDX();
@@ -112,9 +111,9 @@ __global__ void computeEng_cu(int nAtoms, float4 *xs, float *perParticleEng, uin
                 float3 dr = bounds.minImage(pos - otherPos);
                 float lenSqr = lengthSqr(dr);
                 //PRE-SQR THIS VALUE ON CPU
-                float rCut = squareVectorItem(rCuts_shr, numTypes, type, otherType);
+                float rCutSqr = squareVectorItem(rCutSqrs_shr, numTypes, type, otherType);
              //   printf("dist is %f %f %f\n", dr.x, dr.y, dr.z);
-                if (lenSqr < rCut*rCut) {
+                if (lenSqr < rCutSqr) {
                    // printf("mult is %f between idxs %d %d\n", multiplier, idx, otherIdx);
                     float r2inv = 1/lenSqr;
                     float r6inv = r2inv*r2inv*r2inv;
@@ -142,7 +141,9 @@ void FixLJCut::compute(bool computeVirials) {
     uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
     float *neighborCoefs = state->specialNeighborCoefs;
 
-    compute_cu<<<NBLOCK(nAtoms), PERBLOCK, 3*numTypes*numTypes*sizeof(float)>>>(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx), neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, sigmas.getDevData(), epsilons.getDevData(), rCuts.getDevData(), numTypes, state->boundsGPU, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2]);
+//__global__ void compute_cu(int nAtoms, float4 *xs, float4 *fs, uint16_t *neighborCounts, uint *neighborlist, uint32_t *cumulSumMaxPerBlock, int warpSize, float *sigs, float *eps, float *rCutSqrs, int numTypes,  BoundsGPU bounds, float onetwoStr, float onethreeStr, float onefourStr) {
+    
+    compute_cu<<<NBLOCK(nAtoms), PERBLOCK, 3*numTypes*numTypes*sizeof(float)>>>(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx), neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2]);
 
 
 
@@ -157,7 +158,7 @@ void FixLJCut::singlePointEng(float *perParticleEng) {
     uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
     float *neighborCoefs = state->specialNeighborCoefs;
 
-    computeEng_cu<<<NBLOCK(nAtoms), PERBLOCK, 3*numTypes*numTypes*sizeof(float)>>>(nAtoms, gpd.xs(activeIdx), perParticleEng, neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, sigmas.getDevData(), epsilons.getDevData(), rCuts.getDevData(), numTypes, state->boundsGPU, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2]);
+    computeEng_cu<<<NBLOCK(nAtoms), PERBLOCK, 3*numTypes*numTypes*sizeof(float)>>>(nAtoms, gpd.xs(activeIdx), perParticleEng, neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2]);
 
 
 
@@ -206,14 +207,14 @@ string FixLJCut::restartChunk(string format) {
 }
 
 bool FixLJCut::readFromRestart(pugi::xml_node restData) {
-    
-    vector<float> epsilons_raw = xml_readNums<float>(restData, epsHandle);
-    epsilons.set(epsilons_raw);
+   /* 
+    epsilons = xml_readNums<float>(restData, epsHandle);
     initializeParameters(epsHandle, epsilons);
     vector<float> sigmas_raw = xml_readNums<float>(restData, sigHandle);
     sigmas.set(sigmas_raw);
     initializeParameters(sigHandle, sigmas);
     //add rcuts
+    */
     return true;
 
 }
@@ -231,7 +232,7 @@ void FixLJCut::addSpecies(string handle) {
 }
 
 vector<float> FixLJCut::getRCuts() { //to be called after prepare.  These are squares now
-    return LISTMAP(float, float, rc, rCuts.h_data, sqrt(rc));
+    return LISTMAP(float, float, rc, rCuts, sqrt(rc));
 }
 
 void export_FixLJCut() {

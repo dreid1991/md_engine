@@ -31,11 +31,11 @@ state.activateFix(fixNVT)
 
 integVerlet = IntegraterVerlet(state)
 
-#tempData = state.dataManager.recordTemperature('all', 100)
+#tempData = state.dataManager.recordTemperature('all', 10)
 #boundsData = state.dataManager.recordBounds(100)
 #engData = state.dataManager.recordEnergy('all', 100)
 
-writeconfig = WriteConfig(state, fn='test_out', writeEvery=50, format='xyz', handle='writer')
+writeconfig = WriteConfig(state, fn='test_out', writeEvery=10, format='xyz', handle='writer')
 #state.activateWriteConfig(writeconfig)
 integVerlet.run(10000)#000000)
 print state.atoms[0].pos
@@ -43,11 +43,11 @@ sumV = 0.
 for a in state.atoms:
     sumV += a.vel.lenSqr()
 print sumV / len(state.atoms)/3.0
-
+#print tempData.vals
 #print boundsData.vals[0].getSide(1)
 #print engData.turns[-1]
 #print 'last eng %f' % engData.vals[-1]
 #print state.turn
 #print integVerlet.energyAverage('all')
-perParticle = integVerlet.energyPerParticle()
+#perParticle = integVerlet.energyPerParticle()
 print sum(perParticle) / len(perParticle)
