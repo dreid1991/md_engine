@@ -28,7 +28,7 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *fs, uint16_t *neighbo
     if (idx < nAtoms) {
         int baseIdx = baseNeighlistIdx(cumulSumMaxPerBlock, warpSize);
         float4 posWhole = xs[idx];
-        int type = * (int *) &posWhole.w;
+        int type = __float_as_int(posWhole.w);
         float3 pos = make_float3(posWhole);
 
         float3 forceSum = make_float3(0, 0, 0);
@@ -42,7 +42,7 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *fs, uint16_t *neighbo
             if (multiplier) {
                 uint otherIdx = otherIdxRaw & EXCL_MASK;
                 float4 otherPosWhole = xs[otherIdx];
-                int otherType = * (int *) &otherPosWhole.w;
+                int otherType = __float_as_int(otherPosWhole.w);
                 float3 otherPos = make_float3(otherPosWhole);
                 //then wrap and compute forces!
                 float sig6 = squareVectorItem(sigs_shr, numTypes, type, otherType);
@@ -87,7 +87,8 @@ __global__ void computeEng_cu(int nAtoms, float4 *xs, float *perParticleEng, uin
     if (idx < nAtoms) {
         int baseIdx = baseNeighlistIdx(cumulSumMaxPerBlock, warpSize);
         float4 posWhole = xs[idx];
-        int type = * (int *) &posWhole.w;
+        //int type = * (int *) &posWhole.w;
+        int type = __float_as_int(posWhole.w);
        // printf("type is %d\n", type);
         float3 pos = make_float3(posWhole);
 
@@ -103,7 +104,7 @@ __global__ void computeEng_cu(int nAtoms, float4 *xs, float *perParticleEng, uin
             if (multiplier) {
                 uint otherIdx = otherIdxRaw & EXCL_MASK;
                 float4 otherPosWhole = xs[otherIdx];
-                int otherType = * (int *) &otherPosWhole.w;
+                int otherType = __float_as_int(otherPosWhole.w);
                 float3 otherPos = make_float3(otherPosWhole);
                 //then wrap and compute forces!
                 float sig6 = squareVectorItem(sigs_shr, numTypes, type, otherType);
