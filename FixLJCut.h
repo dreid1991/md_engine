@@ -14,6 +14,7 @@ void export_FixLJCut();
  * Fix to calculate Lennard-Jones interactions of particles. Note that the
  * cutoff distance rcut is defined in the class State.
  */
+#include "EvaluatorLJ.h"
 class FixLJCut : public FixPair {
     public:
         /*! \brief Constructor */
@@ -63,6 +64,7 @@ class FixLJCut : public FixPair {
         vector<float> getRCuts();
 
         void postRun();
+        EvaluatorLJ evaluator;
 };
 
 #endif

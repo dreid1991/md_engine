@@ -4,6 +4,7 @@
 #include <cmath>
 using namespace std;
 namespace py = boost::python;
+
 void FixPair::prepareParameters(string handle, std::function<float (float, float)> fillFunction, std::function<float (float)> processFunction, bool fillDiag, std::function<float ()> fillDiagFunction) {
     vector<float> &array = *paramMap[handle];
     vector<float> *preproc = &paramMapPreproc[handle];
