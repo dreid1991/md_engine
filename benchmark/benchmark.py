@@ -5,7 +5,7 @@ sys.path = sys.path + ['../build/python/build/lib.linux-x86_64-2.7', '../build/'
 from Sim import *
 print FixPair
 state = State()
-state.deviceManager.setDevice(1)
+state.deviceManager.setDevice(0)
 state.bounds = Bounds(state, lo = Vector(0, 0, 0), hi = Vector(55.12934875488, 55.12934875488, 55.12934875488))
 state.rCut = 3.0
 state.padding = 0.6
@@ -39,19 +39,7 @@ writeconfig = WriteConfig(state, fn='test_out', writeEvery=10, format='xyz', han
 #state.activateWriteConfig(writeconfig)
 
 
-state.atoms[0].isChanged = False
-print state.atoms[0].isChanged
-
-origPos = state.atoms[0].pos
-print state.atoms[0].pos
-print origPos
-origPos[0] = 100
-print state.atoms[0].pos
-print origPos
-print 'fin'
-state.atoms[0].pos = Vector(1, 2, 3)
-print state.atoms[0].isChanged
-#integVerlet.run(10000)#000000)
+integVerlet.run(10000)#000000)
 print state.atoms[0].pos
 sumV = 0.
 for a in state.atoms:
