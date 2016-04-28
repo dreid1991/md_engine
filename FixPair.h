@@ -33,6 +33,9 @@ template <class T>
 __host__ __device__ T squareVectorItem(T *vals, int nCol, int i, int j) {
     return vals[i*nCol + j];
 }
+inline __device__ int squareVectorIndex(int nCol, int i, int j) {
+    return i*nCol + j;
+}
 
 /*! \brief Global function returning a reference to a single Square Vector item
  *

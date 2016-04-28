@@ -5,7 +5,7 @@ sys.path = sys.path + ['../build/python/build/lib.linux-x86_64-2.7', '../build/'
 from Sim import *
 print FixPair
 state = State()
-state.deviceManager.setDevice(1)
+state.deviceManager.setDevice(0)
 state.bounds = Bounds(state, lo = Vector(0, 0, 0), hi = Vector(55.12934875488, 55.12934875488, 55.12934875488))
 state.rCut = 3.0
 state.padding = 0.6
@@ -37,6 +37,8 @@ integVerlet = IntegraterVerlet(state)
 
 writeconfig = WriteConfig(state, fn='test_out', writeEvery=10, format='xyz', handle='writer')
 #state.activateWriteConfig(writeconfig)
+
+
 integVerlet.run(10000)#000000)
 print state.atoms[0].pos
 sumV = 0.

@@ -48,7 +48,11 @@ class Atom {
 		bool operator!=(const Atom &other) {
 			return id!=other.id;
 		}
+        bool isChanged;
+        void setPos(Vector pos_);
 
+        Vector getPos();
+       
 
 };
 
