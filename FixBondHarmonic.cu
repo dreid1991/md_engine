@@ -124,22 +124,19 @@ void export_FixBondHarmonic() {
   
 
   
-    boost::python::class_<FixBondHarmonic,
-                          SHARED(FixBondHarmonic),
-                          boost::python::bases<Fix, TypedItemHolder> > (
-        "FixBondHarmonic",
-        boost::python::init<SHARED(State), string> (
-            boost::python::args("state", "handle"))
+    py::class_<FixBondHarmonic, SHARED(FixBondHarmonic), py::bases<Fix, TypedItemHolder> >
+    (
+        "FixBondHarmonic", py::init<SHARED(State), string> (py::args("state", "handle"))
     )
     .def("createBond", &FixBondHarmonic::createBond,
-            (boost::python::arg("k")=-1,
-             boost::python::arg("rEq")=-1,
-             boost::python::arg("type")=-1)
+            (py::arg("k")=-1,
+             py::arg("rEq")=-1,
+             py::arg("type")=-1)
         )
     .def("setBondTypeCoefs", &FixBondHarmonic::setBondTypeCoefs,
-            (boost::python::arg("type"),
-             boost::python::arg("k"),
-             boost::python::arg("rEq"))
+            (py::arg("type"),
+             py::arg("k"),
+             py::arg("rEq"))
         )
     .def_readonly("bonds", &FixBondHarmonic::pyBonds)    
     ;
