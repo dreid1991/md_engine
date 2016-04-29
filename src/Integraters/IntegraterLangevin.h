@@ -4,7 +4,7 @@
 
 #include "IntegraterVerlet.h"
 #include "Bounds.h"
-#include "GPUArray.h"
+#include "GPUArrayGlobal.h"
 void export_IntegraterLangevin();
 
 /*! \class IntegraterLangevin
@@ -61,7 +61,7 @@ class IntegraterLangevin : public IntegraterVerlet {
         void postForce(uint,int);/*! \todo handle 2D case  */
   
         //debug
-        GPUArray<float> VDotV;        
+        GPUArrayGlobal<float> VDotV;
         
 };
 #endif

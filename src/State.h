@@ -24,7 +24,7 @@
 
 #include "globalDefs.h"
 #include "GPUArrayTex.h"
-#include "GPUArray.h"
+#include "GPUArrayGlobal.h"
 
 #include "AtomParams.h"
 #include "Atom.h"

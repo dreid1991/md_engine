@@ -3,7 +3,7 @@
 #define DATASETENERGY_H
 
 #include "DataSet.h"
-#include "GPUArray.h"
+#include "GPUArrayGlobal.h"
 
 void export_DataSetEnergy();
 class DataSetEnergy : public DataSet {
@@ -13,7 +13,7 @@ class DataSetEnergy : public DataSet {
         DataSetEnergy(uint32_t);
         std::vector<double> vals;
         void prepareForRun();
-        GPUArray<float> engGPU;
+        GPUArrayGlobal<float> engGPU;
 
 };
 

@@ -23,7 +23,7 @@ void FixSpringStatic::updateTethers() {
             }
         }
     }
-    tethers.set(tethers_loc);
+    tethers = tethers_loc;
 }
 
 

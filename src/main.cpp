@@ -1,6 +1,6 @@
 #include "Python.h"
 #include "GPUArrayTex.h"
-#include "GPUArray.h"
+#include "GPUArrayGlobal.h"
 #include "globalDefs.h"
 #include <vector>
 #include "State.h"

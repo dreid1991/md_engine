@@ -5,7 +5,7 @@
 #include "cutils_func.h"
 #include "DataSet.h"
 #include "Fix.h"
-#include "GPUArrayBase.h"
+#include "GPUArray.h"
 #include "PythonOperation.h"
 #include "WriteConfig.h"
 
@@ -32,7 +32,7 @@ void Integrater::forceSingle(bool computeVirials) {
 
 
 void Integrater::singlePointEng() {
-    GPUArray<float> &perParticleEng = state->gpd.perParticleEng;
+    GPUArrayGlobal<float> &perParticleEng = state->gpd.perParticleEng;
     perParticleEng.d_data.memset(0);
 	for (Fix *f : state->fixes) {
         f->singlePointEng(perParticleEng.getDevData());
@@ -200,7 +200,7 @@ void Integrater::basicPrepare(int numTurns) {
         f->prepareForRun();
     }
     state->prepareForRun();
-    for (GPUArrayBase *dat : activeData) {
+    for (GPUArray *dat : activeData) {
         dat->dataToDevice();
     }
     state->gridGPU.periodicBoundaryConditions(-1, true, true);
@@ -215,7 +215,7 @@ void Integrater::basicFinish() {
     if (state->asyncData && state->asyncData->joinable()) {
         state->asyncData->join();
     }
-    for (GPUArrayBase *dat : activeData) {
+    for (GPUArray *dat : activeData) {
         dat->dataToHost();
     }
     cudaDeviceSynchronize();
@@ -226,14 +226,14 @@ void Integrater::basicFinish() {
 
 }
 void Integrater::setActiveData() {
-    activeData = vector<GPUArrayBase *>();
-    activeData.push_back((GPUArrayBase *) &state->gpd.ids);
-    activeData.push_back((GPUArrayBase *) &state->gpd.xs);
-    activeData.push_back((GPUArrayBase *) &state->gpd.vs);
-    activeData.push_back((GPUArrayBase *) &state->gpd.fs);
-    activeData.push_back((GPUArrayBase *) &state->gpd.fsLast);
-    activeData.push_back((GPUArrayBase *) &state->gpd.idToIdxs);
-    activeData.push_back((GPUArrayBase *) &state->gpd.qs);
+    activeData = vector<GPUArray *>();
+    activeData.push_back((GPUArray *) &state->gpd.ids);
+    activeData.push_back((GPUArray *) &state->gpd.xs);
+    activeData.push_back((GPUArray *) &state->gpd.vs);
+    activeData.push_back((GPUArray *) &state->gpd.fs);
+    activeData.push_back((GPUArray *) &state->gpd.fsLast);
+    activeData.push_back((GPUArray *) &state->gpd.idToIdxs);
+    activeData.push_back((GPUArray *) &state->gpd.qs);
 }
 
 Integrater::Integrater(State *state_) : state(state_) {
@@ -248,7 +248,7 @@ void Integrater::writeOutput() {
 
 
 double Integrater::singlePointEngPythonAvg(string groupHandle) {
-    GPUArray<float> eng(2);
+    GPUArrayGlobal<float> eng(2);
     eng.d_data.memset(0);
     basicPreRunChecks();
     basicPrepare(0);

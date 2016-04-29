@@ -87,8 +87,7 @@ bool FixLJCut::readFromRestart(pugi::xml_node restData) {
    /* 
     epsilons = xml_readNums<float>(restData, epsHandle);
     initializeParameters(epsHandle, epsilons);
-    vector<float> sigmas_raw = xml_readNums<float>(restData, sigHandle);
-    sigmas.set(sigmas_raw);
+    sigmas = xml_readNums<float>(restData, sigHandle);
     initializeParameters(sigHandle, sigmas);
     //add rcuts
     */

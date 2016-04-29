@@ -10,7 +10,7 @@
 #include <vector>
 
 #include "AtomParams.h"
-#include "GPUArray.h"
+#include "GPUArrayGlobal.h"
 #include "Fix.h"
 #include "xml_func.h"
 
@@ -177,7 +177,8 @@ class FixPair : public Fix {
         /*! \brief Initialize the parameters
          *
          * \param paramHandle String containing the parameter handle
-         * \param params Reference to GPUArray which will store the parameters
+         * \param params Reference to GPUArrayGlobal which will store the
+         *               parameters
          *
          * This function can be used to set the parameters of the pair
          * interaction fix.
@@ -187,11 +188,14 @@ class FixPair : public Fix {
 
         /*! \brief Fill the vector containing the pair interaction parameters
          *
-         * \param array Reference to GPUArray which will store the parameters
+         * \param array Reference to GPUArrayGlobal which will store the
+         *              parameters
          * \param fillFunction Function to calculate the interaction parameters
          *
          * This function prepares the parameter array used in the GPU
          * calculations
+         *
+         * \todo Amend documentation
          */
         void prepareParameters(string handle,
                             std::function<float (float, float)> fillFunction, std::function<float (float)> processFunction, bool fillDiag, std::function<float ()> = std::function<float ()> ());
@@ -199,14 +203,14 @@ class FixPair : public Fix {
         /*! \brief Send parameters to all GPU devices */
         void sendAllToDevice();
 
-        /*! \brief Make sure GPUArray storing the parameters has the right size
+        /*! \brief Ensure GPUArrayGlobal storing the parameters has right size
          *
-         * \param array Reference to GPUArray storing the interaction
+         * \param array Reference to GPUArrayGlobal storing the interaction
          *              parameters
          *
-         * This function checks whether the GPUArray storing the interaction
-         * parameters has the right size. If not, the array is automatically
-         * resized.
+         * This function checks whether the GPUArrayGlobal storing the
+         * interaction parameters has the right size. If not, the array is
+         * automatically resized.
          */
         void ensureParamSize(vector<float> &array);
 
@@ -236,8 +240,8 @@ class FixPair : public Fix {
          */
         string restartChunkPairParams(std::string format);
 
-        /*! \brief Map mapping string labels onto the GPUArrays containing the
-         *         pair potential parameters
+        /*! \brief Map mapping string labels onto the GPUArrayGlobals
+         *         containing the pair potential parameters
          */
         std::map<string, std::vector<float> *> paramMap;
         std::map<string, std::vector<float> > paramMapPreproc;
@@ -245,7 +249,6 @@ class FixPair : public Fix {
         std::vector<string> paramOrder;
         void ensureOrderGivenForAllParams();
         
-
     public:
         /*! \brief Set a specific parameter for specific particle types
          *

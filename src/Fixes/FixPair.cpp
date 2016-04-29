@@ -1,7 +1,9 @@
 #include "FixPair.h"
+#include "GPUArrayGlobal.h"
 #include "State.h"
 
 #include <cmath>
+
 using namespace std;
 namespace py = boost::python;
 

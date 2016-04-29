@@ -23,7 +23,7 @@ void DataSetEnergy::appendValues() {
 }
 
 void DataSetEnergy::prepareForRun() {
-    engGPU = GPUArray<float>(2);
+    engGPU = GPUArrayGlobal<float>(2);
 }
 
 void export_DataSetEnergy() {

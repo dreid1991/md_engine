@@ -314,12 +314,12 @@ bool State::prepareForRun() {
     boundsGPU = bounds.makeGPU();
     float maxRCut = getMaxRCut();
     gridGPU = grid.makeGPU(maxRCut);
-    gpd.xsBuffer = GPUArray<float4>(nAtoms);
-    gpd.vsBuffer = GPUArray<float4>(nAtoms);
-    gpd.fsBuffer = GPUArray<float4>(nAtoms);
-    gpd.fsLastBuffer = GPUArray<float4>(nAtoms);
-    gpd.idsBuffer = GPUArray<uint>(nAtoms);
-    gpd.perParticleEng = GPUArray<float>(nAtoms);
+    gpd.xsBuffer = GPUArrayGlobal<float4>(nAtoms);
+    gpd.vsBuffer = GPUArrayGlobal<float4>(nAtoms);
+    gpd.fsBuffer = GPUArrayGlobal<float4>(nAtoms);
+    gpd.fsLastBuffer = GPUArrayGlobal<float4>(nAtoms);
+    gpd.idsBuffer = GPUArrayGlobal<uint>(nAtoms);
+    gpd.perParticleEng = GPUArrayGlobal<float>(nAtoms);
 
     return true;
 }

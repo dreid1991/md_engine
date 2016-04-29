@@ -3,7 +3,7 @@
 #define FIXSPRINGSTATIC_H
 
 #include "Fix.h"
-#include "GPUArray.h"
+#include "GPUArrayGlobal.h"
 /*
  * Okay, here's some ambiguity.  You initialize spring static for group a, and group a.  Tether positions are computed for those atoms, and you run the simulation.  
  * Now, you change who's in group a.  What does the simulation do? Does it call thetherFunc for the new atoms?  No, that is not explicit.  Could do unpredictable things for poor user.
@@ -19,7 +19,7 @@ void export_FixSpringStatic();
 class FixSpringStatic : public Fix {
     //these will be of only those in the group, so no need to 
     public:
-        GPUArray<float4> tethers;
+        GPUArrayGlobal<float4> tethers;
         double k;
         void compute(bool);
         void updateTethers();
