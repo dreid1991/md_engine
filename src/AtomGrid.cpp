@@ -1,6 +1,11 @@
 #include "AtomGrid.h"
-#include "State.h"
+
+#include <cassert>
+#include <iostream>
+
+#include "boost_for_export.h"
 #include "Mod.h"
+#include "State.h"
 
 
 void AtomGrid::init(double dx_, double dy_, double dz_) {
