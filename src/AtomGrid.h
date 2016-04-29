@@ -1,19 +1,14 @@
 #pragma once
 #ifndef ATOMGRID_H
 #define ATOMGRID_H
-#include "Python.h"
-#include "Grid.h"
-#include "Bounds.h"
-#include "Atom.h"
-#include <math.h>
-#include "OffsetObj.h"
-#include <iostream>
-#include <assert.h>
+
 #include <vector>
-#include <boost/shared_ptr.hpp>
+
+#include "Atom.h"
+#include "Bounds.h"
 #include "globalDefs.h"
-#include "Bond.h"
-#include "boost_for_export.h"
+#include "Grid.h"
+#include "OffsetObj.h"
 
 class State;
 
