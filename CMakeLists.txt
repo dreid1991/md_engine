@@ -55,8 +55,8 @@ find_package (PugiXML REQUIRED)
 message (STATUS "Building MD_engine Version ${VERSION_MAJOR}.${VERSION_MINOR}")
 
 # Set the source files
-file (GLOB SOURCES "*.cpp" "*.cu")
-list (REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp")
+#file (GLOB SOURCES "*.cpp" "*.cu")
+#list (REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp")
 
 # Create configuration file
 configure_file (
@@ -67,19 +67,8 @@ include_directories ("${PROJECT_BINARY_DIR}")
 
 set (MD_ENGINE_LIB_NAME Sim)
 
-cuda_add_library (${MD_ENGINE_LIB_NAME} ${SOURCES} SHARED)
-target_link_libraries (${MD_ENGINE_LIB_NAME} ${PYTHON_LIBRARIES}
-                                             ${Boost_LIBRARIES}
-                                             ${PugiXML_LIBRARIES}
-                                             ${CUDA_LIBRARIES}
-                                             ${CUDA_CUFFT_LIBRARIES})
-
-# TODO: Why does install(TARGETS ...) not work?
-#install(TARGETS ${MD_ENGINE_LIB_NAME} LIBRARY DESTINATION lib)
-install(FILES ${CMAKE_BINARY_DIR}/lib${MD_ENGINE_LIB_NAME}.so DESTINATION ${CMAKE_INSTALL_PREFIX}/lib)
-
-cuda_add_executable (testing main.cpp)
-target_link_libraries (testing ${MD_ENGINE_LIB_NAME})
+add_subdirectory (src)
+#add src directory
 
 # Install Python library
 if (PYTHON)

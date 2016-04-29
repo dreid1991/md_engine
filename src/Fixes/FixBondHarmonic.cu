@@ -2,6 +2,8 @@
 #include "FixBondHarmonic.h"
 #include "cutils_func.h"
 #include "FixHelpers.h"
+namespace py = boost::python;
+
 __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureObject_t idToIdxs, BondHarmonicGPU *bonds, int *startstops, BoundsGPU bounds) {
     int idx = GETIDX();
     extern __shared__ BondHarmonicGPU bonds_shr[];

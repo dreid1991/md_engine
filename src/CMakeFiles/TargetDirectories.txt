@@ -1,0 +1,2 @@
+/home/daniel/Documents/md_engine/core/src/src/CMakeFiles/Sim.dir
+/home/daniel/Documents/md_engine/core/src/src/CMakeFiles/testing.dir

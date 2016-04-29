@@ -1,6 +1,6 @@
 import sys
 import matplotlib.pyplot as plt
-sys.path = sys.path + ['../build/python/build/lib.linux-x86_64-2.7', '../build/']
+sys.path = sys.path + ['../build/python/build/lib.linux-x86_64-2.7']
 #from Sim import *
 from Sim import *
 print FixPair
