@@ -12,9 +12,6 @@
 
 class State;
 
-using namespace std;
-using namespace boost;
-
 void export_AtomGrid();
 
 //! Store Atom pointers on the grid
@@ -113,7 +110,7 @@ public:
      *
      * \todo Why do we need the Offset here if it is just state->bounds.trace?
      */
-    vector<vector<OffsetObj<Atom **> > > neighborSquaress;
+    std::vector<std::vector<OffsetObj<Atom **> > > neighborSquaress;
 
     double angX; //!< Unused
     double angY; //!< Unused
@@ -123,7 +120,7 @@ public:
      * \param vec Unused
      * \todo Remove this function
      */
-    void updateAtoms(vector<Atom *> &vec);
+    void updateAtoms(std::vector<Atom *> &vec);
 
     bool isSet; // True if the Grid has been initialized
 

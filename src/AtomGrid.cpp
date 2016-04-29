@@ -7,6 +7,7 @@
 #include "Mod.h"
 #include "State.h"
 
+namespace py=boost::python;
 
 void AtomGrid::init(double dx_, double dy_, double dz_) {
     if (not state->bounds.isSet) {
@@ -125,7 +126,7 @@ GridGPU AtomGrid::makeGPU(float maxRCut) {
 }
 
 void AtomGrid::enforcePeriodic(Bounds bounds) {
-	vector<Atom> &atoms = state->atoms;
+    std::vector<Atom> &atoms = state->atoms;
 	if (bounds.sides[0][1] or bounds.sides[1][0]) {
 		Mod::unskewAtoms(atoms, bounds.sides[0], bounds.sides[1]);
 	}
@@ -139,7 +140,7 @@ void AtomGrid::enforcePeriodic(Bounds bounds) {
 
 
 void AtomGrid::enforcePeriodicUnskewed(Bounds bounds) { //make it so doesn't loop in finite dimensions
-	vector<Atom> &atoms = state->atoms;
+    std::vector<Atom> &atoms = state->atoms;
 	Vector lo = bounds.lo;
 	Vector hi = bounds.hi;
 	Vector trace = bounds.trace;
@@ -169,7 +170,7 @@ void AtomGrid::setNeighborSquares() {
 	for (int i=0; i<3; i++) {
 		periodic[i] = state->periodic[i];
 	}
-	neighborSquaress = vector< vector< OffsetObj<Atom **> > >(); 
+	neighborSquaress = std::vector< std::vector< OffsetObj<Atom **> > >(); 
 	neighborSquaress.reserve(raw.size());
 	for (int i=0; i<ns[0]; i++) {
 		for (int j=0; j<ns[1]; j++) {
@@ -186,7 +187,7 @@ void AtomGrid::setNeighborSquares() {
 
 void AtomGrid::buildNeighborlists(double neighCut) {
     cout << "BUILDING" << endl;
-    vector<Atom> &atoms = state->atoms;
+    std::vector<Atom> &atoms = state->atoms;
 	Vector boundsTrace = state->bounds.trace;
 	bool periodic[3];
 	for (int i=0; i<3; i++) {
@@ -215,7 +216,7 @@ void AtomGrid::buildNeighborlists(double neighCut) {
 		appendNeighborList(a, selfSquare, boundsTrace, neighCutSqr);
 		a.next = *neighborSquare;
 		*neighborSquare = &a;
-		vector<OffsetObj<Atom **> > &neighborSquares = neighborSquaress[idx];
+        std::vector<OffsetObj<Atom **> > &neighborSquares = neighborSquaress[idx];
 		for (OffsetObj<Atom **> &neighborSquare : neighborSquares) {
 			appendNeighborList(a, neighborSquare, boundsTrace, neighCutSqr);	
 		}
@@ -223,7 +224,7 @@ void AtomGrid::buildNeighborlists(double neighCut) {
 }
 
 /*
-void AtomGrid::assignBondOffsets(vector<Bond> &bonds, Bounds bounds) {
+void AtomGrid::assignBondOffsets(std::vector<Bond> &bonds, Bounds bounds) {
     //okay, things are unskewed at this point
     cout << "STOP ASSIGNING BOND OFFSETS" << endl;
     Vector half = bounds.trace / (double) 2;
@@ -245,7 +246,7 @@ void AtomGrid::assignBondOffsets(vector<Bond> &bonds, Bounds bounds) {
 void AtomGrid::periodicBoundaryConditions(double neighCut) {
 	Bounds &unchanged = state->bounds;
 	Bounds b = state->bounds.unskewed();
-	vector<Atom> &atoms = state->atoms;
+    std::vector<Atom> &atoms = state->atoms;
 
     bool isSkew = state->bounds.isSkewed();
     if (isSkew) {
@@ -271,7 +272,7 @@ void AtomGrid::periodicBoundaryConditions() { //grid size must be >= 2*neighCut
 //untested
 void AtomGrid::populateLists() {
 	reset();
-	vector<Atom> &atoms = state->atoms;
+    std::vector<Atom> &atoms = state->atoms;
 	for (Atom &a : atoms) { //this is going to be super slow b/c linked list, but I'm really not doing it often.  Could improve by specializing w/ vector stuff
 		int idx = idxFromPos(a.pos);
 		a.next = raw[idx];
@@ -367,7 +368,7 @@ void AtomGrid::resizeToStateBounds(bool scaleAtomCoords) {
 void AtomGrid::shear(double angleX, double angleY) {
 	State *raw = state.get();
 	Bounds &b = *raw->Bounds;
-	vector<Atom> &atoms = raw->atoms;
+    std::vector<Atom> &atoms = raw->atoms;
 	
 }
 */
@@ -377,10 +378,10 @@ void AtomGrid::deleteNeighbors() {
 	}
 }
 void export_AtomGrid() {
-    boost::python::class_<AtomGrid>(
+    py::class_<AtomGrid>(
         "AtomGrid",
-        boost::python::init<SHARED(State), double, double, double>(
-            boost::python::args("state", "dx", "dy", "dz"))
+        py::init<SHARED(State),  double, double, double>(
+               py::args("state", "dx",   "dy",   "dz"))
     )
     .def_readwrite("os", &AtomGrid::os)
     .def_readwrite("ds", &AtomGrid::ds)
