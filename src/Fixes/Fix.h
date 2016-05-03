@@ -18,8 +18,6 @@
 //! Make class Fix available to Python interface
 void export_Fix();
 
-using namespace std;
-
 //! Base class for Fixes
 /*!
  * Fixes modify the dynamics in the system. They are called by the Integrater
@@ -37,11 +35,11 @@ using namespace std;
 class Fix {
 public:
     State *state; //!< Pointer to the simulation state
-    string handle; //!< "Name" of the Fix
-    string groupHandle; //!< Group to which the Fix applies
+    std::string handle; //!< "Name" of the Fix
+    std::string groupHandle; //!< Group to which the Fix applies
+    std::string type; //!< Unused. \todo Check if really unused, then remove
     int applyEvery; //!< Applyt this fix every this many timesteps
     unsigned int groupTag; //!< Bitmask for the group handle
-    string type; //!< Unused. \todo Check if really unused, then remove
 
     //! Default constructor
     /*!
@@ -125,7 +123,7 @@ public:
      *
      * \todo Make purely virtual.
      */
-    virtual void addSpecies(string handle) {}
+    virtual void addSpecies(std::string handle) {}
 
     //! Prepare Fix for run
     /*!
@@ -170,8 +168,8 @@ public:
      * Write out information of this Fix to be reloaded via
      * Fix::readFromRestart().
      */
-    virtual string restartChunk(string format){return "";};
-    const string restartHandle; //!< Handle for restart string
+    virtual std::string restartChunk(std::string format){return "";};
+    const std::string restartHandle; //!< Handle for restart string
 
     //! Return list of Bonds
     /*!
@@ -185,7 +183,7 @@ public:
      *       boost::get<BondType>(vec) syntax. It's not perfect, but it lets us
      *       generically collect vectors without doing any copying.
      */
-    virtual vector<BondVariant> *getBonds() {
+    virtual std::vector<BondVariant> *getBonds() {
         return nullptr;
     }
 
@@ -194,8 +192,8 @@ public:
      * \return vector storing interaction cutoff values or empty list if no
      *         cutoffs are used.
      */
-    virtual vector<float> getRCuts() {
-        return vector<float>();
+    virtual std::vector<float> getRCuts() {
+        return std::vector<float>();
     }
 
     //! Check that all given Atoms are valid
@@ -208,8 +206,9 @@ public:
      *
      * \todo A crash is not a very graceful method of saying that an Atom was
      *       invalid.
+     * \todo Pass const reference. Make this function const.
      */
-    void validAtoms(vector<Atom *> &atoms);
+    void validAtoms(std::vector<Atom *> &atoms);
 };
 
 /*
