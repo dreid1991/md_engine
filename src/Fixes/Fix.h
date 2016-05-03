@@ -13,10 +13,11 @@
 #include "FixTypes.h"
 #include <pugixml.hpp>
 
-
 #include "boost_for_export.h"
+
+//! Make class Fix available to Python interface
 void export_Fix();
-//#include "DataManager.h"
+
 using namespace std;
 
 //! Base class for Fixes
@@ -125,29 +126,89 @@ public:
      * \todo Make purely virtual.
      */
     virtual void addSpecies(string handle) {}
+
+    //! Prepare Fix for run
+    /*!
+     * \return False if a problem occured, else True
+     */
     virtual bool prepareForRun() {return true;};
+
+    //! Perform post-run operations
+    /*!
+     * \return False if a problem occured, else True
+     */
     virtual bool downloadFromRun() {return true;};
+
+    //! Destructor
     virtual ~Fix() {};
+
+    //! Refresh Atoms
+    /*!
+     * \return False if a problem occured, else True
+     *
+     * This function should be called whenever the number of atoms in the
+     * simulation has changed.
+     */
     virtual bool refreshAtoms(){return true;};
+
+    //! Restart Fix
+    /*!
+     * \param restData XML node containing the restart data for the Fix
+     *
+     * \return False if restart data could not be loaded, else return True
+     *
+     * Setup Fix from restart data.
+     */
     virtual bool readFromRestart(pugi::xml_node restData){return true;};
+
+    //! Write restart data
+    /*!
+     * \param format Format for restart data
+     *
+     * \return Restart string
+     *
+     * Write out information of this Fix to be reloaded via
+     * Fix::readFromRestart().
+     */
     virtual string restartChunk(string format){return "";};
-    //virtual vector<pair<int, vector<int> > > neighborlistExclusions();
-    const string restartHandle;
-    // TODO: think about treatment of different kinds of bonds in fixes
-    // right now for ease, each vector of bonds in any given fix that stores
-    // bonds has to store them in a vector<BondVariant> variable
-    // you can push_back, insert, whatever, other kinds of bonds into this
-    // vector
-    // you have to get them out using a getBond method, or using the
-    // boost::get<BondType>(vec) syntax
-    // it's not perfect, but it lets us generically collect vectors without
-    // doing any copying
+    const string restartHandle; //!< Handle for restart string
+
+    //! Return list of Bonds
+    /*!
+     * \return Pointer to list of Bonds or nullptr if Fix does not handle Bonds
+     *
+     * \todo Think about treatment of different kinds of bonds in fixes right
+     *       now for ease, each vector of bonds in any given fix that stores
+     *       bonds has to store them in a vector<BondVariant> variable you can
+     *       push_back, insert, whatever, other kinds of bonds into this vector
+     *       you have to get them out using a getBond method, or using the
+     *       boost::get<BondType>(vec) syntax. It's not perfect, but it lets us
+     *       generically collect vectors without doing any copying.
+     */
     virtual vector<BondVariant> *getBonds() {
         return nullptr;
     }
+
+    //! Return list of cutoff values.
+    /*!
+     * \return vector storing interaction cutoff values or empty list if no
+     *         cutoffs are used.
+     */
     virtual vector<float> getRCuts() {
         return vector<float>();
     }
+
+    //! Check that all given Atoms are valid
+    /*!
+     * \param atoms List of Atom pointers
+     *
+     * This function verifies that all Atoms to be tested are valid using the
+     * State::validAtom() method. The code crashes if an invalid Atom is
+     * encountered.
+     *
+     * \todo A crash is not a very graceful method of saying that an Atom was
+     *       invalid.
+     */
     void validAtoms(vector<Atom *> &atoms);
 };
 
