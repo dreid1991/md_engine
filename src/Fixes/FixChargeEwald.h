@@ -3,6 +3,8 @@
 //#include "AtomParams.h"
 #include "FixCharge.h"
 
+#include "GPUArrayGlobal.h"
+
 class State;
 using namespace std;
 #include <cufft.h>

@@ -1,4 +1,6 @@
 #include "FixLJCut.h"
+#include "FixTypes.h"
+#include "list_macro.h"
 #include "State.h"
 #include "cutils_func.h"
 #include "PairEvaluateIso.h"

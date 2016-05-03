@@ -1,5 +1,6 @@
 #include "Fix.h"
 #include "Bounds.h"
+#include "list_macro.h"
 #include "AtomParams.h"
 //#include "DataManager.h"
 #include "WriteConfig.h"

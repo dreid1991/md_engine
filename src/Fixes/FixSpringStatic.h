@@ -4,6 +4,8 @@
 
 #include "Fix.h"
 #include "GPUArrayGlobal.h"
+#include "Python.h"
+
 /*
  * Okay, here's some ambiguity.  You initialize spring static for group a, and group a.  Tether positions are computed for those atoms, and you run the simulation.  
  * Now, you change who's in group a.  What does the simulation do? Does it call thetherFunc for the new atoms?  No, that is not explicit.  Could do unpredictable things for poor user.

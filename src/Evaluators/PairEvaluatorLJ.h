@@ -2,6 +2,8 @@
 #ifndef EVALUATOR_LJ
 #define EVALUATOR_LJ
 
+#include "cutils_math.h"
+
 class EvaluatorLJ {
     public:
         inline __device__ void force(float3 &forceSum, float3 dr, float params[3], float lenSqr, float multiplier) {

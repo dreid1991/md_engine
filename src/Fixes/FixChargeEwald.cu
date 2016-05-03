@@ -1,5 +1,10 @@
 #include "FixChargeEwald.h"
+
+#include "BoundsGPU.h"
 #include "cutils_func.h"
+#include "FixTypes.h"
+#include "GridGPU.h"
+#include "State.h"
 #include <cufft.h>
 #include "globalDefs.h"
 #include <fstream>

@@ -1,6 +1,6 @@
 #include "FixCharge.h"
 
-
+#include "State.h"
 
 FixCharge::FixCharge(SHARED(State) state_, string handle_, string groupHandle_, string type_) : Fix(state_, handle_, groupHandle_, type_, 1) {
 };

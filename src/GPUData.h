@@ -1,8 +1,10 @@
 #pragma once
 #ifndef GPUDATA_H
 #define GPUDATA_H
+#include "GPUArrayGlobal.h"
 #include "GPUArrayPair.h"
 #include "GPUArrayDeviceGlobal.h"
+#include "GPUArrayTex.h"
 #include "Virial.h"
 
 class GPUData {

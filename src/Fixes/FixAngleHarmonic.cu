@@ -2,6 +2,7 @@
 #include "FixHelpers.h"
 #include "helpers.h"
 #include "FixAngleHarmonic.h"
+#include "FixTypes.h"
 #include "cutils_func.h"
 #define SMALL 0.0001f
 namespace py = boost::python;

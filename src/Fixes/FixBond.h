@@ -2,8 +2,11 @@
 #ifndef FIXBOND_H
 #define FIXBOND_H
 
+#include <boost/python/list.hpp>
+
 #include "Fix.h"
 #include "Bond.h"
+#include "State.h"
 
 #include "helpers.h" //cumulative sum
 #include <unordered_map>

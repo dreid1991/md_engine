@@ -1,5 +1,11 @@
 #include "FixNVTRescale.h"
+
+#include "Bounds.h"
 #include "cutils_func.h"
+#include "FixTypes.h"
+#include "State.h"
+
+namespace py=boost::python;
 
 __global__ void sumKeInBounds (float *dest, float4 *src, int n, unsigned int groupTag, float4 *fs, BoundsGPU bounds, int warpSize) {
     extern __shared__ float tmp[]; /*should have length of # threads in a block (PERBLOCK) PLUS ONE for counting shared*/
@@ -183,15 +189,12 @@ bool FixNVTRescale::downloadFromRun() {
 
 
 void export_FixNVTRescale() {
-    boost::python::class_<FixNVTRescale,
-                          SHARED(FixNVTRescale),
-                          boost::python::bases<Fix> > (
+    py::class_<FixNVTRescale, SHARED(FixNVTRescale), py::bases<Fix> > (
         "FixNVTRescale",
-        boost::python::init<SHARED(State), string, string, boost::python::list,
-                            boost::python::list,
-                            boost::python::optional<int, SHARED(Bounds)> > (
-            boost::python::args("state", "handle", "groupHandle", "intervals",
-                                "temps", "applyEvery", "thermoBounds")
+        py::init<SHARED(State), string, string, py::list, py::list,
+                 py::optional<int, SHARED(Bounds)> > (
+            py::args("state", "handle", "groupHandle", "intervals", "temps", "applyEvery",
+                     "thermoBounds")
         )
     )
     .def_readwrite("finished", &FixNVTRescale::finished)

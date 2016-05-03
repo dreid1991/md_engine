@@ -1,5 +1,13 @@
 #include "Fix.h"
+
+#include <iostream>
+
+#include "Atom.h"
+#include "boost_for_export.h"
+#include "list_macro.h"
 #include "ReadConfig.h"
+#include "State.h"
+
 Fix::Fix(SHARED(State) state_,
          std::string handle_,
          std::string groupHandle_,

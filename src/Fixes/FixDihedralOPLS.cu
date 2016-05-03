@@ -1,6 +1,7 @@
 #include "helpers.h"
 #include "FixDihedralOPLS.h"
 #include "FixHelpers.h"
+#include "FixTypes.h"
 #include "cutils_func.h"
 
 #define EPSILON 0.00001f

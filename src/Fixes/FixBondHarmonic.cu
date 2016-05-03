@@ -1,5 +1,6 @@
 #include "helpers.h"
 #include "FixBondHarmonic.h"
+#include "FixTypes.h"
 #include "cutils_func.h"
 #include "FixHelpers.h"
 namespace py = boost::python;

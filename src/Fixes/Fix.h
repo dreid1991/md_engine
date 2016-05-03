@@ -2,18 +2,12 @@
 #ifndef FIX_H
 #define FIX_H
 
-#include "Python.h"
+#include "Bond.h"
 #include "globalDefs.h"
-#include "Atom.h"
-#include "list_macro.h"
-#include <iostream>
-#include "GPUArrayGlobal.h"
-#include "GPUArrayTex.h"
-#include "State.h"
-#include "FixTypes.h"
 #include <pugixml.hpp>
 
-#include "boost_for_export.h"
+class Atom;
+class State;
 
 //! Make class Fix available to Python interface
 void export_Fix();
@@ -58,9 +52,9 @@ public:
      * \todo Make constructor protected since this is an abstract base class
      */
     Fix(SHARED(State) state_,
-        string handle_,
-        string groupHandle_,
-        string type_,
+        std::string handle_,
+        std::string groupHandle_,
+        std::string type_,
         int applyEvery_);
 
     //! Apply fix
