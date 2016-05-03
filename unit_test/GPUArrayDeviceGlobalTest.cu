@@ -1,4 +1,4 @@
-#include "../GPUArrayDeviceGlobal.h"
+#include "GPUArrayDeviceGlobal.h"
 
 #include <gtest/gtest.h>
 
