@@ -2,7 +2,6 @@
 
 #include "BoundsGPU.h"
 #include "cutils_func.h"
-#include "FixTypes.h"
 #include "GridGPU.h"
 #include "State.h"
 #include <cufft.h>
@@ -11,6 +10,8 @@
 
 // #include <cmath>
 using namespace std;
+
+const std::string chargeEwaldType = "ChargeEwald";
 
 // #define THREADS_PER_BLOCK_
 
@@ -347,7 +348,7 @@ __global__ void compute_short_range_forces_cu(int nAtoms, float4 *xs, float4 *fs
 }
 
 
-FixChargeEwald::FixChargeEwald(SHARED(State) state_, string handle_, string groupHandle_): FixCharge(state_, handle_, groupHandle_, chargePairDSF),first_run(true){
+FixChargeEwald::FixChargeEwald(SHARED(State) state_, string handle_, string groupHandle_): FixCharge(state_, handle_, groupHandle_, chargeEwaldType),first_run(true){
   cufftCreate(&plan);
 }
 

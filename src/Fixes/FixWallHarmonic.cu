@@ -2,10 +2,11 @@
 
 #include "boost_for_export.h"
 #include "cutils_math.h"
-#include "FixTypes.h"
 #include "State.h"
 
 namespace py=boost::python;
+
+const std::string wallHarmonicType = "WallHarmonic";
 
 FixWallHarmonic::FixWallHarmonic(SHARED(State) state_, string handle_, string groupHandle_, Vector origin_, Vector forceDir_, double dist_, double k_) : Fix(state_, handle_, groupHandle_, wallHarmonicType, 1), origin(origin_), forceDir(forceDir_.normalized()), dist(dist_), k(k_) {
     assert(dist >= 0);

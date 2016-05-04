@@ -2,11 +2,12 @@
 
 #include "boost_for_export.h"
 #include "FixHelpers.h"
-#include "FixTypes.h"
 #include "GPUData.h"
 #include "State.h"
 
 namespace py=boost::python;
+
+const std::string springStaticType = "SpringStatic";
 
 FixSpringStatic::FixSpringStatic(SHARED(State) state_, string handle_, string groupHandle_, double k_,  PyObject *tetherFunc_, Vector multiplier_) : Fix(state_, handle_, groupHandle_, springStaticType, 1), k(k_), tetherFunc(tetherFunc_), multiplier(multiplier_) {
     updateTethers();

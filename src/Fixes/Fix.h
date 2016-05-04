@@ -23,8 +23,8 @@ void export_Fix();
  * For this reason, Fixes have an order preference. Fixes with a low preference
  * are computed first.
  *
- * \todo Compile list of preferences in FixTypes.h. I think each Fix should
- *       have an order preference.
+ * \todo Compile list of preferences. I think each Fix should have an order
+ *       preference.
  */
 class Fix {
 public:

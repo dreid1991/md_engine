@@ -1,6 +1,14 @@
 #include "FixLJCut.h"
+
+#include "BoundsGPU.h"
+#include "GridGPU.h"
+#include "list_macro.h"
+#include "PairEvaluateIso.h"
 #include "State.h"
 #include "cutils_func.h"
+
+const std::string LJCutType = "LJCut";
+
 FixLJCut::FixLJCut(SHARED(State) state_, string handle_) : FixPair(state_, handle_, "all", LJCutType, 1), epsHandle("eps"), sigHandle("sig"), rCutHandle("rCut") {
     initializeParameters(epsHandle, epsilons);
     initializeParameters(sigHandle, sigmas);

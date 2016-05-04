@@ -1,12 +1,13 @@
 #include "helpers.h"
 #include "FixDihedralOPLS.h"
 #include "FixHelpers.h"
-#include "FixTypes.h"
 #include "cutils_func.h"
 
 #define EPSILON 0.00001f
 //using namespace boost::python;
 namespace py = boost::python;
+
+const std::string dihedralOPLSType = "DihedralOPLS";
 
 __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureObject_t idToIdxs, DihedralOPLSGPU *dihedrals, int *startstops, BoundsGPU bounds) {
     int idx = GETIDX();

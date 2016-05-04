@@ -3,7 +3,9 @@
 #define FIX2D_H
 class State;
 #include "Fix.h"
-#include "FixTypes.h"
+
+const std::string _2dType = "2d";
+
 void export_Fix2d();
 class Fix2d : public Fix {
     public:

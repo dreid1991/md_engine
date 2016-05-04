@@ -1,7 +1,8 @@
 #include "FixLinearMomentum.h"
-#include "FixTypes.h"
 #include "State.h"
 #include "cutils_func.h"
+
+const std::string linearMomentumType = "LinearMomentum";
 
 FixLinearMomentum::FixLinearMomentum(SHARED(State) state_, string handle_, string groupHandle_, int applyEvery_, Vector dimensions_): Fix(state_, handle_, groupHandle_, linearMomentumType, applyEvery_), dimensions(dimensions_), sumMomentum(GPUArrayDeviceGlobal<float4>(2)) {
 }

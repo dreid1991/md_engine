@@ -1,10 +1,12 @@
 #include "helpers.h"
 #include "FixImproperHarmonic.h"
 #include "FixHelpers.h"
-#include "FixTypes.h"
 #include "cutils_func.h"
 #define SMALL 0.001f
 namespace py = boost::python;
+
+const std::string improperHarmonicType = "ImproperHarmonic";
+
 __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureObject_t idToIdxs, ImproperHarmonicGPU *impropers, int *startstops, BoundsGPU bounds) {
     int idx = GETIDX();
     extern __shared__ ImproperHarmonicGPU impropers_shr[];

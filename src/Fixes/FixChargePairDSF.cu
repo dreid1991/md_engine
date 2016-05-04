@@ -1,6 +1,5 @@
 #include "FixChargePairDSF.h"
 #include "BoundsGPU.h"
-#include "FixTypes.h"
 #include "GPUData.h"
 #include "GridGPU.h"
 #include "State.h"
@@ -10,6 +9,8 @@
 // #include <cmath>
 
 namespace py=boost::python;
+
+const std::string chargePairDSFType = "ChargePairDSF";
 
 //Pairwise force shifted damped Coulomb
 //Christopher J. Fennel and J. Daniel Gezelter J. Chem. Phys (124), 234104 2006
@@ -68,7 +69,7 @@ __global__ void compute_charge_pair_DSF_cu(int nAtoms, float4 *xs, float4 *fs, u
     }
 
 }
-FixChargePairDSF::FixChargePairDSF(SHARED(State) state_, string handle_, string groupHandle_) : FixCharge(state_, handle_, groupHandle_, chargePairDSF) {
+FixChargePairDSF::FixChargePairDSF(SHARED(State) state_, string handle_, string groupHandle_) : FixCharge(state_, handle_, groupHandle_, chargePairDSFType) {
    setParameters(0.25,9.0);
 };
 
