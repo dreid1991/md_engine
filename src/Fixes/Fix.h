@@ -27,7 +27,7 @@ void export_Fix();
  *       preference.
  */
 class Fix {
-public:
+protected:
     //! Default constructor
     /*!
      * Delete default constructor.
@@ -50,6 +50,7 @@ public:
         std::string type_,
         int applyEvery_);
 
+public:
     //! Destructor
     virtual ~Fix() {};
 
