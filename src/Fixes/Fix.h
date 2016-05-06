@@ -30,9 +30,9 @@ class Fix {
 public:
     //! Default constructor
     /*!
-     * \todo Make constructor protected since this is an abstract base class
+     * Delete default constructor.
      */
-    Fix() {}
+    Fix() = delete;
 
     //! Constructor
     /*!

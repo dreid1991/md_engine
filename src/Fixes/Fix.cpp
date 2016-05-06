@@ -57,8 +57,9 @@ void Fix::validAtoms(std::vector<Atom *> &atoms) {
 }
 
 void export_Fix() {
-    boost::python::class_<Fix> (
-        "Fix"
+    boost::python::class_<Fix, boost::noncopyable> (
+        "Fix",
+        boost::python::no_init
     )
     .def_readonly("handle", &Fix::handle)
     .def_readonly("type", &Fix::type)
