@@ -28,13 +28,6 @@ void export_Fix();
  */
 class Fix {
 public:
-    State *state; //!< Pointer to the simulation state
-    std::string handle; //!< "Name" of the Fix
-    std::string groupHandle; //!< Group to which the Fix applies
-    std::string type; //!< Unused. \todo Check if really unused, then remove
-    int applyEvery; //!< Applyt this fix every this many timesteps
-    unsigned int groupTag; //!< Bitmask for the group handle
-
     //! Default constructor
     /*!
      * \todo Make constructor protected since this is an abstract base class
@@ -56,6 +49,46 @@ public:
         std::string groupHandle_,
         std::string type_,
         int applyEvery_);
+
+    //! Destructor
+    virtual ~Fix() {};
+
+    //! Test if another Fix is the same
+    /*!
+     * \param f Reference of Fix to test
+     * \return True if they have the same handle
+     *
+     * Two Fixes are considered equal if they have the same "name" stored in
+     * handle. Thus, a FixLJCut called "myFix" and a FixSpringStatic called
+     * "myFix" are considered equal.
+     *
+     * \todo Take const reference, make function const
+     * \todo Why not use operator==()?
+     * \todo Isn't comparing the handle overly simplistic?
+     */
+    bool isEqual(Fix &f);
+
+    //! Prepare Fix for run
+    /*!
+     * \return False if a problem occured, else True
+     */
+    virtual bool prepareForRun() {return true;};
+
+    //! Perform calculations at the end of a simulation run
+    /*!
+     * Some Fixes set up internal variables in the Fix::prepareForRun()
+     * function. This function then typically sets these values back to their
+     * default.
+     *
+     * \todo Make this function purely virtual
+     */
+    virtual void postRun() {}
+
+    //! Perform post-run operations
+    /*!
+     * \return False if a problem occured, else True
+     */
+    virtual bool downloadFromRun() {return true;};
 
     //! Apply fix
     /*!
@@ -79,38 +112,6 @@ public:
      */
     virtual void singlePointEng(float *perParticleEng) {}
 
-    //! Perform calculations at the end of a simulation run
-    /*!
-     * Some Fixes set up internal variables in the Fix::prepareForRun()
-     * function. This function then typically sets these values back to their
-     * default.
-     *
-     * \todo Make this function purely virtual
-     */
-    virtual void postRun() {}
-
-    //! Test if another Fix is the same
-    /*!
-     * \param f Reference of Fix to test
-     * \return True if they have the same handle
-     *
-     * Two Fixes are considered equal if they have the same "name" stored in
-     * handle. Thus, a FixLJCut called "myFix" and a FixSpringStatic called
-     * "myFix" are considered equal.
-     *
-     * \todo Take const reference, make function const
-     * \todo Why not use operator==()?
-     * \todo Isn't comparing the handle overly simplistic?
-     */
-    bool isEqual(Fix &f);
-
-    bool forceSingle; //!< True if this Fix contributes to single point energy.
-    int orderPreference; //!< Fixes with a high order preference are calculated
-                         //!< later.
-
-    //! Recalculate group bitmask from a (possibly changed) handle
-    void updateGroupTag();
-
     //! Accomodate for new type of Atoms added to the system
     /*!
      * \param handle String specifying the new type of Atoms
@@ -119,20 +120,8 @@ public:
      */
     virtual void addSpecies(std::string handle) {}
 
-    //! Prepare Fix for run
-    /*!
-     * \return False if a problem occured, else True
-     */
-    virtual bool prepareForRun() {return true;};
-
-    //! Perform post-run operations
-    /*!
-     * \return False if a problem occured, else True
-     */
-    virtual bool downloadFromRun() {return true;};
-
-    //! Destructor
-    virtual ~Fix() {};
+    //! Recalculate group bitmask from a (possibly changed) handle
+    void updateGroupTag();
 
     //! Refresh Atoms
     /*!
@@ -163,7 +152,6 @@ public:
      * Fix::readFromRestart().
      */
     virtual std::string restartChunk(std::string format){return "";};
-    const std::string restartHandle; //!< Handle for restart string
 
     //! Return list of Bonds
     /*!
@@ -203,6 +191,20 @@ public:
      * \todo Pass const reference. Make this function const.
      */
     void validAtoms(std::vector<Atom *> &atoms);
+
+public:
+    State *state; //!< Pointer to the simulation state
+    std::string handle; //!< "Name" of the Fix
+    std::string groupHandle; //!< Group to which the Fix applies
+    std::string type; //!< Unused. \todo Check if really unused, then remove
+    int applyEvery; //!< Applyt this fix every this many timesteps
+    unsigned int groupTag; //!< Bitmask for the group handle
+
+    bool forceSingle; //!< True if this Fix contributes to single point energy.
+    int orderPreference; //!< Fixes with a high order preference are calculated
+                         //!< later.
+
+    const std::string restartHandle; //!< Handle for restart string
 };
 
 /*
