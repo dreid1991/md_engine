@@ -32,18 +32,18 @@ Fix::Fix(SHARED(State) state_,
     }
 }
 
+bool Fix::isEqual(Fix &f) {
+    return f.handle == handle;
+}
 
 void Fix::updateGroupTag() {
-	std::map<std::string, unsigned int> &groupTags = state->groupTags;
-	if (groupHandle == "None") {
-		groupTag = 0;
-	} else {
-		assert(groupTags.find(groupHandle) != groupTags.end());
-		groupTag = groupTags[groupHandle];
-	}
-}
-bool Fix::isEqual(Fix &f) {
-	return f.handle == handle;
+	  std::map<std::string, unsigned int> &groupTags = state->groupTags;
+	  if (groupHandle == "None") {
+		    groupTag = 0;
+	  } else {
+		    assert(groupTags.find(groupHandle) != groupTags.end());
+		    groupTag = groupTags[groupHandle];
+	  }
 }
 
 void Fix::validAtoms(std::vector<Atom *> &atoms) {
