@@ -192,7 +192,7 @@ void FixNVTRescale::compute(bool computeVirials) {
 
 
 
-bool FixNVTRescale::downloadFromRun() {
+bool FixNVTRescale::postRun() {
     finished = true;
     return true;
 }

@@ -22,7 +22,7 @@ class FixNVTRescale : public Fix {
     int curIdx;
     bool prepareForRun();
     void compute(bool);
-    bool downloadFromRun();
+    bool postRun();
     bool usingBounds;
     BoundsGPU boundsGPU;
     GPUArrayDeviceGlobal<float> tempGPU; //length two - first is temp, second is # atoms in group

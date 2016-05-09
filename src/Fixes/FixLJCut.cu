@@ -105,10 +105,12 @@ bool FixLJCut::readFromRestart(pugi::xml_node restData) {
     return true;
 
 }
-void FixLJCut::postRun() {
+bool FixLJCut::postRun() {
     resetToPreproc(sigHandle);
     resetToPreproc(epsHandle);
     resetToPreproc(rCutHandle);
+
+    return true;
 }
 
 void FixLJCut::addSpecies(string handle) {

@@ -60,7 +60,7 @@ class FixPotentialMultiAtom : public Fix, public TypedItemHolder {
                 }
             }
         }
-        bool downloadFromRun(){return true;};
+
         //HEY - NEED TO IMPLEMENT REFRESHATOMS
         //void createDihedral(Atom *, Atom *, Atom *, Atom *, double, double, double, double);
         //vector<pair<int, vector<int> > > neighborlistExclusions();

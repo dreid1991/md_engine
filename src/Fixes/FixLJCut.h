@@ -37,7 +37,7 @@ public:
     /*!
      * This function needs to be called after simulation run.
      */
-    void postRun();
+    bool postRun();
 
     //! Create restart string
     /*!

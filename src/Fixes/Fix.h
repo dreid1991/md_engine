@@ -78,19 +78,15 @@ public:
 
     //! Perform calculations at the end of a simulation run
     /*!
+     * \return False if an error occured, else return true
+     *
      * Some Fixes set up internal variables in the Fix::prepareForRun()
      * function. This function then typically sets these values back to their
      * default.
      *
      * \todo Make this function purely virtual
      */
-    virtual void postRun() {}
-
-    //! Perform post-run operations
-    /*!
-     * \return False if a problem occured, else True
-     */
-    virtual bool downloadFromRun() {return true;};
+    virtual bool postRun() { return true; }
 
     //! Apply fix
     /*!
