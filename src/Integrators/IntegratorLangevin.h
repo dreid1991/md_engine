@@ -1,28 +1,28 @@
-#ifndef INTEGRATERLANGEVIN_H
-#define INTEGRATERLANGEVIN_H
+#ifndef INTEGRATORLANGEVIN_H
+#define INTEGRATORLANGEVIN_H
 
 
-#include "IntegraterVerlet.h"
+#include "IntegratorVerlet.h"
 #include "Bounds.h"
 #include "GPUArrayGlobal.h"
-void export_IntegraterLangevin();
+void export_IntegratorLangevin();
 
-/*! \class IntegraterLangevin
- * \brief Langevin dynamics integrater
+/*! \class IntegratorLangevin
+ * \brief Langevin dynamics integrator
  *
  * Two step Langevin dynamics 
  */
 
-class IntegraterLangevin : public IntegraterVerlet {
+class IntegratorLangevin : public IntegratorVerlet {
 
     public:
         /*! \brief Constant temperature Constructor */
-        IntegraterLangevin(SHARED(State),/*string groupHandle_,*/float T_);
+        IntegratorLangevin(SHARED(State),/*string groupHandle_,*/float T_);
 
         /*! \brief Thermostat Constructor python list */
-        IntegraterLangevin(SHARED(State), /*string groupHandle_,*/ boost::python::list intervals, boost::python::list temps, SHARED(Bounds) thermoBounds_ = SHARED(Bounds)(NULL));
+        IntegratorLangevin(SHARED(State), /*string groupHandle_,*/ boost::python::list intervals, boost::python::list temps, SHARED(Bounds) thermoBounds_ = SHARED(Bounds)(NULL));
         /*! \brief Thermostat Constructor */
-        IntegraterLangevin(SHARED(State), /*string groupHandle_,*/ vector<double> intervals, vector<double> temps, SHARED(Bounds) thermoBounds_ = SHARED(Bounds)(NULL));
+        IntegratorLangevin(SHARED(State), /*string groupHandle_,*/ vector<double> intervals, vector<double> temps, SHARED(Bounds) thermoBounds_ = SHARED(Bounds)(NULL));
         void run(int);
         
         /*! \brief set the parameters

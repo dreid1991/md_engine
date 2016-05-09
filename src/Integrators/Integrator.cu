@@ -1,4 +1,4 @@
-#include "Integrater.h"
+#include "Integrator.h"
 
 #include "boost_for_export.h"
 #include "globalDefs.h"
@@ -9,7 +9,7 @@
 #include "PythonOperation.h"
 #include "WriteConfig.h"
 
-void Integrater::force(bool computeVirials) {
+void Integrator::force(bool computeVirials) {
     
 	int simTurn = state->turn;
 	vector<Fix *> &fixes = state->fixes;
@@ -20,7 +20,7 @@ void Integrater::force(bool computeVirials) {
 	}
 };
 
-void Integrater::forceSingle(bool computeVirials) {
+void Integrator::forceSingle(bool computeVirials) {
 	for (Fix *f : state->fixes) {
 		if (f->forceSingle) {
 			f->compute(computeVirials);
@@ -31,7 +31,7 @@ void Integrater::forceSingle(bool computeVirials) {
 
 
 
-void Integrater::singlePointEng() {
+void Integrator::singlePointEng() {
     GPUArrayGlobal<float> &perParticleEng = state->gpd.perParticleEng;
     perParticleEng.d_data.memset(0);
 	for (Fix *f : state->fixes) {
@@ -39,7 +39,7 @@ void Integrater::singlePointEng() {
     }
 
 }
-void Integrater::doDataCollection() {
+void Integrator::doDataCollection() {
     DataManager &dm = state->dataManager;
     bool doingCollection = false;
     int64_t turn = state->turn;
@@ -105,7 +105,7 @@ void Integrater::doDataCollection() {
 
     }
 }
-void Integrater::asyncOperations() {
+void Integrator::asyncOperations() {
     int turn = state->turn;
     auto writeAndPy = [this] (int64_t ts) { //well, if I try to use a local state pointer, this segfaults.  Need to capture this instead.  Little confused
         //have to set device in each thread
@@ -162,7 +162,7 @@ __global__ void printFloats(float4 *xs, int n) {
 */
 
 
-void Integrater::basicPreRunChecks() {
+void Integrator::basicPreRunChecks() {
     if (state->devManager.prop.major < 3) {
         cout << "Device compute capability must be >= 3.0. Quitting" << endl;
         assert(state->devManager.prop.major >= 3);
@@ -190,7 +190,7 @@ void Integrater::basicPreRunChecks() {
     state->grid.adjustForChangedBounds();
 }
 
-void Integrater::basicPrepare(int numTurns) {
+void Integrator::basicPrepare(int numTurns) {
     int nAtoms = state->atoms.size();
 	state->runningFor = numTurns;
     state->runInit = state->turn; 
@@ -211,7 +211,7 @@ void Integrater::basicPrepare(int numTurns) {
     }
 }
 
-void Integrater::basicFinish() {
+void Integrator::basicFinish() {
     if (state->asyncData && state->asyncData->joinable()) {
         state->asyncData->join();
     }
@@ -225,7 +225,7 @@ void Integrater::basicFinish() {
     }
 
 }
-void Integrater::setActiveData() {
+void Integrator::setActiveData() {
     activeData = vector<GPUArray *>();
     activeData.push_back((GPUArray *) &state->gpd.ids);
     activeData.push_back((GPUArray *) &state->gpd.xs);
@@ -236,18 +236,18 @@ void Integrater::setActiveData() {
     activeData.push_back((GPUArray *) &state->gpd.qs);
 }
 
-Integrater::Integrater(State *state_) : state(state_) {
+Integrator::Integrator(State *state_) : state(state_) {
     setActiveData(); 
 }
 
-void Integrater::writeOutput() {
+void Integrator::writeOutput() {
     for (SHARED(WriteConfig) wc : state->writeConfigs) {
         wc->write(state->turn);
     }
 }
 
 
-double Integrater::singlePointEngPythonAvg(string groupHandle) {
+double Integrator::singlePointEngPythonAvg(string groupHandle) {
     GPUArrayGlobal<float> eng(2);
     eng.d_data.memset(0);
     basicPreRunChecks();
@@ -266,7 +266,7 @@ double Integrater::singlePointEngPythonAvg(string groupHandle) {
     return eng.h_data[0] / *((int *)eng.h_data.data()+1);
 }
 
-boost::python::list Integrater::singlePointEngPythonPerParticle() {
+boost::python::list Integrator::singlePointEngPythonPerParticle() {
     basicPrepare(0);
     singlePointEng();
     state->gpd.perParticleEng.dataToHost();
@@ -292,17 +292,17 @@ boost::python::list Integrater::singlePointEngPythonPerParticle() {
 
 
 
-void export_Integrater() {
-    boost::python::class_<Integrater,
+void export_Integrator() {
+    boost::python::class_<Integrator,
                           boost::noncopyable> (
-        "Integrater"
+        "Integrator"
     )
-    .def("writeOutput", &Integrater::writeOutput)
-    .def("energyAverage", &Integrater::singlePointEngPythonAvg,
+    .def("writeOutput", &Integrator::writeOutput)
+    .def("energyAverage", &Integrator::singlePointEngPythonAvg,
             (boost::python::arg("groupHandle")="all")
         )
-    .def("energyPerParticle", &Integrater::singlePointEngPythonPerParticle);
-    //.def("run", &Integrater::run)
+    .def("energyPerParticle", &Integrator::singlePointEngPythonPerParticle);
+    //.def("run", &Integrator::run)
     ;
 }
 

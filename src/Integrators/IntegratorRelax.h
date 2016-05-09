@@ -1,16 +1,16 @@
 #pragma once
-#ifndef INTEGRATERRELAX_H
-#define INTEGRATERRELAX_H
+#ifndef INTEGRATORRELAX_H
+#define INTEGRATORRELAX_H
 
 #include "globalDefs.h"
-#include "Integrater.h"
+#include "Integrator.h"
 
 
 
 
-void export_IntegraterRelax();
+void export_IntegratorRelax();
 
-/*! \class IntegraterRelax
+/*! \class IntegratorRelax
  * \brief 
 //  FIRE algorithm -- Fast Internal Relaxation Engine
 //  see  Erik Bitzek et al.
@@ -18,12 +18,12 @@ void export_IntegraterRelax();
  */
 
 
-class IntegraterRelax : public Integrater {
+class IntegratorRelax : public Integrator {
     public:
         double run(int, double);
         /*! \brief Constructor */
         
-        IntegraterRelax(SHARED(State));
+        IntegratorRelax(SHARED(State));
         /*! \brief set the parameters
          */        
         void set_params(double alphaInit_,

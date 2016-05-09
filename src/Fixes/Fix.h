@@ -14,7 +14,7 @@ void export_Fix();
 
 //! Base class for Fixes
 /*!
- * Fixes modify the dynamics in the system. They are called by the Integrater
+ * Fixes modify the dynamics in the system. They are called by the Integrator
  * at regular intervals and they can modify the Atom forces, positions and
  * velocities. Note that as Fixes themselves depend on the current forces,
  * positions and velocities, the order in which the Fixes are defined and

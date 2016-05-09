@@ -268,7 +268,7 @@ float State::getMaxRCut() {
     return maxRCut;
 }
 bool State::prepareForRun() {
-    //fixes have already prepared by the time the integrater calls this prepare
+    //fixes have already prepared by the time the integrator calls this prepare
     int nAtoms = atoms.size();
     std::vector<float4> xs_vec, vs_vec, fs_vec, fsLast_vec;
     std::vector<uint> ids;

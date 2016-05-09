@@ -1,4 +1,4 @@
-#include "IntegraterLangevin.h"
+#include "IntegratorLangevin.h"
 
 #include <curand_kernel.h>
 #include <math.h>
@@ -8,7 +8,7 @@
 
 #include "State.h"
 
-IntegraterLangevin::IntegraterLangevin(SHARED(State) state_,float T_) : IntegraterVerlet(state_), 
+IntegratorLangevin::IntegratorLangevin(SHARED(State) state_,float T_) : IntegratorVerlet(state_), 
     seed(0),  gamma(1.0) ,curInterval(0){
     finished=true;
     temps.push_back(T_);
@@ -18,8 +18,8 @@ IntegraterLangevin::IntegraterLangevin(SHARED(State) state_,float T_) : Integrat
 }
 
 
-IntegraterLangevin::IntegraterLangevin(SHARED(State) state_, /*string groupHandle_,*/ boost::python::list intervals_, boost::python::list temps_, SHARED(Bounds) thermoBounds_ ):
-    IntegraterVerlet(state_), seed(0),  gamma(1.0), curInterval(0),finished(false)  {
+IntegratorLangevin::IntegratorLangevin(SHARED(State) state_, /*string groupHandle_,*/ boost::python::list intervals_, boost::python::list temps_, SHARED(Bounds) thermoBounds_ ):
+    IntegratorVerlet(state_), seed(0),  gamma(1.0), curInterval(0),finished(false)  {
     assert(boost::python::len(intervals_) == boost::python::len(temps_)); 
     assert(boost::python::len(intervals_) > 1);
     int len = boost::python::len(intervals_);
@@ -47,8 +47,8 @@ IntegraterLangevin::IntegraterLangevin(SHARED(State) state_, /*string groupHandl
 //     }   
 }
 
-IntegraterLangevin::IntegraterLangevin(SHARED(State) state_,/* string groupHandle_, */vector<double> intervals_, vector<double> temps_, SHARED(Bounds) thermoBounds_ ):
-    IntegraterVerlet(state_), seed(0),  gamma(1.0), curInterval(0),finished(false)  {
+IntegratorLangevin::IntegratorLangevin(SHARED(State) state_,/* string groupHandle_, */vector<double> intervals_, vector<double> temps_, SHARED(Bounds) thermoBounds_ ):
+    IntegratorVerlet(state_), seed(0),  gamma(1.0), curInterval(0),finished(false)  {
     assert(intervals.size() == temps.size());
     intervals = intervals_;
     temps = temps_;
@@ -72,7 +72,7 @@ IntegraterLangevin::IntegraterLangevin(SHARED(State) state_,/* string groupHandl
     
 }
 
-double IntegraterLangevin::curTemperature(){
+double IntegratorLangevin::curTemperature(){
     int64_t turn = state->turn;  
     if (finished) {
         return temps.back();
@@ -216,19 +216,19 @@ __global__ void postForce_LangevinInBounds_cu(int nAtoms, float4 *xs,float4 *vs,
 }
 
 
-void IntegraterLangevin::preForce(uint activeIdx) {
+void IntegratorLangevin::preForce(uint activeIdx) {
     if (usingBounds) {
         preForce_LangevinInBounds_cu<<<NBLOCK(state->atoms.size()), PERBLOCK>>>(state->atoms.size(), state->gpd.xs.getDevData(), state->gpd.vs.getDevData(), state->gpd.fs.getDevData(),state->dt,boundsGPU);
     }else{
         preForce_Langevin_cu<<<NBLOCK(state->atoms.size()), PERBLOCK>>>(state->atoms.size(), state->gpd.xs.getDevData(), state->gpd.vs.getDevData(), state->gpd.fs.getDevData(),state->dt);
     }
     cudaDeviceSynchronize();   
-    CUT_CHECK_ERROR("IntegraterLangevin execution failed");
+    CUT_CHECK_ERROR("IntegratorLangevin execution failed");
 
   
 }
 
-void IntegraterLangevin::postForce(uint activeIdx,int timesteps) {
+void IntegratorLangevin::postForce(uint activeIdx,int timesteps) {
     int warpSize = state->devManager.prop.warpSize;
     if (usingBounds) {
         postForce_LangevinInBounds_cu<<<NBLOCK(state->atoms.size()), PERBLOCK>>>(state->atoms.size(),state->gpd.xs.getDevData(), state->gpd.vs.getDevData(), state->gpd.fs.getDevData(), state->dt,timesteps,seed,float(curTemperature()), gamma,boundsGPU);
@@ -253,13 +253,13 @@ void IntegraterLangevin::postForce(uint activeIdx,int timesteps) {
         cout.flush();
         exit(2);
     }
-    CUT_CHECK_ERROR("IntegraterLangevin execution failed");
+    CUT_CHECK_ERROR("IntegratorLangevin execution failed");
 
 }
 
 
 
-void IntegraterLangevin::run(int numTurns) {
+void IntegratorLangevin::run(int numTurns) {
     basicPreRunChecks(); 
     basicPrepare(numTurns);
     
@@ -301,13 +301,13 @@ void IntegraterLangevin::run(int numTurns) {
 
 }
 
-void export_IntegraterLangevin() {
-    boost::python::class_ <IntegraterLangevin, SHARED(IntegraterLangevin), boost::python::bases<IntegraterVerlet>, boost::noncopyable > ("IntegraterLangevin", boost::python::init<SHARED(State), float>()) 
+void export_IntegratorLangevin() {
+    boost::python::class_ <IntegratorLangevin, SHARED(IntegratorLangevin), boost::python::bases<IntegratorVerlet>, boost::noncopyable > ("IntegratorLangevin", boost::python::init<SHARED(State), float>()) 
         .def(boost::python::init<SHARED(State), boost::python::list,
                             boost::python::list,
                             boost::python::optional< SHARED(Bounds)>>())
-        .def("run", &IntegraterLangevin::run)
-        .def("set_params", &IntegraterLangevin::set_params,(boost::python::arg("seed"),boost::python::arg("gamma")))        
+        .def("run", &IntegratorLangevin::run)
+        .def("set_params", &IntegratorLangevin::set_params,(boost::python::arg("seed"),boost::python::arg("gamma")))        
         ;   
 }
 

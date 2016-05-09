@@ -1,6 +1,6 @@
 #pragma once
-#ifndef INTEGRATER_H
-#define INTEGRATER_H
+#ifndef INTEGRATOR_H
+#define INTEGRATOR_H
 
 #include <boost/python/list.hpp>
 #include <string>
@@ -9,16 +9,16 @@
 class GPUArray;
 class State;
 
-void export_Integrater();
+void export_Integrator();
 
-/*! \class Integrater
- * \brief Base class for Molecular Dynamics Integraters
+/*! \class Integrator
+ * \brief Base class for Molecular Dynamics Integrators
  *
- * This class is a base class for all MD Integraters. It takes care of all
+ * This class is a base class for all MD Integrators. It takes care of all
  * aspects common to all integrators such as doing basic checks, data transfer
  * from and to the GPU, etc.
  */
-class Integrater {
+class Integrator {
 
 protected:
     /*! \brief Calculate force for all fixes
@@ -107,16 +107,16 @@ public:
      *
      * \todo Do we need a default constructor?
      */
-    Integrater() {};
+    Integrator() {};
 
     /*! \brief Constructor
      *
      * \param state_ Pointer to simulation state
-     * \param type_ String specifying type of Integrater (unused)
+     * \param type_ String specifying type of Integrator (unused)
      *
      * \todo Remove usage of type
      */
-    explicit Integrater(State *state_);
+    explicit Integrator(State *state_);
 
     /*! \brief Calculate single point force
      *

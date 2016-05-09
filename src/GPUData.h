@@ -27,7 +27,7 @@ class GPUData {
         GPUArrayGlobal<float> perParticleEng; //for data collection.  If we re-use per-particle arrays, we can't do async kernels to do per-group sums.  Would use less memory though
         GPUArrayGlobal<Virial> perParticleVirial;
 
-    //OMG REMEMBER TO ADD EACH NEW ARRAY TO THE ACTIVE DATA LIST IN INTEGRATER OR PAIN AWAITS
+    //OMG REMEMBER TO ADD EACH NEW ARRAY TO THE ACTIVE DATA LIST IN INTEGRATOR OR PAIN AWAITS
 
         GPUData() : idToIdxs(cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindSigned)) {
         }

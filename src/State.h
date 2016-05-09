@@ -437,7 +437,7 @@ public:
      * already been prepared.
      *
      * \todo I suggest to move preparation of Fixes here from
-     *       Integrater::basicPrepare().
+     *       Integrator::basicPrepare().
      */
     bool prepareForRun();
 

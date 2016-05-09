@@ -1,10 +1,10 @@
-#include "IntegraterRelax.h"
+#include "IntegratorRelax.h"
 #include "cutils_func.h"
 #include "State.h"
 
 
-IntegraterRelax::IntegraterRelax(SHARED(State) state_)
-    : Integrater(state_.get())
+IntegratorRelax::IntegratorRelax(SHARED(State) state_)
+    : Integrator(state_.get())
 {
     //FIRE parameters
     alphaInit = 0.1;
@@ -82,7 +82,7 @@ __global__ void FIRE_preForce_cu(int nAtoms, float4 *xs, float4 *vs, float4 *fs,
 
 
 
-double IntegraterRelax::run(int numTurns, num fTol) {
+double IntegratorRelax::run(int numTurns, num fTol) {
     cout << "FIRE relaxation\n";
     basicPreRunChecks();  
     basicPrepare(numTurns);
@@ -198,7 +198,7 @@ double IntegraterRelax::run(int numTurns, num fTol) {
         CUT_CHECK_ERROR("FIRE_preForce_cu kernel execution failed");
 
         int activeIdx = state->gpd.activeIdx();
-        Integrater::forceSingle(activeIdx);
+        Integrator::forceSingle(activeIdx);
 
         if (fTol > 0 and i > delay and not (i%delay)) { //only check every so often
             //total force calc
@@ -246,16 +246,16 @@ double IntegraterRelax::run(int numTurns, num fTol) {
     return finalForce;
 }
 
-void export_IntegraterRelax() {
-    boost::python::class_<IntegraterRelax,
-                          SHARED(IntegraterRelax),
-                          boost::python::bases<Integrater>,
+void export_IntegratorRelax() {
+    boost::python::class_<IntegratorRelax,
+                          SHARED(IntegratorRelax),
+                          boost::python::bases<Integrator>,
                           boost::noncopyable > (
-        "IntegraterRelax",
+        "IntegratorRelax",
         boost::python::init<SHARED(State)>()
     )
-    .def("run", &IntegraterRelax::run)
-    .def("set_params", &IntegraterRelax::set_params,
+    .def("run", &IntegratorRelax::run)
+    .def("set_params", &IntegratorRelax::set_params,
             (boost::python::arg("alphaInit")=-1,
              boost::python::arg("alphaShrink")=-1,
              boost::python::arg("dtGrow")=-1,

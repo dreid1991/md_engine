@@ -11,9 +11,9 @@
 #include <stdio.h>
 #include <cstdlib>
 #include "InitializeAtoms.h"
-#include  "IntegraterVerlet.h"
-#include  "IntegraterRelax.h"
-#include  "IntegraterLangevin.h"
+#include "IntegratorVerlet.h"
+#include "IntegratorRelax.h"
+#include "IntegratorLangevin.h"
 #include "FixChargePairDSF.h"
 #include "WriteConfig.h"
 #include "ReadConfig.h"
@@ -58,8 +58,8 @@ void testFire() {
     state->activateWriteConfig(write);
 
     state->dt=0.003;    
-    IntegraterRelax integraterR(state);
-    integraterR.run(400000,1.0);  
+    IntegratorRelax integratorR(state);
+    integratorR.run(400000,1.0);
 //     cout << state->atoms[0].pos[0]<<' '<<state->atoms[0].vel[0]<<' '<<state->atoms[0].force[0]<<' '<<state->atoms[0].forceLast[0]<< endl;
     
 }
@@ -136,12 +136,12 @@ void testCharge() {
 
     state->dt=0.00031;  
 
-//     IntegraterRelax integraterR(state);
-//     integraterR.run(500001,1.0);
-    IntegraterVerlet integrater(state);
-    integrater.run(500000);   
-/*    IntegraterLangevin integrater(state);
-    integrater.run(100000);*/     
+//     IntegratorRelax integratorR(state);
+//     integratorR.run(500001,1.0);
+    IntegratorVerlet integrator(state);
+    integrator.run(500000);
+/*    IntegratorLangevin integrator(state);
+    integrator.run(100000);*/
 //     cout << state->atoms[0].pos[0]<<' '<<state->atoms[0].vel[0]<<' '<<state->atoms[0].force[0]<<' '<<state->atoms[0].forceLast[0]<< endl;
     
 }
@@ -168,7 +168,7 @@ void testPair() {
 
     
     state->dt=0.0001;  
-    IntegraterVerlet integrater(state);
+    IntegratorVerlet integrator(state);
 
     ofstream ofs;
     ofs.open("test_pair.dat",ios::out );
@@ -177,7 +177,7 @@ void testPair() {
 	state->atoms[0].vel[0]=0.0;
 	state->atoms[1].pos[0]=5.0;
 	state->atoms[1].vel[0]=0.0;
-	integrater.run(1);     
+	integrator.run(1);
 // 	cout<<state->atoms[0].pos[0]<<' '<<state->atoms[1].pos[0]<<' '<<state->atoms[0].force[0]<<' '<<state->atoms[1].force[0]<<'\n';
 	ofs<<state->atoms[0].pos[0]<<' '<<state->atoms[1].pos[0]<<' '<<state->atoms[0].force[0]<<' '<<state->atoms[1].force[0]<<'\n';
     }
@@ -208,9 +208,9 @@ void test_charge_ewald() {
 
     
     state->dt=0.0001;  
-    IntegraterVerlet integrater(state);
+    IntegratorVerlet integrator(state);
 //     charge->compute();
-    integrater.run(1);     
+    integrator.run(1);
 
     ofstream ofs;
     ofs.open("test_pair.dat",ios::out );
@@ -219,7 +219,7 @@ void test_charge_ewald() {
 	state->atoms[0].vel[0]=0.0;
 	state->atoms[1].pos[0]=0.75*L;
 	state->atoms[1].vel[0]=0.0;
-	integrater.run(1);     
+	integrator.run(1);
 // 	cout<<state->atoms[0].pos[0]<<' '<<state->atoms[1].pos[0]<<' '<<state->atoms[0].force[0]<<' '<<state->atoms[1].force[0]<<'\n';
 	ofs<<state->atoms[0].pos[0]<<' '<<state->atoms[1].pos[0]<<' '<<state->atoms[0].force[0]<<' '<<state->atoms[1].force[0]<<'\n';
     }
@@ -262,7 +262,7 @@ void testRead() {
 
     SHARED(WriteConfig) write = SHARED(WriteConfig) (new WriteConfig(state, "test", "handley", "base64", 50));
     state->activateWriteConfig(write);
-    //state->integrater.run(50);
+    //state->integrator.run(50);
 
 }
 
@@ -302,10 +302,10 @@ void testWallHarmonic() {
 
     SHARED(WriteConfig) write = SHARED(WriteConfig) (new WriteConfig(state, "test", "handley", "base64", 50));
     //state->activateWriteConfig(write);
-    //state->integrater.run(200);
+    //state->integrator.run(200);
     InitializeAtoms::populateRand(state, state->bounds, "handle", 200, 1.1);
     cout << "here" << endl;
-    //state->integrater.run(2000);
+    //state->integrator.run(2000);
 
 }
 
@@ -340,8 +340,8 @@ void testBondHarmonic() {
     cout << "req" << endl;
     cout << bond->getBond(0).rEq << endl;
     cout << bond->getBond(1).rEq << endl;
-    IntegraterRelax integraterR(state);
-    integraterR.run(1,1e-8);
+    IntegratorRelax integratorR(state);
+    integratorR.run(1,1e-8);
     for (int i=0; i<3; i++) {
         cout << state->atoms[i].pos[0] << endl;
     }
@@ -408,8 +408,8 @@ void testBondHarmonicGrid() {
     nonbond->setParameter("eps", "handle", "handle", 1);
     //state->activateFix(nonbond);
     
-    IntegraterRelax integraterR(state);
-    integraterR.run(60000,1e-8);
+    IntegratorRelax integratorR(state);
+    integratorR.run(60000,1e-8);
     for (Atom &a : state->atoms) {
         cout << a.pos << endl;
     }
@@ -492,9 +492,9 @@ void testBondHarmonicGridToGPU() {
     nonbond->setParameter("eps", "handle", "handle", 1);
     //state->activateFix(nonbond);
     
-    IntegraterRelax integraterR(state);
-   // integraterR.run(60000,1e-8);
-    integraterR.run(5000, 1e-3);
+    IntegratorRelax integratorR(state);
+   // integratorR.run(60000,1e-8);
+    integratorR.run(5000, 1e-3);
     for (BondVariant &bv : bond->bonds) {
         Bond single = get<BondHarmonic>(bv);
         //cout << single.atoms[0]->pos << " " << single.atoms[1]->pos << endl;
@@ -549,7 +549,7 @@ void hoomdBench() {
     //SHARED(WriteConfig) write = SHARED(WriteConfig) (new WriteConfig(state, "test", "handley", "xml", 20));
   //  state->activateWriteConfig(write);
 
-    IntegraterVerlet verlet(state);
+    IntegratorVerlet verlet(state);
     verlet.run(5000);
     cout.flush();
     //SHARED(FixBondHarmonic) harmonic = SHARED(FixBondHarmonic) (new FixBondHarmonic(state, "harmonic"));
@@ -561,7 +561,7 @@ void hoomdBench() {
 
     //SHARED(WriteConfig) write = SHARED(WriteConfig) (new WriteConfig(state, "test", "handley", "base64", 50));
     //state->activateWriteConfig(write);
-    //state->integrater.run(1000);
+    //state->integrator.run(1000);
 
 }
 
@@ -619,7 +619,7 @@ void testLJ() {
     //SHARED(WriteConfig) write = SHARED(WriteConfig) (new WriteConfig(state, "test", "handley", "xml", 20));
   //  state->activateWriteConfig(write);
 
-    IntegraterVerlet verlet(state);
+    IntegratorVerlet verlet(state);
     cout << state->atoms[0].pos << endl;
     //verlet.run();
     cout << state->atoms[0].pos << endl;
@@ -640,7 +640,7 @@ void testLJ() {
 
     //SHARED(WriteConfig) write = SHARED(WriteConfig) (new WriteConfig(state, "test", "handley", "base64", 50));
     //state->activateWriteConfig(write);
-    //state->integrater.run(1000);
+    //state->integrator.run(1000);
 
 }
 void testGPUArrayTex() {
@@ -732,7 +732,7 @@ int main(int argc, char **argv) {
     //SHARED(WriteConfig) write = SHARED(WriteConfig) (new WriteConfig(state, "test", "handley", "xml", 5));
     //state->activateWriteConfig(write);
     int n = 8000;
-    //state->integrater.run(n);
+    //state->integrator.run(n);
     /*
     for (Atom a : state->atoms) {
         cout << a.force << endl;
@@ -744,8 +744,8 @@ int main(int argc, char **argv) {
     //SHARED(FixBondHarmonic) harmonic = SHARED(FixBondHarmonic) (new FixBondHarmonic(state, "harmonic", 1));
     //state->activateFix(harmonic);
     //harmonic->createBond(&state->atoms[0], &state->atoms[1], 1, 1);
-    //state->integrater.run(1000);
-    //state->integrater.test();
+    //state->integrator.run(1000);
+    //state->integrator.test();
 
     
 }
