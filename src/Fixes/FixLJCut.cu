@@ -9,14 +9,13 @@
 
 const std::string LJCutType = "LJCut";
 
-FixLJCut::FixLJCut(SHARED(State) state_, string handle_) : FixPair(state_, handle_, "all", LJCutType, 1), epsHandle("eps"), sigHandle("sig"), rCutHandle("r\
-Cut") {
+FixLJCut::FixLJCut(SHARED(State) state_, string handle_)
+    : FixPair(state_, handle_, "all", LJCutType, true, 1),
+      epsHandle("eps"), sigHandle("sig"), rCutHandle("rCut") {
     initializeParameters(epsHandle, epsilons);
     initializeParameters(sigHandle, sigmas);
     initializeParameters(rCutHandle, rCuts);
     paramOrder = {epsHandle, sigHandle, rCutHandle};
-    forceSingle = true;
-
 }
 void FixLJCut::compute(bool computeVirials) {
     int nAtoms = state->atoms.size();

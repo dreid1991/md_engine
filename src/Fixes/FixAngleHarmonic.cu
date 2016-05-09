@@ -106,9 +106,7 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
 }
 
 
-FixAngleHarmonic::FixAngleHarmonic(SHARED(State) state_, string handle) : FixPotentialMultiAtom(state_, handle, angleHarmonicType), pyListInterface(&forcers, &pyForcers) {
-    forceSingle = true;
-}
+FixAngleHarmonic::FixAngleHarmonic(SHARED(State) state_, string handle) : FixPotentialMultiAtom(state_, handle, angleHarmonicType, true), pyListInterface(&forcers, &pyForcers) {}
 
 
 void FixAngleHarmonic::compute(bool computeVirials) {

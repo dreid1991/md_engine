@@ -10,7 +10,8 @@ using namespace std;
 void export_FixCharge();
 class FixCharge : public Fix {
     public:
-        FixCharge(SHARED(State) state_, string handle_, string groupHandle_, string type_);
+        FixCharge(SHARED(State) state_, string handle_, string groupHandle_,
+                  string type_, bool forceSingle_);
 
         virtual void compute(bool){};
         bool prepareForRun();

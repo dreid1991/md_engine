@@ -194,8 +194,8 @@ public:
      * \param applyEvery_ Apply this Fix every this many timesteps
      */
     FixPair(SHARED(State) state_, std::string handle_, std::string groupHandle_,
-            std::string type_, int applyEvery_)
-        : Fix(state_, handle_, groupHandle_, type_, applyEvery_)
+            std::string type_, bool forceSingle_, int applyEvery_)
+        : Fix(state_, handle_, groupHandle_, type_, forceSingle_, applyEvery_)
         {
             // Empty constructor
         };

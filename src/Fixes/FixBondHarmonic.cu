@@ -45,9 +45,9 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
 }
 
 
-FixBondHarmonic::FixBondHarmonic(SHARED(State) state_, string handle) : FixBond(state_, handle, string("None"), bondHarmonicType, 1), pyListInterface(&bonds, &pyBonds) {
-    forceSingle = true;
-}
+FixBondHarmonic::FixBondHarmonic(SHARED(State) state_, string handle)
+    : FixBond(state_, handle, string("None"), bondHarmonicType, true, 1),
+      pyListInterface(&bonds, &pyBonds) {}
 
 
 

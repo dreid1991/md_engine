@@ -69,7 +69,7 @@ __global__ void compute_charge_pair_DSF_cu(int nAtoms, float4 *xs, float4 *fs, u
     }
 
 }
-FixChargePairDSF::FixChargePairDSF(SHARED(State) state_, string handle_, string groupHandle_) : FixCharge(state_, handle_, groupHandle_, chargePairDSFType) {
+FixChargePairDSF::FixChargePairDSF(SHARED(State) state_, string handle_, string groupHandle_) : FixCharge(state_, handle_, groupHandle_, chargePairDSFType, true) {
    setParameters(0.25,9.0);
 };
 

@@ -33,7 +33,12 @@ __global__ void sumKeInBounds (float *dest, float4 *src, int n, unsigned int gro
 }
 
 
-FixNVTRescale::FixNVTRescale(SHARED(State) state_, string handle_, string groupHandle_, boost::python::list intervals_, boost::python::list temps_, int applyEvery_, SHARED(Bounds) thermoBounds_ ) : Fix(state_, handle_, groupHandle_, NVTRescaleType, applyEvery_), curIdx(0), tempGPU(GPUArrayDeviceGlobal<float>(2)), finished(false) {
+FixNVTRescale::FixNVTRescale(SHARED(State) state_, string handle_, string groupHandle_,
+                             py::list intervals_, py::list temps_, int applyEvery_,
+                             SHARED(Bounds) thermoBounds_)
+    : Fix(state_, handle_, groupHandle_, NVTRescaleType, false, applyEvery_),
+      curIdx(0), tempGPU(GPUArrayDeviceGlobal<float>(2)), finished(false)
+{
     assert(boost::python::len(intervals_) == boost::python::len(temps_)); 
     assert(boost::python::len(intervals_) > 1);
     int len = boost::python::len(intervals_);
@@ -55,14 +60,18 @@ FixNVTRescale::FixNVTRescale(SHARED(State) state_, string handle_, string groupH
 
 }
 
-FixNVTRescale::FixNVTRescale(SHARED(State) state_, string handle_, string groupHandle_, vector<double> intervals_, vector<double> temps_, int applyEvery_, SHARED(Bounds) thermoBounds_) : Fix(state_, handle_, groupHandle_, NVTRescaleType, applyEvery_), curIdx(0), tempGPU(GPUArrayDeviceGlobal<float>(2)), finished(false) {
+FixNVTRescale::FixNVTRescale(SHARED(State) state_, string handle_, string groupHandle_,
+                             vector<double> intervals_, vector<double> temps_, int applyEvery_,
+                             SHARED(Bounds) thermoBounds_)
+    : Fix(state_, handle_, groupHandle_, NVTRescaleType, false, applyEvery_),
+      curIdx(0), tempGPU(GPUArrayDeviceGlobal<float>(2)), finished(false)
+{
     assert(intervals.size() == temps.size());
     intervals = intervals_;
     temps = temps_;
     thermoBounds = thermoBounds_;
-
-    forceSingle = false;
 }
+
 bool FixNVTRescale::prepareForRun() {
     usingBounds = thermoBounds != SHARED(Bounds) (NULL);
     if (usingBounds) {

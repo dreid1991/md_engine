@@ -348,7 +348,7 @@ __global__ void compute_short_range_forces_cu(int nAtoms, float4 *xs, float4 *fs
 }
 
 
-FixChargeEwald::FixChargeEwald(SHARED(State) state_, string handle_, string groupHandle_): FixCharge(state_, handle_, groupHandle_, chargeEwaldType),first_run(true){
+FixChargeEwald::FixChargeEwald(SHARED(State) state_, string handle_, string groupHandle_): FixCharge(state_, handle_, groupHandle_, chargeEwaldType, true),first_run(true){
   cufftCreate(&plan);
 }
 

@@ -8,9 +8,12 @@ namespace py=boost::python;
 
 const std::string wallHarmonicType = "WallHarmonic";
 
-FixWallHarmonic::FixWallHarmonic(SHARED(State) state_, string handle_, string groupHandle_, Vector origin_, Vector forceDir_, double dist_, double k_) : Fix(state_, handle_, groupHandle_, wallHarmonicType, 1), origin(origin_), forceDir(forceDir_.normalized()), dist(dist_), k(k_) {
+FixWallHarmonic::FixWallHarmonic(SHARED(State) state_, string handle_, string groupHandle_,
+                                 Vector origin_, Vector forceDir_, double dist_, double k_)
+    : Fix(state_, handle_, groupHandle_, wallHarmonicType, true, 1),
+      origin(origin_), forceDir(forceDir_.normalized()), dist(dist_), k(k_)
+{
     assert(dist >= 0);
-    forceSingle = true;
 }
 
 void __global__ compute_cu(float4 *xs, int nAtoms, float4 *fs, float3 origin, float3 forceDir, float dist, float k, uint groupTag) {

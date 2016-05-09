@@ -4,8 +4,10 @@
 
 const std::string linearMomentumType = "LinearMomentum";
 
-FixLinearMomentum::FixLinearMomentum(SHARED(State) state_, string handle_, string groupHandle_, int applyEvery_, Vector dimensions_): Fix(state_, handle_, groupHandle_, linearMomentumType, applyEvery_), dimensions(dimensions_), sumMomentum(GPUArrayDeviceGlobal<float4>(2)) {
-}
+FixLinearMomentum::FixLinearMomentum(SHARED(State) state_, string handle_,
+                                     string groupHandle_, int applyEvery_, Vector dimensions_)
+    : Fix(state_, handle_, groupHandle_, linearMomentumType, false, applyEvery_),
+      dimensions(dimensions_), sumMomentum(GPUArrayDeviceGlobal<float4>(2)) {}
 
     template <class K, class T>
 __global__ void NAME (K *dest, T *src, int n, unsigned int groupTag, float4 *fs, int warpSize) {

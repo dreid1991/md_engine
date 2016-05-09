@@ -48,6 +48,7 @@ protected:
         std::string handle_,
         std::string groupHandle_,
         std::string type_,
+        bool forceSingle_,
         int applyEvery_);
 
 public:
@@ -197,11 +198,11 @@ public:
     State *state; //!< Pointer to the simulation state
     std::string handle; //!< "Name" of the Fix
     std::string groupHandle; //!< Group to which the Fix applies
-    std::string type; //!< Unused. \todo Check if really unused, then remove
+    const std::string type; //!< String naming the Fix type
     int applyEvery; //!< Applyt this fix every this many timesteps
     unsigned int groupTag; //!< Bitmask for the group handle
 
-    bool forceSingle; //!< True if this Fix contributes to single point energy.
+    const bool forceSingle; //!< True if Fix contributes to single point energy.
     int orderPreference; //!< Fixes with a high order preference are calculated
                          //!< later.
 

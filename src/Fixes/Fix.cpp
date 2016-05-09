@@ -12,13 +12,14 @@ Fix::Fix(SHARED(State) state_,
          std::string handle_,
          std::string groupHandle_,
          std::string type_,
+         bool forceSingle_,
          int applyEvery_)
     : state(state_.get()),
       handle(handle_),
       groupHandle(groupHandle_),
       type(type_),
       applyEvery(applyEvery_),
-      forceSingle(false),
+      forceSingle(forceSingle_),
       orderPreference(0),
       restartHandle(type + "_" + handle)
 {
