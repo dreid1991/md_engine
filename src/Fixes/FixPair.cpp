@@ -98,19 +98,21 @@ void FixPair::initializeParameters(string paramHandle,
     paramMapPreproc[paramHandle] = vector<float>();
 }
 
-
 string FixPair::restartChunkPairParams(string format) {
-    stringstream ss;
-    //ignoring format for now
-    for (auto it=paramMap.begin(); it!=paramMap.end(); it++) {
-        ss << "<" << it->first << ">\n";
-        for (float x : *(it->second)) {
-            ss << x << "\n";
-        }
-        ss << "</" << it->first << ">\n";
+  stringstream ss;
+  char buffer[128];
+  //ignoring format for now                                                                                                                               
+  for (auto it=paramMapPreproc.begin(); it!=paramMapPreproc.end(); it++) {
+    sprintf(buffer, "<parameter handle=\"%s\">", it->first.c_str());
+    ss << buffer << "\n";
+    for (float x : (it->second)) {
+      ss << x << "\n";
     }
-    return ss.str();
-}
+    ss << "</parameter>\n";
+  }
+  return ss.str();
+}    
+
 void export_FixPair() {
     py::class_<FixPair,
     py::bases<Fix> > (

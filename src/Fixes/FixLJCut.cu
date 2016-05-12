@@ -86,25 +86,31 @@ bool FixLJCut::prepareForRun() {
 }
 
 string FixLJCut::restartChunk(string format) {
-    //test this
     stringstream ss;
-    ss << "<" << restartHandle << ">\n";
     ss << restartChunkPairParams(format);
-    ss << "</" << restartHandle << ">\n";
     return ss.str();
 }
 
 bool FixLJCut::readFromRestart(pugi::xml_node restData) {
-    vector<float> epsilons = xml_readNums<float>(restData, epsHandle);
-    initializeParameters(epsHandle, epsilons);
-    vector<float> sigmas = xml_readNums<float>(restData, sigHandle);
-    initializeParameters(sigHandle, sigmas);
-    vector<float> rCuts = xml_readNums<float>(restData, rCutHandle);
-    initializeParameters(rCutHandle, rCuts);
+    cout << "Reading form restart\n";
+    auto curr_param = restData.first_child();
+    while (curr_param) {
+        if (curr_param.name() == "parameter") {
+           vector<float> val;
+           string paramHandle = curr_param.attribute("handle").value();
+           string s;
+           istringstream ss(curr_param.value());
+           while (ss >> s) {
+               val.push_back(atof(s.c_str()));
+           }
+           initializeParameters(paramHandle, val);
+        }
+        curr_param = curr_param.next_sibling();
+    }
     cout << "Reading LJ parameters from restart\n";
     return true;
-
 }
+
 bool FixLJCut::postRun() {
     resetToPreproc(sigHandle);
     resetToPreproc(epsHandle);

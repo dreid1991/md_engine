@@ -133,22 +133,26 @@ vector<Bond> buildBonds(pugi::xml_node &config, State *state, string tag, int nu
 */
 
 void loadFixes(pugi::xml_node &config, State *state) {
-    auto fixes_xml = config.child("fixes");
-    if (fixes_xml) {
+  auto fixes_xml = config.child("fixes");
+  if (fixes_xml) {
+    auto curr_fix = fixes_xml.first_child();
 
-      auto curr_fix = fixes_xml.first_child();
-      while (curr_fix) {
-	string handle = curr_fix.name();
-	// looping through fixes to find a match
+    string tag = curr_fix.name();
+    while (tag  == "fix") {
 
-	for (Fix *f : state->fixes) {
-	  if (f->restartHandle == handle) {
-	    f->readFromRestart(curr_fix);
-	  }
+      string handle = curr_fix.attribute("handle").value();
+      string type = curr_fix.attribute("type").value();
+
+      // looping through fixes to find a match                                                                                                          
+      for (Fix *f : state->fixes) {
+	if (f->handle == handle && f->type == type){
+	  f->readFromRestart(curr_fix);
 	}
-	curr_fix = curr_fix.next_sibling();
       }
+      curr_fix = curr_fix.next_sibling();
+      tag = curr_fix.name();
     }
+  }
 }
 
 bool ReadConfig::read() {
