@@ -4,12 +4,17 @@
 #include "cutils_func.h"
 #define SMALL 0.001f
 namespace py = boost::python;
-__global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureObject_t idToIdxs, ImproperHarmonicGPU *impropers, int *startstops, BoundsGPU bounds) {
+__global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureObject_t idToIdxs, ImproperGPU *impropers, int *startstops, BoundsGPU bounds, ImproperHarmonicType *parameters, int nParameters) {
     int idx = GETIDX();
-    extern __shared__ ImproperHarmonicGPU impropers_shr[];
+    extern __shared__ int all_shr[];
     int idxBeginCopy = startstops[blockDim.x*blockIdx.x];
     int idxEndCopy = startstops[min(nAtoms, blockDim.x*(blockIdx.x+1))];
-    copyToShared<ImproperHarmonicGPU>(impropers + idxBeginCopy, impropers_shr, idxEndCopy - idxBeginCopy);
+
+    ImproperGPU *impropers_shr = (ImproperGPU *) all_shr;
+    ImproperHarmonicType *parameters_shr = (ImproperHarmonicType *) (impropers_shr + (idxEndCopy - idxBeginCopy));
+    copyToShared<ImproperGPU>(impropers + idxBeginCopy, impropers_shr, idxEndCopy - idxBeginCopy);
+    copyToShared<ImproperHarmonicType>(parameters, parameters_shr, nParameters);
+
     __syncthreads();
     if (idx < nAtoms) { //HEY - THIS SHOULD BE < nAtoms
   //      printf("going to compute %d\n", idx);
@@ -20,7 +25,8 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
         int shr_idx = startIdx - idxBeginCopy;
         int n = endIdx - startIdx;
         if (n) {
-            int idSelf = impropers_shr[shr_idx].ids[impropers_shr[shr_idx].myIdx];
+            int myIdxInImproper = impropers_shr[shr_idx].type >> 29;
+            int idSelf = impropers_shr[shr_idx].ids[myIdxInImproper];
             
             int idxSelf = tex2D<int>(idToIdxs, XIDX(idSelf, sizeof(int)), YIDX(idSelf, sizeof(int)));
         
@@ -28,23 +34,27 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
            // printf("I am idx %d and I am evaluating atom with pos %f %f %f\n", idx, pos.x, pos.y, pos.z);
             float3 forceSum = make_float3(0, 0, 0);
             for (int i=0; i<n; i++) {
-                ImproperHarmonicGPU improper = impropers_shr[shr_idx + i];
+                ImproperGPU improper = impropers_shr[shr_idx + i];
+                uint32_t typeFull = improper.type;
+                myIdxInImproper = typeFull >> 29;
+                int type = static_cast<int>(typeFull & ~(8<<29));   
+                ImproperHarmonicType improperType = parameters_shr[type];
                 float3 positions[4];
-                positions[improper.myIdx] = pos;
+                positions[myIdxInImproper] = pos;
                 int toGet[3];
-                if (improper.myIdx==0) {
+                if (myIdxInImproper==0) {
                     toGet[0] = 1;
                     toGet[1] = 2;
                     toGet[2] = 3;
-                } else if (improper.myIdx==1) {
+                } else if (myIdxInImproper==1) {
                     toGet[0] = 0;
                     toGet[1] = 2;
                     toGet[2] = 3;
-                } else if (improper.myIdx==2) {
+                } else if (myIdxInImproper==2) {
                     toGet[0] = 0;
                     toGet[1] = 1;
                     toGet[2] = 3;
-                } else if (improper.myIdx==3) {
+                } else if (myIdxInImproper==3) {
                     toGet[0] = 0;
                     toGet[1] = 1;
                     toGet[2] = 2;
@@ -97,9 +107,9 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
                 if (s < SMALL) {
                     s = SMALL;
                 }
-                float dTheta = acosf(c) - improper.thetaEq;
+                float dTheta = acosf(c) - improperType.thetaEq;
 
-                float a = improper.k * dTheta;
+                float a = improperType.k * dTheta;
                 a *= -2.0f / s;
                 scValues[2] *= a;
                 c *= a;
@@ -116,7 +126,7 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
                         ,  a22*directors[1].y + a23*directors[2].y + a12*directors[0].y
                         ,  a22*directors[1].z + a23*directors[2].z + a12*directors[0].z
                         );
-                if (improper.myIdx <= 1) {
+                if (myIdxInImproper <= 1) {
                     float3 a11Dir1 = directors[0] * a11;
                     float3 a12Dir2 = directors[1] * a12;
                     float3 a13Dir3 = directors[2] * a13;
@@ -124,7 +134,7 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
                     myForce.y += a11Dir1.y + a12Dir2.y + a13Dir3.y;
                     myForce.z += a11Dir1.z + a12Dir2.z + a13Dir3.z;
 
-                    if (improper.myIdx == 1) {
+                    if (myIdxInImproper == 1) {
                         
                         myForce = -sFloat3 - myForce;
                     }
@@ -139,7 +149,7 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
                     myForce.x += a13Dir1.x + a23Dir2.x + a33Dir3.x;
                     myForce.y += a13Dir1.y + a23Dir2.y + a33Dir3.y;
                     myForce.z += a13Dir1.z + a23Dir2.z + a33Dir3.z;
-                    if (improper.myIdx == 2) {
+                    if (myIdxInImproper == 2) {
                         myForce = sFloat3 - myForce;
                    //     printf("improper idx 2 gets force %f %f %f\n", myForce.x, myForce.y, myForce.z);
                     }
@@ -168,7 +178,7 @@ FixImproperHarmonic::FixImproperHarmonic(SHARED(State) state_, string handle) : 
 void FixImproperHarmonic::compute(bool computeVirials) {
     int nAtoms = state->atoms.size();
     int activeIdx = state->gpd.activeIdx();
-    compute_cu<<<NBLOCK(nAtoms), PERBLOCK, sizeof(ImproperHarmonicGPU) * maxForcersPerBlock>>>(nAtoms, state->gpd.xs(activeIdx), state->gpd.fs(activeIdx), state->gpd.idToIdxs.getTex(), forcersGPU.data(), forcerIdxs.data(), state->boundsGPU);
+    compute_cu<<<NBLOCK(nAtoms), PERBLOCK, sizeof(ImproperGPU) * maxForcersPerBlock + forcers.size() * sizeof(ImproperHarmonicType)>>>(nAtoms, state->gpd.xs(activeIdx), state->gpd.fs(activeIdx), state->gpd.idToIdxs.getTex(), forcersGPU.data(), forcerIdxs.data(), state->boundsGPU, parameters.data(), parameters.size());
 
 }
 

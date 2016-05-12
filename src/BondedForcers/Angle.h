@@ -7,7 +7,7 @@
 #include "cutils_math.h"
 #include <boost/variant.hpp>
 #include <array>
-
+class AngleHarmonic;
 void export_AngleHarmonic();
 
 class Angle {
@@ -15,30 +15,45 @@ class Angle {
         //going to try storing by id instead.  Makes preparing for a run less intensive
         int type;
         std::array<int, 3> ids;
+        void takeIds(Angle *);
 };
 
-
-
-class AngleHarmonic : public Angle {
+class AngleHarmonicType {
     public:
-        double thetaEq;
-        double k;
+        float k;
+        float thetaEq;
+        AngleHarmonicType(AngleHarmonic *);
+        AngleHarmonicType(){};
+        bool operator==(const AngleHarmonicType &) const;
+};
+
+class AngleHarmonic : public Angle, public AngleHarmonicType {
+    public:
         AngleHarmonic(Atom *a, Atom *b, Atom *c, double k_, double thetaEq_, int type_=1);
         AngleHarmonic(double k_, double thetaEq_, int type_=-1);
         AngleHarmonic(){};
-        void takeParameters(AngleHarmonic &);
-        void takeIds(AngleHarmonic &);
+        int type;
     
 };
 
-class AngleHarmonicGPU {
+//for forcer maps
+namespace std {
+    template<> struct hash<AngleHarmonicType> {
+        size_t operator() (AngleHarmonicType const& ang) const {
+            size_t seed = 0;
+            boost::hash_combine(seed, ang.k);
+            boost::hash_combine(seed, ang.thetaEq);
+            return seed;
+        }
+    };
+
+
+}
+class AngleGPU {
     public:
         int ids[3];
-        int myIdx;
-        float k;
-        float thetaEq;
-        void takeParameters(AngleHarmonic &);
-        void takeIds(AngleHarmonic &);
+        uint32_t type; //myIdx (which atom in these three we're actually calcing the for for) is stored in two left-most bits
+        void takeIds(Angle *);
 
 
 };

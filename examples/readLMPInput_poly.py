@@ -78,7 +78,7 @@ fixNVT = FixNVTRescale(state, 'temp', 'all', [0, 1], [0.1, 3.8], 100)
 state.activateFix(fixNVT)
 
 integVerlet = IntegraterVerlet(state)
-integVerlet.run(150000)
+integVerlet.run(15000)
 
 #integVerlet = IntegraterVerlet(state)
 #integVerlet.run(100000)

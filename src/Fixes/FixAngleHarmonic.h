@@ -6,7 +6,7 @@
 #include "VariantPyListInterface.h"
 
 void export_FixAngleHarmonic();
-class FixAngleHarmonic : public FixPotentialMultiAtom<AngleVariant, AngleHarmonic, AngleHarmonicGPU, 3> {
+class FixAngleHarmonic : public FixPotentialMultiAtom<AngleVariant, AngleHarmonic, Angle, AngleGPU, AngleHarmonicType, 3> {
 	public:
         FixAngleHarmonic(SHARED(State) state_, string handle);
         VariantPyListInterface<AngleVariant, AngleHarmonic> pyListInterface;

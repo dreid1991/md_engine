@@ -6,13 +6,16 @@
 #define EPSILON 0.00001f
 //using namespace boost::python;
 namespace py = boost::python;
-
-__global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureObject_t idToIdxs, DihedralOPLSGPU *dihedrals, int *startstops, BoundsGPU bounds) {
+template <class DIHEDRALGPU, class DIHEDRALTYPE> //don't need DIHEDRALGPU, are all DihedralGPU.  Worry about later 
+__global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureObject_t idToIdxs, DIHEDRALGPU *dihedrals, int *startstops, BoundsGPU bounds, DIHEDRALTYPE *parameters, int nParameters) {
     int idx = GETIDX();
-    extern __shared__ DihedralOPLSGPU dihedrals_shr[];
+    extern __shared__ int all_shr[];
     int idxBeginCopy = startstops[blockDim.x*blockIdx.x];
     int idxEndCopy = startstops[min(nAtoms, blockDim.x*(blockIdx.x+1))];
-    copyToShared<DihedralOPLSGPU>(dihedrals + idxBeginCopy, dihedrals_shr, idxEndCopy - idxBeginCopy);
+    DIHEDRALGPU *dihedrals_shr = (DIHEDRALGPU *) all_shr;
+    DIHEDRALTYPE *parameters_shr = (DIHEDRALTYPE *) (dihedrals_shr + (idxEndCopy - idxBeginCopy));
+    copyToShared<DIHEDRALGPU>(dihedrals + idxBeginCopy, dihedrals_shr, idxEndCopy - idxBeginCopy);
+    copyToShared<DIHEDRALTYPE>(parameters, parameters_shr, nParameters);
     __syncthreads();
     if (idx < nAtoms) {
   //      printf("going to compute %d\n", idx);
@@ -23,7 +26,8 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
         int shr_idx = startIdx - idxBeginCopy;
         int n = endIdx - startIdx;
         if (n) {
-            int idSelf = dihedrals_shr[shr_idx].ids[dihedrals_shr[shr_idx].myIdx];
+            int myIdxInDihedral = dihedrals_shr[shr_idx].type >> 29;
+            int idSelf = dihedrals_shr[shr_idx].ids[myIdxInDihedral];
             
             int idxSelf = tex2D<int>(idToIdxs, XIDX(idSelf, sizeof(int)), YIDX(idSelf, sizeof(int)));
         
@@ -31,23 +35,28 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
            // printf("I am idx %d and I am evaluating atom with pos %f %f %f\n", idx, pos.x, pos.y, pos.z);
             float3 forceSum = make_float3(0, 0, 0);
             for (int i=0; i<n; i++) {
-                DihedralOPLSGPU dihedral = dihedrals_shr[shr_idx + i];
+                DIHEDRALGPU dihedral = dihedrals_shr[shr_idx + i];
+                uint32_t typeFull = dihedral.type;
+                myIdxInDihedral = typeFull >> 29;
+                int type = static_cast<int>(typeFull & ~(8<<29));
+                DIHEDRALTYPE dihedralType = parameters_shr[type];
+
                 float3 positions[4];
-                positions[dihedral.myIdx] = pos;
+                positions[myIdxInDihedral] = pos;
                 int toGet[3];
-                if (dihedral.myIdx==0) {
+                if (myIdxInDihedral==0) {
                     toGet[0] = 1;
                     toGet[1] = 2;
                     toGet[2] = 3;
-                } else if (dihedral.myIdx==1) {
+                } else if (myIdxInDihedral==1) {
                     toGet[0] = 0;
                     toGet[1] = 2;
                     toGet[2] = 3;
-                } else if (dihedral.myIdx==2) {
+                } else if (myIdxInDihedral==2) {
                     toGet[0] = 0;
                     toGet[1] = 1;
                     toGet[2] = 3;
-                } else if (dihedral.myIdx==3) {
+                } else if (myIdxInDihedral==3) {
                     toGet[0] = 0;
                     toGet[1] = 1;
                     toGet[2] = 2;
@@ -134,10 +143,10 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
                 float invSinPhi = 1.0f / sinPhi;
 
                 float derivOfPotential = 0.5 * (
-                             dihedral.coefs[0] 
-                    - 2.0f * dihedral.coefs[1] * sinf(2.0f*phi) * invSinPhi
-                    + 3.0f * dihedral.coefs[2] * sinf(3.0f*phi) * invSinPhi
-                    - 4.0f * dihedral.coefs[3] * sinf(4.0f*phi) * invSinPhi
+                             dihedralType.coefs[0] 
+                    - 2.0f * dihedralType.coefs[1] * sinf(2.0f*phi) * invSinPhi
+                    + 3.0f * dihedralType.coefs[2] * sinf(3.0f*phi) * invSinPhi
+                    - 4.0f * dihedralType.coefs[3] * sinf(4.0f*phi) * invSinPhi
                     )
                     ;
             //    printf("deriv is %f\n", derivOfPotential);
@@ -163,7 +172,7 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
                 //printf("ssomething valyes %f %f %f\n", sFloat3.x, sFloat3.y, sFloat3.z);
                 //printf("comps %f %f %f %f %f %f\n", a12, directors[0].x,  a22, directors[1].x,  a23, directors[2].x);
 
-                if (dihedral.myIdx <= 1) {
+                if (myIdxInDihedral <= 1) {
                     float3 a11Dir1 = directors[0] * a11;
                     float3 a12Dir2 = directors[1] * a12;
                     float3 a13Dir3 = directors[2] * a13;
@@ -171,7 +180,7 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
                     myForce.y += a11Dir1.y + a12Dir2.y + a13Dir3.y;
                     myForce.z += a11Dir1.z + a12Dir2.z + a13Dir3.z;
 
-                    if (dihedral.myIdx == 1) {
+                    if (myIdxInDihedral == 1) {
                         
                         myForce = -sFloat3 - myForce;
                   //      printf("dihedral idx 1 gets force %f %f %f\n", myForce.x, myForce.y, myForce.z);
@@ -186,7 +195,7 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
                     myForce.x += a13Dir1.x + a23Dir2.x + a33Dir3.x;
                     myForce.y += a13Dir1.y + a23Dir2.y + a33Dir3.y;
                     myForce.z += a13Dir1.z + a23Dir2.z + a33Dir3.z;
-                    if (dihedral.myIdx == 2) {
+                    if (myIdxInDihedral == 2) {
                         myForce = sFloat3 - myForce;
                    //     printf("dihedral idx 2 gets force %f %f %f\n", myForce.x, myForce.y, myForce.z);
                     }
@@ -218,7 +227,8 @@ void FixDihedralOPLS::compute(bool computeVirials) {
 
 
     //cout << "max forcers " << maxForcersPerBlock << endl;
-    compute_cu<<<NBLOCK(nAtoms), PERBLOCK, sizeof(DihedralOPLSGPU) * maxForcersPerBlock>>>(nAtoms, state->gpd.xs(activeIdx), state->gpd.fs(activeIdx), state->gpd.idToIdxs.getTex(), forcersGPU.data(), forcerIdxs.data(), state->boundsGPU);
+
+    compute_cu<<<NBLOCK(nAtoms), PERBLOCK, sizeof(DihedralGPU) * maxForcersPerBlock + sizeof(DihedralOPLSType) * parameters.size() >>>(nAtoms, state->gpd.xs(activeIdx), state->gpd.fs(activeIdx), state->gpd.idToIdxs.getTex(), forcersGPU.data(), forcerIdxs.data(), state->boundsGPU, parameters.data(), parameters.size());
 
 }
 

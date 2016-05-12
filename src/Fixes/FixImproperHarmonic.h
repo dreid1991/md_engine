@@ -7,7 +7,7 @@
 #include "VariantPyListInterface.h"
 
 void export_FixImproperHarmonic();
-class FixImproperHarmonic: public FixPotentialMultiAtom<ImproperVariant, ImproperHarmonic, ImproperHarmonicGPU, 4> {
+class FixImproperHarmonic: public FixPotentialMultiAtom<ImproperVariant, ImproperHarmonic, Improper, ImproperGPU, ImproperHarmonicType, 4> {
 	public:
         FixImproperHarmonic(SHARED(State) state_, string handle);
         VariantPyListInterface<ImproperVariant, ImproperHarmonic> pyListInterface;

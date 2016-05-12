@@ -14,33 +14,46 @@
 #include "TypedItemHolder.h"
 void export_FixPotentialMuliAtom();
 //#include "FixHelpers.h"
-template <class CPUVariant, class CPUMember, class GPUMember, int N>
+template <class CPUVariant, class CPUMember, class CPUBase, class GPUMember, class ForcerTypeHolder, int N>
 class FixPotentialMultiAtom : public Fix, public TypedItemHolder {
 	public:
         FixPotentialMultiAtom (SHARED(State) state_, std::string handle_, std::string type_) : Fix(state_, handle_, "None", type_, 1), forcersGPU(1), forcerIdxs(1) {
             forceSingle = true;
             maxForcersPerBlock = 0;
         }
+        //TO DO - make copies of the forcer, forcer typesbefore doing all the prepare for run modifications
         std::vector<CPUVariant> forcers;
         boost::python::list pyForcers; //to be managed by the variant-pylist interface member of parent classes
-        std::unordered_map<int, CPUMember> forcerTypes;
+        std::unordered_map<int, ForcerTypeHolder> forcerTypes;
         GPUArrayDeviceGlobal<GPUMember> forcersGPU;
         GPUArrayDeviceGlobal<int> forcerIdxs;
-		//DataSet *eng;
-        //DataSet *press;
+        GPUArrayDeviceGlobal<ForcerTypeHolder> parameters;
+
         bool prepareForRun() {
-            for (CPUVariant &forcerVar : forcers) { //applying types to individual elements
-                CPUMember &forcer= boost::get<CPUMember>(forcerVar);
-                if (forcer.type != -1) {
-                    auto it = forcerTypes.find(forcer.type);
-                    if (it == forcerTypes.end()) {
-                        cout << "Invalid bonded potential type " << forcer.type << endl;
-                        assert(it != forcerTypes.end());
-                    }
-                    forcer.takeParameters(it->second); 
-                }
+            int maxExistingType = -1;
+            std::unordered_map<ForcerTypeHolder, int> reverseMap;
+            for (auto it=forcerTypes.begin(); it!=forcerTypes.end(); it++) {
+                maxExistingType = fmax(it->first, maxExistingType);
+                reverseMap[it->second] = it->first;
             }
-            maxForcersPerBlock = copyMultiAtomToGPU<CPUVariant, CPUMember, GPUMember, N>(state->atoms.size(), forcers, state->idxFromIdCache, &forcersGPU, &forcerIdxs);
+
+            for (CPUVariant &forcerVar : forcers) { //collecting un-typed forcers into types
+                CPUMember &forcer= boost::get<CPUMember>(forcerVar);
+                if (forcer.type == -1) {
+                    ForcerTypeHolder typeHolder = ForcerTypeHolder(&forcer);
+                    bool parameterFound = reverseMap.find(typeHolder) != reverseMap.end();
+                    if (parameterFound) {
+                        forcer.type = reverseMap[typeHolder];
+                    } else {
+                        maxExistingType+=1;
+                        forcerTypes[maxExistingType] = typeHolder;
+                        reverseMap[typeHolder] = maxExistingType;
+                        forcer.type = maxExistingType;
+
+                    }
+                } 
+            }
+            maxForcersPerBlock = copyMultiAtomToGPU<CPUVariant, CPUBase, CPUMember, GPUMember, ForcerTypeHolder, N>(state->atoms.size(), forcers, state->idxFromIdCache, &forcersGPU, &forcerIdxs, &forcerTypes, &parameters, maxExistingType);
 
             return true;
         }
@@ -49,7 +62,8 @@ class FixPotentialMultiAtom : public Fix, public TypedItemHolder {
                 cout << "Tried to set bonded potential for invalid type " << n << endl;
                 assert(n>=0);
             }
-            forcerTypes[n] = forcer;
+            ForcerTypeHolder holder (&forcer); 
+            forcerTypes[n] = holder;
         }
 
         void atomsValid(std::vector<Atom *> &atoms) {

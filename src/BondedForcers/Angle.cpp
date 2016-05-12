@@ -9,6 +9,12 @@ AngleHarmonic::AngleHarmonic(Atom *a, Atom *b, Atom *c, double k_, double thetaE
     type = type_;
 }
 
+void Angle::takeIds(Angle *other) {
+    for (int i=0; i<3; i++) {
+        ids[i] = other->ids[i];
+    }
+}
+
 AngleHarmonic::AngleHarmonic(double k_, double thetaEq_, int type_) {
     for (int i=0; i<3; i++) {
         ids[i] = -1;
@@ -19,30 +25,22 @@ AngleHarmonic::AngleHarmonic(double k_, double thetaEq_, int type_) {
 }
 
 
-void AngleHarmonic::takeParameters(AngleHarmonic &other) {
-    k = other.k;
-    thetaEq = other.thetaEq;
-}
-void AngleHarmonic::takeIds(AngleHarmonic &other) {
+void AngleGPU::takeIds(Angle *other) {
     for (int i=0; i<3; i++) {
-        ids[i] = other.ids[i];
-    }
-
-}
-
-void AngleHarmonicGPU::takeParameters(AngleHarmonic &other) {
-    k = other.k;
-    thetaEq = other.thetaEq;
-}
-void AngleHarmonicGPU::takeIds(AngleHarmonic &other) {
-    for (int i=0; i<3; i++) {
-        ids[i] = other.ids[i];
+        ids[i] = other->ids[i];
     }
 }
 
 
+AngleHarmonicType::AngleHarmonicType(AngleHarmonic *angle) {
+    k = angle->k;
+    thetaEq = angle->thetaEq;
+}
+
+bool AngleHarmonicType::operator==(const AngleHarmonicType &other) const {
+    return k == other.k and thetaEq == other.thetaEq;
+}
 void export_AngleHarmonic() {
-//need to expose ids or atoms somehow.  Could just do id1, 2, 3. Would prefer not to use any heap memory or pointers to make it trivially copyable  
     boost::python::class_<AngleHarmonic, SHARED(AngleHarmonic)> ( "AngleHarmonic", boost::python::init<>())
         .def_readwrite("thetaEq", &AngleHarmonic::thetaEq)
         .def_readwrite("k", &AngleHarmonic::k)

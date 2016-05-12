@@ -21,29 +21,28 @@ ImproperHarmonic::ImproperHarmonic(double k_, double thetaEq_, int type_) {
     type = type_;
 
 }
-void ImproperHarmonic::takeParameters(ImproperHarmonic &other) {
-    k = other.k;
-    thetaEq = other.thetaEq;
-}
 
-void ImproperHarmonic::takeIds(ImproperHarmonic &other) {
+void Improper::takeIds(Improper *other) {
     for (int i=0; i<4; i++) {
-        ids[i] = other.ids[i];
+        ids[i] = other->ids[i];
     }
 }
 
 
-void ImproperHarmonicGPU::takeParameters(ImproperHarmonic &other) {
-    k = other.k;
-    thetaEq = other.thetaEq;
-}
 
-void ImproperHarmonicGPU::takeIds(ImproperHarmonic &other) {
+void ImproperGPU::takeIds(Improper *other) {
     for (int i=0; i<4; i++) {
-        ids[i] = other.ids[i];
+        ids[i] = other->ids[i];
     }
 }
 
+ImproperHarmonicType::ImproperHarmonicType(ImproperHarmonic *imp) {
+    k = imp->k;
+    thetaEq = imp->thetaEq;
+}
+bool ImproperHarmonicType::operator==(const ImproperHarmonicType &other) const {
+    return k == other.k and thetaEq == other.thetaEq;
+}
 
 
 

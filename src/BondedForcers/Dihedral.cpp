@@ -23,32 +23,33 @@ DihedralOPLS::DihedralOPLS(double coefs_[4], int type_) {
     type = type_;
 }
 
-void DihedralOPLS::takeParameters(DihedralOPLS &other) {
+void Dihedral::takeIds(Dihedral *other) {
     for (int i=0; i<4; i++) {
-        coefs[i] = other.coefs[i];
-    }
-}
-
-void DihedralOPLS::takeIds(DihedralOPLS &other) {
-    for (int i=0; i<4; i++) {
-        ids[i] = other.ids[i];
-    }
-}
-
-void DihedralOPLSGPU::takeParameters(DihedralOPLS &other) {
-    for (int i=0; i<4; i++) {
-        coefs[i] = other.coefs[i];
-    }
-}
-
-void DihedralOPLSGPU::takeIds(DihedralOPLS &other) {
-    for (int i=0; i<4; i++) {
-        ids[i] = other.ids[i];
+        ids[i] = other->ids[i];
     }
 }
 
 
+void DihedralGPU::takeIds(Dihedral *other) {
+    for (int i=0; i<4; i++) {
+        ids[i] = other->ids[i];
+    }
+}
 
+DihedralOPLSType::DihedralOPLSType(DihedralOPLS *dihedral) {
+    for (int i=0; i<4; i++) {
+        coefs[i] = dihedral->coefs[i];
+    }
+}
+
+bool DihedralOPLSType::operator==(const DihedralOPLSType &other) const {
+    for (int i=0; i<4; i++) {
+        if (coefs[i] != other.coefs[i]) {
+            return false;
+        }
+    }
+    return true;
+}
 
 void export_Dihedrals() {
     py::class_<DihedralOPLS, SHARED(DihedralOPLS)> ( "SimDihedralOPLS", py::init<>())

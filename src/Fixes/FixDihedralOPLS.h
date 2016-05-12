@@ -7,7 +7,7 @@
 #include "VariantPyListInterface.h"
 
 void export_FixDihedralOPLS();
-class FixDihedralOPLS : public FixPotentialMultiAtom<DihedralVariant, DihedralOPLS, DihedralOPLSGPU, 4> {
+class FixDihedralOPLS : public FixPotentialMultiAtom<DihedralVariant, DihedralOPLS, Dihedral, DihedralGPU, DihedralOPLSType, 4> {
 	public:
         FixDihedralOPLS(SHARED(State) state_, string handle);
         VariantPyListInterface<DihedralVariant, DihedralOPLS> pyListInterface;

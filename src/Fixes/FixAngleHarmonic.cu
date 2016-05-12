@@ -5,12 +5,15 @@
 #include "cutils_func.h"
 #define SMALL 0.0001f
 namespace py = boost::python;
-__global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureObject_t idToIdxs, AngleHarmonicGPU *angles, int *startstops, BoundsGPU bounds) {
+__global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureObject_t idToIdxs, AngleGPU *angles, int *startstops, BoundsGPU bounds, AngleHarmonicType *parameters, int nTypes) {
     int idx = GETIDX();
-    extern __shared__ AngleHarmonicGPU angles_shr[];
+    extern __shared__ int all_shr[];
     int idxBeginCopy = startstops[blockDim.x*blockIdx.x];
     int idxEndCopy = startstops[min(nAtoms, blockDim.x*(blockIdx.x+1))];
-    copyToShared<AngleHarmonicGPU>(angles + idxBeginCopy, angles_shr, idxEndCopy - idxBeginCopy);
+    AngleGPU *angles_shr = (AngleGPU *) all_shr;
+    AngleHarmonicType *parameters_shr = (AngleHarmonicType *) (angles_shr + (idxEndCopy - idxBeginCopy));
+    copyToShared<AngleGPU>(angles + idxBeginCopy, angles_shr, idxEndCopy - idxBeginCopy);
+    copyToShared<AngleHarmonicType>(parameters, parameters_shr, nTypes);
     __syncthreads();
     if (idx < nAtoms) {
   //      printf("going to compute %d\n", idx);
@@ -21,7 +24,8 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
         int shr_idx = startIdx - idxBeginCopy;
         int n = endIdx - startIdx;
         if (n>0) {
-            int idSelf = angles_shr[shr_idx].ids[angles_shr[shr_idx].myIdx];
+            int myIdxInAngle = angles_shr[shr_idx].type >> 29;
+            int idSelf = angles_shr[shr_idx].ids[myIdxInAngle];
 
             int idxSelf = tex2D<int>(idToIdxs, XIDX(idSelf, sizeof(int)), YIDX(idSelf, sizeof(int)));
             float3 pos = make_float3(xs[idxSelf]);
@@ -29,17 +33,21 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
             float3 forceSum = make_float3(0, 0, 0);
             for (int i=0; i<n; i++) {
              //   printf("ANGLE! %d\n", i);
-                AngleHarmonicGPU angle = angles_shr[shr_idx + i];
+                AngleGPU angle = angles_shr[shr_idx + i];
+                uint32_t typeFull = angle.type;
+                myIdxInAngle = typeFull >> 29;
+                int type = static_cast<int>(typeFull & ~(8<<29));
+                AngleHarmonicType angleType = parameters_shr[type];
                 float3 positions[3];
-                positions[angle.myIdx] = pos;
+                positions[myIdxInAngle] = pos;
                 int toGet[2];
-                if (angle.myIdx==0) {
+                if (myIdxInAngle==0) {
                     toGet[0] = 1;
                     toGet[1] = 2;
-                } else if (angle.myIdx==1) {
+                } else if (myIdxInAngle==1) {
                     toGet[0] = 0;
                     toGet[1] = 2;
-                } else if (angle.myIdx==2) {
+                } else if (myIdxInAngle==2) {
                     toGet[0] = 0;
                     toGet[1] = 1;
                 }
@@ -76,18 +84,18 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
                     s = SMALL;
                 }
                 s = 1.0f / s;
-                float dTheta = acosf(c) - angle.thetaEq;
+                float dTheta = acosf(c) - angleType.thetaEq;
               //  printf("%f %f\n", acosf(c), angle.thetaEq);
-                float forceConst = angle.k * dTheta;
+                float forceConst = angleType.k * dTheta;
                 float a = -2.0f * forceConst * s;
                 float a11 = a*c/distSqrs[0];
                 float a12 = -a*invDistProd;
                 float a22 = a*c/distSqrs[1];
              //   printf("forceConst %f a %f s %f dists %f %f %f\n", forceConst, a, s, a11, a12, a22);
 
-                if (angle.myIdx==0) {
+                if (myIdxInAngle==0) {
                     forceSum += ((directors[0] * a11) + (directors[1] * a12)) * 0.5;
-                } else if (angle.myIdx==1) {
+                } else if (myIdxInAngle==1) {
                     forceSum -= ((directors[0] * a11) + (directors[1] * a12) + (directors[1] * a22) + (directors[0] * a12)) * 0.5; 
                 } else {
                     forceSum += ((directors[1] * a22) + (directors[0] * a12)) * 0.5;
@@ -117,7 +125,7 @@ void FixAngleHarmonic::compute(bool computeVirials) {
         printf("Angle ids k theta %d %d %d %f %f\n", a.ids[0], a.ids[1], a.ids[2], a.k, a.thetaEq);
     }
     */
-    compute_cu<<<NBLOCK(nAtoms), PERBLOCK, sizeof(AngleHarmonicGPU) * maxForcersPerBlock>>>(nAtoms, state->gpd.xs(activeIdx), state->gpd.fs(activeIdx), state->gpd.idToIdxs.getTex(), forcersGPU.data(), forcerIdxs.data(), state->boundsGPU);
+    compute_cu<<<NBLOCK(nAtoms), PERBLOCK, sizeof(AngleGPU) * maxForcersPerBlock + parameters.size() * sizeof(AngleHarmonicType)>>>(nAtoms, state->gpd.xs(activeIdx), state->gpd.fs(activeIdx), state->gpd.idToIdxs.getTex(), forcersGPU.data(), forcerIdxs.data(), state->boundsGPU, parameters.data(), parameters.size());
 
 }
 
