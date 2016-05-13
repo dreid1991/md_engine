@@ -12,7 +12,9 @@ deps/*.Td
 python/test/*xml
 python/test/*png
 benchmark/*xyz
+examples/*xyz
 ./*xml
+src/src/CMakeFiles
 # Emacs backups:
 *~
 # Documentation:

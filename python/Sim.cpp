@@ -20,6 +20,7 @@ using namespace std;
 #include "includeFixes.h"
 #include "IntegraterVerlet.h"
 #include "IntegraterRelax.h"
+#include "IntegraterLangevin.h"
 #include "boost_stls.h"
 #include "PythonOperation.h"
 //#include "DataManager.h"
@@ -28,6 +29,10 @@ using namespace std;
 #include "DataSetEnergy.h"
 #include "DataSetBounds.h"
 #include "ReadConfig.h"
+#include "TypedItemHolder.h"
+#include "Angle.h"
+#include "Dihedral.h"
+#include "Improper.h"
 //#include "DataTools.h"
 BOOST_PYTHON_MODULE(Sim) {
     export_stls();	
@@ -40,18 +45,29 @@ BOOST_PYTHON_MODULE(Sim) {
     export_Integrater();
     export_IntegraterVerlet();
     export_IntegraterRelax();
+    export_IntegraterLangevin();
+    export_TypedItemHolder();
     export_Fix();
     export_FixBondHarmonic();
+    export_BondHarmonic();
+    
     export_FixAngleHarmonic();
+    export_AngleHarmonic();
+
     export_FixImproperHarmonic();
+    export_Impropers();
     export_FixDihedralOPLS();
+    export_Dihedrals();
     export_FixWallHarmonic();
     export_FixSpringStatic();
-    export_FixLJCut(); //make there be a pair base class in boost!
     export_Fix2d();
+
+    export_FixPair();
+    export_FixLJCut(); //make there be a pair base class in boost!
     
     export_FixCharge();
     export_FixChargePairDSF();
+    export_FixChargeEwald();
     
     export_FixNVTRescale();
 
