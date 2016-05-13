@@ -36,7 +36,7 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
                 AngleGPU angle = angles_shr[shr_idx + i];
                 uint32_t typeFull = angle.type;
                 myIdxInAngle = typeFull >> 29;
-                int type = static_cast<int>(typeFull & ~(8<<29));
+                int type = static_cast<int>((typeFull << 3) >> 3);
                 AngleHarmonicType angleType = parameters_shr[type];
                 float3 positions[3];
                 positions[myIdxInAngle] = pos;
@@ -85,7 +85,7 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
                 }
                 s = 1.0f / s;
                 float dTheta = acosf(c) - angleType.thetaEq;
-              //  printf("%f %f\n", acosf(c), angle.thetaEq);
+             //   printf("current %f theta eq %f idx %d, type %d\n", acosf(c), angleType.thetaEq, myIdxInAngle, type);
                 float forceConst = angleType.k * dTheta;
                 float a = -2.0f * forceConst * s;
                 float a11 = a*c/distSqrs[0];

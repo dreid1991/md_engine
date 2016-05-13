@@ -38,7 +38,7 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
                 DIHEDRALGPU dihedral = dihedrals_shr[shr_idx + i];
                 uint32_t typeFull = dihedral.type;
                 myIdxInDihedral = typeFull >> 29;
-                int type = static_cast<int>(typeFull & ~(8<<29));
+                int type = static_cast<int>((typeFull << 3) >> 3);
                 DIHEDRALTYPE dihedralType = parameters_shr[type];
 
                 float3 positions[4];

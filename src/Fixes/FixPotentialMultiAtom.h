@@ -40,8 +40,11 @@ class FixPotentialMultiAtom : public Fix, public TypedItemHolder {
             for (CPUVariant &forcerVar : forcers) { //collecting un-typed forcers into types
                 CPUMember &forcer= boost::get<CPUMember>(forcerVar);
                 if (forcer.type == -1) {
+                    //cout << "gotta do" << endl;
+                    //cout << "max existing type " << maxExistingType  << endl;
                     ForcerTypeHolder typeHolder = ForcerTypeHolder(&forcer);
                     bool parameterFound = reverseMap.find(typeHolder) != reverseMap.end();
+                    //cout << "is found " << parameterFound << endl;
                     if (parameterFound) {
                         forcer.type = reverseMap[typeHolder];
                     } else {
@@ -49,6 +52,7 @@ class FixPotentialMultiAtom : public Fix, public TypedItemHolder {
                         forcerTypes[maxExistingType] = typeHolder;
                         reverseMap[typeHolder] = maxExistingType;
                         forcer.type = maxExistingType;
+                        //cout << "assigning type of " << forcer.type << endl;
 
                     }
                 } 

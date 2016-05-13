@@ -37,7 +37,7 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
                 ImproperGPU improper = impropers_shr[shr_idx + i];
                 uint32_t typeFull = improper.type;
                 myIdxInImproper = typeFull >> 29;
-                int type = static_cast<int>(typeFull & ~(8<<29));   
+                int type = static_cast<int>((typeFull << 3) >> 3);   
                 ImproperHarmonicType improperType = parameters_shr[type];
                 float3 positions[4];
                 positions[myIdxInImproper] = pos;
