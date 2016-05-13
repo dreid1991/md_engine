@@ -58,23 +58,22 @@ class GridGPU {
      * atoms are sorted correctly into the grid cells.
      */
     bool checkSorting(int gridIdx, int *gridIdxs, GPUArrayDeviceGlobal<int> &grid);
-    public: 
-        GPUArrayGlobal<uint32_t> perCellArray; //!< Number of atoms in a given grid cell, later starting index of cell in neighborlist
-        GPUArrayGlobal<uint32_t> perBlockArray; //!< Number of neighbors in a GPU block
+    public:
+        GPUArrayGlobal<uint32_t> perCellArray;      //!< Number of atoms in a given grid cell, later starting index of cell in neighborlist
+        GPUArrayGlobal<uint32_t> perBlockArray;     //!< Number of neighbors in a GPU block
         GPUArrayDeviceGlobal<uint16_t> perBlockArray_maxNeighborsInBlock; //!< array for holding max # neighs of atoms in a GPU block
-        GPUArrayGlobal<uint16_t> perAtomArray; //!< For each atom, store the place in the
-                                    //!< grid
-        GPUArrayDeviceGlobal<float4> xsLastBuild; //!< Contains the atom positions at
-                                            //!< the time of the last build.
-        GPUArrayGlobal<int> buildFlag; //!< If buildFlag[0] == true, neighbor list
-                                 //!< will be rebuilt
-        float3 ds; //!< Grid spacing in x-, y-, and z-dimension
-        float3 dsOrig; //!< Grid spacing at the time of construction
-        float3 os; //!< Point of origin (lower value for all bounds)
-        int3 ns; //!< Number of grid points in each dimension
-        GPUArrayDeviceGlobal<uint> neighborlist; //!< Neighbor list
-        State *state; //!< Pointer to the simulation state
-        float neighCutoffMax; //!< largest cutoff radius of any interacting pair + padding, default value for grid building
+        GPUArrayGlobal<uint16_t> perAtomArray;      //!< For each atom, store the place in the grid
+        GPUArrayDeviceGlobal<float4> xsLastBuild;   //!< Contains the atom positions at
+                                                    //!< the time of the last build.
+        GPUArrayGlobal<int> buildFlag;  //!< If buildFlag[0] == true, neighbor list
+                                        //!< will be rebuilt
+        float3 ds;      //!< Grid spacing in x-, y-, and z-dimension
+        float3 dsOrig;  //!< Grid spacing at the time of construction
+        float3 os;      //!< Point of origin (lower value for all bounds)
+        int3 ns;        //!< Number of grid points in each dimension
+        GPUArrayDeviceGlobal<uint> neighborlist;    //!< Neighbor list
+        State *state;   //!< Pointer to the simulation state
+        float neighCutoffMax;   //!< largest cutoff radius of any interacting pair + padding, default value for grid building
 
         /*! \brief Constructor
          *
@@ -102,8 +101,7 @@ class GridGPU {
          * commensurate with the box dimensions.
          *
          * \todo Here it would be nicer to have a constructor that takes the
-         *       AtomGrid directly like
-         *       explicit GridGPU(AtomGrid const &atomGrid)
+         *       AtomGrid directly like explicit GridGPU(AtomGrid const &atomGrid)
          */
         GridGPU(State *state_, float3 ds_, float3 dsOrig_, float3 os_,
                                                         int3 ns_, float maxRCut_);
@@ -154,7 +152,7 @@ class GridGPU {
          * ExclusionList is a map connecting the atom id with a vector of sets
          * of other atom ids. The map should always be ordered.
          */
-		typedef std::map<int, std::vector<std::set<int>>> ExclusionList;
+        typedef std::map<int, std::vector<std::set<int>>> ExclusionList;
 
         /*! \brief Check if atoms are more closely connected than a given depth
          *
@@ -173,8 +171,8 @@ class GridGPU {
          * shortest chain connecting the atoms. This function assumes that
          * exclusion already contains all connections shorter than depth.
          */
-		bool closerThan(const ExclusionList &exclude,
-						int atomid, int otherid, int16_t depthi);
+        bool closerThan(const ExclusionList &exclude,
+                        int atomid, int otherid, int16_t depthi);
 
         /*! \brief Generate the exclusion list
          *
@@ -186,16 +184,16 @@ class GridGPU {
          * connection is defined as the minimum number of bonds separating the
          * atoms.
          */
-		ExclusionList generateExclusionList(const int16_t maxDepth);
-      //  ExclusionList exclusionList;
+        ExclusionList generateExclusionList(const int16_t maxDepth);
+        //ExclusionList exclusionList;
         GPUArrayDeviceGlobal<int> exclusionIndexes; //!< List of exclusion indices
-        GPUArrayDeviceGlobal<uint> exclusionIds; //!< List of excluded atom IDs
-        int maxExclusionsPerAtom; //!< Maximum number of exclusions for a
-                                  //!< single atom
-        int numChecksSinceLastBuild; //!< Number of calls to
-                                     //!< periodicBoundaryConditions without
-                                     //!< rebuilding neighbor list since last
-                                     //!< rebuild.
+        GPUArrayDeviceGlobal<uint> exclusionIds;    //!< List of excluded atom IDs
+        int maxExclusionsPerAtom;       //!< Maximum number of exclusions for a
+                                        //!< single atom
+        int numChecksSinceLastBuild;    //!< Number of calls to
+                                        //!< periodicBoundaryConditions without
+                                        //!< rebuilding neighbor list since last
+                                        //!< rebuild.
         cudaStream_t rebuildCheckStream; //!< Cuda Stream for asynchronous data
                                          //!< transfer.
 
@@ -207,4 +205,5 @@ class GridGPU {
          */
         void copyPositionsAsync();
 };
+
 #endif
