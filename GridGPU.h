@@ -1,13 +1,13 @@
 #ifndef GRID_GPU
 #define GRID_GPU
 
+#include <unordered_map>
+#include <unordered_set>
+#include <set>
 
 #include "cutils_math.h"
 #include "GPUArray.h"
 #include "GPUArrayTexDevice.h"
-#include <unordered_map>
-#include <unordered_set>
-#include <set>
 
 #include "boost_for_export.h"
 
@@ -22,10 +22,10 @@ class GridGPU {
     bool verifyNeighborlists(float neighCut);
     bool streamCreated;
     bool checkSorting(int gridIdx, int *gridIdxs, GPUArrayDevice<int> &grid);
-    public: 
+    public:
         GPUArray<int> perCellArray;
         GPUArray<int> perBlockArray;
-        GPUArray<int> perAtomArray; //during runtime this is the starting (+1 is ending) index for each neighbor
+        GPUArray<int> perAtomArray;  // during runtime this is the starting (+1 is ending) index for each neighbor
         GPUArrayDevice<float4> xsLastBuild;
         GPUArray<int> buildFlag;
         float3 ds;
@@ -33,20 +33,21 @@ class GridGPU {
         float3 os;
         int3 ns;
         GPUArrayDevice<uint> neighborlist;
-        State *state; 
+        State *state;
         GridGPU(State *state_, float dx, float dy, float dz);
         GridGPU(State *state_, float3 ds_, float3 dsOrig_, float3 os_, int3 ns_);
-        GridGPU(); // NEED TO CREATE STREAM OR WILL BE TRYING TO DESTROY NONEXISTANT STREAM
+        GridGPU();  // NEED TO CREATE STREAM OR WILL BE TRYING TO DESTROY NONEXISTANT STREAM
         ~GridGPU();
-        //need set2d function
+        // need set2d function
         void handleExclusions();
         void periodicBoundaryConditions(float neighCut, bool doSort, bool forceBuild=false);
-        //exclusion list stuff     
-		typedef map<int, vector<set<int>>> ExclusionList; //is ordered to make looping over by id in order easier
-		bool closerThan(const ExclusionList &exclude,
-						int atomid, int otherid, int16_t depthi);
-		ExclusionList generateExclusionList(const int16_t maxDepth);
-      //  ExclusionList exclusionList;
+
+        // exclusion list stuff
+        typedef map<int, vector<set<int>>> ExclusionList;  //is ordered to make looping over by id in order easier
+        bool closerThan(const ExclusionList &exclude,
+                        int atomid, int otherid, int16_t depthi);
+        ExclusionList generateExclusionList(const int16_t maxDepth);
+        // ExclusionList exclusionList;
         GPUArrayDevice<int> exclusionIndexes;
         GPUArrayDevice<uint> exclusionIds;
         int maxExclusionsPerAtom;

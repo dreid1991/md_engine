@@ -123,87 +123,6 @@ bool State::addBond(Atom *a, Atom *b, num k, num rEq) {
 */
 
 
-bool State::closerThan(const ExclusionList &exclude, 
-                       int atomid, int otherid, int16_t depthi) {
-    bool closerThan = false;
-    // because we want to check lower depths
-    --depthi;
-    while (depthi >= 0) {
-        const unordered_set<int> &closer = exclude.at(atomid)[depthi];
-        closerThan |= (closer.find(otherid) != closer.end());
-        --depthi;
-    }
-    // atoms are closer to themselves than any other depth away
-    closerThan |= (atomid == otherid);
-    return closerThan;
-}
-
-// allows us to extract any type of Bond from a BondVariant
-class bondDowncast : public boost::static_visitor<const Bond &> {
-	const BondVariant &_bv;
-	public:
-		bondDowncast(BondVariant &bv) : _bv(bv) {}
-		template <typename T>
-		const Bond &operator()(const T &b) const {
-			return boost::get<T>(_bv);
-		}
-};
-
-State::ExclusionList State::generateExclusionList(const int16_t maxDepth) {
-    
-    ExclusionList exclude;
-    // not called depth because it's really the depth index, which is one
-    // smaller than the depth
-    int16_t depthi = 0;
-    
-    // computes adjacent bonds (depth -> 1, depthi -> 0)
-    vector<vector<BondVariant> *> allBonds;
-    for (const Fix *f : fixes) {
-        vector<BondVariant> *fixBonds = f->getBonds();
-        if (fixBonds != nullptr) {
-            allBonds.push_back(fixBonds);
-        }
-    }
-    for (const Atom &atom : atoms) {
-        exclude[atom.id].push_back(unordered_set<int>());
-    }
-    for (const vector<BondVariant> *fixBonds : allBonds) {
-        for (const BondVariant &bondVariant : *fixBonds) {
-			// boost variant magic that takes any BondVariant and turns it into a Bond
-            const Bond &bond = boost::apply_visitor(bondDowncast(bondVariant), bondVariant);
-            // atoms in the same bond are 1 away from each other
-            exclude[bond.getAtomId(0)][depthi].insert(bond.getAtomId(1));
-            exclude[bond.getAtomId(1)][depthi].insert(bond.getAtomId(0));
-        }
-    }
-    ++depthi;
-    
-    // compute the rest
-    while (depthi < maxDepth) {
-        for (const Atom &atom : atoms) {
-            // for every atom at the previous depth away
-            exclude[atom.id].push_back(unordered_set<int>());
-            for (int extendFrom : exclude[atom.id][depthi-1]) {
-                // extend to all atoms bonded with it
-                exclude[atom.id][depthi].insert(
-                  exclude[extendFrom][0].begin(), exclude[extendFrom][0].end());
-            }
-            // remove all atoms that are already excluded to a lower degree
-            // TODO: may be a more efficient way
-            for (auto it = exclude[atom.id][depthi].begin();
-                 it != exclude[atom.id][depthi].end(); /*blank*/ ) {
-                if (closerThan(exclude, atom.id, *it, depthi)) {
-                   exclude[atom.id][depthi].erase(it++);
-                } else {
-                    ++it;
-                }
-            }
-        }
-        ++depthi;
-    }
-    return exclude;
-}
-
 bool State::removeAtom(Atom *a) {
 	if (!(a >= &(*atoms.begin()) && a < &(*atoms.end()))) {
 		return false;
@@ -259,7 +178,7 @@ Atom *State::atomFromId(int id) {
 int State::addSpecies(std::string handle, double mass) {
     int id = atomParams.addSpecies(handle, mass);
     if (id != -1) {
-        for (const Fix *f : fixes) {
+        for (Fix *f : fixes) {
             f->addSpecies(handle);
         }
     }
