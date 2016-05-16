@@ -18,9 +18,9 @@ using namespace std;
 #include "InitializeAtoms.h"
 #include "Bounds.h"
 #include "includeFixes.h"
-#include "IntegraterVerlet.h"
-#include "IntegraterRelax.h"
-#include "IntegraterLangevin.h"
+#include "IntegratorVerlet.h"
+#include "IntegratorRelax.h"
+#include "IntegratorLangevin.h"
 #include "boost_stls.h"
 #include "PythonOperation.h"
 //#include "DataManager.h"
@@ -42,10 +42,10 @@ BOOST_PYTHON_MODULE(Sim) {
     export_Atom();
     export_Neighbor();
     export_Bounds();
-    export_Integrater();
-    export_IntegraterVerlet();
-    export_IntegraterRelax();
-    export_IntegraterLangevin();
+    export_Integrator();
+    export_IntegratorVerlet();
+    export_IntegratorRelax();
+    export_IntegratorLangevin();
     export_TypedItemHolder();
     export_Fix();
     export_FixBondHarmonic();
