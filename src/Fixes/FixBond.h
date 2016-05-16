@@ -2,8 +2,11 @@
 #ifndef FIXBOND_H
 #define FIXBOND_H
 
+#include <boost/python/list.hpp>
+
 #include "Fix.h"
 #include "Bond.h"
+#include "State.h"
 
 #include "helpers.h" //cumulative sum
 #include <unordered_map>
@@ -65,8 +68,10 @@ class FixBond : public Fix, public TypedItemHolder {
         boost::python::list pyBonds;
         int maxBondsPerBlock;
         std::unordered_map<int, CPUMember> forcerTypes;
-        FixBond(SHARED(State) state_, string handle_, string groupHandle_, string type_, int applyEvery_) : Fix(state_, handle_, groupHandle_, type_, applyEvery_) {
-            forceSingle = true;
+        FixBond(SHARED(State) state_, string handle_, string groupHandle_, string type_,
+                bool forceSingle_, int applyEvery_)
+            : Fix(state_, handle_, groupHandle_, type_, forceSingle_, applyEvery_)
+        {
             maxBondsPerBlock = 0;
         }
         void setForcerType(int n, CPUMember &forcer) {

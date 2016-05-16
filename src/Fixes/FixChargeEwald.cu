@@ -1,11 +1,17 @@
 #include "FixChargeEwald.h"
+
+#include "BoundsGPU.h"
 #include "cutils_func.h"
+#include "GridGPU.h"
+#include "State.h"
 #include <cufft.h>
 #include "globalDefs.h"
 #include <fstream>
 
 // #include <cmath>
 using namespace std;
+
+const std::string chargeEwaldType = "ChargeEwald";
 
 // #define THREADS_PER_BLOCK_
 
@@ -342,7 +348,7 @@ __global__ void compute_short_range_forces_cu(int nAtoms, float4 *xs, float4 *fs
 }
 
 
-FixChargeEwald::FixChargeEwald(SHARED(State) state_, string handle_, string groupHandle_): FixCharge(state_, handle_, groupHandle_, chargePairDSF),first_run(true){
+FixChargeEwald::FixChargeEwald(SHARED(State) state_, string handle_, string groupHandle_): FixCharge(state_, handle_, groupHandle_, chargeEwaldType, true),first_run(true){
   cufftCreate(&plan);
 }
 
@@ -383,7 +389,7 @@ void FixChargeEwald::setParameters(int szx_,int szy_,int szz_,float rcut_,int in
     cudaMalloc((void**)&FFT_Ey, sizeof(cufftComplex)*sz.x*sz.y*sz.z);
     cudaMalloc((void**)&FFT_Ez, sizeof(cufftComplex)*sz.x*sz.y*sz.z);
     
-    Green_function=GPUArray<float>(sz.x*sz.y*sz.z);
+    Green_function=GPUArrayGlobal<float>(sz.x*sz.y*sz.z);
     CUT_CHECK_ERROR("setParameters execution failed");
     
 

@@ -1,5 +1,6 @@
 #include "Fix.h"
 #include "Bounds.h"
+#include "list_macro.h"
 #include "AtomParams.h"
 //#include "DataManager.h"
 #include "WriteConfig.h"
@@ -269,7 +270,7 @@ float State::getMaxRCut() {
     return maxRCut;
 }
 bool State::prepareForRun() {
-    //fixes have already prepared by the time the integrater calls this prepare
+    //fixes have already prepared by the time the integrator calls this prepare
     int nAtoms = atoms.size();
     std::vector<float4> xs_vec, vs_vec, fs_vec, fsLast_vec;
     std::vector<uint> ids;
@@ -316,12 +317,12 @@ bool State::prepareForRun() {
     boundsGPU = bounds.makeGPU();
     float maxRCut = getMaxRCut();
     gridGPU = grid.makeGPU(maxRCut);
-    gpd.xsBuffer = GPUArray<float4>(nAtoms);
-    gpd.vsBuffer = GPUArray<float4>(nAtoms);
-    gpd.fsBuffer = GPUArray<float4>(nAtoms);
-    gpd.fsLastBuffer = GPUArray<float4>(nAtoms);
-    gpd.idsBuffer = GPUArray<uint>(nAtoms);
-    gpd.perParticleEng = GPUArray<float>(nAtoms);
+    gpd.xsBuffer = GPUArrayGlobal<float4>(nAtoms);
+    gpd.vsBuffer = GPUArrayGlobal<float4>(nAtoms);
+    gpd.fsBuffer = GPUArrayGlobal<float4>(nAtoms);
+    gpd.fsLastBuffer = GPUArrayGlobal<float4>(nAtoms);
+    gpd.idsBuffer = GPUArrayGlobal<uint>(nAtoms);
+    gpd.perParticleEng = GPUArrayGlobal<float>(nAtoms);
 
     return true;
 }

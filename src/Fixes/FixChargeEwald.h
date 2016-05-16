@@ -3,6 +3,8 @@
 //#include "AtomParams.h"
 #include "FixCharge.h"
 
+#include "GPUArrayGlobal.h"
+
 class State;
 using namespace std;
 #include <cufft.h>
@@ -24,7 +26,7 @@ class FixChargeEwald : public FixCharge {
         cufftHandle plan;
         cufftComplex *FFT_Qs;//change to GPU arrays?
         cufftComplex *FFT_Ex,*FFT_Ey,*FFT_Ez;
-        GPUArray<float>Green_function;//Green function in k space
+        GPUArrayGlobal<float>Green_function;//Green function in k space
         int3 sz;
         float alpha;
         float r_cut;       

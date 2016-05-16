@@ -24,7 +24,7 @@
 
 #include "globalDefs.h"
 #include "GPUArrayTex.h"
-#include "GPUArray.h"
+#include "GPUArrayGlobal.h"
 
 #include "AtomParams.h"
 #include "Atom.h"
@@ -437,7 +437,7 @@ public:
      * already been prepared.
      *
      * \todo I suggest to move preparation of Fixes here from
-     *       Integrater::basicPrepare().
+     *       Integrator::basicPrepare().
      */
     bool prepareForRun();
 

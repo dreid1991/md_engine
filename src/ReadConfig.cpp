@@ -1,6 +1,7 @@
 #include "ReadConfig.h"
 #include "State.h"
 #include "xml_func.h"
+#include "includeFixes.h"
 #include <boost/lexical_cast.hpp> //for case string to int64 (turn)
 
 
@@ -130,6 +131,30 @@ vector<Bond> buildBonds(pugi::xml_node &config, State *state, string tag, int nu
 	return bonds;
 }
 */
+
+void loadFixes(pugi::xml_node &config, State *state) {
+  auto fixes_xml = config.child("fixes");
+  if (fixes_xml) {
+    auto curr_fix = fixes_xml.first_child();
+
+    string tag = curr_fix.name();
+    while (tag  == "fix") {
+
+      string handle = curr_fix.attribute("handle").value();
+      string type = curr_fix.attribute("type").value();
+
+      // looping through fixes to find a match                                                                                                          
+      for (Fix *f : state->fixes) {
+	if (f->handle == handle && f->type == type){
+	  f->readFromRestart(curr_fix);
+	}
+      }
+      curr_fix = curr_fix.next_sibling();
+      tag = curr_fix.name();
+    }
+  }
+}
+
 bool ReadConfig::read() {
     cout << "READING A CONFIG" << endl;
 	//state->deleteBonds();
@@ -197,6 +222,7 @@ bool ReadConfig::read() {
 
 	loadAtomParams(*config, state);
 	loadBounds(*config, state);
+	loadFixes(*config, state);
 	for (Atom &a : readAtoms) {
 		state->addAtomDirect(a);
 	}

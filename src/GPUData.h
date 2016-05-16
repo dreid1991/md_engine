@@ -1,8 +1,10 @@
 #pragma once
 #ifndef GPUDATA_H
 #define GPUDATA_H
+#include "GPUArrayGlobal.h"
 #include "GPUArrayPair.h"
 #include "GPUArrayDeviceGlobal.h"
+#include "GPUArrayTex.h"
 #include "Virial.h"
 
 class GPUData {
@@ -16,16 +18,16 @@ class GPUData {
         GPUArrayTex<int> idToIdxs;
 
 
-        GPUArray<float4> xsBuffer;
-        GPUArray<float4> vsBuffer;
-        GPUArray<float4> fsBuffer;
-        GPUArray<float4> fsLastBuffer;
-        GPUArray<uint> idsBuffer;
+        GPUArrayGlobal<float4> xsBuffer;
+        GPUArrayGlobal<float4> vsBuffer;
+        GPUArrayGlobal<float4> fsBuffer;
+        GPUArrayGlobal<float4> fsLastBuffer;
+        GPUArrayGlobal<uint> idsBuffer;
 
-        GPUArray<float> perParticleEng; //for data collection.  If we re-use per-particle arrays, we can't do async kernels to do per-group sums.  Would use less memory though
-        GPUArray<Virial> perParticleVirial;
+        GPUArrayGlobal<float> perParticleEng; //for data collection.  If we re-use per-particle arrays, we can't do async kernels to do per-group sums.  Would use less memory though
+        GPUArrayGlobal<Virial> perParticleVirial;
 
-    //OMG REMEMBER TO ADD EACH NEW ARRAY TO THE ACTIVE DATA LIST IN INTEGRATER OR PAIN AWAITS
+    //OMG REMEMBER TO ADD EACH NEW ARRAY TO THE ACTIVE DATA LIST IN INTEGRATOR OR PAIN AWAITS
 
         GPUData() : idToIdxs(cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindSigned)) {
         }

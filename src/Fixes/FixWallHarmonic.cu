@@ -1,8 +1,19 @@
 #include "FixWallHarmonic.h"
 
-FixWallHarmonic::FixWallHarmonic(SHARED(State) state_, string handle_, string groupHandle_, Vector origin_, Vector forceDir_, double dist_, double k_) : Fix(state_, handle_, groupHandle_, wallHarmonicType, 1), origin(origin_), forceDir(forceDir_.normalized()), dist(dist_), k(k_) {
+#include "boost_for_export.h"
+#include "cutils_math.h"
+#include "State.h"
+
+namespace py=boost::python;
+
+const std::string wallHarmonicType = "WallHarmonic";
+
+FixWallHarmonic::FixWallHarmonic(SHARED(State) state_, string handle_, string groupHandle_,
+                                 Vector origin_, Vector forceDir_, double dist_, double k_)
+    : Fix(state_, handle_, groupHandle_, wallHarmonicType, true, 1),
+      origin(origin_), forceDir(forceDir_.normalized()), dist(dist_), k(k_)
+{
     assert(dist >= 0);
-    forceSingle = true;
 }
 
 void __global__ compute_cu(float4 *xs, int nAtoms, float4 *fs, float3 origin, float3 forceDir, float dist, float k, uint groupTag) {
@@ -41,14 +52,10 @@ void FixWallHarmonic::compute(bool computeVirials) {
 }
 
 void export_FixWallHarmonic() {
-    boost::python::class_<FixWallHarmonic,
-                          SHARED(FixWallHarmonic),
-                          boost::python::bases<Fix> > (
+    py::class_<FixWallHarmonic, SHARED(FixWallHarmonic), py::bases<Fix> > (
         "FixWallHarmonic",
-        boost::python::init<SHARED(State), string, string, Vector,
-                            Vector, double, double> (
-            boost::python::args("state", "handle", "groupHandle", "origin",
-                                "forceDir", "dist", "k")
+        py::init<SHARED(State), string, string, Vector, Vector, double, double> (
+            py::args("state", "handle", "groupHandle", "origin", "forceDir", "dist", "k")
         )
     )
     .def_readwrite("k", &FixWallHarmonic::k)

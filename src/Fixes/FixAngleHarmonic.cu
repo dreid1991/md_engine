@@ -5,8 +5,8 @@
 #include "cutils_func.h"
 #define SMALL 0.0001f
 namespace py = boost::python;
+const std::string angleHarmonicType = "AngleHarmonic";
 __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureObject_t idToIdxs, AngleGPU *angles, int *startstops, BoundsGPU bounds, AngleHarmonicType *parameters, int nTypes) {
-    printf("hey");
     int idx = GETIDX();
     extern __shared__ int all_shr[];
     int idxBeginCopy = startstops[blockDim.x*blockIdx.x];
@@ -113,9 +113,7 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
 }
 
 
-FixAngleHarmonic::FixAngleHarmonic(SHARED(State) state_, string handle) : FixPotentialMultiAtom(state_, handle, angleHarmType), pyListInterface(&forcers, &pyForcers) {
-    forceSingle = true;
-}
+FixAngleHarmonic::FixAngleHarmonic(SHARED(State) state_, string handle) : FixPotentialMultiAtom(state_, handle, angleHarmonicType, true), pyListInterface(&forcers, &pyForcers) {}
 
 
 void FixAngleHarmonic::compute(bool computeVirials) {

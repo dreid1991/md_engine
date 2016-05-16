@@ -1,24 +1,20 @@
 #include "AtomGrid.h"
 
-#include <cassert>
-#include <iostream>
-
 #include "boost_for_export.h"
+#include "Logging.h"
 #include "Mod.h"
 #include "State.h"
 
+namespace py=boost::python;
 
 void AtomGrid::init(double dx_, double dy_, double dz_) {
-    if (not state->bounds.isSet) {
-        cout << "Trying to start grid without setting bounds!" << endl;
-        assert(state->bounds.isSet);
-    }
+    mdAssert(state->bounds.isSet, "Trying to start grid without setting bounds!");
     Vector trace = state->bounds.trace;
 	Vector attemptDDim = Vector(dx_, dy_, dz_);
 	VectorInt nGrid = trace / attemptDDim; //so rounding to bigger grid
 	Vector actualDDim = trace / nGrid; 
 	//making grid that is exactly size of box.  This way can compute offsets easily from Grid that doesn't have to deal with higher-level stuff like bounds	
-    cout << state->is2d << endl;
+    mdDebug("2d-simulation? %s", ((state->is2d) ? "True" : "False"));
 	is2d = state->is2d;
 	ns = nGrid;
 	ds = actualDDim;
@@ -26,7 +22,9 @@ void AtomGrid::init(double dx_, double dy_, double dz_) {
 	if (is2d) {
 		ns[2]=1;
 		ds[2]=1;
-		assert(os[2]==-.5);
+		mdAssert(os[2]==-.5,
+                 "Error with Point of Origin in 2d Simulation PoO(z) = %f, "
+                 "expected to be %f.", os[2], -0.5);
 	}
 	dsOrig = actualDDim;
     boundsOnGridding = state->bounds;
@@ -73,12 +71,20 @@ bool AtomGrid::adjustForChangedBounds() {
         Vector changeInTrace = (state->bounds.hi-state->bounds.lo) - (boundsOnGridding.hi-boundsOnGridding.lo);
         if ((state->bounds.lo-boundsOnGridding.lo).abs() > VectorEps &&
              state->bounds.lo > boundsOnGridding.lo) {
-            cout << "Warning - you shrank the lo vector of bounds in at least one dimension.  Gridding may fail" << endl;
+            mdWarning("You shrank the lo vector of bounds in at least one dimension. "
+                      "Gridding may fail. Old values: %s New values: %s",
+                      boundsOnGridding.lo.asStr().c_str(),
+                      state->bounds.lo.asStr().c_str());
+
             toReturn = false;
         }
         if ((state->bounds.hi-boundsOnGridding.hi).abs() > VectorEps &&
              state->bounds.hi < boundsOnGridding.hi) {
-            cout << "Warning - you shrank the hi vector of bounds in at least one dimension.  Gridding may fail" << endl;
+            mdWarning("You shrank the hi vector of bounds in at least one dimension. "
+                      "Gridding may fail. Old values: %s New values: %s",
+                      boundsOnGridding.hi.asStr().c_str(),
+                      state->bounds.hi.asStr().c_str());
+
             toReturn = false;
         }
         if (state->bounds.isSkewed()) {
@@ -87,11 +93,9 @@ bool AtomGrid::adjustForChangedBounds() {
                 for (int i=0; i<3; i++) {
                     state->bounds.sides[i][i] += changeInTrace[i];
                 }
-                if (not isConsistent(state->bounds)) {
-                    cout << "Bounds changed such that lo, hi, and sides, are not consistent" << endl;
-
-                    assert(false);
-                }
+                mdAssert(isConsistent(state->bounds),
+                         "Bounds changed such that lo, hi, and sides, are "
+                         "not consistent.");
 
             }
         } else {
@@ -125,7 +129,7 @@ GridGPU AtomGrid::makeGPU(float maxRCut) {
 }
 
 void AtomGrid::enforcePeriodic(Bounds bounds) {
-	vector<Atom> &atoms = state->atoms;
+    std::vector<Atom> &atoms = state->atoms;
 	if (bounds.sides[0][1] or bounds.sides[1][0]) {
 		Mod::unskewAtoms(atoms, bounds.sides[0], bounds.sides[1]);
 	}
@@ -139,7 +143,7 @@ void AtomGrid::enforcePeriodic(Bounds bounds) {
 
 
 void AtomGrid::enforcePeriodicUnskewed(Bounds bounds) { //make it so doesn't loop in finite dimensions
-	vector<Atom> &atoms = state->atoms;
+    std::vector<Atom> &atoms = state->atoms;
 	Vector lo = bounds.lo;
 	Vector hi = bounds.hi;
 	Vector trace = bounds.trace;
@@ -153,13 +157,12 @@ void AtomGrid::enforcePeriodicUnskewed(Bounds bounds) { //make it so doesn't loo
 			}
 			//IF YOU GET MYSTERIOUS CRASHES, THERE MAY BE FLOATING POINT ERROR WHERE ADDING/SUBTRACTING TRACE PUTS IT SLIGHTLY OFF OF THE GRID
 		}
-		if (!bounds.atomInBounds(a)) {
-            cout << "Error: atom out of bonds" << endl;
-			cout << "position before trying to loop " << prev.asStr() << endl;
-			cout << "turn " << state->turn << endl;
-			cout << "Atom id " << a.id << " moved more than one box length since building neighbor lists.  Program about to quit.  Consider decreasing your neighboring interval" << endl;
-			assert(false);
-		}
+        mdAssert(bounds.atomInBounds(a),
+                 "Error: atom out of bonds. Position before trying to loop: %s "
+                 "Turn: %" PRId64 " Atom id %d moved more than one box length since "
+                 "building neighbor lists. Consider decreasing your "
+                 "neighboring interval",
+                 prev.asStr().c_str(), state->turn, a.id);
 	}
 }
 
@@ -169,7 +172,7 @@ void AtomGrid::setNeighborSquares() {
 	for (int i=0; i<3; i++) {
 		periodic[i] = state->periodic[i];
 	}
-	neighborSquaress = vector< vector< OffsetObj<Atom **> > >(); 
+	neighborSquaress = std::vector< std::vector< OffsetObj<Atom **> > >(); 
 	neighborSquaress.reserve(raw.size());
 	for (int i=0; i<ns[0]; i++) {
 		for (int j=0; j<ns[1]; j++) {
@@ -185,14 +188,15 @@ void AtomGrid::setNeighborSquares() {
 
 
 void AtomGrid::buildNeighborlists(double neighCut) {
-    cout << "BUILDING" << endl;
-    vector<Atom> &atoms = state->atoms;
+    mdDebug("Building neighbor lists");
+    std::vector<Atom> &atoms = state->atoms;
 	Vector boundsTrace = state->bounds.trace;
 	bool periodic[3];
 	for (int i=0; i<3; i++) {
 		periodic[i] = state->periodic[i];
 	}
-	assert(not (state->is2d and periodic[2]));
+	mdAssert(!state->is2d || !periodic[2],
+             "2d simulations must not be periodic in z-dimension.");
 
 
 	double neighCutSqr = neighCut*neighCut;
@@ -215,7 +219,7 @@ void AtomGrid::buildNeighborlists(double neighCut) {
 		appendNeighborList(a, selfSquare, boundsTrace, neighCutSqr);
 		a.next = *neighborSquare;
 		*neighborSquare = &a;
-		vector<OffsetObj<Atom **> > &neighborSquares = neighborSquaress[idx];
+        std::vector<OffsetObj<Atom **> > &neighborSquares = neighborSquaress[idx];
 		for (OffsetObj<Atom **> &neighborSquare : neighborSquares) {
 			appendNeighborList(a, neighborSquare, boundsTrace, neighCutSqr);	
 		}
@@ -223,9 +227,9 @@ void AtomGrid::buildNeighborlists(double neighCut) {
 }
 
 /*
-void AtomGrid::assignBondOffsets(vector<Bond> &bonds, Bounds bounds) {
+void AtomGrid::assignBondOffsets(std::vector<Bond> &bonds, Bounds bounds) {
     //okay, things are unskewed at this point
-    cout << "STOP ASSIGNING BOND OFFSETS" << endl;
+    mdDebug("STOP ASSIGNING BOND OFFSETS");
     Vector half = bounds.trace / (double) 2;
     for (Bond &b : bonds) {
         Vector offset;
@@ -245,7 +249,7 @@ void AtomGrid::assignBondOffsets(vector<Bond> &bonds, Bounds bounds) {
 void AtomGrid::periodicBoundaryConditions(double neighCut) {
 	Bounds &unchanged = state->bounds;
 	Bounds b = state->bounds.unskewed();
-	vector<Atom> &atoms = state->atoms;
+    std::vector<Atom> &atoms = state->atoms;
 
     bool isSkew = state->bounds.isSkewed();
     if (isSkew) {
@@ -271,7 +275,7 @@ void AtomGrid::periodicBoundaryConditions() { //grid size must be >= 2*neighCut
 //untested
 void AtomGrid::populateLists() {
 	reset();
-	vector<Atom> &atoms = state->atoms;
+    std::vector<Atom> &atoms = state->atoms;
 	for (Atom &a : atoms) { //this is going to be super slow b/c linked list, but I'm really not doing it often.  Could improve by specializing w/ vector stuff
 		int idx = idxFromPos(a.pos);
 		a.next = raw[idx];
@@ -312,7 +316,9 @@ void AtomGrid::resizeToStateBounds(bool scaleAtomCoords) {
     Vector traceNew = boundsNewUnskewed.trace;
     Vector traceOld = boundsCur.trace;
 	if (state->is2d) {
-		assert(traceNew[2] == 1);
+		mdAssert(traceNew[2] == 1,
+                 "For 2d simulations, Box size must be 1 in z-dimension. "
+                 "However, it is %f", traceNew[2]);
 	}
 	//keeping it centered around same origin
 
@@ -367,7 +373,7 @@ void AtomGrid::resizeToStateBounds(bool scaleAtomCoords) {
 void AtomGrid::shear(double angleX, double angleY) {
 	State *raw = state.get();
 	Bounds &b = *raw->Bounds;
-	vector<Atom> &atoms = raw->atoms;
+    std::vector<Atom> &atoms = raw->atoms;
 	
 }
 */
@@ -377,10 +383,10 @@ void AtomGrid::deleteNeighbors() {
 	}
 }
 void export_AtomGrid() {
-    boost::python::class_<AtomGrid>(
+    py::class_<AtomGrid>(
         "AtomGrid",
-        boost::python::init<SHARED(State), double, double, double>(
-            boost::python::args("state", "dx", "dy", "dz"))
+        py::init<SHARED(State),  double, double, double>(
+               py::args("state", "dx",   "dy",   "dz"))
     )
     .def_readwrite("os", &AtomGrid::os)
     .def_readwrite("ds", &AtomGrid::ds)

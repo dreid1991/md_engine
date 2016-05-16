@@ -1,6 +1,16 @@
 #include "FixChargePairDSF.h"
+#include "BoundsGPU.h"
+#include "GPUData.h"
+#include "GridGPU.h"
+#include "State.h"
+
+#include "boost_for_export.h"
 #include "cutils_func.h"
 // #include <cmath>
+
+namespace py=boost::python;
+
+const std::string chargePairDSFType = "ChargePairDSF";
 
 //Pairwise force shifted damped Coulomb
 //Christopher J. Fennel and J. Daniel Gezelter J. Chem. Phys (124), 234104 2006
@@ -59,7 +69,7 @@ __global__ void compute_charge_pair_DSF_cu(int nAtoms, float4 *xs, float4 *fs, u
     }
 
 }
-FixChargePairDSF::FixChargePairDSF(SHARED(State) state_, string handle_, string groupHandle_) : FixCharge(state_, handle_, groupHandle_, chargePairDSF) {
+FixChargePairDSF::FixChargePairDSF(SHARED(State) state_, string handle_, string groupHandle_) : FixCharge(state_, handle_, groupHandle_, chargePairDSFType, true) {
    setParameters(0.25,9.0);
 };
 
@@ -86,15 +96,13 @@ void FixChargePairDSF::compute(bool computeVirials) {
 
 
 void export_FixChargePairDSF() {
-    boost::python::class_<FixChargePairDSF,
-                          SHARED(FixChargePairDSF),
-                          boost::python::bases<FixCharge> > (
+    py::class_<FixChargePairDSF, SHARED(FixChargePairDSF), boost::python::bases<FixCharge> > (
         "FixChargePairDSF",
-        boost::python::init<SHARED(State), string, string> (
-            boost::python::args("state", "handle", "groupHandle"))
+        py::init<SHARED(State), string, string> (
+            py::args("state", "handle", "groupHandle"))
     )
     .def("setParameters", &FixChargePairDSF::setParameters,
-            (boost::python::arg("alpha"), boost::python::arg("r_cut"))
+            (py::arg("alpha"), py::arg("r_cut"))
         )
     ;
 }

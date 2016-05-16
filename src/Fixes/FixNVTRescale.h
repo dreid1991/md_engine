@@ -1,10 +1,20 @@
 #pragma once
 #ifndef FIXNVTRESCALE_H
 #define FIXNVTRESCALE_H
-#include "Fix.h"
+
 #include <boost/python.hpp>
 #include <boost/python/list.hpp>
+#include <string>
+#include <vector>
+
+#include "BoundsGPU.h"
+#include "Fix.h"
+#include "globalDefs.h"
 #include "GPUArrayDeviceGlobal.h"
+
+class Bounds;
+class State;
+
 void export_FixNVTRescale();
 class FixNVTRescale : public Fix {
     vector<double> intervals;
@@ -12,7 +22,7 @@ class FixNVTRescale : public Fix {
     int curIdx;
     bool prepareForRun();
     void compute(bool);
-    bool downloadFromRun();
+    bool postRun();
     bool usingBounds;
     BoundsGPU boundsGPU;
     GPUArrayDeviceGlobal<float> tempGPU; //length two - first is temp, second is # atoms in group

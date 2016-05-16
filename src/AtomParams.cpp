@@ -4,6 +4,9 @@
 #include "boost_for_export.h"
 #include "State.h"
 #define ARG_DEFAULT -1
+
+namespace py=boost::python;
+
 int AtomParams::addSpecies(std::string handle, double mass, double atomicNum) {
     //this is wrapped by state b/c fixes may need to update to accomodate more
     //atom types
@@ -44,18 +47,24 @@ void AtomParams::setValues(string handle, double mass, double atomicNum) {
     }
 }
 void export_AtomParams() {
-    boost::python::class_<AtomParams >(
+    py::class_<AtomParams >(
         "AtomParams"
     )
     .def("addSpecies", &AtomParams::addSpecies,
-            (boost::python::arg("handle"),
-             boost::python::arg("mass"),
-             boost::python::arg("atomicNum")=-1)
+            (py::arg("handle"),
+             py::arg("mass"),
+             py::arg("atomicNum")=-1)
         )
-    .def("typeFromHandle",  &AtomParams::typeFromHandle, (python::arg("handle")))
-    .def("setValues", &AtomParams::setValues, ( python::arg("handle"), python::arg("mass")=ARG_DEFAULT, python::arg("atomicNum")=ARG_DEFAULT))
+    .def("typeFromHandle",  &AtomParams::typeFromHandle,
+            (py::arg("handle"))
+        )
+    .def("setValues", &AtomParams::setValues,
+            (py::arg("handle"),
+             py::arg("mass")=ARG_DEFAULT,
+             py::arg("atomicNum")=ARG_DEFAULT)
+        )
     .def_readwrite("masses", &AtomParams::masses)
-    .def_readonly("handles", &AtomParams::handles)//TODO doesn't work
+    .def_readonly("handles", &AtomParams::handles)//! \todo doesn't work
     .def_readonly("numTypes", &AtomParams::numTypes)
     ;
 }

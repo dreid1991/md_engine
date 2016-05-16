@@ -1,5 +1,12 @@
 #include "FixNVTRescale.h"
+
+#include "Bounds.h"
 #include "cutils_func.h"
+#include "State.h"
+
+namespace py=boost::python;
+
+const std::string NVTRescaleType = "NVTRescale";
 
 __global__ void sumKeInBounds (float *dest, float4 *src, int n, unsigned int groupTag, float4 *fs, BoundsGPU bounds, int warpSize) {
     extern __shared__ float tmp[]; /*should have length of # threads in a block (PERBLOCK) PLUS ONE for counting shared*/
@@ -26,7 +33,12 @@ __global__ void sumKeInBounds (float *dest, float4 *src, int n, unsigned int gro
 }
 
 
-FixNVTRescale::FixNVTRescale(SHARED(State) state_, string handle_, string groupHandle_, boost::python::list intervals_, boost::python::list temps_, int applyEvery_, SHARED(Bounds) thermoBounds_ ) : Fix(state_, handle_, groupHandle_, NVTRescaleType, applyEvery_), curIdx(0), tempGPU(GPUArrayDeviceGlobal<float>(2)), finished(false) {
+FixNVTRescale::FixNVTRescale(SHARED(State) state_, string handle_, string groupHandle_,
+                             py::list intervals_, py::list temps_, int applyEvery_,
+                             SHARED(Bounds) thermoBounds_)
+    : Fix(state_, handle_, groupHandle_, NVTRescaleType, false, applyEvery_),
+      curIdx(0), tempGPU(GPUArrayDeviceGlobal<float>(2)), finished(false)
+{
     assert(boost::python::len(intervals_) == boost::python::len(temps_)); 
     assert(boost::python::len(intervals_) > 1);
     int len = boost::python::len(intervals_);
@@ -48,14 +60,18 @@ FixNVTRescale::FixNVTRescale(SHARED(State) state_, string handle_, string groupH
 
 }
 
-FixNVTRescale::FixNVTRescale(SHARED(State) state_, string handle_, string groupHandle_, vector<double> intervals_, vector<double> temps_, int applyEvery_, SHARED(Bounds) thermoBounds_) : Fix(state_, handle_, groupHandle_, NVTRescaleType, applyEvery_), curIdx(0), tempGPU(GPUArrayDeviceGlobal<float>(2)), finished(false) {
+FixNVTRescale::FixNVTRescale(SHARED(State) state_, string handle_, string groupHandle_,
+                             vector<double> intervals_, vector<double> temps_, int applyEvery_,
+                             SHARED(Bounds) thermoBounds_)
+    : Fix(state_, handle_, groupHandle_, NVTRescaleType, false, applyEvery_),
+      curIdx(0), tempGPU(GPUArrayDeviceGlobal<float>(2)), finished(false)
+{
     assert(intervals.size() == temps.size());
     intervals = intervals_;
     temps = temps_;
     thermoBounds = thermoBounds_;
-
-    forceSingle = false;
 }
+
 bool FixNVTRescale::prepareForRun() {
     usingBounds = thermoBounds != SHARED(Bounds) (NULL);
     if (usingBounds) {
@@ -176,22 +192,19 @@ void FixNVTRescale::compute(bool computeVirials) {
 
 
 
-bool FixNVTRescale::downloadFromRun() {
+bool FixNVTRescale::postRun() {
     finished = true;
     return true;
 }
 
 
 void export_FixNVTRescale() {
-    boost::python::class_<FixNVTRescale,
-                          SHARED(FixNVTRescale),
-                          boost::python::bases<Fix> > (
+    py::class_<FixNVTRescale, SHARED(FixNVTRescale), py::bases<Fix> > (
         "FixNVTRescale",
-        boost::python::init<SHARED(State), string, string, boost::python::list,
-                            boost::python::list,
-                            boost::python::optional<int, SHARED(Bounds)> > (
-            boost::python::args("state", "handle", "groupHandle", "intervals",
-                                "temps", "applyEvery", "thermoBounds")
+        py::init<SHARED(State), string, string, py::list, py::list,
+                 py::optional<int, SHARED(Bounds)> > (
+            py::args("state", "handle", "groupHandle", "intervals", "temps", "applyEvery",
+                     "thermoBounds")
         )
     )
     .def_readwrite("finished", &FixNVTRescale::finished)

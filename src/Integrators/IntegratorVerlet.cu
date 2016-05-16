@@ -1,9 +1,9 @@
-#include "IntegraterVerlet.h"
+#include "IntegratorVerlet.h"
 
 #include "State.h"
 
-IntegraterVerlet::IntegraterVerlet(SHARED(State) state_)
-    : Integrater(state_.get()) {}
+IntegratorVerlet::IntegratorVerlet(SHARED(State) state_)
+    : Integrator(state_.get()) {}
 
 __global__ void preForce_cu(int nAtoms, float4 *xs, float4 *vs, float4 *fs, float4 *fsLast, float dt) {
     int idx = GETIDX();
@@ -47,19 +47,19 @@ __global__ void postForce_cu(int nAtoms, float4 *vs, float4 *fs, float4 *fsLast,
         vs[idx] = newVel;
     }
 }
-void IntegraterVerlet::preForce(uint activeIdx) {
+void IntegratorVerlet::preForce(uint activeIdx) {
 	//vector<Atom> &atoms = state->atoms;
     preForce_cu<<<NBLOCK(state->atoms.size()), PERBLOCK>>>(state->atoms.size(), state->gpd.xs.getDevData(), state->gpd.vs.getDevData(), state->gpd.fs.getDevData(), state->gpd.fsLast.getDevData(), state->dt);
 }
 
 
-void IntegraterVerlet::postForce(uint activeIdx) {
+void IntegratorVerlet::postForce(uint activeIdx) {
     postForce_cu<<<NBLOCK(state->atoms.size()), PERBLOCK>>>(state->atoms.size(), state->gpd.vs.getDevData(), state->gpd.fs.getDevData(), state->gpd.fsLast.getDevData(), state->dt);
 }
 
 
 
-void IntegraterVerlet::run(int numTurns) {
+void IntegratorVerlet::run(int numTurns) {
     basicPreRunChecks(); 
     basicPrepare(numTurns);
     
@@ -110,15 +110,15 @@ void IntegraterVerlet::run(int numTurns) {
 
 }
 
-void export_IntegraterVerlet() {
-    boost::python::class_<IntegraterVerlet,
-                          SHARED(IntegraterVerlet),
-                          boost::python::bases<Integrater>,
+void export_IntegratorVerlet() {
+    boost::python::class_<IntegratorVerlet,
+                          SHARED(IntegratorVerlet),
+                          boost::python::bases<Integrator>,
                           boost::noncopyable > (
-        "IntegraterVerlet",
+        "IntegratorVerlet",
         boost::python::init<SHARED(State)>()
      )
-    .def("run", &IntegraterVerlet::run)
+    .def("run", &IntegratorVerlet::run)
     ;
 }
 

@@ -1,4 +1,5 @@
 #include "WriteConfig.h"
+#include "includeFixes.h"
 #include <inttypes.h>
 #define BUFFERLEN 700
 template <typename T>
@@ -176,6 +177,19 @@ void writeXMLfile(State *state, string fnFinal, int64_t turn, bool oneFilePerWri
 	//<epsilon> ... </epsilon>
 	//<mass> ... </mass>
 	//</atom_params>
+
+    //looping over fixes                                                                                                                                    
+    outFile << "<fixes>\n";
+    for(Fix *f : state->fixes) {
+      char buffer[BUFFERLEN];
+      sprintf(buffer, "<fix type=\"%s\" handle=\"%s\">", f->type.c_str(), f->handle.c_str());
+      outFile << buffer << "\n";
+      outFile << f->restartChunk("xml");
+      outFile << "</fix>\n";
+    }
+    outFile << "</fixes>\n";
+
+
 	writeXMLChunk<Atom>(outFile, atoms, "position", [] (Atom &a, char buffer[BUFFERLEN]) {
 			Vector pos = a.pos; sprintf(buffer, "%f %f %f\n", (double) pos[0], (double) pos[1], (double) pos[2]);
 			}

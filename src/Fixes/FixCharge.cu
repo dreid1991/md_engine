@@ -1,8 +1,12 @@
 #include "FixCharge.h"
 
+#include "State.h"
 
+namespace py = boost::python;
 
-FixCharge::FixCharge(SHARED(State) state_, string handle_, string groupHandle_, string type_) : Fix(state_, handle_, groupHandle_, type_, 1) {
+FixCharge::FixCharge(SHARED(State) state_, string handle_, string groupHandle_,
+                     string type_, bool forceSingle_)
+    : Fix(state_, handle_, groupHandle_, type_, forceSingle_, 1) {
 };
 
 
@@ -17,12 +21,8 @@ bool FixCharge::prepareForRun() {
 }
 
 void export_FixCharge() {
-    boost::python::class_<FixCharge,
-                          SHARED(FixCharge),
-                          boost::python::bases<Fix> > (
+    py::class_<FixCharge, SHARED(FixCharge), py::bases<Fix> > (
         "FixCharge",
-        boost::python::init<SHARED(State), string, string,string> (
-            boost::python::args("state", "handle", "groupHandle","type"))
-    )
-    ;
+        boost::python::no_init
+    );
 }

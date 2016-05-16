@@ -4,6 +4,8 @@
 #include "FixHelpers.h"
 namespace py = boost::python;
 
+const std::string bondHarmonicType = "BondHarmonic";
+
 __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureObject_t idToIdxs, BondHarmonicGPU *bonds, int *startstops, BoundsGPU bounds) {
     int idx = GETIDX();
     extern __shared__ BondHarmonicGPU bonds_shr[];
@@ -43,9 +45,9 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
 }
 
 
-FixBondHarmonic::FixBondHarmonic(SHARED(State) state_, string handle) : FixBond(state_, handle, string("None"), bondHarmType, 1), pyListInterface(&bonds, &pyBonds) {
-    forceSingle = true;
-}
+FixBondHarmonic::FixBondHarmonic(SHARED(State) state_, string handle)
+    : FixBond(state_, handle, string("None"), bondHarmonicType, true, 1),
+      pyListInterface(&bonds, &pyBonds) {}
 
 
 

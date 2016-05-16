@@ -1,5 +1,10 @@
 include_directories (${GTEST_INCLUDE_DIRS})
 
+include_directories(${CMAKE_SOURCE_DIR}/src)
+include_directories(${CMAKE_SOURCE_DIR}/src/BondedForcers)
+include_directories(${CMAKE_SOURCE_DIR}/src/DataStorageUser)
+include_directories(${CMAKE_SOURCE_DIR}/src/GPUArrays)
+
 set (CPUTESTS "VectorTest"
               "RandomNumberGenerationTest")
 set (GPUTESTS "CudaMathTest"

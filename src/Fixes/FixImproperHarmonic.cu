@@ -4,7 +4,10 @@
 #include "cutils_func.h"
 #define SMALL 0.001f
 namespace py = boost::python;
+const std::string improperHarmonicType = "ImproperHarmonic";
 __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureObject_t idToIdxs, ImproperGPU *impropers, int *startstops, BoundsGPU bounds, ImproperHarmonicType *parameters, int nParameters) {
+
+
     int idx = GETIDX();
     extern __shared__ int all_shr[];
     int idxBeginCopy = startstops[blockDim.x*blockIdx.x];
@@ -170,9 +173,9 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
 }
 
 
-FixImproperHarmonic::FixImproperHarmonic(SHARED(State) state_, string handle) : FixPotentialMultiAtom (state_, handle, improperHarmonicType), pyListInterface(&forcers, &pyForcers) {
-    forceSingle = true;
-}
+FixImproperHarmonic::FixImproperHarmonic(SHARED(State) state_, string handle)
+    : FixPotentialMultiAtom (state_, handle, improperHarmonicType, true),
+      pyListInterface(&forcers, &pyForcers) {}
 
 
 void FixImproperHarmonic::compute(bool computeVirials) {

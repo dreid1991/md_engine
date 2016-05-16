@@ -1,10 +1,20 @@
 #include "FixSpringStatic.h"
-#include <boost/python.hpp>
-#include "FixHelpers.h"
 
-FixSpringStatic::FixSpringStatic(SHARED(State) state_, string handle_, string groupHandle_, double k_,  PyObject *tetherFunc_, Vector multiplier_) : Fix(state_, handle_, groupHandle_, springStaticType, 1), k(k_), tetherFunc(tetherFunc_), multiplier(multiplier_) {
+#include "boost_for_export.h"
+#include "FixHelpers.h"
+#include "GPUData.h"
+#include "State.h"
+
+namespace py=boost::python;
+
+const std::string springStaticType = "SpringStatic";
+
+FixSpringStatic::FixSpringStatic(SHARED(State) state_, string handle_, string groupHandle_,
+                                 double k_,  PyObject *tetherFunc_, Vector multiplier_)
+    : Fix(state_, handle_, groupHandle_, springStaticType, true, 1), k(k_),
+      tetherFunc(tetherFunc_), multiplier(multiplier_)
+{
     updateTethers();
-    forceSingle = true;
 }
 
 void FixSpringStatic::updateTethers() {
@@ -23,7 +33,7 @@ void FixSpringStatic::updateTethers() {
             }
         }
     }
-    tethers.set(tethers_loc);
+    tethers = tethers_loc;
 }
 
 
@@ -58,23 +68,10 @@ void FixSpringStatic::compute(bool computeVirials) {
 
 
 void export_FixSpringStatic() {
-    boost::python::class_<FixSpringStatic,
-                          SHARED(FixSpringStatic),
-                          boost::python::bases<Fix> > (
-        "FixSpringStatic",
-        boost::python::init<SHARED(State),
-                            string,
-                            string,
-                            double,
-                            PyObject *,
-                            boost::python::optional<Vector>> (
-                                boost::python::args("state",
-                                                    "handle",
-                                                    "groupHandle",
-                                                    "k",
-                                                    "tetherFunc",
-                                                    "multiplier")
-                                )
+    py::class_<FixSpringStatic, SHARED(FixSpringStatic), py::bases<Fix> > (
+            "FixSpringStatic",
+            py::init<SHARED(State), string, string, double, PyObject *, py::optional<Vector>> (
+                py::args("state", "handle", "groupHandle", "k", "tetherFunc", "multiplier"))
     )
     .def("updateTethers", &FixSpringStatic::updateTethers)
     .def_readwrite("multiplier", &FixSpringStatic::multiplier)

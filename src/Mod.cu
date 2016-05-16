@@ -445,7 +445,7 @@ bool Mod::setZValue(SHARED(State) state, num neighThresh, const num target, cons
 		
 		increasedSizeOnTurn = false;
 		if (display) {
-            state->integrater->writeOutput();
+            state->integrator->writeOutput();
 		}
 	}
 	return true;

@@ -3,7 +3,7 @@
 #define DATASETBOUNDS_H
 
 #include "DataSet.h"
-#include "GPUArray.h"
+#include "GPUArrayGlobal.h"
 class Bounds;
 void export_DataSetBounds();
 class DataSetBounds : public DataSet {
