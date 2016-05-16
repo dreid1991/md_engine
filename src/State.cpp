@@ -19,6 +19,7 @@
 
 #include "State.h"
 
+
 State::State() {
 	groupTags["all"] = (unsigned int) 1;
     //! \todo I think it would be great to also have the group "none"
@@ -245,6 +246,7 @@ bool State::deactivatePythonOperation(SHARED(PythonOperation) other) {
 
 
 bool State::activateFix(SHARED(Fix) other) {
+    cout << "FIX" << endl;
     if (other->state != this) {
         std::cout << "Trying to add fix with handle " << other->handle
                   << ", but fix was initialized with a different State" << std::endl;

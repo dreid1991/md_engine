@@ -6,6 +6,7 @@
 #define SMALL 0.0001f
 namespace py = boost::python;
 __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureObject_t idToIdxs, AngleGPU *angles, int *startstops, BoundsGPU bounds, AngleHarmonicType *parameters, int nTypes) {
+    printf("hey");
     int idx = GETIDX();
     extern __shared__ int all_shr[];
     int idxBeginCopy = startstops[blockDim.x*blockIdx.x];
@@ -86,6 +87,7 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
                 s = 1.0f / s;
                 float dTheta = acosf(c) - angleType.thetaEq;
              //   printf("current %f theta eq %f idx %d, type %d\n", acosf(c), angleType.thetaEq, myIdxInAngle, type);
+
                 float forceConst = angleType.k * dTheta;
                 float a = -2.0f * forceConst * s;
                 float a11 = a*c/distSqrs[0];
@@ -125,6 +127,7 @@ void FixAngleHarmonic::compute(bool computeVirials) {
         printf("Angle ids k theta %d %d %d %f %f\n", a.ids[0], a.ids[1], a.ids[2], a.k, a.thetaEq);
     }
     */
+    cout << "hello" << endl;
     compute_cu<<<NBLOCK(nAtoms), PERBLOCK, sizeof(AngleGPU) * maxForcersPerBlock + parameters.size() * sizeof(AngleHarmonicType)>>>(nAtoms, state->gpd.xs(activeIdx), state->gpd.fs(activeIdx), state->gpd.idToIdxs.getTex(), forcersGPU.data(), forcerIdxs.data(), state->boundsGPU, parameters.data(), parameters.size());
 
 }

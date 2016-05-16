@@ -1,5 +1,6 @@
 import sys
-sys.path = sys.path + ['../build/python/build/lib.linux-x86_64-2.7', '../build/']
+#sys.path = sys.path + ['../build/python/build/lib.linux-x86_64-2.7', '../build/']
+print sys.path
 sys.path.append('../util_py')
 from Sim import *
 from math import *
@@ -10,7 +11,7 @@ state.rCut = 3.0
 state.padding = 0.6
 state.periodicInterval = 7
 state.shoutEvery = 1000
-state.dt = .0005
+state.dt = .005
 
 state.grid = AtomGrid(state, 3.6, 3.6, 3.6)
 state.atomParams.addSpecies(handle='spc1', mass=1, atomicNum=8)
@@ -35,6 +36,9 @@ state.activateFix(bondHarm)
 
 #dihedralOPLS = FixDihedralOPLS(state, 'dihedral')
 #dihedralOPLS.setDihedralTypeCoefs(type=0, coefs=[15, -10, 4, -12])
+'''
+dihedralOPLS = FixDihedralOPLS(state, 'dihedral')
+dihedralOPLS.setDihedralTypeCoefs(type=0, coefs=[15, -10, 4, -12])
 
 #dihedralOPLS.createDihedral(state.atoms[0], state.atoms[1], state.atoms[2], state.atoms[3], coefs=[3,4,5,6])
 #state.activateFix(dihedralOPLS)
@@ -49,6 +53,7 @@ angleHarm.createAngle(state.atoms[0], state.atoms[1], state.atoms[2], type=0)#th
 #angleHarm.createAngle(state.atoms[1], state.atoms[2], state.atoms[3], thetaEq=3*pi/4, k=3)
 state.activateFix(angleHarm)
 print angleHarm.angles[0].thetaEq
+'''
 '''
 
 #improper testing
@@ -88,7 +93,7 @@ state.activateFix(fixNVT)
 
 writeconfig = WriteConfig(state, fn='test_out', writeEvery=10, format='xyz', handle='writer')
 state.activateWriteConfig(writeconfig)
-integRelax = IntegraterRelax(state)
+
 #integRelax.run(1, 1e-9)
 integVerlet = IntegraterVerlet(state)
 

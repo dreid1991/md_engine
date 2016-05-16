@@ -35,11 +35,11 @@ integVerlet = IntegraterVerlet(state)
 #boundsData = state.dataManager.recordBounds(100)
 #engData = state.dataManager.recordEnergy('all', 100)
 
-writeconfig = WriteConfig(state, fn='test_out', writeEvery=10, format='xyz', handle='writer')
-#state.activateWriteConfig(writeconfig)
+writeconfig = WriteConfig(state, fn='test_out', writeEvery=50, format='xyz', handle='writer')
+state.activateWriteConfig(writeconfig)
 
 
-integVerlet.run(10000)#000000)
+integVerlet.run(10)#000000)
 print state.atoms[0].pos
 sumV = 0.
 for a in state.atoms:

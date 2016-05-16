@@ -8,8 +8,8 @@ $(shell mkdir -p $(DEPDIR) >/dev/null)
 $(shell mkdir -p $(OBJDIR) >/dev/null)
 $(shell mkdir -p $(LIBDIR) >/dev/null)
 H = $(wildcard $(MD)*.h)
-C_SRCS = $(wildcard $(MD)*.cpp) 
-CU_SRCS = $(wildcard $(MD)*.cu)
+C_SRCS = $(wildcard src/$(MD)*.cpp) 
+CU_SRCS = $(wildcard src/$(MD)*.cu)
 
 C_OBJS = $(patsubst %,%.o,$(basename $(C_SRCS)))
 CU_OBJS = $(patsubst %,%.o,$(basename $(CU_SRCS)))
@@ -27,8 +27,8 @@ PYTHON_INC=/usr/include/python$(PYTHON_VERSION)
 main: $(C_OBJS) $(CU_OBJS) 
 	$(CU_CC) $(FLAGS) $(C_OBJS) $(CU_OBJS) -o a.out -lpython2.7 -lpugixml -lboost_python -lcufft
 
-%.o: %.cpp ./$(DEPDIR)/%.d
-	$(CU_CC) $(FLAGS) $(DEBUG) -I$(PYTHON_INC) -I$(BOOST_INC) --output-file $(DEPDIR)/$*.Td -M $< -lboost_python -lpython2.7 -lpugixml
+%.o: src/%.cpp ./%.d
+	$(CU_CC) $(FLAGS) $(DEBUG) -I$(PYTHON_INC) -I$(BOOST_INC) --output-file ./$*.Td -M $< -lboost_python -lpython2.7 -lpugixml
 	$(CU_CC) $(FLAGS) $(DEBUG) -I$(PYTHON_INC) -I$(BOOST_INC) -c -o $@ $< -lboost_python -lpython2.7 -lpugixml
 	$(POSTCOMPILE)
 

@@ -54,9 +54,6 @@ find_package (PugiXML REQUIRED)
 
 message (STATUS "Building MD_engine Version ${VERSION_MAJOR}.${VERSION_MINOR}")
 
-# Set the source files
-#file (GLOB SOURCES "*.cpp" "*.cu")
-#list (REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp")
 
 # Create configuration file
 configure_file (
@@ -73,6 +70,10 @@ add_subdirectory (src)
 # Install Python library
 if (PYTHON)
     add_subdirectory (python)
+    #add_custom_command (OUTPUT python/timestamp
+    #    MAIN_DEPENDENCY python/Sim.cpp
+    #    COMMAND ${PYTHON_BIN} python/setup.py build
+    #    COMMAND ${CMAKE_COMMAND} -E touch ${OUTPUT})
 endif (PYTHON)
 
 # Add tests

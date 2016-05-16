@@ -10,7 +10,6 @@ set(INC_DIRS ${INC_DIRS} ${CMAKE_CURRENT_SOURCE_DIR}/Evaluators)
 set(INC_DIRS ${INC_DIRS} ${CMAKE_CURRENT_SOURCE_DIR}/BondedForcers) 
 
 SET(PY_INC_DIRS "${INC_DIRS}" PARENT_SCOPE)
-message("${INC_DIRS}")
 include_directories(${INC_DIRS})
 
 configure_file (
