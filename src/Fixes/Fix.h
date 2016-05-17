@@ -86,11 +86,30 @@ public:
      */
     virtual bool postRun() { return true; }
 
+    //! Perform operations at the start of a simulation step
+    /*!
+     * \return False if a problem occured, else return true
+     *
+     * This function is called by the Integrator at the very start of each
+     * simulation step.
+     */
+    virtual bool stepInit() { return true; }
+
+    //! Perform operations at the end of a simulation step
+    /*!
+     * \return False if a problem was encountered, else return true
+     *
+     * This function is called at the very end of a simulation step.
+     */
+    virtual bool stepFinal() { return true; }
+
     //! Apply fix
     /*!
      * \param computeVirials Compute virials for this Fix
+     * \return False if a problem occured, else return true
      *
-     * \todo Make purely virtual.
+     * This function is called during the force calculation of the integration
+     * step.
      */
     virtual void compute(bool computeVirials) {}
 
