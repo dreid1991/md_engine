@@ -17,7 +17,6 @@ __global__ void NAME (cudaSurfaceObject_t surf, TYPE val, int n) {\
 }
 
 
-
 MEMSET_N(memsetByValList_32, int);
 MEMSET_N(memsetByValList_64, int2);
 MEMSET_N(memsetByValList_96, int3);

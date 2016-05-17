@@ -17,7 +17,7 @@ void export_FixLJCut();
 class FixLJCut : public FixPair {
 public:
     //! Constructor
-    FixLJCut(SHARED(State), string handle);
+    FixLJCut(SHARED(State), std::string handle);
 
     //! Compute forces
     void compute(bool);
@@ -45,7 +45,7 @@ public:
      *
      * \returns restart chunk string.
      */
-    string restartChunk(string format);
+    std::string restartChunk(std::string format);
 
     //! Read parameters from restart file
     /*!
@@ -61,18 +61,18 @@ public:
      *
      * This function adds a new particle type to the fix.
      */
-    void addSpecies(string handle);
+    void addSpecies(std::string handle);
 
     //! Return list of cutoff values
-    vector<float> getRCuts();
+    std::vector<float> getRCuts();
 
 public:
-    const string epsHandle; //!< Handle for parameter epsilon
-    const string sigHandle; //!< Handle for parameter sigma
-    const string rCutHandle; //!< Handle for parameter rCut
-    vector<float> epsilons; //!< vector storing epsilon values
-    vector<float> sigmas; //!< vector storing sigma values
-    vector<float> rCuts; //!< vector storing cutoff distance values
+    const std::string epsHandle; //!< Handle for parameter epsilon
+    const std::string sigHandle; //!< Handle for parameter sigma
+    const std::string rCutHandle; //!< Handle for parameter rCut
+    std::vector<float> epsilons; //!< vector storing epsilon values
+    std::vector<float> sigmas; //!< vector storing sigma values
+    std::vector<float> rCuts; //!< vector storing cutoff distance values
 
     EvaluatorLJ evaluator; //!< Evaluator for generic pair interactions
 };

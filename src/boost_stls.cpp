@@ -2,14 +2,17 @@
 #include "Bounds.h"
 #include "array_indexing_suite.hpp"
 //#include "array_ref.hpp"
+
 namespace py = boost::python;
+using namespace std;
+
 void export_stls() {
     py::class_<std::map<std::string, int> >("stringInt")
         .def(py::map_indexing_suite<std::map<std::string, int> >())
         ;
     py::class_<std::vector<std::string> >("vecstring")
         .def(py::vector_indexing_suite<std::vector<std::string> >())
-        ;        
+        ;
     py::class_<std::vector<double> >("vecdouble")
         .def(py::vector_indexing_suite<std::vector<double> >() )
         ;

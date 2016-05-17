@@ -4,7 +4,7 @@
 #include "Bond.h"
 #include "Angle.h"
 
-
+using namespace std;
 
 /*
 
@@ -457,6 +457,7 @@ bool Mod::setZValue(SHARED(State) state, num neighThresh, const num target, cons
 
 
 __global__ void Mod::unskewAtoms(float4 *xs, int nAtoms, float3 xOrig, float3 yOrig, float3 lo) {
+
     int idx = GETIDX();
     if (idx < nAtoms) {
         float lxo = length(xOrig);

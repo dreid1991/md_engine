@@ -1,16 +1,19 @@
 #pragma once
 #ifndef HELPERS_H
 #define HELPERS_H
-#include "GPUArrayDeviceGlobal.h"
-#include <vector>
-#include "Atom.h"
-#include <boost/variant.hpp>
+
 #include <array>
-using namespace std;
+#include <vector>
+
+#include <boost/variant.hpp>
+
+#include "GPUArrayDeviceGlobal.h"
+#include "Atom.h"
+
 template <class T, class K>
 void cumulativeSum(T *data, K n) {
     int currentVal= 0;
-    for (int i=0; i<n-1; i++) { 
+    for (uint32_t i=0; i<n-1; i++) {
         int numInCell = data[i];
         data[i] = currentVal;
         currentVal += numInCell;
@@ -19,9 +22,11 @@ void cumulativeSum(T *data, K n) {
 }
 
 template <class SRCVar, class SRCFull, class DEST, int N>
-int copyMultiAtomToGPU(int nAtoms, vector<SRCVar> &src, vector<int> &idxFromIdCache, GPUArrayDeviceGlobal<DEST> *dest, GPUArrayDeviceGlobal<int> *destIdxs) {
-    vector<int> idxs(nAtoms+1, 0); //started out being used as counts
-    vector<int> numAddedPerAtom(nAtoms, 0);
+int copyMultiAtomToGPU(int nAtoms, std::vector<SRCVar> &src, std::vector<int> &idxFromIdCache,
+                       GPUArrayDeviceGlobal<DEST> *dest, GPUArrayDeviceGlobal<int> *destIdxs) {
+
+    std::vector<int> idxs(nAtoms+1, 0); //started out being used as counts
+    std::vector<int> numAddedPerAtom(nAtoms, 0);
     //so I can arbitrarily order.  I choose to do it by the the way atoms happen to be sorted currently.  Could be improved.
     for (SRCVar &sVar : src) {
         SRCFull &s = boost::get<SRCFull>(sVar);
@@ -29,10 +34,10 @@ int copyMultiAtomToGPU(int nAtoms, vector<SRCVar> &src, vector<int> &idxFromIdCa
             int id = s.ids[i];
             idxs[idxFromIdCache[id]]++;
         }
-        
+
     }
-    cumulativeSum(idxs.data(), nAtoms+1);  
-    vector<DEST> destHost(idxs.back());
+    cumulativeSum(idxs.data(), nAtoms+1);
+    std::vector<DEST> destHost(idxs.back());
     for (SRCVar &sVar : src) {
         SRCFull &s = boost::get<SRCFull>(sVar);
         std::array<int, N> atomIds = s.ids;
@@ -58,9 +63,9 @@ int copyMultiAtomToGPU(int nAtoms, vector<SRCVar> &src, vector<int> &idxFromIdCa
     //getting max # bonds per block
     int maxPerBlock = 0;
     for (int i=0; i<nAtoms; i+=PERBLOCK) {
-        maxPerBlock = fmax(maxPerBlock, idxs[fmin(i+PERBLOCK+1, idxs.size()-1)] - idxs[i]);
+        maxPerBlock = std::fmax(maxPerBlock, idxs[std::fmin(i+PERBLOCK+1, idxs.size()-1)] - idxs[i]);
     }
     return maxPerBlock;
-
 }
+
 #endif

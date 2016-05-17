@@ -25,6 +25,9 @@ void export_AtomGrid();
 class AtomGrid : public Grid<Atom *> {
 
 private:
+    State *state; //!< Pointer to the simulation state
+    Bounds boundsOnGridding; //!< Boundaries when the Grid was created
+
     //! Does nothing
     /*!
      * \todo Remove this function or let it issue a warning that it doesn't do
@@ -85,8 +88,6 @@ private:
      */
     void enforcePeriodicUnskewed(Bounds bounds);
 
-    State *state; //!< Pointer to the simulation state
-
     //! Initialize the AtomGrid
     /*!
      * \param dx_ Attempted resolution in x dimension
@@ -99,7 +100,6 @@ private:
      */
     void init(double dx_, double dy_, double dz_);
 
-    Bounds boundsOnGridding; //!< Boundaries when the Grid was created
 public:
     //! List containing neighboring squares for each square
     /*!
@@ -112,8 +112,10 @@ public:
      */
     std::vector<std::vector<OffsetObj<Atom **> > > neighborSquaress;
 
-    double angX; //!< Unused
-    double angY; //!< Unused
+    double angX;    //!< Unused
+    double angY;    //!< Unused
+
+    bool isSet;     //!< True if the Grid has been initialized
 
     //! Unused function - not implemented
     /*!
@@ -121,8 +123,6 @@ public:
      * \todo Remove this function
      */
     void updateAtoms(std::vector<Atom *> &vec);
-
-    bool isSet; // True if the Grid has been initialized
 
     //! Create a GridGPU from the AtomGrid
     /*!
@@ -228,7 +228,7 @@ public:
      * This function builds the linked lists of Atoms.
      */
     void populateLists();
-};
 
+};
 
 #endif

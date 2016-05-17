@@ -8,12 +8,12 @@
 void export_DeviceManager();
 
 class DeviceManager {
-    public:
-        int nDevices;
-        DeviceManager();
-        cudaDeviceProp prop;
-        bool setDevice(int, bool output=true);
-        int currentDevice;
+public:
+    int nDevices;
+    DeviceManager();
+    cudaDeviceProp prop;
+    bool setDevice(int, bool output=false);
+    int currentDevice;
 };
 
 #endif

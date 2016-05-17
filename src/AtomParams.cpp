@@ -6,6 +6,7 @@
 #define ARG_DEFAULT -1
 
 namespace py=boost::python;
+using namespace std;
 
 int AtomParams::addSpecies(std::string handle, double mass, double atomicNum) {
     //this is wrapped by state b/c fixes may need to update to accomodate more

@@ -4,8 +4,8 @@
 #include "cutils_func.h"
 
 #define EPSILON 0.00001f
-//using namespace boost::python;
 namespace py = boost::python;
+using namespace std;
 
 const std::string dihedralOPLSType = "DihedralOPLS";
 

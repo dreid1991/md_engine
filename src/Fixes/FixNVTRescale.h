@@ -17,20 +17,31 @@ class State;
 
 void export_FixNVTRescale();
 class FixNVTRescale : public Fix {
-    vector<double> intervals;
-    vector<double> temps;
+
+private:
+    std::vector<double> intervals;
+    std::vector<double> temps;
     int curIdx;
+
+    bool usingBounds;
+    BoundsGPU boundsGPU;
+    GPUArrayDeviceGlobal<float> tempGPU;  // length two - first is temp, second is # atoms in group
+
     bool prepareForRun();
     void compute(bool);
     bool postRun();
-    bool usingBounds;
-    BoundsGPU boundsGPU;
-    GPUArrayDeviceGlobal<float> tempGPU; //length two - first is temp, second is # atoms in group
-    public:
-        SHARED(Bounds) thermoBounds;
-        bool finished;
-        FixNVTRescale(SHARED(State), string handle_, string groupHandle_, boost::python::list intervals, boost::python::list temps, int applyEvery=10, SHARED(Bounds) thermoBounds_ = SHARED(Bounds)(NULL) );
-        FixNVTRescale(SHARED(State), string handle_, string groupHandle_, vector<double> intervals, vector<double> temps, int applyEvery=10, SHARED(Bounds) thermoBounds_ = SHARED(Bounds)(NULL) );
+
+public:
+    boost::shared_ptr<Bounds> thermoBounds;
+    bool finished;
+
+    FixNVTRescale(boost::shared_ptr<State>, std::string handle_, std::string groupHandle_,
+                  boost::python::list intervals, boost::python::list temps,
+                  int applyEvery = 10, boost::shared_ptr<Bounds> thermoBounds_ = boost::shared_ptr<Bounds>(NULL));
+
+    FixNVTRescale(boost::shared_ptr<State>, std::string handle_, std::string groupHandle_,
+                  std::vector<double> intervals, std::vector<double> temps,
+                  int applyEvery = 10, boost::shared_ptr<Bounds> thermoBounds_ = boost::shared_ptr<Bounds>(NULL));
 
 };
 

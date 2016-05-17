@@ -12,16 +12,17 @@ IntegratorRelax::IntegratorRelax(SHARED(State) state_)
     dtGrow = 1.1;
     dtShrink = 0.5;
     delay = 5;
-    dtMax_mult=10;
+    dtMax_mult = 10;
 }
 
 //kernels for FIRE relax
 //VDotF by hand
-__global__ void vdotF_cu (float *dest, float4 *vs,float4 *fs, int n) {
-    extern __shared__ float tmp[]; //should have length of # threads in a block (PERBLOCK)
+__global__ void vdotF_cu(float *dest, float4 *vs,float4 *fs, int n) {
+    extern __shared__ float tmp[];  // should have length of # threads in a block (PERBLOCK)
     int potentialIdx = blockDim.x*blockIdx.x + threadIdx.x;
     if (potentialIdx < n) {
-        tmp[threadIdx.x] =dot ( make_float3(vs[blockDim.x*blockIdx.x + threadIdx.x]),make_float3(fs[blockDim.x*blockIdx.x + threadIdx.x]) ) ;
+        tmp[threadIdx.x] = dot(make_float3(vs[blockDim.x*blockIdx.x + threadIdx.x]),
+                               make_float3(fs[blockDim.x*blockIdx.x + threadIdx.x]));
     } else {
         tmp[threadIdx.x] = 0;
     }
@@ -83,11 +84,11 @@ __global__ void FIRE_preForce_cu(int nAtoms, float4 *xs, float4 *vs, float4 *fs,
 
 
 double IntegratorRelax::run(int numTurns, num fTol) {
-    cout << "FIRE relaxation\n";
+    std::cout << "FIRE relaxation\n";
     basicPreRunChecks();  
     basicPrepare(numTurns);
 
-    CUT_CHECK_ERROR("FIRE relaxation init failed");//Debug feature, checks error code
+    CUT_CHECK_ERROR("FIRE relaxation init failed");  // Debug feature, checks error code
 
     //initial  values
     int lastNegative = 0;
@@ -98,7 +99,7 @@ double IntegratorRelax::run(int numTurns, num fTol) {
     int warpSize = state->devManager.prop.warpSize;
 
     //assuming constant number of atoms during run
-    int atomssize=state->atoms.size();
+    int atomssize = state->atoms.size();
     int periodicInterval = state->periodicInterval;
     int nblock = NBLOCK(atomssize);
     int remainder = state->turn % periodicInterval;
@@ -106,7 +107,7 @@ double IntegratorRelax::run(int numTurns, num fTol) {
 
     //set velocity to 0
     // 	state->gpd.vs.memsetByVal(make_float3(0.0f,0.0f,0.0f);
-    zero_vel_cu <<<nblock, PERBLOCK>>>(atomssize,state->gpd.vs.getDevData());
+    zero_vel_cu<<<nblock, PERBLOCK>>>(atomssize,state->gpd.vs.getDevData());
     CUT_CHECK_ERROR("zero_vel_cu kernel execution failed");
 
     //vars to store kernels outputs
@@ -115,16 +116,15 @@ double IntegratorRelax::run(int numTurns, num fTol) {
     GPUArrayGlobal<float>FDotF(1);
     GPUArrayGlobal<float>force(1);
 
-
-    //neiblist build
-    state->gridGPU.periodicBoundaryConditions(-1, true, true);
+    //neighborlist build
+    state->gridGPU.periodicBoundaryConditions(-1, true);
 
     for (int i=0; i<numTurns; i++) {
         //init to 0 on cpu and gpu
-
         VDotV.memsetByVal(0.0);
         VDotF.memsetByVal(0.0);
         FDotF.memsetByVal(0.0);
+
         //vdotF calc
         if (! ((remainder + i) % periodicInterval)) {
             state->gridGPU.periodicBoundaryConditions();
@@ -140,7 +140,6 @@ double IntegratorRelax::run(int numTurns, num fTol) {
         VDotF.dataToHost();
 
         if (VDotF.h_data[0] > 0) {
-
             //VdotV calc
             sumVectorSqr3D<float,float4> <<<nblock,PERBLOCK,sizeof(float)*PERBLOCK>>>(
                                             VDotV.getDevData(),
@@ -183,7 +182,7 @@ double IntegratorRelax::run(int numTurns, num fTol) {
             alpha = alphaInit;
             //set velocity to 0
             //state->gpd.vs.memsetByVal(make_float3(0.0f,0.0f,0.0f);
-            zero_vel_cu <<<nblock, PERBLOCK>>>(atomssize,state->gpd.vs.getDevData());
+            zero_vel_cu <<<nblock, PERBLOCK>>>(atomssize, state->gpd.vs.getDevData());
             CUT_CHECK_ERROR("zero_vel_cu kernel execution failed");
 
         }
@@ -212,19 +211,21 @@ double IntegratorRelax::run(int numTurns, num fTol) {
             CUT_CHECK_ERROR("kernel execution failed");//Debug feature, check error code
 
             force.dataToHost();
-            //cout<<"Fire relax: force="<<force<<"; turns="<<i<<'\n';
+            //std::cout<<"Fire relax: force="<<force<<"; turns="<<i<<'\n';
 
             if (force.h_data[0] < fTol*fTol) {//tolerance achived, exting
                 basicFinish();
                 float finalForce = sqrt(force.h_data[0]);
-                cout<<"FIRE relax done: force="<< finalForce <<"; turns="<<i+1<<'\n';
+                std::cout<<"FIRE relax done: force="<< finalForce <<"; turns="<<i+1<<'\n';
                 return finalForce;
             }
         } 
 
         //shout status
         if (state->verbose and not ((state->turn - turnInit) % state->shoutEvery)) {
-            cout << "Turn " << (int) state->turn << " " << (int) (100 * (state->turn - turnInit) / (num) numTurns) << " percent done" << endl;
+            std::cout << "Turn " << (int) state->turn 
+                      << " " << (int) (100 * (state->turn - turnInit) / (num) numTurns)
+                      << " percent done" << std::endl;
         }
         state->turn++;
 
@@ -232,17 +233,19 @@ double IntegratorRelax::run(int numTurns, num fTol) {
     //total force calculation
     force.memsetByVal(0.0);
 
-    sumVectorSqr3D<float,float4> <<<nblock,PERBLOCK,sizeof(float)*PERBLOCK>>>(
+    sumVectorSqr3D<float,float4> <<<nblock, PERBLOCK, sizeof(float)*PERBLOCK>>>(
                                   force.getDevData(),
                                   state->gpd.fs.getDevData(),
                                   atomssize,
                                   warpSize);
-    CUT_CHECK_ERROR("kernel execution failed");//Debug feature, check error code
+    CUT_CHECK_ERROR("kernel execution failed"); //Debug feature, check error code
 
     basicFinish();
 
     float finalForce = sqrt(force.h_data[0]);
-    cout<<"FIRE relax done: force="<< finalForce <<"; turns="<<numTurns<<'\n';
+    std::cout << "FIRE relax done: force=" << finalForce 
+              << "; turns=" << numTurns << std::endl;
+
     return finalForce;
 }
 
@@ -250,9 +253,9 @@ void export_IntegratorRelax() {
     boost::python::class_<IntegratorRelax,
                           SHARED(IntegratorRelax),
                           boost::python::bases<Integrator>,
-                          boost::noncopyable > (
-        "IntegratorRelax",
-        boost::python::init<SHARED(State)>()
+                          boost::noncopyable >(
+            "IntegratorRelax",
+            boost::python::init<SHARED(State)>()
     )
     .def("run", &IntegratorRelax::run)
     .def("set_params", &IntegratorRelax::set_params,
@@ -262,7 +265,7 @@ void export_IntegratorRelax() {
              boost::python::arg("dtShrink")=-1,
              boost::python::arg("delay")=-1,
              boost::python::arg("dtMax_mult")=-1)
-        )
+    )
     ;
 }
 
