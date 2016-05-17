@@ -9,6 +9,7 @@
 // #include <cmath>
 
 namespace py=boost::python;
+using namespace std;
 
 const std::string chargePairDSFType = "ChargePairDSF";
 

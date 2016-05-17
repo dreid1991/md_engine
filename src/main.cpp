@@ -1,23 +1,32 @@
+#include <vector>
+#include <cstdlib>
+#include <stdlib.h>
+#include <stdio.h>
+
 #include "Python.h"
+//#include "cutils_func.h"
+//#include "mpi.h"
+
 #include "GPUArrayTex.h"
 #include "GPUArrayGlobal.h"
 #include "globalDefs.h"
-#include <vector>
+
 #include "State.h"
+
 #include "FixBondHarmonic.h"
 #include "FixPair.h"
-//#include "cutils_func.h"
 #include "includeFixes.h"
-#include <stdio.h>
-#include <cstdlib>
+
 #include "InitializeAtoms.h"
+
 #include "IntegratorVerlet.h"
 #include "IntegratorRelax.h"
 #include "IntegratorLangevin.h"
+
 #include "FixChargePairDSF.h"
+
 #include "WriteConfig.h"
 #include "ReadConfig.h"
-#include <stdlib.h>
 
 using namespace std;
 
@@ -41,9 +50,6 @@ void testFire() {
         }
     }
 
-    
-
-
     state->periodicInterval = 9;
     SHARED(Fix2d) f2d = SHARED(Fix2d) (new Fix2d(state, "2d", 1));
     state->activateFix(f2d);
@@ -54,60 +60,62 @@ void testFire() {
     cout << "last" << endl;
     cout << state->atoms[0].pos[0]<<' '<<state->atoms[0].vel[0]<<' '<<state->atoms[0].force[0]<<' '<<state->atoms[0].forceLast[0]<< endl;
 
-    SHARED(WriteConfig) write = SHARED(WriteConfig) (new WriteConfig(state, "test", "handle", "xml", 10000));    
+    SHARED(WriteConfig) write = SHARED(WriteConfig) (new WriteConfig(state, "test", "handle", "xml", 10000));
     state->activateWriteConfig(write);
 
-    state->dt=0.003;    
+    state->dt=0.003;
     IntegratorRelax integratorR(state);
     integratorR.run(400000,1.0);
-//     cout << state->atoms[0].pos[0]<<' '<<state->atoms[0].vel[0]<<' '<<state->atoms[0].force[0]<<' '<<state->atoms[0].forceLast[0]<< endl;
-    
-}
+    //cout << state->atoms[0].pos[0]<<' '<<state->atoms[0].vel[0]<<' '<<state->atoms[0].force[0]<<' '<<state->atoms[0].forceLast[0]<< endl;
 
+}
 
 
 void testCharge() {
     SHARED(State) state = SHARED(State) (new State());
     int baseLen = 25;
-    int polybeads=1;
-    double b=0.3;
+    int polybeads = 1;
+    double b = 0.3;
     state->shoutEvery = 1000;
     double mult = 3.25;
-    state->bounds = Bounds(state, Vector(0, 0, 0), Vector(mult*baseLen, mult*baseLen,mult*baseLen));
+    state->bounds = Bounds(state,
+                           Vector(0, 0, 0),
+                           Vector(mult*baseLen, mult*baseLen, mult*baseLen));
     state->rCut = 9.5;
     state->grid = AtomGrid(state.get(), 9.5, 9.5, 9.5);
     state->atomParams.addSpecies("anion", 2);
     state->atomParams.addSpecies("cation", 3);
-    double eps=2.0;
+    double eps = 2.0;
     std::srand(2);
 
     for (int i=0; i<baseLen; i++) {
         for (int j=0; j<baseLen; j++) {
-	    int k=0;
-	    Vector ppos=Vector(i*mult+eps*(double(std::rand())/RAND_MAX), j*mult+eps*(double(std::rand())/RAND_MAX),double(k));
-	    if ((i*baseLen+j)%2) state->addAtom("anion",ppos, 0);
-	    else state->addAtom("cation",ppos, 0);
-	    for (int l=1; l<polybeads; l++) {
-		float3 a=make_float3((0.5-double(std::rand())/RAND_MAX),
-				 (0.5-double(std::rand())/RAND_MAX),
-				 (double(std::rand())/RAND_MAX));
-		a=normalize(a)*b;
-		ppos=ppos+Vector(a);
-		if ((i*baseLen+j)%2) state->addAtom("anion",ppos, 0);
-		else state->addAtom("cation",ppos, 0);
-        }
+            int k=0;
+            Vector ppos = Vector(i*mult + eps*(double(std::rand())/RAND_MAX),
+                                 j*mult + eps*(double(std::rand())/RAND_MAX),
+                                 double(k));
+            if ((i*baseLen+j)%2) state->addAtom("anion", ppos, 0);
+            else state->addAtom("cation", ppos, 0);
+            for (int l=1; l<polybeads; l++) {
+                float3 a = make_float3((0.5 - double(std::rand())/RAND_MAX),
+                                       (0.5 - double(std::rand())/RAND_MAX),
+                                       (double(std::rand())/RAND_MAX));
+                a = normalize(a)*b;
+                ppos = ppos+Vector(a);
+                if ((i*baseLen + j) % 2) state->addAtom("anion", ppos, 0);
+                else state->addAtom("cation", ppos, 0);
+            }
         }
     }
 
 //     SHARED(FixBondHarmonic) bond (new FixBondHarmonic(state, "bond"));
 //     for (int i=0; i<baseLen*baseLen; i++) {
-// 	for (int l=1; l<polybeads; l++) {
-// 	    bond->createBond(&state->atoms[i*polybeads+l-1], &state->atoms[i*polybeads+l], 10.0, 0.3);
-// // 	    cout<<"added bond "<<state->atoms[i*polybeads+l-1].id<<' '<<state->atoms[i*polybeads+l].id<<'\n';
-// 	}
+//     for (int l=1; l<polybeads; l++) {
+//         bond->createBond(&state->atoms[i*polybeads+l-1], &state->atoms[i*polybeads+l], 10.0, 0.3);
+// //         cout<<"added bond "<<state->atoms[i*polybeads+l-1].id<<' '<<state->atoms[i*polybeads+l].id<<'\n';
+//     }
 //     }
 //     state->activateFix(bond);
-
 
     state->periodicInterval = 5;
     SHARED(FixLJCut) nonbond = SHARED(FixLJCut) (new FixLJCut(state, "ljcut"));
@@ -122,28 +130,28 @@ void testCharge() {
     SHARED(FixChargePairDSF) charge (new FixChargePairDSF(state, "charge","all"));
     charge->setParameters(0.25,9.0);
     for (int i=0; i<baseLen*baseLen; i++) {
-	for (int l=0; l<polybeads; l++) {
-	    cout<<i*polybeads+l<<' '<<state->atoms[i*polybeads+l].id
-	    <<' '<<state->atoms[i*polybeads+l].type<<' '<<i%2<<'\n';
-	    state->atoms[i*polybeads+l].q=3.0*(1.0-2.0*(i%2));
-// 	    charge->setCharge(i*polybeads+l,3.0*(1.0-2.0*(i%2)));
-	}
-    }    
+        for (int l=0; l<polybeads; l++) {
+            cout<<i*polybeads+l<<' '<<state->atoms[i*polybeads+l].id
+                <<' '<<state->atoms[i*polybeads+l].type<<' '<<i%2<<'\n';
+            state->atoms[i*polybeads+l].q=3.0*(1.0-2.0*(i%2));
+            //charge->setCharge(i*polybeads+l,3.0*(1.0-2.0*(i%2)));
+        }
+    }
     state->activateFix(charge);
-    
-    SHARED(WriteConfig) write = SHARED(WriteConfig) (new WriteConfig(state, "test", "handle", "xml", 5000));    
+
+    SHARED(WriteConfig) write = SHARED(WriteConfig) (new WriteConfig(state, "test", "handle", "xml", 5000));
     state->activateWriteConfig(write);
 
-    state->dt=0.00031;  
+    state->dt=0.00031;
 
 //     IntegratorRelax integratorR(state);
 //     integratorR.run(500001,1.0);
     IntegratorVerlet integrator(state);
     integrator.run(500000);
-/*    IntegratorLangevin integrator(state);
+    /*IntegratorLangevin integrator(state);
     integrator.run(100000);*/
-//     cout << state->atoms[0].pos[0]<<' '<<state->atoms[0].vel[0]<<' '<<state->atoms[0].force[0]<<' '<<state->atoms[0].forceLast[0]<< endl;
-    
+    //cout << state->atoms[0].pos[0]<<' '<<state->atoms[0].vel[0]<<' '<<state->atoms[0].force[0]<<' '<<state->atoms[0].forceLast[0]<< endl;
+
 }
 
 
@@ -166,20 +174,19 @@ void testPair() {
     state->atoms[1].q=-1.0;
     state->activateFix(charge);
 
-    
-    state->dt=0.0001;  
+    state->dt=0.0001;
     IntegratorVerlet integrator(state);
 
     ofstream ofs;
     ofs.open("test_pair.dat",ios::out );
     for (int i=0;i<1000-10;i++){
-	state->atoms[0].pos[0]=i*5.0/1000.0;
-	state->atoms[0].vel[0]=0.0;
-	state->atoms[1].pos[0]=5.0;
-	state->atoms[1].vel[0]=0.0;
-	integrator.run(1);
-// 	cout<<state->atoms[0].pos[0]<<' '<<state->atoms[1].pos[0]<<' '<<state->atoms[0].force[0]<<' '<<state->atoms[1].force[0]<<'\n';
-	ofs<<state->atoms[0].pos[0]<<' '<<state->atoms[1].pos[0]<<' '<<state->atoms[0].force[0]<<' '<<state->atoms[1].force[0]<<'\n';
+    state->atoms[0].pos[0]=i*5.0/1000.0;
+    state->atoms[0].vel[0]=0.0;
+    state->atoms[1].pos[0]=5.0;
+    state->atoms[1].vel[0]=0.0;
+    integrator.run(1);
+//     cout<<state->atoms[0].pos[0]<<' '<<state->atoms[1].pos[0]<<' '<<state->atoms[0].force[0]<<' '<<state->atoms[1].force[0]<<'\n';
+    ofs<<state->atoms[0].pos[0]<<' '<<state->atoms[1].pos[0]<<' '<<state->atoms[0].force[0]<<' '<<state->atoms[1].force[0]<<'\n';
     }
     ofs.close();
 }
@@ -200,28 +207,27 @@ void test_charge_ewald() {
     //charge
     SHARED(FixChargeEwald) charge (new FixChargeEwald(state, "charge","all"));
     charge->setParameters(64,1.0,3);
-//     charge->setParameters(32,3.0);
-    
+    //charge->setParameters(32,3.0);
+
     state->atoms[0].q=1.0;
     state->atoms[1].q=-1.0;
     state->activateFix(charge);
 
-    
-    state->dt=0.0001;  
+    state->dt=0.0001;
     IntegratorVerlet integrator(state);
-//     charge->compute();
+    //charge->compute();
     integrator.run(1);
 
     ofstream ofs;
     ofs.open("test_pair.dat",ios::out );
     for (int i=0;i<1000-10;i++){
-	state->atoms[0].pos[0]=0.5*L+i*0.25*L/1000.0;
-	state->atoms[0].vel[0]=0.0;
-	state->atoms[1].pos[0]=0.75*L;
-	state->atoms[1].vel[0]=0.0;
-	integrator.run(1);
-// 	cout<<state->atoms[0].pos[0]<<' '<<state->atoms[1].pos[0]<<' '<<state->atoms[0].force[0]<<' '<<state->atoms[1].force[0]<<'\n';
-	ofs<<state->atoms[0].pos[0]<<' '<<state->atoms[1].pos[0]<<' '<<state->atoms[0].force[0]<<' '<<state->atoms[1].force[0]<<'\n';
+        state->atoms[0].pos[0]=0.5*L+i*0.25*L/1000.0;
+        state->atoms[0].vel[0]=0.0;
+        state->atoms[1].pos[0]=0.75*L;
+        state->atoms[1].vel[0]=0.0;
+        integrator.run(1);
+        //cout<<state->atoms[0].pos[0]<<' '<<state->atoms[1].pos[0]<<' '<<state->atoms[0].force[0]<<' '<<state->atoms[1].force[0]<<'\n';
+        ofs<<state->atoms[0].pos[0]<<' '<<state->atoms[1].pos[0]<<' '<<state->atoms[0].force[0]<<' '<<state->atoms[1].force[0]<<'\n';
     }
     ofs.close();
 }
@@ -243,7 +249,6 @@ void testRead() {
     state->grid = AtomGrid(state.get(), 3, 3, 3);
     state->atomParams.addSpecies("handle", 2);
 
-    
     state->addAtom("handle", Vector(1, 1, 1), 0);
     state->addAtom("handle", Vector(3.8, 1, 1), 0);
 
@@ -256,7 +261,7 @@ void testRead() {
     //SHARED(FixBondHarmonic) harmonic = SHARED(FixBondHarmonic) (new FixBondHarmonic(state, "harmonic"));
     //state->activateFix(harmonic);
     //harmonic->createBond(&state->atoms[0], &state->atoms[1], 1, 2);
-    
+
     SHARED(FixSpringStatic) springStatic = SHARED(FixSpringStatic) (new FixSpringStatic(state, "spring", "all", 1, Py_None));
     state->activateFix(springStatic);
 
@@ -275,7 +280,6 @@ void testWallHarmonic() {
     state->atomParams.addSpecies("other", 2);
     state->is2d = true;
     state->periodic[2] = false;
-    
 
     state->addAtom("handle", Vector(8, 1, 0), 0);
     state->atoms[0].vel = Vector(-1, 0, 0);
@@ -296,7 +300,7 @@ void testWallHarmonic() {
     //SHARED(FixBondHarmonic) harmonic = SHARED(FixBondHarmonic) (new FixBondHarmonic(state, "harmonic"));
     //state->activateFix(harmonic);
     //harmonic->createBond(&state->atoms[0], &state->atoms[1], 1, 2);
-    
+
     //SHARED(FixSpringStatic) springStatic = SHARED(FixSpringStatic) (new FixSpringStatic(state, "spring", "all", 1, Py_None));
     //state->activateFix(springStatic);
 
@@ -318,7 +322,6 @@ void testBondHarmonic() {
     state->atomParams.addSpecies("handle", 2);
     state->is2d = true;
     state->periodic[2] = false;
-    
 
     state->addAtom("handle", Vector(6, 1, 0), 0);
     state->addAtom("handle", Vector(8, 1, 0), 0);
@@ -358,13 +361,13 @@ void testBondHarmonicGrid() {
     state->rCut = 3.5;
     state->grid = AtomGrid(state.get(), 4, 4, 3);
     state->atomParams.addSpecies("handle", 2);
-    
+
     SHARED(FixBondHarmonic) bond (new FixBondHarmonic(state, "bondh"));
 
     state->activateFix(bond);
     double spacing = 1.4;
     int n = 50;
-    
+
     for (int i=0; i<n; i++) {
         for (int j=0; j<n; j++) {
             state->addAtom("handle", Vector(i*spacing, j*spacing, 0), 0);
@@ -372,7 +375,7 @@ void testBondHarmonicGrid() {
     }
   //  state->addAtom("handle", Vector(1, 1, 0), 0);
    // state->addAtom("handle", Vector(3, 1, 0), 0);
-    
+
     double rEq = 1.0;
     for (int i=0; i<n; i++) {
         for (int j=0; j<n; j++) {
@@ -382,11 +385,10 @@ void testBondHarmonicGrid() {
             if (j<n-1) {
                 bond->createBond(&state->atoms[i*n+j+1], &state->atoms[i*n+j], 1, rEq, -1);
             }
-            
         }
     }
     state->periodicInterval = 9;
-   /* 
+    /*
     State::ExclusionList out = state->generateExclusionList(4);
     for (auto atom : out) {
         cout << "atom id: " << atom.first << endl;
@@ -400,14 +402,14 @@ void testBondHarmonicGrid() {
     }
     */
     //return;
-    
+
     SHARED(Fix2d) f2d = SHARED(Fix2d) (new Fix2d(state, "2d", 1));
     state->activateFix(f2d);
     SHARED(FixLJCut) nonbond = SHARED(FixLJCut) (new FixLJCut(state, "ljcut"));
     nonbond->setParameter("sig", "handle", "handle", 1);
     nonbond->setParameter("eps", "handle", "handle", 1);
     //state->activateFix(nonbond);
-    
+
     IntegratorRelax integratorR(state);
     integratorR.run(60000,1e-8);
     for (Atom &a : state->atoms) {
@@ -428,14 +430,13 @@ void testBondHarmonicGridToGPU() {
     state->rCut = 3.5;
     state->grid = AtomGrid(state.get(), 4, 4, 3);
     state->atomParams.addSpecies("handle", 2);
-    
+
     SHARED(FixBondHarmonic) bond (new FixBondHarmonic(state, "bondh"));
 
     state->activateFix(bond);
     double spacing = 1.4;
     /*
     int n = 2;
-    
     for (int i=0; i<n; i++) {
         for (int j=0; j<n; j++) {
             state->addAtom("handle", Vector(i*spacing, j*spacing, 0), 0);
@@ -443,7 +444,7 @@ void testBondHarmonicGridToGPU() {
     }
   //  state->addAtom("handle", Vector(1, 1, 0), 0);
    // state->addAtom("handle", Vector(3, 1, 0), 0);
-    
+
     double rEq = 1.0;
     for (int i=0; i<n; i++) {
         for (int j=0; j<n; j++) {
@@ -453,7 +454,6 @@ void testBondHarmonicGridToGPU() {
             if (j<n-1) {
                 bond->createBond(&state->atoms[i*n+j+1], &state->atoms[i*n+j], 1, rEq);
             }
-            
         }
     }
     */
@@ -462,7 +462,7 @@ void testBondHarmonicGridToGPU() {
     state->addAtom("handle", Vector(3, 1, 0), 0);
     state->addAtom("handle", Vector(4, 1, 0), 0);
     state->addAtom("handle", Vector(4.1, 1, 0), 0);
-//    state->addAtom("handle", Vector(4, 1, 0), 0);
+    //state->addAtom("handle", Vector(4, 1, 0), 0);
     bond->createBond(&state->atoms[0], &state->atoms[1], 1, 1, -1);
     bond->createBond(&state->atoms[2], &state->atoms[1], 1, 1, -1);
     bond->createBond(&state->atoms[2], &state->atoms[3], 1, 1, -1);
@@ -470,7 +470,7 @@ void testBondHarmonicGridToGPU() {
     //bond->createBond(&state->atoms[4], &state->atoms[0], 1, 1);
   //  bond->createBond(&state->atoms[2], &state->atoms[3], 1, 1);
     state->periodicInterval = 9;
-   /* 
+    /*
     State::ExclusionList out = state->generateExclusionList(4);
     for (auto atom : out) {
         cout << "atom id: " << atom.first << endl;
@@ -491,9 +491,9 @@ void testBondHarmonicGridToGPU() {
     nonbond->setParameter("sig", "handle", "handle", 1);
     nonbond->setParameter("eps", "handle", "handle", 1);
     //state->activateFix(nonbond);
-    
+
     IntegratorRelax integratorR(state);
-   // integratorR.run(60000,1e-8);
+    //integratorR.run(60000,1e-8);
     integratorR.run(5000, 1e-3);
     for (BondVariant &bv : bond->bonds) {
         Bond single = get<BondHarmonic>(bv);
@@ -517,8 +517,8 @@ void hoomdBench() {
     InitializeAtoms::populateRand(state, state->bounds, "handle", 6000, 0.6);
 
     cout << "populated" << endl;
-    
-  //  state->atoms.pos[0] += Vector(0.1, 0, 0);
+
+    //state->atoms.pos[0] += Vector(0.1, 0, 0);
 
     state->periodicInterval = 7;
    // SHARED(Fix2d) f2d = SHARED(Fix2d) (new Fix2d(state, "2d", 1));
@@ -555,7 +555,7 @@ void hoomdBench() {
     //SHARED(FixBondHarmonic) harmonic = SHARED(FixBondHarmonic) (new FixBondHarmonic(state, "harmonic"));
     //state->activateFix(harmonic);
     //harmonic->createBond(&state->atoms[0], &state->atoms[1], 1, 2);
-    
+
     //SHARED(FixSpringStatic) springStatic = SHARED(FixSpringStatic) (new FixSpringStatic(state, "spring", "all", 1, Py_None));
     //state->activateFix(springStatic);
 
@@ -605,8 +605,8 @@ void testLJ() {
         }
     }
 
-    InitializeAtoms::initTemp(state, "all", 1.2); 
-  //  state->atoms.pos[0] += Vector(0.1, 0, 0);
+    InitializeAtoms::initTemp(state, "all", 1.2);
+    //state->atoms.pos[0] += Vector(0.1, 0, 0);
 
     state->periodicInterval = 9;
    // SHARED(Fix2d) f2d = SHARED(Fix2d) (new Fix2d(state, "2d", 1));
@@ -634,7 +634,7 @@ void testLJ() {
     //SHARED(FixBondHarmonic) harmonic = SHARED(FixBondHarmonic) (new FixBondHarmonic(state, "harmonic"));
     //state->activateFix(harmonic);
     //harmonic->createBond(&state->atoms[0], &state->atoms[1], 1, 2);
-    
+
     //SHARED(FixSpringStatic) springStatic = SHARED(FixSpringStatic) (new FixSpringStatic(state, "spring", "all", 1, Py_None));
     //state->activateFix(springStatic);
 
@@ -657,6 +657,9 @@ void testGPUArrayTex() {
 }
 
 int main(int argc, char **argv) {
+
+    //MPI_Init(&argc, &argv);
+
     if (argc > 1) {
         int arg = atoi(argv[1]);
         if (arg==0) {
@@ -668,7 +671,7 @@ int main(int argc, char **argv) {
         } else if (arg==1) {
 //             testPair();
 //             testFire();
-	    test_charge_ewald();
+        test_charge_ewald();
         } else if (arg==2) {
             testBondHarmonicGrid();
             //sean put your test stuff here
@@ -676,7 +679,7 @@ int main(int argc, char **argv) {
     } else {
         cout << "no argvs specified, doing nothing" << endl;
     }
-    
+
     //testLJ();
     //testWallHarmonic();
     //testRead();
@@ -716,7 +719,7 @@ int main(int argc, char **argv) {
   //  state->addAtom("handle", Vector(2, 2, 0));
   //  state->addAtom("handle", Vector(4, 2.7, 0));
   //  state->atoms[0].vel = Vector(2, 0, 0);
-    
+
     for (int i=0; i<baseLen; i++) {
         for (int j=0; j<baseLen; j++) {
             state->atoms.push_back(Atom(Vector(mult*j, mult*i, 0), 0, i*baseLen+j, 2, 0));
@@ -747,6 +750,7 @@ int main(int argc, char **argv) {
     //state->integrator.run(1000);
     //state->integrator.test();
 
-    
+    //MPI_Finalize();
+
 }
 

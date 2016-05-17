@@ -8,19 +8,27 @@
 
 #include "State.h"
 
-IntegratorLangevin::IntegratorLangevin(SHARED(State) state_,float T_) : IntegratorVerlet(state_), 
-    seed(0),  gamma(1.0) ,curInterval(0){
-    finished=true;
+using namespace std;
+
+
+IntegratorLangevin::IntegratorLangevin(SHARED(State) state_,float T_)
+  : IntegratorVerlet(state_),
+    seed(0), gamma(1.0), curInterval(0)
+{
+    finished = true;
     temps.push_back(T_);
-    VDotV=GPUArrayGlobal<float>(1);
-    thermoBounds=SHARED(Bounds)(NULL);
-    usingBounds=false;
+    VDotV = GPUArrayGlobal<float>(1);
+    thermoBounds = SHARED(Bounds)(NULL);
+    usingBounds = false;
 }
 
 
-IntegratorLangevin::IntegratorLangevin(SHARED(State) state_, /*string groupHandle_,*/ boost::python::list intervals_, boost::python::list temps_, SHARED(Bounds) thermoBounds_ ):
-    IntegratorVerlet(state_), seed(0),  gamma(1.0), curInterval(0),finished(false)  {
-    assert(boost::python::len(intervals_) == boost::python::len(temps_)); 
+IntegratorLangevin::IntegratorLangevin(SHARED(State) state_, /*string groupHandle_,*/
+                                       boost::python::list intervals_, boost::python::list temps_,
+                                       SHARED(Bounds) thermoBounds_)
+  : IntegratorVerlet(state_), seed(0), gamma(1.0), curInterval(0), finished(false)
+{
+    assert(boost::python::len(intervals_) == boost::python::len(temps_));
     assert(boost::python::len(intervals_) > 1);
     int len = boost::python::len(intervals_);
     for (int i=0; i<len; i++) {
@@ -29,7 +37,7 @@ IntegratorLangevin::IntegratorLangevin(SHARED(State) state_, /*string groupHandl
         intervals.push_back(interval);
         temps.push_back(temp);
     }
-    assert(intervals[0] == 0 and intervals.back() == 1);  
+    assert(intervals[0] == 0 and intervals.back() == 1);
 
     thermoBounds = thermoBounds_;
     usingBounds = thermoBounds != SHARED(Bounds) (NULL);
@@ -38,21 +46,24 @@ IntegratorLangevin::IntegratorLangevin(SHARED(State) state_, /*string groupHandl
         boundsGPU = thermoBounds->makeGPU();
     }
 
-//     map<string, unsigned int> &groupTags = state->groupTags;
-//     if (groupHandle_ == "None") {
-//             groupTag = 0;
-//     } else {
-//             assert(groupTags.find(groupHandle_) != groupTags.end());
-//             groupTag = groupTags[groupHandle_];
-//     }   
+    //map<string, unsigned int> &groupTags = state->groupTags;
+    //if (groupHandle_ == "None") {
+    //        groupTag = 0;
+    //} else {
+    //        assert(groupTags.find(groupHandle_) != groupTags.end());
+    //        groupTag = groupTags[groupHandle_];
+    //}
 }
 
-IntegratorLangevin::IntegratorLangevin(SHARED(State) state_,/* string groupHandle_, */vector<double> intervals_, vector<double> temps_, SHARED(Bounds) thermoBounds_ ):
-    IntegratorVerlet(state_), seed(0),  gamma(1.0), curInterval(0),finished(false)  {
+IntegratorLangevin::IntegratorLangevin(SHARED(State) state_,/* string groupHandle_, */
+                                       vector<double> intervals_, vector<double> temps_,
+                                       SHARED(Bounds) thermoBounds_)
+  : IntegratorVerlet(state_), seed(0), gamma(1.0), curInterval(0), finished(false)
+{
     assert(intervals.size() == temps.size());
     intervals = intervals_;
     temps = temps_;
-    assert(intervals[0] == 0 and intervals.back() == 1);  
+    assert(intervals[0] == 0 and intervals.back() == 1);
 
     thermoBounds = thermoBounds_;
     usingBounds = thermoBounds != SHARED(Bounds) (NULL);
@@ -60,8 +71,8 @@ IntegratorLangevin::IntegratorLangevin(SHARED(State) state_,/* string groupHandl
         assert(state == thermoBounds->state);
         boundsGPU = thermoBounds->makeGPU();
     }
-    
-    
+
+
 //     map<string, unsigned int> &groupTags = state->groupTags;
 //     if (groupHandle_ == "None") {
 //             groupTag = 0;
@@ -69,11 +80,11 @@ IntegratorLangevin::IntegratorLangevin(SHARED(State) state_,/* string groupHandl
 //             assert(groupTags.find(groupHandle_) != groupTags.end());
 //             groupTag = groupTags[groupHandle_];
 //     }
-    
+
 }
 
 double IntegratorLangevin::curTemperature(){
-    int64_t turn = state->turn;  
+    int64_t turn = state->turn;
     if (finished) {
         return temps.back();
     } else {
@@ -102,50 +113,49 @@ __global__ void preForce_Langevin_cu(int nAtoms, float4 *xs, float4 *vs, float4 
 
         float3 dPos = make_float3(vel) * dt +
                       make_float3(force) * dt*dt * 0.5f * invmass;
-        
+
         // Only add float3 to xs and fs! (w entry is used as int or bitmask)
         xs[idx] += dPos;
 
-        float4 newVel = vel + (force) * dt * 0.5f * invmass; 
-        
+        float4 newVel = vel + (force) * dt * 0.5f * invmass;
+
         newVel.w = invmass;
         vs[idx] = newVel;
         fs[idx] = make_float4(0, 0, 0, groupTag);
-        
+
     }
 }
 
 __global__ void postForce_Langevin_cu(int nAtoms, float4 *vs, float4 *fs, float dt,int timesteps,int seed,float T,float gamma) {
     int idx = GETIDX();
     if (idx < nAtoms) {
-      
-	curandState_t localState;
-	curand_init(timesteps, idx, seed, &localState);
-	float4 Wiener;
+
+    curandState_t localState;
+    curand_init(timesteps, idx, seed, &localState);
+    float4 Wiener;
         Wiener.x=curand_uniform(&localState)*2.0f-1.0f;
         Wiener.y=curand_uniform(&localState)*2.0f-1.0f;
         Wiener.z=curand_uniform(&localState)*2.0f-1.0f;
 //         float2 g2;
-// 	g2=curand_normal2(&localState);//TODO replace with uniform?? DONE
-// 	Wiener.x=g2.x;
-// 	Wiener.y=g2.y;
-// 	g2=curand_normal2(&localState);
-// 	Wiener.z=g2.x;
-	
-	
+//     g2=curand_normal2(&localState);//TODO replace with uniform?? DONE
+//     Wiener.x=g2.x;
+//     Wiener.y=g2.y;
+//     g2=curand_normal2(&localState);
+//     Wiener.z=g2.x;
+
         float4 vel = vs[idx];
         float4 force = fs[idx];
         float invmass = vel.w;
         float groupTag = force.w;
-        
+
         float Bc= dt==0 ? 0:sqrt(6.0*gamma*T/dt) ;
-        
+
         force+=Bc*Wiener-gamma*vel;//TODO not really a force anymore just accelatarion times mass
-        
-        float4 newVel = vel + (force) * dt * 0.5f * invmass; 
-	force.w=groupTag;
+
+        float4 newVel = vel + (force) * dt * 0.5f * invmass;
+        force.w=groupTag;
         fs[idx]=force;
-        
+
         newVel.w = invmass;
         vs[idx] = newVel;
     }
@@ -164,12 +174,12 @@ __global__ void preForce_LangevinInBounds_cu(int nAtoms, float4 *xs, float4 *vs,
 
             float3 dPos = make_float3(vel) * dt +
                           make_float3(force) * dt*dt * 0.5f * invmass;
-            
+
             // Only add float3 to xs and fs! (w entry is used as int or bitmask)
             xs[idx] += dPos;
 
-            float4 newVel = vel + (force) * dt * 0.5f * invmass; 
-            
+            float4 newVel = vel + (force) * dt * 0.5f * invmass;
+
             newVel.w = invmass;
             vs[idx] = newVel;
             fs[idx] = make_float4(0, 0, 0, groupTag);
@@ -181,7 +191,7 @@ __global__ void postForce_LangevinInBounds_cu(int nAtoms, float4 *xs,float4 *vs,
     int idx = GETIDX();
     if (idx < nAtoms) {
         float3 x = make_float3(xs[idx]);
-        if (bounds.inBounds(x)) {      
+        if (bounds.inBounds(x)) {
             curandState_t localState;
             curand_init(timesteps, idx, seed, &localState);
             float4 Wiener;
@@ -194,21 +204,20 @@ __global__ void postForce_LangevinInBounds_cu(int nAtoms, float4 *xs,float4 *vs,
     //      Wiener.y=g2.y;
     //      g2=curand_normal2(&localState);
     //      Wiener.z=g2.x;
-            
-            
+
             float4 vel = vs[idx];
             float4 force = fs[idx];
             float invmass = vel.w;
             float groupTag = force.w;
-            
-            float Bc= dt==0 ? 0:sqrt(6.0*gamma*T/dt) ;
-            
+
+            float Bc = (dt == 0) ? 0 : sqrt(6.0*gamma*T/dt);
+
             force+=Bc*Wiener-gamma*vel;//TODO not really a force anymore just accelatarion times mass
-            
-            float4 newVel = vel + (force) * dt * 0.5f * invmass; 
+
+            float4 newVel = vel + (force) * dt * 0.5f * invmass;
             force.w=groupTag;
             fs[idx]=force;
-            
+
             newVel.w = invmass;
             vs[idx] = newVel;
         }
@@ -222,10 +231,9 @@ void IntegratorLangevin::preForce(uint activeIdx) {
     }else{
         preForce_Langevin_cu<<<NBLOCK(state->atoms.size()), PERBLOCK>>>(state->atoms.size(), state->gpd.xs.getDevData(), state->gpd.vs.getDevData(), state->gpd.fs.getDevData(),state->dt);
     }
-    cudaDeviceSynchronize();   
+    cudaDeviceSynchronize();
     CUT_CHECK_ERROR("IntegratorLangevin execution failed");
 
-  
 }
 
 void IntegratorLangevin::postForce(uint activeIdx,int timesteps) {
@@ -235,18 +243,18 @@ void IntegratorLangevin::postForce(uint activeIdx,int timesteps) {
 
     }else{
         postForce_Langevin_cu<<<NBLOCK(state->atoms.size()), PERBLOCK>>>(state->atoms.size(), state->gpd.vs.getDevData(), state->gpd.fs.getDevData(), state->dt,timesteps,seed,float(curTemperature()), gamma);
-    }  
-    
+    }
+
     int atomssize=state->atoms.size();
-    VDotV.memsetByVal(0.0);    
+    VDotV.memsetByVal(0.0);
     sumVector3D<float,float4> <<<NBLOCK(atomssize),PERBLOCK,sizeof(float)*PERBLOCK>>>(
                                             VDotV.getDevData(),
                                             state->gpd.vs.getDevData(),
                                             atomssize,
-                                            warpSize);               
+                                            warpSize);
     VDotV.dataToHost();
 //     cout<<"Velocity check "<<VDotV.h_data[0]/atomssize<<'\n';
-    
+
     if (::isnan(VDotV.h_data[0])) {
         cout.flush();
         cout<<"Velocity check "<<VDotV.h_data[0]/atomssize<<'\n';
@@ -260,9 +268,9 @@ void IntegratorLangevin::postForce(uint activeIdx,int timesteps) {
 
 
 void IntegratorLangevin::run(int numTurns) {
-    basicPreRunChecks(); 
+    basicPreRunChecks();
     basicPrepare(numTurns);
-    
+
     double rCut = state->rCut;
     double padding = state->padding;
 
@@ -270,12 +278,12 @@ void IntegratorLangevin::run(int numTurns) {
     int periodicInterval = state->periodicInterval;
     int numBlocks = ceil(state->atoms.size() / (float) PERBLOCK);
     int remainder = state->turn % periodicInterval;
-    int turnInit = state->turn; 
+    int turnInit = state->turn;
     auto start = std::chrono::high_resolution_clock::now();
 
     for (int i=0; i<numTurns; i++) {
         if (! ((remainder + i) % periodicInterval)) {
-            state->gridGPU.periodicBoundaryConditions(rCut + padding, true);
+            state->gridGPU.periodicBoundaryConditions(rCut + padding);
         }
         int activeIdx = state->gpd.activeIdx();
         asyncOperations();
@@ -284,9 +292,9 @@ void IntegratorLangevin::run(int numTurns) {
         force(activeIdx);
         postForce(activeIdx,state->turn);
 
-		if (state->verbose and not ((state->turn - turnInit) % state->shoutEvery)) {
-			cout << "Turn " << (int) state->turn << " " << (int) (100 * (state->turn - turnInit) / (num) numTurns) << " percent done" << endl;
-		}
+        if (state->verbose and not ((state->turn - turnInit) % state->shoutEvery)) {
+            cout << "Turn " << (int) state->turn << " " << (int) (100 * (state->turn - turnInit) / (num) numTurns) << " percent done" << endl;
+        }
         state->turn++;
 
     }
@@ -302,13 +310,12 @@ void IntegratorLangevin::run(int numTurns) {
 }
 
 void export_IntegratorLangevin() {
-    boost::python::class_ <IntegratorLangevin, SHARED(IntegratorLangevin), boost::python::bases<IntegratorVerlet>, boost::noncopyable > ("IntegratorLangevin", boost::python::init<SHARED(State), float>()) 
+    boost::python::class_ <IntegratorLangevin, SHARED(IntegratorLangevin), boost::python::bases<IntegratorVerlet>, boost::noncopyable > ("IntegratorLangevin", boost::python::init<SHARED(State), float>())
         .def(boost::python::init<SHARED(State), boost::python::list,
                             boost::python::list,
                             boost::python::optional< SHARED(Bounds)>>())
         .def("run", &IntegratorLangevin::run)
-        .def("set_params", &IntegratorLangevin::set_params,(boost::python::arg("seed"),boost::python::arg("gamma")))        
-        ;   
+        .def("set_params", &IntegratorLangevin::set_params,(boost::python::arg("seed"),boost::python::arg("gamma")))
+        ;
 }
 
-                            

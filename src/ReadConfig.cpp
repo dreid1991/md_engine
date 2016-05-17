@@ -4,6 +4,7 @@
 #include "includeFixes.h"
 #include <boost/lexical_cast.hpp> //for case string to int64 (turn)
 
+using namespace std;
 
 vector<vector<num> > mapTo2d(vector<num> &xs, const int dim) {
 	vector<vector<num> > mapped;

@@ -86,7 +86,7 @@ namespace SquareVector {
      * Set the diagonal elements to a value determined by the function passed.
      */
     template <class T>
-    void populateDiagonal(vector<T> *vec, int size,
+    void populateDiagonal(std::vector<T> *vec, int size,
             std::function<T ()> fillFunction) {
         for (int i=0; i<size; i++) {
             T val = squareVectorRef<T>(vec->data(), size, i, i);
@@ -113,7 +113,7 @@ namespace SquareVector {
      *       instead of silently doing nothing.
      */
     template <class T>
-    void populate(vector<T> *vec, int size, std::function<T (T, T)> fillFunction) {
+    void populate(std::vector<T> *vec, int size, std::function<T (T, T)> fillFunction) {
         for (int i=0; i<size; i++) {
             for (int j=0; j<size; j++) {
                 T val = squareVectorRef<T>(vec->data(), size, i, j);
@@ -125,10 +125,8 @@ namespace SquareVector {
                     }
                 } else if (val == DEFAULT_FILL) {
                     squareVectorRef<T>(vec->data(), size, i, j) =
-                        fillFunction(squareVectorRef<T>(vec->data(), size,
-                                    i, i),
-                                squareVectorRef<T>(vec->data(), size,
-                                    j, j));
+                        fillFunction(squareVectorRef<T>(vec->data(), size, i, i),
+                                     squareVectorRef<T>(vec->data(), size, j, j));
                 }
             }
         }
@@ -145,7 +143,7 @@ namespace SquareVector {
      * value as the argument and replacing it with the return value.
      */
     template <class T>
-    void process(vector<T> *vec, int size, std::function<T (T)> processFunction) {
+    void process(std::vector<T> *vec, int size, std::function<T (T)> processFunction) {
         for (int i=0; i<size; i++) {
             for (int j=0; j<size; j++) {
                 squareVectorRef<T>(vec->data(), size, i, j) =
@@ -168,7 +166,7 @@ namespace SquareVector {
     template <class T>
     std::vector<T> copyToSize(std::vector<T> &other, int oldSize, int newSize) {
         std::vector<T> replacement(newSize*newSize, DEFAULT_FILL);
-        int copyUpTo = fmin(oldSize, newSize);
+        int copyUpTo = std::fmin(oldSize, newSize);
         for (int i=0; i<copyUpTo; i++) {
             for (int j=0; j<copyUpTo; j++) {
                 squareVectorRef<T>(replacement.data(), newSize, i, j) =
@@ -211,7 +209,7 @@ protected:
      * interaction fix.
      */
     void initializeParameters(std::string paramHandle,
-                              vector<float> &params);
+                              std::vector<float> &params);
 
     //! Fill the vector containing the pair interaction parameters
     /*!
@@ -228,7 +226,7 @@ protected:
      * calculated from the diagonal elements using the fillFunction. Finally,
      * all elements are modified using the processFunction.
      */
-    void prepareParameters(string handle,
+    void prepareParameters(std::string handle,
                            std::function<float (float, float)> fillFunction,
                            std::function<float (float)> processFunction,
                            bool fillDiag,
@@ -246,7 +244,7 @@ protected:
      * interaction parameters has the right size. If not, the array is
      * automatically resized.
      */
-    void ensureParamSize(vector<float> &array);
+    void ensureParamSize(std::vector<float> &array);
 
     //! Read pair parameters from XML node (Not yet implemented)
     /*!
@@ -272,20 +270,20 @@ protected:
      * pair parameter map. The chunk is the used for outputting the current
      * configuration.
      */
-    string restartChunkPairParams(std::string format);
+    std::string restartChunkPairParams(std::string format);
 
     //! Map mapping string labels onto the vectors containing the
     //! pair potential parameters
-    std::map<string, std::vector<float> *> paramMap;
+    std::map<std::string, std::vector<float> *> paramMap;
 
     //! Parameter map before preparing the parameters
-    std::map<string, std::vector<float> > paramMapPreproc;
+    std::map<std::string, std::vector<float> > paramMapPreproc;
 
     //! Parameters to be sent to the GPU
     GPUArrayDeviceGlobal<float> paramsCoalesced;
 
     //! Order in which the parameters are processed
-    std::vector<string> paramOrder;
+    std::vector<std::string> paramOrder;
 
     //! Make sure that all parameters are in paramOrder
     /*!
@@ -318,6 +316,6 @@ public:
     /*!
      * \param handle String specifying the parameter
      */
-    void resetToPreproc(string handle);
+    void resetToPreproc(std::string handle);
 };
 #endif

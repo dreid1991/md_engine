@@ -10,7 +10,7 @@ state.bounds = Bounds(state, lo = Vector(0, 0, 0), hi = Vector(55.12934875488, 5
 state.rCut = 3.0
 state.padding = 0.6
 state.periodicInterval = 7
-state.shoutEvery = 1000
+state.shoutEvery = 100
 
 state.grid = AtomGrid(state, 3.6, 3.6, 3.6)
 state.atomParams.addSpecies(handle='spc1', mass=1, atomicNum=1)
@@ -29,17 +29,17 @@ InitializeAtoms.initTemp(state, 'all', 1.2)
 fixNVT = FixNVTRescale(state, 'temp', 'all', [0, 1], [1.2, 1.2], 100)
 state.activateFix(fixNVT)
 
-integVerlet = IntegraterVerlet(state)
+integVerlet = IntegratorVerlet(state)
 
 #tempData = state.dataManager.recordTemperature('all', 10)
 #boundsData = state.dataManager.recordBounds(100)
 #engData = state.dataManager.recordEnergy('all', 100)
 
 writeconfig = WriteConfig(state, fn='test_out', writeEvery=10, format='xyz', handle='writer')
-#state.activateWriteConfig(writeconfig)
+state.activateWriteConfig(writeconfig)
 
 
-integVerlet.run(10000)#000000)
+integVerlet.run(1000)#000000)
 print state.atoms[0].pos
 sumV = 0.
 for a in state.atoms:
@@ -52,4 +52,4 @@ print sumV / len(state.atoms)/3.0
 #print state.turn
 #print integVerlet.energyAverage('all')
 #perParticle = integVerlet.energyPerParticle()
-print sum(perParticle) / len(perParticle)
+#print sum(perParticle) / len(perParticle)

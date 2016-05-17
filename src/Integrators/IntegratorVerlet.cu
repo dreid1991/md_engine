@@ -5,7 +5,8 @@
 IntegratorVerlet::IntegratorVerlet(SHARED(State) state_)
     : Integrator(state_.get()) {}
 
-__global__ void preForce_cu(int nAtoms, float4 *xs, float4 *vs, float4 *fs, float4 *fsLast, float dt) {
+__global__ void preForce_cu(int nAtoms, float4 *xs, float4 *vs, float4 *fs,
+                            float4 *fsLast, float dt) {
     int idx = GETIDX();
     if (idx < nAtoms) {
 
@@ -17,7 +18,7 @@ __global__ void preForce_cu(int nAtoms, float4 *xs, float4 *vs, float4 *fs, floa
 
         float3 dPos = make_float3(vel) * dt +
                       make_float3(force) * dt*dt * 0.5f * invmass;
-        
+
         // Only add float3 to xs and fs! (w entry is used as int or bitmask)
         //THIS IS NONTRIVIALLY FASTER THAN DOING +=.  Sped up whole sumilation by 1%
         float4 xCur = xs[idx];
@@ -30,8 +31,8 @@ __global__ void preForce_cu(int nAtoms, float4 *xs, float4 *vs, float4 *fs, floa
     }
 }
 
-
-__global__ void postForce_cu(int nAtoms, float4 *vs, float4 *fs, float4 *fsLast, float dt) {
+__global__ void postForce_cu(int nAtoms, float4 *vs, float4 *fs,
+                             float4 *fsLast, float dt) {
     int idx = GETIDX();
     if (idx < nAtoms) {
         float4 vel = vs[idx];
@@ -47,40 +48,48 @@ __global__ void postForce_cu(int nAtoms, float4 *vs, float4 *fs, float4 *fsLast,
         vs[idx] = newVel;
     }
 }
-void IntegratorVerlet::preForce(uint activeIdx) {
-	//vector<Atom> &atoms = state->atoms;
-    preForce_cu<<<NBLOCK(state->atoms.size()), PERBLOCK>>>(state->atoms.size(), state->gpd.xs.getDevData(), state->gpd.vs.getDevData(), state->gpd.fs.getDevData(), state->gpd.fsLast.getDevData(), state->dt);
-}
 
+void IntegratorVerlet::preForce(uint activeIdx) {
+    //vector<Atom> &atoms = state->atoms;
+    preForce_cu<<<NBLOCK(state->atoms.size()), PERBLOCK>>>(
+            state->atoms.size(),
+            state->gpd.xs.getDevData(),
+            state->gpd.vs.getDevData(),
+            state->gpd.fs.getDevData(),
+            state->gpd.fsLast.getDevData(),
+            state->dt);
+}
 
 void IntegratorVerlet::postForce(uint activeIdx) {
-    postForce_cu<<<NBLOCK(state->atoms.size()), PERBLOCK>>>(state->atoms.size(), state->gpd.vs.getDevData(), state->gpd.fs.getDevData(), state->gpd.fsLast.getDevData(), state->dt);
+    postForce_cu<<<NBLOCK(state->atoms.size()), PERBLOCK>>>(
+            state->atoms.size(),
+            state->gpd.vs.getDevData(),
+            state->gpd.fs.getDevData(),
+            state->gpd.fsLast.getDevData(),
+            state->dt);
 }
-
 
 
 void IntegratorVerlet::run(int numTurns) {
-    basicPreRunChecks(); 
+    basicPreRunChecks();
     basicPrepare(numTurns);
-    
-
 
     int periodicInterval = state->periodicInterval;
     int numBlocks = ceil(state->atoms.size() / (float) PERBLOCK);
     int remainder = state->turn % periodicInterval;
-    int turnInit = state->turn; 
+    int turnInit = state->turn;
     auto start = std::chrono::high_resolution_clock::now();
     /*
     int x = 0;
     dataGather = async(launch::async, [&]() {x=5;});
-    cout << "valid " << endl;
-    cout << dataGather.valid() << endl;
+    std::cout << "valid " << std::endl;
+    std::cout << dataGather.valid() << std::endl;
     dataGather.wait();
-    cout << dataGather.valid() << endl;
-    cout << "x is " << x << endl;
-    cout << "waiting again" << endl;
+    std::cout << dataGather.valid() << std::endl;
+    std::cout << "x is " << x << std::endl;
+    std::cout << "waiting again" << std::endl;
     dataGather.wait();
-    cout << "past" << endl;
+    std::cout << "past" << std::endl;
     return;
      */
     for (int i=0; i<numTurns; i++) {
@@ -95,7 +104,9 @@ void IntegratorVerlet::run(int numTurns) {
         postForce(activeIdx);
 
         if (state->verbose and not ((state->turn - turnInit) % state->shoutEvery)) {
-            cout << "Turn " << (int) state->turn << " " << (int) (100 * (state->turn - turnInit) / (num) numTurns) << " percent done" << endl;
+            std::cout << "Turn " << (int) state->turn
+                      << " " << (int) (100 * (state->turn - turnInit) / (num) numTurns)
+                      << " percent done" << std::endl;
         }
         state->turn++;
 
@@ -103,8 +114,9 @@ void IntegratorVerlet::run(int numTurns) {
     cudaDeviceSynchronize();
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> duration = end - start;
-    cout << "runtime " << duration.count() << endl;
-    cout << (state->atoms.size() * numTurns / duration.count()) << " particle timesteps per  second " << endl;
+    std::cout << "runtime " << duration.count() << std::endl;
+    std::cout << (state->atoms.size() * numTurns / duration.count())
+              << " particle timesteps per  second " << std::endl;
 
     basicFinish();
 

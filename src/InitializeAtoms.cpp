@@ -5,10 +5,12 @@
 
 #include "Logging.h"
 
-//make a 'ready' flag in state, which means am ready to run.  creating atoms
-//makes false, make ready by re-doing all atom pointers
+using namespace std;
+
+// make a 'ready' flag in state, which means am ready to run.  creating atoms
+// makes false, make ready by re-doing all atom pointers
 //
-//nah, am making ready on each
+// nah, am making ready on each
 
 int max_id(vector<Atom> &atoms) {
     int id = -1;
@@ -103,7 +105,7 @@ void InitializeAtoms::initTemp(SHARED(State) state, string groupHandle,
     //boltzmann const is 1 for reduced lj units
     std::mt19937 generator = state->getRNG();
     int groupTag = state->groupTagFromHandle(groupHandle);
-	
+
     vector<Atom *> atoms = LISTMAPREFTEST(Atom, Atom *, a, state->atoms, &a,
                                           a.groupTag & groupTag);
 

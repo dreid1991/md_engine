@@ -5,18 +5,20 @@
 #include "State.h"
 
 namespace py=boost::python;
+using namespace std;
 
 const std::string wallHarmonicType = "WallHarmonic";
 
 FixWallHarmonic::FixWallHarmonic(SHARED(State) state_, string handle_, string groupHandle_,
                                  Vector origin_, Vector forceDir_, double dist_, double k_)
-    : Fix(state_, handle_, groupHandle_, wallHarmonicType, true, 1),
-      origin(origin_), forceDir(forceDir_.normalized()), dist(dist_), k(k_)
+  : Fix(state_, handle_, groupHandle_, wallHarmonicType, true, 1),
+    origin(origin_), forceDir(forceDir_.normalized()), dist(dist_), k(k_)
 {
     assert(dist >= 0);
 }
 
-void __global__ compute_cu(float4 *xs, int nAtoms, float4 *fs, float3 origin, float3 forceDir, float dist, float k, uint groupTag) {
+void __global__ compute_cu(float4 *xs, int nAtoms, float4 *fs,
+                          float3 origin, float3 forceDir, float dist, float k, uint groupTag) {
     //forceDir is normalized in constructor
     int idx = GETIDX();
     if (idx < nAtoms) {

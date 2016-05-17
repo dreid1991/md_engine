@@ -27,6 +27,7 @@ void export_Fix();
  *       preference.
  */
 class Fix {
+
 protected:
     //! Default constructor
     /*!
@@ -44,12 +45,9 @@ protected:
      *
      * \todo Make constructor protected since this is an abstract base class
      */
-    Fix(SHARED(State) state_,
-        std::string handle_,
-        std::string groupHandle_,
-        std::string type_,
-        bool forceSingle_,
-        int applyEvery_);
+    Fix(boost::shared_ptr<State> state_, std::string handle_, std::string groupHandle_,
+        std::string type_, bool forceSingle_, int applyEvery_,
+        int orderPreference_ = 0);
 
 public:
     //! Destructor

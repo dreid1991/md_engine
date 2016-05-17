@@ -2,20 +2,21 @@
 #ifndef INITIALIZE_H
 #define INTIIALIZE_H
 
-#include "Python.h"
 #include <math.h>
 #include <vector>
 #include <map>
 #include <random>
 
+#include "boost_for_export.h"
+
+#include "Python.h"
+
 #include "globalDefs.h"
 #include "Bounds.h"
 
-class State;
-
-#include "boost_for_export.h"
 void export_InitializeAtoms();
-using namespace std;
+
+class State;
 
 //! Number of tries to place Atom before throwing an error
 const unsigned int maxtries = 10000;
@@ -26,7 +27,7 @@ const unsigned int maxtries = 10000;
  * A small Python wrapper for the functions defined in the namespace
  * InitializeAtoms.
  */
-class InitializeAtomsPythonWrap {};
+class InitializeAtomsPythonWrap { };
 
 /*! \brief Functions to add atoms to the simulation
  *
@@ -51,7 +52,8 @@ namespace InitializeAtoms {
      * \todo This will horribly fail in 2-d Simulation or in general when the
      *       bounds are small in one direction.
      */
-	void populateOnGrid(SHARED(State) state, Bounds &bounds, string handle, int n);
+    void populateOnGrid(boost::shared_ptr<State> state, Bounds &bounds,
+                        std::string handle, int n);
 
     /*! \brief Add new atoms at random positions
      *
@@ -72,7 +74,8 @@ namespace InitializeAtoms {
      *       use something like MAX_TRIES to abort when an atom can not be
      *       placed.
      */
-	void populateRand(SHARED(State) state, Bounds &bounds, string handle, int n, double distMin);
+    void populateRand(boost::shared_ptr<State> state, Bounds &bounds,
+                      std::string handle, int n, double distMin);
 
     /*! \brief Give group of atoms random velocities
      *
@@ -86,7 +89,8 @@ namespace InitializeAtoms {
      * Furthermore, the velocities are chosen such that the center of mass
      * motion is zero.
      */
-	void initTemp(SHARED(State) state, string groupHandle, double temp);
+    void initTemp(boost::shared_ptr<State> state,
+                  std::string groupHandle, double temp);
 }
 
 #endif

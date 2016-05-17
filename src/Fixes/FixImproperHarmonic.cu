@@ -3,7 +3,9 @@
 #include "FixHelpers.h"
 #include "cutils_func.h"
 #define SMALL 0.001f
+
 namespace py = boost::python;
+using namespace std;
 
 const std::string improperHarmonicType = "ImproperHarmonic";
 

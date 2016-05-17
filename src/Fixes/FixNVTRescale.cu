@@ -6,6 +6,8 @@
 
 namespace py=boost::python;
 
+using namespace std;
+
 const std::string NVTRescaleType = "NVTRescale";
 
 __global__ void sumKeInBounds (float *dest, float4 *src, int n, unsigned int groupTag, float4 *fs, BoundsGPU bounds, int warpSize) {

@@ -16,37 +16,39 @@
  *   - timestep
  *   - turn
  *   - cuts
- * */
+ */
 
 #include "State.h"
 
+using namespace std;
+
 State::State() {
-	groupTags["all"] = (unsigned int) 1;
+    groupTags["all"] = (unsigned int) 1;
     //! \todo I think it would be great to also have the group "none"
     //!       in addition to "all"
-	is2d = false;
-	buildNeighborlists = true;
-	rCut = RCUT_INIT;
-	padding = PADDING_INIT;
-	turn = 0;
+    is2d = false;
+    buildNeighborlists = true;
+    rCut = RCUT_INIT;
+    padding = PADDING_INIT;
+    turn = 0;
     maxIdExisting = -1;
     maxExclusions = 0;
-	dangerousRebuilds = 0;
-	dt = .005;
-	periodicInterval = 50;
-	changedAtoms = true;
-	changedGroups = true;
-	shoutEvery = 5000;
-	for (int i=0; i<3; i++) {
-		periodic[i]=true;
-	}
+    dangerousRebuilds = 0;
+    dt = .005;
+    periodicInterval = 50;
+    changedAtoms = true;
+    changedGroups = true;
+    shoutEvery = 5000;
+    for (int i=0; i<3; i++) {
+        periodic[i] = true;
+    }
     //! \todo It would be nice to set verbose true/false in Logging.h and use
     //!       it for mdMessage.
-	verbose = true;
+    verbose = true;
     readConfig = SHARED(ReadConfig) (new ReadConfig(this));
     atomParams = AtomParams(this);
     computeVirials = false; //will be set to true if a fix need it (like barostat) during run setup
-	dataManager = DataManager(this);
+    dataManager = DataManager(this);
     specialNeighborCoefs[0] = 0;
     specialNeighborCoefs[1] = 0;
     specialNeighborCoefs[2] = 0.5;
@@ -55,8 +57,8 @@ State::State() {
 
 
 uint State::groupTagFromHandle(std::string handle) {
-	assert(groupTags.find(handle) != groupTags.end());
-	return groupTags[handle];
+    assert(groupTags.find(handle) != groupTags.end());
+    return groupTags[handle];
 }
 
 bool State::atomInGroup(Atom &a, std::string handle) {
@@ -65,20 +67,20 @@ bool State::atomInGroup(Atom &a, std::string handle) {
 }
 
 int State::addAtom(std::string handle, Vector pos, double q) {
-	std::vector<std::string> &handles = atomParams.handles;
-	auto it = find(handles.begin(), handles.end(), handle);
-	assert(it != handles.end());
-	int idx = it - handles.begin();//okay, so index in handles is type
-	Atom a(pos, idx, -1, atomParams.masses[idx], q);
+    std::vector<std::string> &handles = atomParams.handles;
+    auto it = find(handles.begin(), handles.end(), handle);
+    assert(it != handles.end());
+    int idx = it - handles.begin();//okay, so index in handles is type
+    Atom a(pos, idx, -1, atomParams.masses[idx], q);
     bool added = addAtomDirect(a);
     if (added) {
         return atoms.back().id;
-    } 
+    }
     return -1;
 }
 
 bool State::addAtomDirect(Atom a) {
-    //id of atom a WILL be overridden
+    // id of atom a WILL be overridden
     if (idBuffer.size()) {
         a.id = idBuffer.back();
         idBuffer.pop_back();
@@ -86,31 +88,52 @@ bool State::addAtomDirect(Atom a) {
         maxIdExisting++;
         a.id = maxIdExisting;
     }
-    
-	if (a.type >= atomParams.numTypes) {
-		std::cout << "Bad atom type " << a.type << std::endl;
-		return false;
-	}
 
-	if (a.mass == -1 or a.mass == 0) {
-		a.mass = atomParams.masses[a.type];
-	}
-	if (is2d) {
+    if (a.type >= atomParams.numTypes) {
+        std::cout << "Bad atom type " << a.type << std::endl;
+        return false;
+    }
+
+    if (a.mass == -1 or a.mass == 0) {
+        a.mass = atomParams.masses[a.type];
+    }
+    if (is2d) {
         if (fabs(a.pos[2]) > 0.2) { //some noise value if you aren't applying fix 2d every turn.  Should add override
             std::cout << "adding atom with large z value in 2d simulation. Not adding atom" << std::endl;
             return false;
         }
         a.pos[2] = 0;
-	}
+    }
 
-	atoms.push_back(a);
-	changedAtoms = true;
-	return true;
+    atoms.push_back(a);
+    changedAtoms = true;
+    return true;
 }
+
+//constructor should be same
+/*
+bool State::addBond(Atom *a, Atom *b, double k, double rEq) {
+    if (a == b ||
+        !(a >= &(*atoms.begin()) && a < &(*atoms.end())) ||
+        !(b >= &(*atoms.begin()) && b < &(*atoms.end()))) {
+        return false;
+    }
+    int *ids = (int *) malloc(sizeof(int) * 2);
+    ids[0] = a->id;
+    ids[1] = b->id;
+    bondAtomIds.push_back(ids);
+    Bond bond(a, b, k, rEq);
+    bonds.push_back(bond);
+    changedBonds = true;
+    return true;
+}
+*/
+
+
 bool State::removeAtom(Atom *a) {
-	if (!(a >= &(*atoms.begin()) && a < &(*atoms.end()))) {
-		return false;
-	}
+    if (!(a >= &(*atoms.begin()) && a < &(*atoms.end()))) {
+        return false;
+    }
     int id = a->id;
     if (id == maxIdExisting) {
         maxIdExisting--;
@@ -124,25 +147,24 @@ bool State::removeAtom(Atom *a) {
         idBuffer.push_back(id);
         sort(idBuffer.begin(), idBuffer.end());
     }
-	int idx = a - &atoms[0];
-	atoms.erase(atoms.begin()+idx, atoms.begin()+idx+1);	
-	
-	changedAtoms = true;
+    int idx = a - &atoms[0];
+    atoms.erase(atoms.begin()+idx, atoms.begin()+idx+1);
 
-	redoNeighbors = true;
-
-	return true;
+    changedAtoms = true;
+    redoNeighbors = true;
+    return true;
 }
 
 
 int State::idxFromId(int id) {
     //! \todo Is variable ii really more efficient?
-	for (int i=0,ii=atoms.size(); i<ii; i++) {
-		if (atoms[i].id == id) {
-			return i;
-		}
-	}
-	return -1;
+    //        Atoms are sorted, right? Binary search?
+    for (int i=0,ii=atoms.size(); i<ii; i++) {
+        if (atoms[i].id == id) {
+            return i;
+        }
+    }
+    return -1;
 }
 void State::updateIdxFromIdCache() {
     idxFromIdCache = vector<int>(maxIdExisting+1);
@@ -151,12 +173,12 @@ void State::updateIdxFromIdCache() {
     }
 }
 Atom *State::atomFromId(int id) {
-	for (int i=0,ii=atoms.size(); i<ii; i++) {
-		if (atoms[i].id == id) {
-			return &atoms[i];
-		}
-	}
-	return NULL; 
+    for (int i=0,ii=atoms.size(); i<ii; i++) {
+        if (atoms[i].id == id) {
+            return &atoms[i];
+        }
+    }
+    return NULL;
 }
 
 
@@ -177,7 +199,7 @@ void State::setSpecialNeighborCoefs(float onetwo, float onethree, float onefour)
     specialNeighborCoefs[2] = onefour;
 }
 
-template <class T>
+template <typename T>
 int getSharedIdx(std::vector<SHARED(T)> &list, SHARED(T) other) {
     for (unsigned int i=0; i<list.size(); i++) {
         if (list[i]->handle == other->handle) {
@@ -187,7 +209,7 @@ int getSharedIdx(std::vector<SHARED(T)> &list, SHARED(T) other) {
     return -1;
 }
 
-template <class T>
+template <typename T>
 bool removeGeneric(std::vector<SHARED(T)> &list, std::vector<T *> *unshared, SHARED(T) other) {
     int idx = getSharedIdx<T>(list, other);
     if (idx == -1) {
@@ -200,7 +222,7 @@ bool removeGeneric(std::vector<SHARED(T)> &list, std::vector<T *> *unshared, SHA
     return true;
 }
 
-template <class T>
+template <typename T>
 bool addGeneric(std::vector<SHARED(T)> &list, std::vector<T *> *unshared, SHARED(T) other) {
     int idx = getSharedIdx<T>(list, other);
     if (idx != -1) {
@@ -267,12 +289,38 @@ float State::getMaxRCut() {
     }
     return maxRCut;
 }
+
 bool State::prepareForRun() {
-    //fixes have already prepared by the time the integrator calls this prepare
-    int nAtoms = atoms.size();
+
+    // fixes have already prepared by the time the integrator calls this prepare
     std::vector<float4> xs_vec, vs_vec, fs_vec, fsLast_vec;
     std::vector<uint> ids;
     std::vector<float> qs;
+
+    /*
+    auto pivot = *std::next(atomsFirst, std::distance(atomsFirst,atomsLast)/2);
+    auto middle = std::partition(atomsFirst, atomsLast,
+                                 [pivot](const Atom &a) {
+                                     return a.pos[0] < pivot.pos[0];
+                                 }
+    );
+    */
+
+    /*
+    std::sort(atoms.begin(), atoms.end(), [](const Atom &a, const Atom &b) {
+                                              return a.pos[0] < b.pos[0];
+                                          }
+    );
+    auto split = *std::next(atoms.begin(), atoms.size()/2);
+    if (mpiRank == 0) {
+        atoms.erase(split, atoms.end());
+    } else if (mpiRank == 1) {
+        atoms.erase(atoms.begin(), split);
+    }
+    */
+
+    int nAtoms = atoms.size();
+
     xs_vec.reserve(nAtoms);
     vs_vec.reserve(nAtoms);
     fs_vec.reserve(nAtoms);
@@ -280,41 +328,44 @@ bool State::prepareForRun() {
     ids.reserve(nAtoms);
     qs.reserve(nAtoms);
 
-    for (Atom &a : atoms) {
-        xs_vec.push_back(make_float4(a.pos[0], a.pos[1], a.pos[2], 
-                         *(float *)&a.type));
-        vs_vec.push_back(make_float4(a.vel[0], a.vel[1], a.vel[2], 1/a.mass));
-        fs_vec.push_back(make_float4(a.force[0], a.force[1], a.force[2], 
-                         *(float *)&a.groupTag));
+    for (const auto &a : atoms) {
+        xs_vec.push_back(make_float4(a.pos[0], a.pos[1], a.pos[2],
+                                     *(float *)&a.type));
+        vs_vec.push_back(make_float4(a.vel[0], a.vel[1], a.vel[2],
+                                     1/a.mass));
+        fs_vec.push_back(make_float4(a.force[0], a.force[1], a.force[2],
+                                     *(float *)&a.groupTag));
         fsLast_vec.push_back(
-                make_float4(a.forceLast[0], a.forceLast[1], a.forceLast[2], 0));
+                    make_float4(a.forceLast[0], a.forceLast[1], a.forceLast[2],
+                                0));
         ids.push_back(a.id);
         qs.push_back(a.q);
     }
     gpd.xs.set(xs_vec);
-    gpd.vs.set(vs_vec); 
-
+    gpd.vs.set(vs_vec);
     gpd.fs.set(fs_vec);
-
     gpd.fsLast.set(fsLast_vec);
     gpd.ids.set(ids);
     gpd.qs.set(qs);
+
+    // so... wanna keep ids tightly packed.  That's managed by program, not user
     std::vector<int> id_vec = LISTMAPREF(Atom, int, a, atoms, a.id);
     std::vector<int> idToIdxs_vec;
     int size = *max_element(id_vec.begin(), id_vec.end()) + 1;
-    //so... wanna keep ids tightly packed.  That's managed by program, not user
     idToIdxs_vec.reserve(size);
     for (int i=0; i<size; i++) {
         idToIdxs_vec.push_back(-1);
     }
     for (int i=0; i<id_vec.size(); i++) {
-        idToIdxs_vec[id_vec[i]] = i; 
+        idToIdxs_vec[id_vec[i]] = i;
     }
+
     gpd.idToIdxsOnCopy = idToIdxs_vec;
     gpd.idToIdxs.set(idToIdxs_vec);
     boundsGPU = bounds.makeGPU();
     float maxRCut = getMaxRCut();
-    gridGPU = grid.makeGPU(maxRCut);
+    gridGPU = grid.makeGPU(maxRCut);  // uses os, ns, ds, dsOrig from AtomGrid
+
     gpd.xsBuffer = GPUArrayGlobal<float4>(nAtoms);
     gpd.vsBuffer = GPUArrayGlobal<float4>(nAtoms);
     gpd.fsBuffer = GPUArrayGlobal<float4>(nAtoms);
@@ -402,26 +453,26 @@ bool State::downloadFromRun() {
 
 
 bool State::makeReady() {
-	if (changedAtoms or changedGroups) {
-		for (Fix* fix : fixes) {
-			fix->refreshAtoms(); 
-		}
-	}
-	if (changedAtoms) {
-	//	refreshBonds();//this must go before doing pbc, otherwise atom pointers could be messed up when you get atom offsets for bonds, which happens in pbc
-	}
-	if ((changedAtoms || redoNeighbors)) {
+    if (changedAtoms or changedGroups) {
+        for (Fix *fix : fixes) {
+            fix->refreshAtoms();
+        }
+    }
+    if (changedAtoms) {
+    //    refreshBonds();//this must go before doing pbc, otherwise atom pointers could be messed up when you get atom offsets for bonds, which happens in pbc
+    }
+    if ((changedAtoms || redoNeighbors)) {
         //grid->periodicBoundaryConditions(); //UNCOMMENT THIS, WAS DONE FOR CUDA INITIAL STUFF
-	}
-	
-	changedAtoms = false;
-	changedGroups = false;
-	redoNeighbors = false;
-	return true;
+    }
+
+    changedAtoms = false;
+    changedGroups = false;
+    redoNeighbors = false;
+    return true;
 }
 
 bool State::addToGroupPy(std::string handle, boost::python::list toAdd) {//testF takes index, returns bool
-	int tagBit = groupTagFromHandle(handle);  //if I remove asserts from this, could return things other than true, like if handle already exists
+    int tagBit = groupTagFromHandle(handle);  //if I remove asserts from this, could return things other than true, like if handle already exists
     int len = boost::python::len(toAdd);
     for (int i=0; i<len; i++) {
         boost::python::extract<Atom *> atomPy(toAdd[i]);
@@ -442,38 +493,38 @@ bool State::addToGroupPy(std::string handle, boost::python::list toAdd) {//testF
         a->groupTag |= tagBit;
     }
     /*
-	for (unsigned int i=0; i<atoms.size(); i++) {
-		PyObject *res = PyObject_CallFunction(testF, (char *) "i", i);
-		assert(PyBool_Check(res));
-		if (PyObject_IsTrue(res)) {
-			atoms[i].groupTag |= tagBit;	
-		} 
-	}
+    for (unsigned int i=0; i<atoms.size(); i++) {
+        PyObject *res = PyObject_CallFunction(testF, (char *) "i", i);
+        assert(PyBool_Check(res));
+        if (PyObject_IsTrue(res)) {
+            atoms[i].groupTag |= tagBit;
+        }
+    }
     */
-	return true;
+    return true;
 
 }
 
 bool State::addToGroup(std::string handle, std::function<bool (Atom *)> testF) {
-	int tagBit = addGroupTag(handle);
-	for (Atom &a : atoms) {
-		if (testF(&a)) {
-			a.groupTag |= tagBit;
-		}
-	}
-	changedGroups = true;
-	return true;
+    int tagBit = addGroupTag(handle);
+    for (Atom &a : atoms) {
+        if (testF(&a)) {
+            a.groupTag |= tagBit;
+        }
+    }
+    changedGroups = true;
+    return true;
 }
 
 bool State::destroyGroup(std::string handle) {
-	uint tagBit = groupTagFromHandle(handle);
-	assert(handle != "all");
-	for (Atom &a : atoms) {
-		a.groupTag &= ~tagBit;
-	}
-	removeGroupTag(handle);
-	changedGroups = true;
-	return true;
+    uint tagBit = groupTagFromHandle(handle);
+    assert(handle != "all");
+    for (Atom &a : atoms) {
+        a.groupTag &= ~tagBit;
+    }
+    removeGroupTag(handle);
+    changedGroups = true;
+    return true;
 }
 
 bool State::createGroup(std::string handle, boost::python::list forGrp) {
@@ -490,44 +541,43 @@ bool State::createGroup(std::string handle, boost::python::list forGrp) {
 }
 
 uint State::addGroupTag(std::string handle) {
-	uint working = 0;
-	assert(groupTags.find(handle) == groupTags.end());
-	for (auto it=groupTags.begin(); it!=groupTags.end(); it++) {
-		working |= it->second;
-	}
-	for (int i=0; i<32; i++) {
-		uint potentialTag = 1 << i;
-		if (! (working & potentialTag)) {
-			groupTags[handle] = potentialTag;
-			return potentialTag;
-		}
-	}
-	return 0;
+    uint working = 0;
+    assert(groupTags.find(handle) == groupTags.end());
+    for (auto it=groupTags.begin(); it!=groupTags.end(); it++) {
+        working |= it->second;
+    }
+    for (int i=0; i<32; i++) {
+        uint potentialTag = 1 << i;
+        if (! (working & potentialTag)) {
+            groupTags[handle] = potentialTag;
+            return potentialTag;
+        }
+    }
+    return 0;
 }
 
 bool State::removeGroupTag(std::string handle) {
-	auto it = groupTags.find(handle);
-	assert(it != groupTags.end());
-	groupTags.erase(it);
-	return true;
+    auto it = groupTags.find(handle);
+    assert(it != groupTags.end());
+    groupTags.erase(it);
+    return true;
 }
 
 std::vector<Atom *> State::selectGroup(std::string handle) {
-	int tagBit = groupTagFromHandle(handle);
-	return LISTMAPREFTEST(Atom, Atom *, a, atoms, &a, a.groupTag & tagBit);
+    int tagBit = groupTagFromHandle(handle);
+    return LISTMAPREFTEST(Atom, Atom *, a, atoms, &a, a.groupTag & tagBit);
 }
 
 std::vector<Atom> State::copyAtoms() {
-	std::vector<Atom> save;
-	save.reserve(atoms.size());
-	for (Atom &a : atoms) {
-		Atom copy = a;
-		copy.neighbors = vector<Neighbor>();
-		save.push_back(copy);
-	}
-	return save;
+    std::vector<Atom> save;
+    save.reserve(atoms.size());
+    for (Atom &a : atoms) {
+        Atom copy = a;
+        copy.neighbors = vector<Neighbor>();
+        save.push_back(copy);
+    }
+    return save;
 }
-
 
 
 bool State::validAtom(Atom *a) {
@@ -535,20 +585,20 @@ bool State::validAtom(Atom *a) {
 }
 
 void State::deleteAtoms() {
-	atoms.erase(atoms.begin(), atoms.end());
+    atoms.erase(atoms.begin(), atoms.end());
 }
 
 void State::setAtoms(std::vector<Atom> &fromSave) {
-	changedAtoms = true;
-	changedGroups = true;
-	atoms = fromSave;
+    changedAtoms = true;
+    changedGroups = true;
+    atoms = fromSave;
 }
 
 
 void State::zeroVelocities() {
-	for (Atom &a : atoms) {
-		a.vel.zero();
-	}
+    for (Atom &a : atoms) {
+        a.vel.zero();
+    }
 }
 
 
@@ -631,7 +681,7 @@ void export_State() {
     .def_readwrite("turn", &State::turn)
     .def_readwrite("periodicInterval", &State::periodicInterval)
     .def_readwrite("rCut", &State::rCut)
-    .def_readwrite("dt", &State::dt)    
+    .def_readwrite("dt", &State::dt)
     .def_readwrite("padding", &State::padding)
     .def_readonly("groupTags", &State::groupTags)
     .def_readonly("dataManager", &State::dataManager)

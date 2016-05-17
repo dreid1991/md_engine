@@ -1,16 +1,16 @@
 #pragma once
 #ifndef GRID_H
 #define	GRID_H
+
 #include <stdlib.h>
-#include <iostream>
 #include <string.h>
 #include <assert.h>
-#include "Bounds.h"
 #include <vector>
+#include <iostream>
+
+#include "Bounds.h"
 #include "Vector.h"
 #include "GridGPU.h"
-
-using namespace std;
 
 /*! \brief Simulation grid
  *
@@ -26,7 +26,20 @@ using namespace std;
  */
 template <class T>
 class Grid {
+
 public:
+    std::vector<T> saved; //!< Saved state of the Grid
+    std::vector<T> raw; //!< Raw state of the Grid
+    Vector trace; //!< Vector containing trace for periodic boundary conditions
+
+    VectorInt ns; //!< Number of grid points in each direction
+    Vector ds; //!< Grid resolution in each direction
+    Vector os; //!< Point of origin
+
+    Vector dsOrig; //!< Original resolution of the grid
+
+    T fillVal; //!< Default value
+    bool is2d; //!< True for 2d Simulations
 
     /*! \brief Default constructor */
     Grid() = default;
@@ -53,7 +66,7 @@ public:
     void fillVals() {
         assert(ns[0] > 0 and ns[1] > 0 and ns[2] > 0);
         int n = ns[0]*ns[1]*ns[2];
-        raw = vector<T>();
+        raw = std::vector<T>();
         raw.reserve(n);
         for (int i=0; i<n; i++) {
             raw.push_back(fillVal);
@@ -194,7 +207,7 @@ public:
      *
      * \param vals Vector containing the values
      */
-    void setRaw(vector<T> vals) {
+    void setRaw(std::vector<T> vals) {
         raw = vals;
     };
 
@@ -202,7 +215,7 @@ public:
      *
      * \param vals Vector containing the values to be stored to saved
      */
-    void setSaved(vector<T> vals) {
+    void setSaved(std::vector<T> vals) {
         saved = vals;
     }
 
@@ -230,9 +243,7 @@ public:
      *
      * \todo Inner Loop uses same variable as outer loop!
      */
-    vector<OffsetObj<T*> > getNeighbors(int coords[3],
-                                        bool loops[3],
-                                        Vector trace)
+    std::vector<OffsetObj<T*> > getNeighbors(int coords[3], bool loops[3], Vector trace)
     {
         const int x = coords[0];
         const int y = coords[1];
@@ -245,7 +256,7 @@ public:
             zBounds[0] = z;
             zBounds[1] = z;
         }
-        vector<OffsetObj<T*> > neighbors;
+        std::vector<OffsetObj<T*> > neighbors;
         for (int i=x-1; i<=x+1; i++) {
             for (int j=y-1; j<=y+1; j++) {
                 for (int k=zBounds[0]; k<=zBounds[1]; k++) {
@@ -290,14 +301,12 @@ public:
      * \todo Code duplication is a very bad thing. Rewrite this function and
      *       getNeighbors so that they do not overlap as much.
      */
-    vector<OffsetObj<T> > getNeighborVals(int coords[3],
-                                          bool loops[3],
-                                          Vector trace)
+    std::vector<OffsetObj<T> > getNeighborVals(int coords[3], bool loops[3], Vector trace)
     {
         const int x = coords[0];
         const int y = coords[1];
         const int z = coords[2];
-        vector<OffsetObj<T> > neighbors;
+        std::vector<OffsetObj<T> > neighbors;
         for (int i=x-1; i<=x+1; i++) {
             for (int j=y-1; j<=y+1; j++) {
                 for (int k=z-1; k<=z+1; k++) {
@@ -330,19 +339,6 @@ public:
 
     }
 
-public:
-    vector<T> saved; //!< Saved state of the Grid
-    vector<T> raw; //!< Raw state of the Grid
-    Vector trace; //!< Vector containing trace for periodic boundary conditions
-
-    VectorInt ns; //!< Number of grid points in each direction
-    Vector ds; //!< Grid resolution in each direction
-    Vector os; //!< Point of origin
-
-    Vector dsOrig; //!< Original resolution of the grid
-
-    T fillVal; //!< Default value
-    bool is2d; //!< True for 2d Simulations
 };
 
 #endif
