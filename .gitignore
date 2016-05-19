@@ -18,5 +18,7 @@ src/src/CMakeFiles
 # Emacs backups:
 *~
 # Documentation:
-doc/
+doc/html/
+doc/latex/
+# Build directory:
 build/

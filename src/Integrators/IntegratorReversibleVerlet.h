@@ -11,6 +11,7 @@ void export_IntegratorReversibleVerlet();
 /*!
  * This class implements the reversible version of the velocity verlet
  * integration scheme as described by Tuckerman et al.
+ * \cite TuckermanEtal:JCP1992 .
  */
 class IntegratorReversibleVerlet : public Integrator
 {
