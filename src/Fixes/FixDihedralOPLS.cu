@@ -4,19 +4,21 @@
 #include "cutils_func.h"
 
 #define EPSILON 0.00001f
-//using namespace boost::python;
 namespace py = boost::python;
+using namespace std;
+
 const std::string dihedralOPLSType = "DihedralOPLS";
 template <class DIHEDRALGPU, class DIHEDRALTYPE> //don't need DIHEDRALGPU, are all DihedralGPU.  Worry about later 
 __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureObject_t idToIdxs, DIHEDRALGPU *dihedrals, int *startstops, BoundsGPU bounds, DIHEDRALTYPE *parameters, int nParameters) {
 
 
     int idx = GETIDX();
-    extern __shared__ int all_shr[];
+    extern __shared__ char all_shr[];
     int idxBeginCopy = startstops[blockDim.x*blockIdx.x];
     int idxEndCopy = startstops[min(nAtoms, blockDim.x*(blockIdx.x+1))];
     DIHEDRALGPU *dihedrals_shr = (DIHEDRALGPU *) all_shr;
-    DIHEDRALTYPE *parameters_shr = (DIHEDRALTYPE *) (dihedrals_shr + (idxEndCopy - idxBeginCopy));
+    int sizeDihedrals = (idxEndCopy - idxBeginCopy) * sizeof(DIHEDRALGPU);
+    DIHEDRALTYPE *parameters_shr = (DIHEDRALTYPE *) (all_shr + sizeDihedrals);
     copyToShared<DIHEDRALGPU>(dihedrals + idxBeginCopy, dihedrals_shr, idxEndCopy - idxBeginCopy);
     copyToShared<DIHEDRALTYPE>(parameters, parameters_shr, nParameters);
     __syncthreads();
@@ -43,6 +45,7 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
                 myIdxInDihedral = typeFull >> 29;
                 int type = static_cast<int>((typeFull << 3) >> 3);
                 DIHEDRALTYPE dihedralType = parameters_shr[type];
+                //USE SHARED AGAIN ONCE YOU FIGURE OUT BUG
 
                 float3 positions[4];
                 positions[myIdxInDihedral] = pos;
@@ -228,7 +231,6 @@ void FixDihedralOPLS::compute(bool computeVirials) {
 
 
     //cout << "max forcers " << maxForcersPerBlock << endl;
-
     compute_cu<<<NBLOCK(nAtoms), PERBLOCK, sizeof(DihedralGPU) * maxForcersPerBlock + sizeof(DihedralOPLSType) * parameters.size() >>>(nAtoms, state->gpd.xs(activeIdx), state->gpd.fs(activeIdx), state->gpd.idToIdxs.getTex(), forcersGPU.data(), forcerIdxs.data(), state->boundsGPU, parameters.data(), parameters.size());
 
 }

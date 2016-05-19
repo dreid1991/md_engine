@@ -3,9 +3,16 @@
 #include "helpers.h"
 #include "FixAngleHarmonic.h"
 #include "cutils_func.h"
+
 #define SMALL 0.0001f
+using namespace std;
+const string angleHarmonicType = "AngleHarmonic";
+FixAngleHarmonic::FixAngleHarmonic(boost::shared_ptr<State> state_, string handle)
+  : FixPotentialMultiAtom(state_, handle, angleHarmonicType, true),
+    pyListInterface(&forcers, &pyForcers)
+{   }
+
 namespace py = boost::python;
-const std::string angleHarmonicType = "AngleHarmonic";
 __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureObject_t idToIdxs, AngleGPU *angles, int *startstops, BoundsGPU bounds, AngleHarmonicType *parameters, int nTypes) {
     int idx = GETIDX();
     extern __shared__ int all_shr[];
@@ -17,7 +24,7 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
     copyToShared<AngleHarmonicType>(parameters, parameters_shr, nTypes);
     __syncthreads();
     if (idx < nAtoms) {
-  //      printf("going to compute %d\n", idx);
+        //printf("going to compute %d\n", idx);
         int startIdx = startstops[idx];
         int endIdx = startstops[idx+1];
         //so start/end is the index within the entire bond list.
@@ -112,10 +119,6 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
     }
 }
 
-
-FixAngleHarmonic::FixAngleHarmonic(SHARED(State) state_, string handle) : FixPotentialMultiAtom(state_, handle, angleHarmonicType, true), pyListInterface(&forcers, &pyForcers) {}
-
-
 void FixAngleHarmonic::compute(bool computeVirials) {
     int nAtoms = state->atoms.size();
     int activeIdx = state->gpd.activeIdx();
@@ -125,20 +128,13 @@ void FixAngleHarmonic::compute(bool computeVirials) {
         printf("Angle ids k theta %d %d %d %f %f\n", a.ids[0], a.ids[1], a.ids[2], a.k, a.thetaEq);
     }
     */
-    cout << "hello" << endl;
     compute_cu<<<NBLOCK(nAtoms), PERBLOCK, sizeof(AngleGPU) * maxForcersPerBlock + parameters.size() * sizeof(AngleHarmonicType)>>>(nAtoms, state->gpd.xs(activeIdx), state->gpd.fs(activeIdx), state->gpd.idToIdxs.getTex(), forcersGPU.data(), forcerIdxs.data(), state->boundsGPU, parameters.data(), parameters.size());
 
 }
 
 //void cumulativeSum(int *data, int n);
-//okay, so the net result of this function is that two arrays (items, idxs of items) are on the gpu and we know how many bonds are in bondiest  block
-
-void FixAngleHarmonic::setAngleTypeCoefs(int type, double k, double thetaEq) {
-    //cout << type << " " << k << " " << thetaEq << endl;
-    assert(thetaEq>=0);
-    AngleHarmonic dummy(k, thetaEq);
-    setForcerType(type, dummy);
-}
+// okay, so the net result of this function is that two arrays (items, idxs of
+// items) are on the gpu and we know how many bonds are in bondiest block
 
 void FixAngleHarmonic::createAngle(Atom *a, Atom *b, Atom *c, double k, double thetaEq, int type) {
     vector<Atom *> atoms = {a, b, c};
@@ -149,19 +145,26 @@ void FixAngleHarmonic::createAngle(Atom *a, Atom *b, Atom *c, double k, double t
     forcers.push_back(AngleHarmonic(a, b, c, k, thetaEq, type));
     pyListInterface.updateAppendedMember();
 }
+
+void FixAngleHarmonic::setAngleTypeCoefs(int type, double k, double thetaEq) {
+    //cout << type << " " << k << " " << thetaEq << endl;
+    assert(thetaEq>=0);
+    AngleHarmonic dummy(k, thetaEq);
+    setForcerType(type, dummy);
+}
+
 string FixAngleHarmonic::restartChunk(string format) {
     stringstream ss;
-
     return ss.str();
 }
 
 void export_FixAngleHarmonic() {
     boost::python::class_<FixAngleHarmonic,
-                          SHARED(FixAngleHarmonic),
-                          boost::python::bases<Fix, TypedItemHolder> > (
+                          boost::shared_ptr<FixAngleHarmonic>,
+                          boost::python::bases<Fix, TypedItemHolder> >(
         "FixAngleHarmonic",
-        boost::python::init<SHARED(State), string> (
-                                        boost::python::args("state", "handle"))
+        boost::python::init<boost::shared_ptr<State>, string>(
+                                boost::python::args("state", "handle"))
     )
     .def("createAngle", &FixAngleHarmonic::createAngle,
             (boost::python::arg("k")=COEF_DEFAULT,
@@ -176,6 +179,5 @@ void export_FixAngleHarmonic() {
         )
     .def_readonly("angles", &FixAngleHarmonic::pyForcers)
     ;
-
 }
 

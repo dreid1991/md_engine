@@ -1,5 +1,5 @@
 import sys
-sys.path = sys.path + ['../build/python/build/lib.linux-x86_64-2.7', '../build/']
+sys.path = sys.path + ['../build/python/build/lib.linux-x86_64-2.7' ]
 sys.path.append('../util_py')
 import matplotlib.pyplot as plt
 from LAMMPS_Reader import LAMMPS_Reader
@@ -35,7 +35,7 @@ writeconfig.unitLen = 1/unitLen
 state.activateWriteConfig(writeconfig)
 
 #reader = LAMMPS_Reader(state=state, unitLen = unitLen, unitMass = 12, unitEng = 0.066, bondFix = bondHarm, angleFix = angleHarm, nonbondFix = ljcut, dihedralFix = dihedralOPLS, improperFix=improperHarm, atomTypePrefix = 'PTB7_', setBounds=False)
-reader = LAMMPS_Reader(state=state, unitLen = unitLen, unitMass = 12, unitEng = 0.066, bondFix = bondHarm, nonbondFix = ljcut,  angleFix = angleHarm,improperFix=improperHarm,atomTypePrefix = 'PTB7_', setBounds=False)
+reader = LAMMPS_Reader(state=state, unitLen = unitLen, unitMass = 12, unitEng = 0.066, bondFix = bondHarm, nonbondFix = ljcut,  angleFix = angleHarm, dihedralFix = dihedralOPLS,improperFix=improperHarm,atomTypePrefix = 'PTB7_', setBounds=False)
 reader.read(dataFn = 'poly_min.data')
 
 InitializeAtoms.initTemp(state, 'all', 0.1)
@@ -71,14 +71,14 @@ state.atomParams.setValues('PTB7_11', atomicNum=6)
 state.atomParams.setValues('PTB7_12', atomicNum=1)
 state.atomParams.setValues('PTB7_13', atomicNum=53)
 
-integRelax = IntegraterRelax(state)
+integRelax = IntegratorRelax(state)
 integRelax.writeOutput()
 #integRelax.run(11, 1e-9)
 InitializeAtoms.initTemp(state, 'all', 0.1)
 fixNVT = FixNVTRescale(state, 'temp', 'all', [0, 1], [0.1, 3.8], 100)
 state.activateFix(fixNVT)
 
-integVerlet = IntegraterVerlet(state)
+integVerlet = IntegratorVerlet(state)
 integVerlet.run(15000)
 
 #integVerlet = IntegraterVerlet(state)

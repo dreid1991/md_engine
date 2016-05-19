@@ -1,20 +1,22 @@
 #pragma once
 #ifndef XML_FUNC_H
 #define XML_FUNC_H
-#include "Python.h"
-#include <functional>
+
 #include "base64.h"
-#include <pugixml.hpp>
 #include <vector>
+#include <functional>
 #include <sstream>
-using namespace std;
-template 
-<typename T, int NUM>
+
+#include <pugixml.hpp>
+
+#include "Python.h"
+
+template <typename T, int NUM>
 void xml_assignValuesBase64(pugi::xml_node &child, std::function<void (int, T *)> assign_loc) {
-    istringstream ss(child.first_child().value());
-    string x;
+    std::istringstream ss(child.first_child().value());
+    std::string x;
     while(ss >> x){};
-    string decoded = base64_decode(x);
+    std::string decoded = base64_decode(x);
     T *raw = (T *) decoded.c_str();
     int numVals = decoded.size() / (sizeof(T)*NUM);
     for (int i=0; i<numVals; i++) {
@@ -28,8 +30,8 @@ template
 void xml_assignValues(pugi::xml_node &child, std::function<void (int, T *)> assign_loc) {
     T buffer[NUM];
     int idx = 0;
-    istringstream ss(child.first_child().value());
-    string bit;
+    std::istringstream ss(child.first_child().value());
+    std::string bit;
     int itemIdx = 0;
     while (ss >> bit) {
         T val = (T) atof(bit.c_str());
@@ -46,10 +48,8 @@ void xml_assignValues(pugi::xml_node &child, std::function<void (int, T *)> assi
 
 }
 
-
-template
-<typename T, int NUM>
-bool xml_assign(pugi::xml_node &config, string tag, std::function<void (int, T *) > assign_loc) {
+template <typename T, int NUM>
+bool xml_assign(pugi::xml_node &config, std::string tag, std::function<void (int, T *) > assign_loc) {
     auto child = config.child(tag.c_str());
     if (child) {
         auto base64 = child.attribute("base64").value();
@@ -64,23 +64,21 @@ bool xml_assign(pugi::xml_node &config, string tag, std::function<void (int, T *
     return true;
 }
 
-
-template
-<typename T>
-vector<T> xml_readNums(pugi::xml_node &parent, string tag) {
+template <typename T>
+std::vector<T> xml_readNums(pugi::xml_node &parent, std::string tag) {
     auto child = parent.child(tag.c_str());
     if (child) {
-        vector<T> res;
-        istringstream ss(child.first_child().value());
-        string s;
+        std::vector<T> res;
+        std::istringstream ss(child.first_child().value());
+        std::string s;
         while (ss >> s) {
             res.push_back(atof(s.c_str()));
         }
         return res;
     }
-    return vector<T>();
+    return std::vector<T>();
 }
 
+std::vector<std::string> xml_readStrings(pugi::xml_node &parent, std::string tag);
 
-vector<string> xml_readStrings(pugi::xml_node &parent, string tag);
 #endif

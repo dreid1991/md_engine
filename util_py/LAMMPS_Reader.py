@@ -240,6 +240,7 @@ class LAMMPS_Reader:
     def readBondCoefs(self):
         rawData = self.readSection(self.dataFileLines, re.compile('Bond Coeffs'))
         dataConverter = argumentConverters['data'][self.bondFix.type]
+        print self.bondFix.type
         inputConverter = argumentConverters['input'][self.bondFix.type]
         for line in rawData:
             args = dataConverter(self, line)
@@ -431,16 +432,16 @@ def improperHarmonic_input(reader, args):
 argumentConverters = {
         'data':
         {
-            'bondHarm': bondHarmonic_data,
-            'angleHarm': angleHarmonic_data,
-            'dihedralOPLS': dihedralOPLS_data,
-            'improperHarmonic': improperHarmonic_data
+            'BondHarmonic': bondHarmonic_data,
+            'AngleHarmonic': angleHarmonic_data,
+            'DihedralOPLS': dihedralOPLS_data,
+            'ImproperHarmonic': improperHarmonic_data
             },
         'input':
         {
-            'bondHarm': bondHarmonic_input,
-            'angleHarm': angleHarmonic_input,
-            'dihedralOPLS': dihedralOPLS_input,
-            'improperHarmonic': improperHarmonic_input
+            'BondHarmonic': bondHarmonic_input,
+            'AngleHarmonic': angleHarmonic_input,
+            'DihedralOPLS': dihedralOPLS_input,
+            'ImproperHarmonic': improperHarmonic_input
             }
         }

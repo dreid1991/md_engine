@@ -23,7 +23,7 @@ protected:
 
 TEST_F(RandomNumberGenerationTest, RandomNumberTest) {
     std::mt19937 &generator = mState.getRNG();
-    uniform_real_distribution<double> dist(0.0, 1.0);
+    std::uniform_real_distribution<double> dist(0.0, 1.0);
 
     EXPECT_DOUBLE_EQ(uniformValue1, dist(generator));
     EXPECT_DOUBLE_EQ(uniformValue2, dist(generator));
@@ -34,7 +34,7 @@ TEST_F(RandomNumberGenerationTest, RandomNumberTest) {
 TEST_F(RandomNumberGenerationTest, MultipleInstancesTest) {
     std::mt19937 &generator1 = mState.getRNG();
     std::mt19937 &generator2 = mState.getRNG();
-    uniform_real_distribution<double> dist(0.0, 1.0);
+    std::uniform_real_distribution<double> dist(0.0, 1.0);
 
     EXPECT_DOUBLE_EQ(uniformValue1, dist(generator1));
     EXPECT_DOUBLE_EQ(uniformValue2, dist(generator2));
@@ -45,7 +45,7 @@ TEST_F(RandomNumberGenerationTest, MultipleInstancesTest) {
 TEST_F(RandomNumberGenerationTest, ReSeedTest) {
     std::mt19937 &generator1 = mState.getRNG();
     std::mt19937 &generator2 = mState.getRNG();
-    uniform_real_distribution<double> dist(0.0, 1.0);
+    std::uniform_real_distribution<double> dist(0.0, 1.0);
 
     EXPECT_DOUBLE_EQ(uniformValue1, dist(generator1));
     EXPECT_DOUBLE_EQ(uniformValue2, dist(generator1));

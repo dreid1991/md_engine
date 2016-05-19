@@ -6,8 +6,8 @@
 #define PADDING_INIT 0.5
 
 #include <assert.h>
-#include <iostream>
 #include <stdint.h>
+#include <iostream>
 
 #include <map>
 #include <tuple>
@@ -15,7 +15,6 @@
 #include <functional>
 #include <random>
 #include <thread>
-
 
 #include <boost/shared_ptr.hpp>
 #include <boost/type_traits/remove_cv.hpp> //boost 1.58 bug workaround
@@ -88,13 +87,14 @@ public:
     BoundsGPU boundsGPU; //!< Bounds on the GPU
     GPUData gpd; //!< All GPU data
     DeviceManager devManager; //!< GPU device manager
+
     AtomGrid grid; //!< Grid on the CPU
     Bounds bounds; //!< Bounds on the CPU
     std::vector<Fix *> fixes; //!< List of all fixes
-    std::vector<SHARED(Fix)> fixesShr; //!< List of shared pointers to fixes
+    std::vector<boost::shared_ptr<Fix> > fixesShr; //!< List of shared pointers to fixes
     DataManager dataManager; //!< Data manager
-    std::vector<SHARED(WriteConfig) > writeConfigs; //!< List of output writers
-    std::vector<SHARED(PythonOperation) > pythonOperations; //!< List of Python
+    std::vector<boost::shared_ptr<WriteConfig> > writeConfigs; //!< List of output writers
+    std::vector<boost::shared_ptr<PythonOperation> > pythonOperations; //!< List of Python
                                                             //!< operations
     std::map<std::string, uint32_t> groupTags; //!< Map of group handles and
                                                //!< bitmasks
@@ -147,44 +147,44 @@ public:
      * Add a new Fix to the Simulation. Note that the Fix has to be initialized
      * with the same State that it is added to.
      */
-    bool activateFix(SHARED(Fix) other);
+    bool activateFix(boost::shared_ptr<Fix> other);
 
     //! Remove a Fix from the simulation
     /*!
      * \param other Fix to be removed
      * \return False if Fix was not activated, else return True
      */
-    bool deactivateFix(SHARED(Fix) other);
+    bool deactivateFix(boost::shared_ptr<Fix> other);
 
     //! Specify output for the simulation
     /*!
      * \param other Configuration Writer to be added to the simulation
      * \return True if added successfully, else False
      */
-    bool activateWriteConfig(SHARED(WriteConfig) other);
+    bool activateWriteConfig(boost::shared_ptr<WriteConfig> other);
 
     //! Remove output from simulation
     /*!
      * \param other Configuration Writer to be removed from the simulation
      * \return False if Writer was not previously added to the simulation
      */
-    bool deactivateWriteConfig(SHARED(WriteConfig) other);
+    bool deactivateWriteConfig(boost::shared_ptr<WriteConfig> other);
 
     //! Add a Python operation to the simulation
     /*!
      * \param other Python operation to be added
      * \return True if operation was successfully added, else return False
      */
-    bool activatePythonOperation(SHARED(PythonOperation) other);
+    bool activatePythonOperation(boost::shared_ptr<PythonOperation> other);
 
     //! Remove Python operation from the simulation
     /*!
      * \param other Python operation to be added
      * \return False if operation is not in the list of Python operations
      */
-    bool deactivatePythonOperation(SHARED(PythonOperation) other);
+    bool deactivatePythonOperation(boost::shared_ptr<PythonOperation> other);
 
-    //bool fixIsActive(SHARED(Fix));
+    //bool fixIsActive(boost::shared_ptr<Fix>);
 
     bool changedAtoms; //!< True if change in atom vector is not yet accounted
                        //!< for
@@ -370,8 +370,8 @@ public:
      */
     bool asyncHostOperation(std::function<void (int64_t )> cb);
 
-    SHARED(thread) asyncData; //!< Shared pointer to a thread
-    SHARED(ReadConfig) readConfig; //!< Shared pointer to configuration reader
+    boost::shared_ptr<std::thread> asyncData; //!< Shared pointer to a thread
+    boost::shared_ptr<ReadConfig> readConfig; //!< Shared pointer to configuration reader
 
     //! Default constructor
     State();
@@ -427,6 +427,9 @@ public:
 
     int maxExclusions; //!< Unused. \todo Remove? Grid uses maxExclusionsPerAtom
 
+    //!
+    void partitionAtoms();
+
     //! Prepare the state for a simulation run
     /*!
      * \return True always
@@ -438,6 +441,7 @@ public:
      *
      * \todo I suggest to move preparation of Fixes here from
      *       Integrator::basicPrepare().
+     *       Why?
      */
     bool prepareForRun();
 
@@ -488,6 +492,10 @@ public:
      * \todo Maybe better pass a pointer to avoid accidental copying. For
      *       example std::mt19937 generator = state->getRNG() stores a copy,
      *       not a reference.
+     *
+     *       Returning by reference is bad, very bad. Is there a problem with
+     *       coppying the RNG? You can return it as a reference_wrapper<T>
+     *       maybe? It will force you to store it as a reference, then.
      */
     std::mt19937 &getRNG();
 

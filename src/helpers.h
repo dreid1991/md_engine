@@ -1,17 +1,21 @@
 #pragma once
 #ifndef HELPERS_H
 #define HELPERS_H
-#include "GPUArrayDeviceGlobal.h"
+
+#include <array>
 #include <vector>
-#include "Atom.h"
+
 #include <boost/variant.hpp>
 #include <unordered_map>
 #include <array>
-using namespace std;
+
+#include "GPUArrayDeviceGlobal.h"
+//#include "Atom.h"
+
 template <class T, class K>
 void cumulativeSum(T *data, K n) {
     int currentVal= 0;
-    for (int i=0; i<n-1; i++) { 
+    for (uint32_t i=0; i<n-1; i++) {
         int numInCell = data[i];
         data[i] = currentVal;
         currentVal += numInCell;
@@ -20,9 +24,9 @@ void cumulativeSum(T *data, K n) {
 }
 
 template <class SRCVar, class SRCBase, class SRCFull, class DEST, class TYPEHOLDER, int N>
-int copyMultiAtomToGPU(int nAtoms, vector<SRCVar> &src, vector<int> &idxFromIdCache, GPUArrayDeviceGlobal<DEST> *dest, GPUArrayDeviceGlobal<int> *destIdxs, std::unordered_map<int, TYPEHOLDER> *forcerTypes, GPUArrayDeviceGlobal<TYPEHOLDER> *parameters, int maxExistingType) {
-    vector<int> idxs(nAtoms+1, 0); //started out being used as counts
-    vector<int> numAddedPerAtom(nAtoms, 0);
+int copyMultiAtomToGPU(int nAtoms, std::vector<SRCVar> &src, std::vector<int> &idxFromIdCache, GPUArrayDeviceGlobal<DEST> *dest, GPUArrayDeviceGlobal<int> *destIdxs, std::unordered_map<int, TYPEHOLDER> *forcerTypes, GPUArrayDeviceGlobal<TYPEHOLDER> *parameters, int maxExistingType) {
+    std::vector<int> idxs(nAtoms+1, 0); //started out being used as counts
+    std::vector<int> numAddedPerAtom(nAtoms, 0);
     //so I can arbitrarily order.  I choose to do it by the the way atoms happen to be sorted currently.  Could be improved.
     for (SRCVar &sVar : src) {
         SRCFull &s = boost::get<SRCFull>(sVar);
@@ -30,10 +34,10 @@ int copyMultiAtomToGPU(int nAtoms, vector<SRCVar> &src, vector<int> &idxFromIdCa
             int id = s.ids[i];
             idxs[idxFromIdCache[id]]++;
         }
-        
+
     }
-    cumulativeSum(idxs.data(), nAtoms+1);  
-    vector<DEST> destHost(idxs.back());
+    cumulativeSum(idxs.data(), nAtoms+1);
+    std::vector<DEST> destHost(idxs.back());
     for (SRCVar &sVar : src) {
         SRCFull &s = boost::get<SRCFull>(sVar);
         SRCBase *base = (SRCBase *) &s;
@@ -61,14 +65,14 @@ int copyMultiAtomToGPU(int nAtoms, vector<SRCVar> &src, vector<int> &idxFromIdCa
     //getting max # bonds per block
     int maxPerBlock = 0;
     for (int i=0; i<nAtoms; i+=PERBLOCK) {
-        maxPerBlock = fmax(maxPerBlock, idxs[fmin(i+PERBLOCK+1, idxs.size()-1)] - idxs[i]);
+        maxPerBlock = std::fmax(maxPerBlock, idxs[std::fmin(i+PERBLOCK+1, idxs.size()-1)] - idxs[i]);
     }
 
 
     //now copy types
     //if user is silly and specifies huge types values, these kernels could crash
     //should add error messages and such about that
-    vector<TYPEHOLDER> types(maxExistingType+1);
+    std::vector<TYPEHOLDER> types(maxExistingType+1);
     for (auto it = forcerTypes->begin(); it!= forcerTypes->end(); it++) {
         types[it->first] = it->second;
     }
@@ -78,6 +82,6 @@ int copyMultiAtomToGPU(int nAtoms, vector<SRCVar> &src, vector<int> &idxFromIdCa
 
 
     return maxPerBlock;
-
 }
+
 #endif

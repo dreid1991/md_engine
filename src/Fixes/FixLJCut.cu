@@ -9,15 +9,18 @@
 
 const std::string LJCutType = "LJCut";
 
-FixLJCut::FixLJCut(SHARED(State) state_, string handle_)
-    : FixPair(state_, handle_, "all", LJCutType, true, 1),
-      epsHandle("eps"), sigHandle("sig"), rCutHandle("rCut") {
+FixLJCut::FixLJCut(boost::shared_ptr<State> state_, std::string handle_)
+  : FixPair(state_, handle_, "all", LJCutType, true, 1),
+    epsHandle("eps"), sigHandle("sig"), rCutHandle("rCut")
+{
     initializeParameters(epsHandle, epsilons);
     initializeParameters(sigHandle, sigmas);
     initializeParameters(rCutHandle, rCuts);
     paramOrder = {epsHandle, sigHandle, rCutHandle};
 }
+
 void FixLJCut::compute(bool computeVirials) {
+
     int nAtoms = state->atoms.size();
     int numTypes = state->atomParams.numTypes;
     GPUData &gpd = state->gpd;
@@ -26,11 +29,11 @@ void FixLJCut::compute(bool computeVirials) {
     uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
     float *neighborCoefs = state->specialNeighborCoefs;
 
-        compute_force_iso<EvaluatorLJ, 3>  <<<NBLOCK(nAtoms), PERBLOCK, 3*numTypes*numTypes*sizeof(float)>>>(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx), neig\
-hborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU\
-, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], evaluator);
-
-
+    compute_force_iso<EvaluatorLJ, 3> <<<NBLOCK(nAtoms), PERBLOCK, 3*numTypes*numTypes*sizeof(float)>>>(
+            nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx),
+            neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(),
+            state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU,
+            neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], evaluator);
 
 }
 
@@ -85,29 +88,29 @@ bool FixLJCut::prepareForRun() {
     return true;
 }
 
-string FixLJCut::restartChunk(string format) {
-    stringstream ss;
+std::string FixLJCut::restartChunk(std::string format) {
+    std::stringstream ss;
     ss << restartChunkPairParams(format);
     return ss.str();
 }
 
 bool FixLJCut::readFromRestart(pugi::xml_node restData) {
-    cout << "Reading form restart\n";
+    std::cout << "Reading form restart" << std::endl;
     auto curr_param = restData.first_child();
     while (curr_param) {
         if (curr_param.name() == "parameter") {
-           vector<float> val;
-           string paramHandle = curr_param.attribute("handle").value();
-           string s;
-           istringstream ss(curr_param.value());
-           while (ss >> s) {
-               val.push_back(atof(s.c_str()));
-           }
-           initializeParameters(paramHandle, val);
+            std::vector<float> val;
+            std::string paramHandle = curr_param.attribute("handle").value();
+            std::string s;
+            std::istringstream ss(curr_param.value());
+            while (ss >> s) {
+                val.push_back(atof(s.c_str()));
+            }
+            initializeParameters(paramHandle, val);
         }
         curr_param = curr_param.next_sibling();
     }
-    cout << "Reading LJ parameters from restart\n";
+    std::cout << "Reading LJ parameters from restart" << std::endl;
     return true;
 }
 
@@ -119,23 +122,23 @@ bool FixLJCut::postRun() {
     return true;
 }
 
-void FixLJCut::addSpecies(string handle) {
+void FixLJCut::addSpecies(std::string handle) {
     initializeParameters(epsHandle, epsilons);
     initializeParameters(sigHandle, sigmas);
     initializeParameters(rCutHandle, rCuts);
 
 }
 
-vector<float> FixLJCut::getRCuts() { //to be called after prepare.  These are squares now
+std::vector<float> FixLJCut::getRCuts() {  // to be called after prepare.  These are squares now
     return LISTMAP(float, float, rc, rCuts, sqrt(rc));
 }
 
 void export_FixLJCut() {
     boost::python::class_<FixLJCut,
-                          SHARED(FixLJCut),
+                          boost::shared_ptr<FixLJCut>,
                           boost::python::bases<FixPair>, boost::noncopyable > (
         "FixLJCut",
-        boost::python::init<SHARED(State), string> (
+        boost::python::init<boost::shared_ptr<State>, std::string> (
             boost::python::args("state", "handle"))
     );
 

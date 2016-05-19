@@ -2,7 +2,9 @@
 #include "FixBondHarmonic.h"
 #include "cutils_func.h"
 #include "FixHelpers.h"
+
 namespace py = boost::python;
+using namespace std;
 
 const std::string bondHarmonicType = "BondHarmonic";
 

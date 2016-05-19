@@ -13,8 +13,12 @@ typedef double num;
 
 #define GPUMEMBER __host__ __device__
 #define SHARED(X) boost::shared_ptr<X>
+
+template <typename T>
+using b_shared_ptr = boost::shared_ptr<T>;
+
 //some files get grumpy if this is within the if.  doesn't hurt to have it declared multiple times
- 
+
 #ifdef DEBUG
     // SAFECALL is designed for kernel calls
     #define SAFECALL(com) do { \
@@ -34,7 +38,7 @@ typedef double num;
     #define SAFECALL(com) com
     #define CUT_CHECK_ERROR(err) do { } while (false)
 #endif
-     
+
 // CUCHECK is designed for CUDA API calls
 #define CUCHECK(com) do { \
     cudaError_t err = com; \

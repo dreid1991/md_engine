@@ -20,7 +20,7 @@ class Dihedral{
 
 class DihedralOPLSType {
     public:
-        double coefs[4];
+        float coefs[4];
         DihedralOPLSType(DihedralOPLS *);
         DihedralOPLSType(){};
         bool operator==(const DihedralOPLSType &) const;

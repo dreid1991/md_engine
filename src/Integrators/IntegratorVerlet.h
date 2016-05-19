@@ -7,11 +7,15 @@
 
 void export_IntegratorVerlet();
 class IntegratorVerlet : public Integrator {
-    protected:
-	void preForce(uint);
-	void postForce(uint);
-    public:
-        IntegratorVerlet(SHARED(State));
-        void run(int);
+
+protected:
+    void preForce(uint);
+    void postForce(uint);
+
+public:
+    IntegratorVerlet(boost::shared_ptr<State>);
+    void run(int);
+
 };
+
 #endif

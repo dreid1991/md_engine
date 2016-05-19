@@ -9,36 +9,38 @@
 #include "PythonOperation.h"
 #include "WriteConfig.h"
 
+using namespace std;
+
 void Integrator::force(bool computeVirials) {
-    
-	int simTurn = state->turn;
-	vector<Fix *> &fixes = state->fixes;
-	for (Fix *f : fixes) {
-		if (! (simTurn % f->applyEvery)) {
-			f->compute(computeVirials);
-		}
-	}
+    int simTurn = state->turn;
+    vector<Fix *> &fixes = state->fixes;
+    for (Fix *f : fixes) {
+        if (! (simTurn % f->applyEvery)) {
+            f->compute(computeVirials);
+        }
+    }
 };
 
+
 void Integrator::forceSingle(bool computeVirials) {
-	for (Fix *f : state->fixes) {
-		if (f->forceSingle) {
-			f->compute(computeVirials);
-		}
-	}
+    for (Fix *f : state->fixes) {
+        if (f->forceSingle) {
+            f->compute(computeVirials);
+        }
+    }
 }
-
-
 
 
 void Integrator::singlePointEng() {
     GPUArrayGlobal<float> &perParticleEng = state->gpd.perParticleEng;
     perParticleEng.d_data.memset(0);
-	for (Fix *f : state->fixes) {
+    for (Fix *f : state->fixes) {
         f->singlePointEng(perParticleEng.getDevData());
     }
 
 }
+
+
 void Integrator::doDataCollection() {
     DataManager &dm = state->dataManager;
     bool doingCollection = false;
@@ -50,7 +52,11 @@ void Integrator::doDataCollection() {
         }
     }
     if (doingCollection) {
-        bool computeVirials = false; //this will need some thought, b/c can't compute it without going through all the fixes.  Maybe have like state flag for computing virials.  If true, just grab current virials, if false, zero forces vector and recompute it setting virials flag to true, then grab virials vector
+        // this will need some thought, b/c can't compute it without going through all
+        // the fixes.  Maybe have like state flag for computing virials.  If true, just
+        // grab current virials, if false, zero forces vector and recompute it setting
+        // virials flag to true, then grab virials vector
+        bool computeVirials = false;
         bool computeEng = false;
 
         bool needToCopyForcesBack = false;
@@ -69,12 +75,7 @@ void Integrator::doDataCollection() {
                 forceSingle(true);
                 needToCopyForcesBack = true;
                 //okay, now virials are computed
-
-
-
             }
-
-
         }
         //okay, now go through all and give them their data
         GPUData &gpd = state->gpd;
@@ -84,11 +85,16 @@ void Integrator::doDataCollection() {
         BoundsGPU &bounds = state->boundsGPU;
         int nAtoms = state->atoms.size();
         int64_t turn = state->turn;
-		//void collect(int64_t turn, BoundsGPU &, int nAtoms, float4 *xs, float4 *vs, float4 *fs, float *engs, Virial *);
+        //void collect(int64_t turn, BoundsGPU &, int nAtoms,
+        //             float4 *xs, float4 *vs, float4 *fs,
+        //             float *engs, Virial *);
         cudaDeviceProp &prop = state->devManager.prop;
         for (DataSet *ds : dm.dataSets) {
             if (ds->nextCollectTurn == turn) {
-                ds->collect(turn, bounds, nAtoms, xs, vs, fs, gpd.perParticleEng.getDevData(), gpd.perParticleVirial.getDevData(), prop);
+                ds->collect(turn, bounds, nAtoms, xs, vs, fs,
+                            gpd.perParticleEng.getDevData(),
+                            gpd.perParticleVirial.getDevData(),
+                            prop);
                 ds->setNextCollectTurn(turn);
             }
         }
@@ -100,15 +106,17 @@ void Integrator::doDataCollection() {
             GPUArrayPair<float4> &fs = state->gpd.fs;
             fs.copyBetweenArrays(fs.activeIdx, !fs.activeIdx);
         }
-
-
-
     }
 }
+
+
 void Integrator::asyncOperations() {
     int turn = state->turn;
-    auto writeAndPy = [this] (int64_t ts) { //well, if I try to use a local state pointer, this segfaults.  Need to capture this instead.  Little confused
-        //have to set device in each thread
+
+    // well, if I try to use a local state pointer, this segfaults. Need to
+    // capture this instead.  Little confused
+    auto writeAndPy = [this] (int64_t ts) {
+        // have to set device in each thread
         state->devManager.setDevice(state->devManager.currentDevice, false);
         for (SHARED(WriteConfig) wc : state->writeConfigs) {
             if (not (ts % wc->writeEvery)) {
@@ -123,10 +131,10 @@ void Integrator::asyncOperations() {
     };
     bool needAsync = false;
     for (SHARED(WriteConfig) wc : state->writeConfigs) {
-		if (not (turn % wc->writeEvery)) {
+        if (not (turn % wc->writeEvery)) {
             needAsync = true;
             break;
-		}
+        }
     }
     if (not needAsync) {
         for (SHARED(PythonOperation) po : state->pythonOperations) {
@@ -182,7 +190,9 @@ void Integrator::basicPreRunChecks() {
     for (int i=0; i<3; i++) {
         if (i<2 or (i==2 and state->periodic[2])) {
             if (state->grid.ds[i] < state->rCut + state->padding) {
-                cout << "Grid dimension " << i << "has discretization smaller than rCut + padding" << endl;
+                cout << "Grid dimension " << i
+                     << "has discretization smaller than rCut + padding"
+                     << endl;
                 assert(state->grid.ds[i] >= state->rCut + state->padding);
             }
         }
@@ -190,10 +200,11 @@ void Integrator::basicPreRunChecks() {
     state->grid.adjustForChangedBounds();
 }
 
+
 void Integrator::basicPrepare(int numTurns) {
     int nAtoms = state->atoms.size();
-	state->runningFor = numTurns;
-    state->runInit = state->turn; 
+    state->runningFor = numTurns;
+    state->runInit = state->turn;
     state->updateIdxFromIdCache();
     for (Fix *f : state->fixes) {
         f->updateGroupTag();
@@ -203,13 +214,14 @@ void Integrator::basicPrepare(int numTurns) {
     for (GPUArray *dat : activeData) {
         dat->dataToDevice();
     }
-    state->gridGPU.periodicBoundaryConditions(-1, true, true);
-    state->dataManager.generateSingleDataSetList();  
+    state->gridGPU.periodicBoundaryConditions(-1, true);
+    state->dataManager.generateSingleDataSetList();
     for (DataSet *ds : state->dataManager.dataSets) {
         ds->setCollectMode();
         ds->prepareForRun();
     }
 }
+
 
 void Integrator::basicFinish() {
     if (state->asyncData && state->asyncData->joinable()) {
@@ -225,6 +237,8 @@ void Integrator::basicFinish() {
     }
 
 }
+
+
 void Integrator::setActiveData() {
     activeData = vector<GPUArray *>();
     activeData.push_back((GPUArray *) &state->gpd.ids);
@@ -236,9 +250,11 @@ void Integrator::setActiveData() {
     activeData.push_back((GPUArray *) &state->gpd.qs);
 }
 
+
 Integrator::Integrator(State *state_) : state(state_) {
-    setActiveData(); 
+    setActiveData();
 }
+
 
 void Integrator::writeOutput() {
     for (SHARED(WriteConfig) wc : state->writeConfigs) {
@@ -258,7 +274,9 @@ double Integrator::singlePointEngPythonAvg(string groupHandle) {
     cudaDeviceSynchronize();
     uint32_t groupTag = state->groupTagFromHandle(groupHandle);
     int warpSize = state->devManager.prop.warpSize;
-    sumPlain<<<NBLOCK(state->atoms.size()), PERBLOCK, sizeof(float)*PERBLOCK>>>(eng.getDevData(), state->gpd.perParticleEng.getDevData(), state->atoms.size(), groupTag, state->gpd.fs.getDevData(), warpSize);
+    sumPlain<<<NBLOCK(state->atoms.size()), PERBLOCK, sizeof(float)*PERBLOCK>>>(
+            eng.getDevData(), state->gpd.perParticleEng.getDevData(),
+            state->atoms.size(), groupTag, state->gpd.fs.getDevData(), warpSize);
     eng.dataToHost();
     cudaDeviceSynchronize();
     CUT_CHECK_ERROR("Calculation of single point average energy failed");

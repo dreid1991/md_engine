@@ -3,7 +3,10 @@
 #include "FixHelpers.h"
 #include "cutils_func.h"
 #define SMALL 0.001f
+
 namespace py = boost::python;
+using namespace std;
+
 const std::string improperHarmonicType = "ImproperHarmonic";
 __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureObject_t idToIdxs, ImproperGPU *impropers, int *startstops, BoundsGPU bounds, ImproperHarmonicType *parameters, int nParameters) {
 
