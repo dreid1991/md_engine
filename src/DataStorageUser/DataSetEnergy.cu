@@ -16,7 +16,7 @@ void DataSetEnergy::collect(int64_t turn, BoundsGPU &, int nAtoms, float4 *xs, f
     turnsPy.append(turn);
 }
 void DataSetEnergy::appendValues() {
-    double engCur = (double) engGPU.h_data[0] / (double) engGPU.h_data[1]; 
+    double engCur = (double) engGPU.h_data[0];
     vals.push_back(engCur);
     valsPy.append(engCur);
     

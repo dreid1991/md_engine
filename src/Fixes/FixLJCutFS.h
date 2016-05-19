@@ -1,24 +1,26 @@
 #pragma once
-#ifndef FIXLJCUT_H
-#define FIXLJCUT_H
+#ifndef FIXLJCUTFS_H
+#define FIXLJCUTFS_H
 
 #include "FixPair.h"
-#include "PairEvaluatorLJ.h"
+#include "PairEvaluatorLJFS.h"
 #include "xml_func.h"
 
 //! Make FixLJCut available to the pair base class in boost
-void export_FixLJCut();
+void export_FixLJCutFS();
 
 //! Fix for truncated Lennard-Jones interactions
 /*!
- * Fix to calculate Lennard-Jones interactions of particles. 
- * V(r)=4*eps*((sig/r)^12-(sig/r)^6)
- * F r)=24*eps*(2*(sig/r)^12-(sig/r)^6)*1/r
+ * Fix to calculate Force shifted Lennard-Jones interactions of particles. 
+ * Original LJ V(r)=4*eps*((sig/r)^12-(sig/r)^6)
+ * Original LJ F(r)=24*eps*(2*(sig/r)^12-(sig/r)^6)*1/r
+ * FS LJ F_fs(r)=F(r)-F(r_cut)
  */
-class FixLJCut : public FixPair {
+
+class FixLJCutFS : public FixPair {
     public:
         //! Constructor
-        FixLJCut(SHARED(State), std::string handle);
+        FixLJCutFS(SHARED(State), std::string handle);
 
         //! Compute forces
         void compute(bool);
@@ -74,8 +76,9 @@ class FixLJCut : public FixPair {
         std::vector<float> epsilons; //!< vector storing epsilon values
         std::vector<float> sigmas; //!< vector storing sigma values
         std::vector<float> rCuts; //!< vector storing cutoff distance values
+        std::vector<float> FCuts; //!< vector storing force at cutoff distance
 
-        EvaluatorLJ evaluator; //!< Evaluator for generic pair interactions
+        EvaluatorLJFS evaluator; //!< Evaluator for generic pair interactions
 };
 
 #endif

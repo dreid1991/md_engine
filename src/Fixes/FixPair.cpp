@@ -23,6 +23,15 @@ void FixPair::prepareParameters(string handle, std::function<float (float, float
 
 }
 
+
+void FixPair::prepareParameters(string handle, std::function<float (int,int)>  fillFunction) {
+    vector<float> &array = *paramMap[handle];
+    int desiredSize = state->atomParams.numTypes;
+    ensureParamSize(array);
+    SquareVector::populate<float>(&array, desiredSize, fillFunction);
+
+}
+
 void FixPair::resetToPreproc(string handle) {
     vector<float> *array = paramMap[handle];
     vector<float> &preproc = paramMapPreproc[handle];

@@ -8,6 +8,7 @@
 #include <map>
 #include <string>
 #include <vector>
+#include <iostream>//makes it compile on my machine  (error: cout is not a member of std)
 
 #include "AtomParams.h"
 #include "GPUArrayGlobal.h"
@@ -131,6 +132,15 @@ namespace SquareVector {
             }
         }
     }
+    //for Fcut LJFS 
+    template <class T>
+    void populate(std::vector<T> *vec, int size, std::function<T (int, int)> fillFunction) {
+        for (int i=0; i<size; i++) {
+            for (int j=0; j<size; j++) {
+                squareVectorRef<T>(vec->data(), size, i, j) =fillFunction(i,j);
+            }
+        }
+    }        
 
     //! Call function on each element of the SquareVector
     /*!
@@ -231,7 +241,8 @@ protected:
                            std::function<float (float)> processFunction,
                            bool fillDiag,
                            std::function<float ()> fillDiagFunction= std::function<float ()> ());
-
+    void prepareParameters(std::string handle,
+                           std::function<float (int, int)> fillFunction);
     //! Send parameters to all GPU devices
     void sendAllToDevice();
 
