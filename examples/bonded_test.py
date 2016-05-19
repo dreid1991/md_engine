@@ -96,7 +96,7 @@ writeconfig = WriteConfig(state, fn='test_out', writeEvery=10, format='xyz', han
 state.activateWriteConfig(writeconfig)
 
 #integRelax.run(1, 1e-9)
-integVerlet = IntegraterVerlet(state)
+integVerlet = IntegratorVerlet(state)
 
 #tempData = state.dataManager.recordTemperature('all', 100)
 #boundsData = state.dataManager.recordBounds(100)

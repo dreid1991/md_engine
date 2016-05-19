@@ -43,11 +43,11 @@ state.atomParams.setValues('DIO_1', atomicNum=1)
 state.atomParams.setValues('DIO_2', atomicNum=53)
 
 print state.atoms[0].pos.dist(state.atoms[1].pos)
-integRelax = IntegraterRelax(state)
+integRelax = IntegratorRelax(state)
 integRelax.run(100000, 1e-9)
 InitializeAtoms.initTemp(state, 'all', 0.1)
 
-integVerlet = IntegraterVerlet(state)
+integVerlet = IntegratorVerlet(state)
 integVerlet.run(100000)
 #print state.atoms[0].pos.dist(state.atoms[1].pos)
 #print tempData.vals
