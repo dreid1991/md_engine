@@ -146,9 +146,9 @@ void testCharge() {
 
 //     IntegratorRelax integratorR(state);
 //     integratorR.run(500001,1.0);
-    IntegratorVerlet integrator(state);
+    IntegratorVerlet integrator(state.get());
     integrator.run(500000);
-    /*IntegratorLangevin integrator(state);
+    /*IntegratorLangevin integrator(state.get());
     integrator.run(100000);*/
     //cout << state->atoms[0].pos[0]<<' '<<state->atoms[0].vel[0]<<' '<<state->atoms[0].force[0]<<' '<<state->atoms[0].forceLast[0]<< endl;
 
@@ -175,7 +175,7 @@ void testPair() {
     state->activateFix(charge);
 
     state->dt=0.0001;
-    IntegratorVerlet integrator(state);
+    IntegratorVerlet integrator(state.get());
 
     ofstream ofs;
     ofs.open("test_pair.dat",ios::out );
@@ -214,7 +214,7 @@ void test_charge_ewald() {
     state->activateFix(charge);
 
     state->dt=0.0001;
-    IntegratorVerlet integrator(state);
+    IntegratorVerlet integrator(state.get());
     //charge->compute();
     integrator.run(1);
 
@@ -549,7 +549,7 @@ void hoomdBench() {
     //SHARED(WriteConfig) write = SHARED(WriteConfig) (new WriteConfig(state, "test", "handley", "xml", 20));
   //  state->activateWriteConfig(write);
 
-    IntegratorVerlet verlet(state);
+    IntegratorVerlet verlet(state.get());
     verlet.run(5000);
     cout.flush();
     //SHARED(FixBondHarmonic) harmonic = SHARED(FixBondHarmonic) (new FixBondHarmonic(state, "harmonic"));
@@ -619,7 +619,7 @@ void testLJ() {
     //SHARED(WriteConfig) write = SHARED(WriteConfig) (new WriteConfig(state, "test", "handley", "xml", 20));
   //  state->activateWriteConfig(write);
 
-    IntegratorVerlet verlet(state);
+    IntegratorVerlet verlet(state.get());
     cout << state->atoms[0].pos << endl;
     //verlet.run();
     cout << state->atoms[0].pos << endl;

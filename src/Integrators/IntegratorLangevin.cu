@@ -3,6 +3,8 @@
 #include <curand_kernel.h>
 #include <math.h>
 
+#include <boost/shared_ptr.hpp>
+
 #include "cutils_func.h"
 #include "globalDefs.h"
 
@@ -11,7 +13,7 @@
 using namespace std;
 
 
-IntegratorLangevin::IntegratorLangevin(SHARED(State) state_,float T_)
+IntegratorLangevin::IntegratorLangevin(State *state_,float T_)
   : IntegratorVerlet(state_),
     seed(0), gamma(1.0), curInterval(0)
 {
@@ -23,7 +25,7 @@ IntegratorLangevin::IntegratorLangevin(SHARED(State) state_,float T_)
 }
 
 
-IntegratorLangevin::IntegratorLangevin(SHARED(State) state_, /*string groupHandle_,*/
+IntegratorLangevin::IntegratorLangevin(State *state_, /*string groupHandle_,*/
                                        boost::python::list intervals_, boost::python::list temps_,
                                        SHARED(Bounds) thermoBounds_)
   : IntegratorVerlet(state_), seed(0), gamma(1.0), curInterval(0), finished(false)
@@ -55,7 +57,7 @@ IntegratorLangevin::IntegratorLangevin(SHARED(State) state_, /*string groupHandl
     //}
 }
 
-IntegratorLangevin::IntegratorLangevin(SHARED(State) state_,/* string groupHandle_, */
+IntegratorLangevin::IntegratorLangevin(State *state_,/* string groupHandle_, */
                                        vector<double> intervals_, vector<double> temps_,
                                        SHARED(Bounds) thermoBounds_)
   : IntegratorVerlet(state_), seed(0), gamma(1.0), curInterval(0), finished(false)
@@ -310,12 +312,22 @@ void IntegratorLangevin::run(int numTurns) {
 }
 
 void export_IntegratorLangevin() {
-    boost::python::class_ <IntegratorLangevin, SHARED(IntegratorLangevin), boost::python::bases<IntegratorVerlet>, boost::noncopyable > ("IntegratorLangevin", boost::python::init<SHARED(State), float>())
-        .def(boost::python::init<SHARED(State), boost::python::list,
-                            boost::python::list,
-                            boost::python::optional< SHARED(Bounds)>>())
-        .def("run", &IntegratorLangevin::run)
-        .def("set_params", &IntegratorLangevin::set_params,(boost::python::arg("seed"),boost::python::arg("gamma")))
-        ;
+    boost::python::class_<IntegratorLangevin,                     // Class
+                          boost::shared_ptr<IntegratorLangevin>,  // HeldType
+                          boost::python::bases<IntegratorVerlet>, // Base Class
+                          boost::noncopyable > (
+        "IntegratorLangevin",
+        boost::python::init<State *, float>()
+    )
+    .def(boost::python::init<State *,
+                             boost::python::list,
+                             boost::python::list,
+                             boost::python::optional< SHARED(Bounds)>>())
+    .def("run", &IntegratorLangevin::run)
+    .def("set_params", &IntegratorLangevin::set_params,
+        (boost::python::arg("seed"),
+         boost::python::arg("gamma"))
+    )
+    ;
 }
 

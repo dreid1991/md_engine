@@ -40,14 +40,14 @@ private:
     
 public:
     /*! \brief Constant temperature Constructor */
-    IntegratorLangevin(boost::shared_ptr<State>,/*string groupHandle_,*/float T_);
+    IntegratorLangevin(State *state_,/*string groupHandle_,*/float T_);
 
     /*! \brief Thermostat Constructor python list */
-    IntegratorLangevin(boost::shared_ptr<State>, /*string groupHandle_,*/ 
+    IntegratorLangevin(State *state_, /*string groupHandle_,*/
                        boost::python::list intervals, boost::python::list temps,
                        boost::shared_ptr<Bounds> thermoBounds_ = boost::shared_ptr<Bounds>(NULL));
     /*! \brief Thermostat Constructor */
-    IntegratorLangevin(boost::shared_ptr<State>, /*string groupHandle_,*/
+    IntegratorLangevin(State *state_, /*string groupHandle_,*/
                        std::vector<double> intervals, std::vector<double> temps,
                        boost::shared_ptr<Bounds> thermoBounds_ = boost::shared_ptr<Bounds>(NULL));
 
