@@ -2,12 +2,12 @@
 #include "FixDihedralOPLS.h"
 #include "FixHelpers.h"
 #include "cutils_func.h"
-
-#define EPSILON 0.00001f
+#include "DihedralEvaluate.h"
 namespace py = boost::python;
 using namespace std;
 
 const std::string dihedralOPLSType = "DihedralOPLS";
+/*
 template <class DIHEDRALGPU, class DIHEDRALTYPE> //don't need DIHEDRALGPU, are all DihedralGPU.  Worry about later 
 __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureObject_t idToIdxs, DIHEDRALGPU *dihedrals, int *startstops, BoundsGPU bounds, DIHEDRALTYPE *parameters, int nParameters) {
 
@@ -220,7 +220,7 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
         }
     }
 }
-
+*/
 
 FixDihedralOPLS::FixDihedralOPLS(SHARED(State) state_, string handle) : FixPotentialMultiAtom (state_, handle, dihedralOPLSType, true), pyListInterface(&forcers, &pyForcers) {}
 
@@ -230,7 +230,7 @@ void FixDihedralOPLS::compute(bool computeVirials) {
     int activeIdx = state->gpd.activeIdx();
 
 
-    compute_cu<<<NBLOCK(nAtoms), PERBLOCK, sizeof(DihedralGPU) * maxForcersPerBlock + sizeof(DihedralOPLSType) * parameters.size() >>>(nAtoms, state->gpd.xs(activeIdx), state->gpd.fs(activeIdx), state->gpd.idToIdxs.getTex(), forcersGPU.data(), forcerIdxs.data(), state->boundsGPU, parameters.data(), parameters.size());
+    compute_force_dihedral<<<NBLOCK(nAtoms), PERBLOCK, sizeof(DihedralGPU) * maxForcersPerBlock + sizeof(DihedralOPLSType) * parameters.size() >>>(nAtoms, state->gpd.xs(activeIdx), state->gpd.fs(activeIdx), state->gpd.idToIdxs.getTex(), forcersGPU.data(), forcerIdxs.data(), state->boundsGPU, parameters.data(), parameters.size(), evaluator);
 
 }
 
