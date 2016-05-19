@@ -125,6 +125,7 @@ void FixAngleHarmonic::compute(bool computeVirials) {
         printf("Angle ids k theta %d %d %d %f %f\n", a.ids[0], a.ids[1], a.ids[2], a.k, a.thetaEq);
     }
     */
+    cout << "Angle" << endl;
     compute_cu<<<NBLOCK(nAtoms), PERBLOCK, sizeof(AngleGPU) * maxForcersPerBlock + parameters.size() * sizeof(AngleHarmonicType)>>>(nAtoms, state->gpd.xs(activeIdx), state->gpd.fs(activeIdx), state->gpd.idToIdxs.getTex(), forcersGPU.data(), forcerIdxs.data(), state->boundsGPU, parameters.data(), parameters.size());
 
 }
