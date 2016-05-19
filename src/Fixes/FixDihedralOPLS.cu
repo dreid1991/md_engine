@@ -230,7 +230,6 @@ void FixDihedralOPLS::compute(bool computeVirials) {
     int activeIdx = state->gpd.activeIdx();
 
 
-    //cout << "max forcers " << maxForcersPerBlock << endl;
     compute_cu<<<NBLOCK(nAtoms), PERBLOCK, sizeof(DihedralGPU) * maxForcersPerBlock + sizeof(DihedralOPLSType) * parameters.size() >>>(nAtoms, state->gpd.xs(activeIdx), state->gpd.fs(activeIdx), state->gpd.idToIdxs.getTex(), forcersGPU.data(), forcerIdxs.data(), state->boundsGPU, parameters.data(), parameters.size());
 
 }

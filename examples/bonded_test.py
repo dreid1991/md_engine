@@ -23,7 +23,7 @@ state.activateFix(nonbond)
 state.addAtom('spc1', Vector(5, 5, 5))
 state.addAtom('spc1', Vector(5, 6, 5))
 state.addAtom('spc1', Vector(6, 6, 5))
-#state.addAtom('spc1', Vector(6, 5, 6))
+state.addAtom('spc1', Vector(6, 5, 6))
 
 bondHarm = FixBondHarmonic(state, 'bondHarm')
 bondHarm.setBondTypeCoefs(type=0, k=15, rEq=1.3);
@@ -40,8 +40,9 @@ state.activateFix(bondHarm)
 dihedralOPLS = FixDihedralOPLS(state, 'dihedral')
 dihedralOPLS.setDihedralTypeCoefs(type=0, coefs=[15, -10, 4, -12])
 
-#dihedralOPLS.createDihedral(state.atoms[0], state.atoms[1], state.atoms[2], state.atoms[3], coefs=[3,4,5,6])
-#state.activateFix(dihedralOPLS)
+
+dihedralOPLS.createDihedral(state.atoms[0], state.atoms[1], state.atoms[2], state.atoms[3], type=0)
+state.activateFix(dihedralOPLS)
 #print dihedralOPLS.dihedrals
 #print dihedralOPLS.dihedrals[0].coefs[2]
 
@@ -101,4 +102,4 @@ integVerlet = IntegraterVerlet(state)
 #boundsData = state.dataManager.recordBounds(100)
 #engData = state.dataManager.recordEnergy('all', 100)
 
-integVerlet.run(100)
+integVerlet.run(1)
