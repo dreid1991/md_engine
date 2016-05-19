@@ -295,7 +295,7 @@ float State::getMaxRCut() {
 bool State::prepareForRun() {
 
     // fixes have already prepared by the time the integrator calls this prepare
-    std::vector<float4> xs_vec, vs_vec, fs_vec, fsLast_vec;
+    std::vector<float4> xs_vec, vs_vec, fs_vec;
     std::vector<uint> ids;
     std::vector<float> qs;
 
@@ -326,7 +326,6 @@ bool State::prepareForRun() {
     xs_vec.reserve(nAtoms);
     vs_vec.reserve(nAtoms);
     fs_vec.reserve(nAtoms);
-    fsLast_vec.reserve(nAtoms);
     ids.reserve(nAtoms);
     qs.reserve(nAtoms);
 
@@ -337,16 +336,12 @@ bool State::prepareForRun() {
                                      1/a.mass));
         fs_vec.push_back(make_float4(a.force[0], a.force[1], a.force[2],
                                      *(float *)&a.groupTag));
-        fsLast_vec.push_back(
-                    make_float4(a.forceLast[0], a.forceLast[1], a.forceLast[2],
-                                0));
         ids.push_back(a.id);
         qs.push_back(a.q);
     }
     gpd.xs.set(xs_vec);
     gpd.vs.set(vs_vec);
     gpd.fs.set(fs_vec);
-    gpd.fsLast.set(fsLast_vec);
     gpd.ids.set(ids);
     gpd.qs.set(qs);
 
@@ -371,7 +366,6 @@ bool State::prepareForRun() {
     gpd.xsBuffer = GPUArrayGlobal<float4>(nAtoms);
     gpd.vsBuffer = GPUArrayGlobal<float4>(nAtoms);
     gpd.fsBuffer = GPUArrayGlobal<float4>(nAtoms);
-    gpd.fsLastBuffer = GPUArrayGlobal<float4>(nAtoms);
     gpd.idsBuffer = GPUArrayGlobal<uint>(nAtoms);
     gpd.perParticleEng = GPUArrayGlobal<float>(nAtoms);
 
@@ -384,14 +378,12 @@ void copyAsyncWithInstruc(State *state, std::function<void (int64_t )> cb, int64
     state->gpd.xsBuffer.dataToHostAsync(stream);
     state->gpd.vsBuffer.dataToHostAsync(stream);
     state->gpd.fsBuffer.dataToHostAsync(stream);
-    state->gpd.fsLastBuffer.dataToHostAsync(stream);
     state->gpd.idsBuffer.dataToHostAsync(stream);
     CUCHECK(cudaStreamSynchronize(stream));
     std::vector<int> idToIdxsOnCopy = state->gpd.idToIdxsOnCopy;
     std::vector<float4> &xs = state->gpd.xsBuffer.h_data;
     std::vector<float4> &vs = state->gpd.vsBuffer.h_data;
     std::vector<float4> &fs = state->gpd.fsBuffer.h_data;
-    std::vector<float4> &fsLast = state->gpd.fsLastBuffer.h_data;
     std::vector<uint> &ids = state->gpd.idsBuffer.h_data;
     std::vector<Atom> &atoms = state->atoms;
 
@@ -401,7 +393,6 @@ void copyAsyncWithInstruc(State *state, std::function<void (int64_t )> cb, int64
         atoms[idxWriteTo].pos = xs[i];
         atoms[idxWriteTo].vel = vs[i];
         atoms[idxWriteTo].force = fs[i];
-        atoms[idxWriteTo].forceLast = fsLast[i];
     }
     cb(turn);
     CUCHECK(cudaStreamDestroy(stream));
@@ -413,7 +404,6 @@ bool State::asyncHostOperation(std::function<void (int64_t )> cb) {
     gpd.xs.copyToDeviceArray((void *) gpd.xsBuffer.getDevData());
     gpd.vs.copyToDeviceArray((void *) gpd.vsBuffer.getDevData());
     gpd.fs.copyToDeviceArray((void *) gpd.fsBuffer.getDevData());
-    gpd.fsLast.copyToDeviceArray((void *) gpd.fsLastBuffer.getDevData());
     gpd.ids.copyToDeviceArray((void *) gpd.idsBuffer.getDevData());
     bounds.set(boundsGPU);
     if (asyncData and asyncData->joinable()) {
@@ -440,7 +430,6 @@ bool State::downloadFromRun() {
     std::vector<float4> &xs = gpd.xs.h_data;
     std::vector<float4> &vs = gpd.vs.h_data;
     std::vector<float4> &fs = gpd.fs.h_data;
-    std::vector<float4> &fsLast = gpd.fsLast.h_data;
     std::vector<uint> &ids = gpd.ids.h_data;
     for (int i=0, ii=atoms.size(); i<ii; i++) {
         int id = ids[i];
@@ -448,7 +437,6 @@ bool State::downloadFromRun() {
         atoms[idxWriteTo].pos = xs[i];
         atoms[idxWriteTo].vel = vs[i];
         atoms[idxWriteTo].force = fs[i];
-        atoms[idxWriteTo].forceLast = fsLast[i];
     }
     return true;
 }

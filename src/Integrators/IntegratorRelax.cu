@@ -192,7 +192,6 @@ double IntegratorRelax::run(int numTurns, num fTol) {
                             state->gpd.xs.getDevData(),
                             state->gpd.vs.getDevData(),
                             state->gpd.fs.getDevData(),
-                            //state->gpd.fsLast.getDevData(),
                             dt);
         CUT_CHECK_ERROR("FIRE_preForce_cu kernel execution failed");
 

@@ -245,7 +245,6 @@ void Integrator::setActiveData() {
     activeData.push_back((GPUArray *) &state->gpd.xs);
     activeData.push_back((GPUArray *) &state->gpd.vs);
     activeData.push_back((GPUArray *) &state->gpd.fs);
-    activeData.push_back((GPUArray *) &state->gpd.fsLast);
     activeData.push_back((GPUArray *) &state->gpd.idToIdxs);
     activeData.push_back((GPUArray *) &state->gpd.qs);
 }

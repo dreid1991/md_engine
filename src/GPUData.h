@@ -20,7 +20,6 @@ public:
     GPUArrayPair<float4> vs;
     /* groupTags (uints) are bit cast into the w value of fs */
     GPUArrayPair<float4> fs;
-    GPUArrayPair<float4> fsLast;  // and one more space!
     GPUArrayPair<uint> ids;
     GPUArrayPair<float> qs;
     GPUArrayTex<int> idToIdxs;
@@ -28,7 +27,6 @@ public:
     GPUArrayGlobal<float4> xsBuffer;
     GPUArrayGlobal<float4> vsBuffer;
     GPUArrayGlobal<float4> fsBuffer;
-    GPUArrayGlobal<float4> fsLastBuffer;
     GPUArrayGlobal<uint> idsBuffer;
 
     /* for transfer between GPUs */
@@ -61,7 +59,6 @@ public:
         xs.switchIdx();
         vs.switchIdx();
         fs.switchIdx();
-        fsLast.switchIdx();
         ids.switchIdx();
         return qs.switchIdx();
     }

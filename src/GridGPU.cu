@@ -184,7 +184,6 @@ __global__ void sortPerAtomArrays(
                     float4 *xsFrom,     float4 *xsTo,
                     float4 *vsFrom,     float4 *vsTo,
                     float4 *fsFrom,     float4 *fsTo,
-                    float4 *fsLastFrom, float4 *fsLastTo,
                     uint *idsFrom, uint *idsTo,
                     float *qsFrom, float *qsTo,
                     cudaSurfaceObject_t idToIdx,
@@ -206,7 +205,6 @@ __global__ void sortPerAtomArrays(
         copyToOtherList<uint>(idsFrom, idsTo, idx, sortedIdx);
         copyToOtherList<float4>(vsFrom, vsTo, idx, sortedIdx);
         copyToOtherList<float4>(fsFrom, fsTo, idx, sortedIdx);
-        copyToOtherList<float4>(fsLastFrom, fsLastTo, idx, sortedIdx);
         copyToOtherList<float>(qsFrom, qsTo, idx, sortedIdx);
 
         int xAddrId = XIDX(id, sizeof(int)) * sizeof(int);
@@ -584,7 +582,6 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
                     state->gpd.xs(activeIdx), state->gpd.xs(!activeIdx),
                     state->gpd.vs(activeIdx), state->gpd.vs(!activeIdx),
                     state->gpd.fs(activeIdx), state->gpd.fs(!activeIdx),
-                    state->gpd.fsLast(activeIdx), state->gpd.fsLast(!activeIdx),
                     state->gpd.ids(activeIdx), state->gpd.ids(!activeIdx),
                     state->gpd.qs(activeIdx), state->gpd.qs(!activeIdx),
                     state->gpd.idToIdxs.getSurf(),
