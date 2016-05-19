@@ -1,136 +1,127 @@
 #include "IntegratorVerlet.h"
 
+#include <chrono>
+
+#include <boost/python.hpp>
+#include <boost/shared_ptr.hpp>
+
+#include "Logging.h"
 #include "State.h"
 
-IntegratorVerlet::IntegratorVerlet(SHARED(State) state_)
-    : Integrator(state_.get()) {}
+namespace py = boost::python;
 
 __global__ void preForce_cu(int nAtoms, float4 *xs, float4 *vs, float4 *fs,
-                            float4 *fsLast, float dt) {
+                            float dt)
+{
     int idx = GETIDX();
     if (idx < nAtoms) {
-
+        // Update velocity by a half timestep
         float4 vel = vs[idx];
+        float invmass = vel.w;
+
         float4 force = fs[idx];
 
-        float invmass = vel.w;
-        float groupTag = force.w;
+        float3 dv = 0.5f * dt * invmass * make_float3(force);
+        vel += dv;
+        vs[idx] = vel;
 
-        float3 dPos = make_float3(vel) * dt +
-                      make_float3(force) * dt*dt * 0.5f * invmass;
+        // Update position by a full timestep
+        float4 pos = xs[idx];
 
-        // Only add float3 to xs and fs! (w entry is used as int or bitmask)
-        //THIS IS NONTRIVIALLY FASTER THAN DOING +=.  Sped up whole sumilation by 1%
-        float4 xCur = xs[idx];
-        xCur += dPos;
-        xs[idx] = xCur;
+        float3 dx = dt*make_float3(vel);
+        pos += dx;
+        xs[idx] = pos;
 
-        //xs[idx] = pos;
-        fsLast[idx] = force;
-        fs[idx] = make_float4(0, 0, 0, groupTag);
+        // Set forces to zero before force calculation
+        fs[idx] = make_float4(0.0f, 0.0f, 0.0f, force.w);
     }
 }
 
-__global__ void postForce_cu(int nAtoms, float4 *vs, float4 *fs,
-                             float4 *fsLast, float dt) {
+__global__ void postForce_cu(int nAtoms, float4 *vs, float4 *fs, float dt)
+{
     int idx = GETIDX();
     if (idx < nAtoms) {
+        // Update velocities by a halftimestep
         float4 vel = vs[idx];
-        float4 force = fs[idx];
-        float4 forceLast = fsLast[idx];
         float invmass = vel.w;
-        //printf("invmass is %f\n", invmass);
-        //printf("dt is %f\n", dt);
-        //printf("force is %f %f %f\n", force.x, force.y, force.z);
-        float4 newVel = vel + (forceLast + force) * dt * 0.5f * invmass;
-        //printf("vel is %f %f %f\n", newVel.x, newVel.y, newVel.z);
-        newVel.w = invmass;
-        vs[idx] = newVel;
+
+        float4 force = fs[idx];
+
+        float3 dv = 0.5f * dt * invmass * make_float3(force);
+        vel += dv;
+        vs[idx] = vel;
     }
 }
 
-void IntegratorVerlet::preForce(uint activeIdx) {
-    //vector<Atom> &atoms = state->atoms;
+IntegratorVerlet::IntegratorVerlet(State *statePtr)
+    : Integrator(statePtr)
+{
+
+}
+
+void IntegratorVerlet::run(int numTurns)
+{
+    basicPreRunChecks();
+    basicPrepare(numTurns);
+
+    int periodicInterval = state->periodicInterval;
+    auto start = std::chrono::high_resolution_clock::now();
+
+    for (int i=0; i<numTurns; ++i) {
+        if (state->turn % periodicInterval == 0) {
+            state->gridGPU.periodicBoundaryConditions();
+        }
+        asyncOperations();
+        doDataCollection();
+        preForce();
+        force(false);
+        postForce();
+
+        state->turn++;
+        if (state->verbose && (i+1 == numTurns || state->turn % state->shoutEvery == 0)) {
+            mdMessage("Turn %d %.2f percent done.\n", (int)state->turn, 100.0*(i+1)/numTurns);
+        }
+    }
+    cudaDeviceSynchronize();
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> duration = end - start;
+    mdMessage("runtime %f\n%e particle timesteps per second\n",
+              duration.count(), state->atoms.size()*numTurns / duration.count());
+
+    basicFinish();
+}
+
+void IntegratorVerlet::preForce()
+{
+    uint activeIdx = state->gpd.activeIdx();
     preForce_cu<<<NBLOCK(state->atoms.size()), PERBLOCK>>>(
             state->atoms.size(),
             state->gpd.xs.getDevData(),
             state->gpd.vs.getDevData(),
             state->gpd.fs.getDevData(),
-            state->gpd.fsLast.getDevData(),
             state->dt);
 }
 
-void IntegratorVerlet::postForce(uint activeIdx) {
+void IntegratorVerlet::postForce()
+{
+    uint activeIdx = state->gpd.activeIdx();
     postForce_cu<<<NBLOCK(state->atoms.size()), PERBLOCK>>>(
             state->atoms.size(),
             state->gpd.vs.getDevData(),
             state->gpd.fs.getDevData(),
-            state->gpd.fsLast.getDevData(),
             state->dt);
 }
 
-
-void IntegratorVerlet::run(int numTurns) {
-    basicPreRunChecks();
-    basicPrepare(numTurns);
-
-    int periodicInterval = state->periodicInterval;
-    int numBlocks = ceil(state->atoms.size() / (float) PERBLOCK);
-    int remainder = state->turn % periodicInterval;
-    int turnInit = state->turn;
-    auto start = std::chrono::high_resolution_clock::now();
-    /*
-    int x = 0;
-    dataGather = async(launch::async, [&]() {x=5;});
-    std::cout << "valid " << std::endl;
-    std::cout << dataGather.valid() << std::endl;
-    dataGather.wait();
-    std::cout << dataGather.valid() << std::endl;
-    std::cout << "x is " << x << std::endl;
-    std::cout << "waiting again" << std::endl;
-    dataGather.wait();
-    std::cout << "past" << std::endl;
-    return;
-     */
-    for (int i=0; i<numTurns; i++) {
-        if (! ((remainder + i) % periodicInterval)) {
-            state->gridGPU.periodicBoundaryConditions();
-        }
-        int activeIdx = state->gpd.activeIdx();
-        asyncOperations();
-        doDataCollection();
-        preForce(activeIdx);
-        force(activeIdx);
-        postForce(activeIdx);
-
-        if (state->verbose and not ((state->turn - turnInit) % state->shoutEvery)) {
-            std::cout << "Turn " << (int) state->turn
-                      << " " << (int) (100 * (state->turn - turnInit) / (num) numTurns)
-                      << " percent done" << std::endl;
-        }
-        state->turn++;
-
-    }
-    cudaDeviceSynchronize();
-    auto end = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> duration = end - start;
-    std::cout << "runtime " << duration.count() << std::endl;
-    std::cout << (state->atoms.size() * numTurns / duration.count())
-              << " particle timesteps per  second " << std::endl;
-
-    basicFinish();
-
-}
-
-void export_IntegratorVerlet() {
-    boost::python::class_<IntegratorVerlet,
-                          SHARED(IntegratorVerlet),
-                          boost::python::bases<Integrator>,
-                          boost::noncopyable > (
+void export_IntegratorVerlet()
+{
+    py::class_<IntegratorVerlet,
+               boost::shared_ptr<IntegratorVerlet>,
+               py::bases<Integrator>,
+               boost::noncopyable>
+    (
         "IntegratorVerlet",
-        boost::python::init<SHARED(State)>()
-     )
+        py::init<State *>()
+    )
     .def("run", &IntegratorVerlet::run)
     ;
 }
-
