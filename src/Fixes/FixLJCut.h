@@ -11,9 +11,25 @@ void export_FixLJCut();
 
 //! Fix for truncated Lennard-Jones interactions
 /*!
- * Fix to calculate Lennard-Jones interactions of particles. 
- * V(r)=4*eps*((sig/r)^12-(sig/r)^6)
- * F r)=24*eps*(2*(sig/r)^12-(sig/r)^6)*1/r
+ * Fix to calculate Lennard-Jones interactions of particles. The LJ potential
+ * is defined as
+ * \f[
+ * V(r_{ij}) = 4 \varepsilon \left[ \left(\frac{\sigma}{r_{ij}}\right)^{12} -
+ *                               \left(\frac{\sigma}{r_{ij}}\right)^{6}\right],
+ * \f]
+ * where \f$ r \f$ is the distance between two particles and \f$ \varepsilon \f$
+ * and \f$ \sigma \f$ are the two relevant parameters. The LJ pair interaction
+ * is only calculated for particles closer than \$r_{\text{cut}}\$.
+ *
+ * From the potential, the force can be derived as
+ * \f[
+ * F(r_{ij}) = 24 \varepsilon \frac{1}{r} \left[ 
+ *                          2 \left(\frac{\sigma}{r_{ij}}\right)^{12} -
+ *                            \left(\frac{\sigma}{r_{ij}}\right)^{6}
+ *                          \right].
+ * \f]
+ * If \f$F(r_{ij}) < 0\f$, then the force is attractive. Otherwise, it is
+ * repulsive.
  */
 class FixLJCut : public FixPair {
     public:
