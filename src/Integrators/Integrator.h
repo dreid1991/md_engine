@@ -11,9 +11,8 @@ class State;
 
 void export_Integrator();
 
-/*! \class Integrator
- * \brief Base class for Molecular Dynamics Integrators
- *
+//! Base class for Molecular Dynamics Integrators
+/*
  * This class is a base class for all MD Integrators. It takes care of all
  * aspects common to all integrators such as doing basic checks, data transfer
  * from and to the GPU, etc.
@@ -21,8 +20,8 @@ void export_Integrator();
 class Integrator {
 
 protected:
-    /*! \brief Calculate force for all fixes
-     *
+    //! Calculate force for all fixes
+    /*!
      * \param computeVirials Compute virials for all forces if True
      *
      * This function iterates over all fixes and if the Fix should be applied
@@ -30,17 +29,17 @@ protected:
      */
     void force(bool computeVirials);
     
-    /*!\ brief Perform all asynchronous operations
-     *
+    //! Perform all asynchronous operations
+    /*!
      * This function performs all asynchronous operations, such as writing
      * configurations or performing Python operations
      */
     void asyncOperations();
     std::vector<GPUArray *> activeData; //!< List of pointers to the data
-                                            //!< used by this integrator
+                                        //!< used by this integrator
 
-    /*! \brief Simple checks before the run
-     *
+    //! Simple checks before the run
+    /*!
      * The checks consist of:
      *   - GPU device compatibility needs to be >= 3.0
      *   - Atom grid needs to be set
@@ -51,8 +50,8 @@ protected:
      */
     void basicPreRunChecks();
 
-    /*! \brief Prepare Integrator for running
-     *
+    //! Prepare Integrator for running
+    /*!
      * \param numTurns Number of turns the integrator is expected to run
      *
      * Prepare the integrator to run for a given amount of timesteps. This
@@ -61,29 +60,29 @@ protected:
      */
     void basicPrepare(int numTurns);
 
-    /*! \brief Finish simulation run
-     *
+    //! Finish simulation run
+    /*!
      * Finish the simulation run. This includes copying all relevant data to
      * the CPU host and calling postRun on all fixes.
      */
     void basicFinish();
 
-    /*! \brief Collect all pointers to the relevant data into activeData */
+    //! Collect all pointers to the relevant data into activeData
     void setActiveData();
 
-    /*! \brief Collect data for all DataSets*/
+    //! Collect data for all DataSets
     void doDataCollection();
 
-    /*! \brief Calculate single point energy for all fixes
-     *
+    //! Calculate single point energy for all fixes
+    /*!
      * A single point energy excludes energy/forces from thermostat fixes and
      * the likes.
      */
-    void singlePointEng(); //make a python-wrapped version
-public:
+    void singlePointEng(); //! \todo make a python-wrapped version
 
-    /*! \brief Calculate and return single point energy
-     *
+public:
+    //! Calculate and return single point energy
+    /*!
      * \param groupHandle Handle defining the group used for averaging
      *
      * \return Average energy for all particles in the specified group
@@ -93,8 +92,8 @@ public:
      */
     double singlePointEngPythonAvg(std::string groupHandle);
 
-    /*! \brief Create list of per-particle energies
-     *
+    //! Create list of per-particle energies
+    /*!
      * \return List containing the per-particle energy for each atom
      *
      * This function calculates the per-particle energy and returns a list
@@ -103,14 +102,14 @@ public:
     boost::python::list singlePointEngPythonPerParticle();
     State *state; //!< Pointer to the simulation state
 
-    /*! \brief Default constructor
-     *
+    //! Default constructor
+    /*!
      * \todo Do we need a default constructor?
      */
     Integrator() {};
 
-    /*! \brief Constructor
-     *
+    //! Constructor
+    /*!
      * \param state_ Pointer to simulation state
      * \param type_ String specifying type of Integrator (unused)
      *
@@ -118,8 +117,8 @@ public:
      */
     explicit Integrator(State *state_);
 
-    /*! \brief Calculate single point force
-     *
+    //! Calculate single point force
+    /*!
      * \param computeVirials Virials are computed if this parameter is True
      *
      * Calculate single point energy, i.e. calculate energy only for \link Fix
@@ -127,9 +126,8 @@ public:
      */
     void forceSingle(bool computeVirials);
 
-    /*! \brief Write output for all \link WriteConfig WriteConfigs \endlink */
+    //! Write output for all \link WriteConfig WriteConfigs \endlink
     void writeOutput();
 };
-
 
 #endif
