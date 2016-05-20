@@ -11,6 +11,15 @@
 
 using namespace std;
 
+void Integrator::stepInit()
+{
+    for (Fix *f : state->fixes) {
+        if (state->turn % f->applyEvery == 0) {
+            f->stepInit();
+        }
+    }
+}
+
 void Integrator::force(bool computeVirials) {
     int simTurn = state->turn;
     vector<Fix *> &fixes = state->fixes;
@@ -20,6 +29,15 @@ void Integrator::force(bool computeVirials) {
         }
     }
 };
+
+void Integrator::stepFinal()
+{
+    for (Fix *f : state->fixes) {
+        if (state->turn % f->applyEvery == 0) {
+            f->stepFinal();
+        }
+    }
+}
 
 
 void Integrator::forceSingle(bool computeVirials) {

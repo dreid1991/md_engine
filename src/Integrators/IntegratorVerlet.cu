@@ -62,6 +62,8 @@ IntegratorVerlet::IntegratorVerlet(State *statePtr)
 void IntegratorVerlet::run(int numTurns)
 {
     basicPreRunChecks();
+
+    //! \todo Call basicPreRunChecks() in basicPrepare()
     basicPrepare(numTurns);
 
     int periodicInterval = state->periodicInterval;
@@ -71,17 +73,33 @@ void IntegratorVerlet::run(int numTurns)
         if (state->turn % periodicInterval == 0) {
             state->gridGPU.periodicBoundaryConditions();
         }
+        // Prepare for timestep
+        //! \todo Should asyncOperations() and doDataCollection() go into
+        //!       Integrator::stepInit()? Same for periodicBoundayConditions()
         asyncOperations();
         doDataCollection();
+
+        stepInit();
+
+        // Perform first half of velocity-Verlet step
         preForce();
+
+        // Recalculate forces
         force(false);
+
+        // Perform second half of velocity-Verlet step
         postForce();
 
+        stepFinal();
+
+        //! \todo The following parts could also be moved into stepFinal
         state->turn++;
         if (state->verbose && (i+1 == numTurns || state->turn % state->shoutEvery == 0)) {
             mdMessage("Turn %d %.2f percent done.\n", (int)state->turn, 100.0*(i+1)/numTurns);
         }
     }
+
+    //! \todo These parts could be moved to basicFinish()
     cudaDeviceSynchronize();
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> duration = end - start;

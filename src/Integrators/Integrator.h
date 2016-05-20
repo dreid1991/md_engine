@@ -20,6 +20,9 @@ void export_Integrator();
 class Integrator {
 
 protected:
+    //! Call fixes just before a step
+    void stepInit();
+
     //! Calculate force for all fixes
     /*!
      * \param computeVirials Compute virials for all forces if True
@@ -29,6 +32,9 @@ protected:
      */
     void force(bool computeVirials);
     
+    //! Call fixes just after the timestepping
+    void stepFinal();
+
     //! Perform all asynchronous operations
     /*!
      * This function performs all asynchronous operations, such as writing
