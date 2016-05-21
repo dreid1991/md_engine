@@ -1,5 +1,5 @@
 import sys
-#sys.path = sys.path + ['../build/python/build/lib.linux-x86_64-2.7', '../build/']
+sys.path = sys.path + ['../build/python/build/lib.linux-x86_64-2.7' ]
 print sys.path
 sys.path.append('../util_py')
 from Sim import *
@@ -23,7 +23,7 @@ state.activateFix(nonbond)
 state.addAtom('spc1', Vector(5, 5, 5))
 state.addAtom('spc1', Vector(5, 6, 5))
 state.addAtom('spc1', Vector(6, 6, 5))
-state.addAtom('spc1', Vector(6, 5, 6))
+#state.addAtom('spc1', Vector(6, 5, 6))
 
 bondHarm = FixBondHarmonic(state, 'bondHarm')
 bondHarm.setBondTypeCoefs(type=0, k=15, rEq=1.3);
@@ -34,6 +34,10 @@ bondHarm.createBond(state.atoms[1], state.atoms[2], type=1)
 
 state.activateFix(bondHarm)
 
+angleHarm = FixAngleHarmonic(state, 'angHarm')
+angleHarm.setAngleTypeCoefs(type=0, k=2, thetaEq=2);
+angleHarm.createAngle(state.atoms[0], state.atoms[1], state.atoms[2], type=0)#thetaEq=3*pi/4, k=3)
+state.activateFix(angleHarm)
 #dihedralOPLS = FixDihedralOPLS(state, 'dihedral')
 #dihedralOPLS.setDihedralTypeCoefs(type=0, coefs=[15, -10, 4, -12])
 '''
@@ -48,11 +52,7 @@ state.activateFix(dihedralOPLS)
 
 
 
-angleHarm = FixAngleHarmonic(state, 'angHarm')
-angleHarm.setAngleTypeCoefs(type=0, k=7000, thetaEq=2);
-angleHarm.createAngle(state.atoms[0], state.atoms[1], state.atoms[2], type=0)#thetaEq=3*pi/4, k=3)
 #angleHarm.createAngle(state.atoms[1], state.atoms[2], state.atoms[3], thetaEq=3*pi/4, k=3)
-state.activateFix(angleHarm)
 print angleHarm.angles[0].thetaEq
 '''
 '''
