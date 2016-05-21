@@ -5,11 +5,14 @@
 #include "FixPotentialMultiAtom.h"
 #include "Angle.h"
 #include "VariantPyListInterface.h"
+#include "AngleEvaluatorHarmonic.h"
 
 void export_FixAngleHarmonic();
 
 class FixAngleHarmonic : public FixPotentialMultiAtom<AngleVariant, AngleHarmonic, Angle, AngleGPU, AngleHarmonicType, 3> {
 
+private:
+    AngleEvaluatorHarmonic evaluator; 
 public:
     //DataSet *eng;
     //DataSet *press;
