@@ -1,15 +1,15 @@
-template <class DIHEDRALGPU, class DIHEDRALTYPE, class EVALUATOR> //don't need DIHEDRALGPU, are all DihedralGPU.  Worry about later 
-__global__ void compute_force_dihedral(int nAtoms, float4 *xs, float4 *forces, cudaTextureObject_t idToIdxs, DIHEDRALGPU *dihedrals, int *startstops, BoundsGPU bounds, DIHEDRALTYPE *parameters, int nParameters, EVALUATOR evaluator) {
+template <class DIHEDRALTYPE, class EVALUATOR> //don't need DihedralGPU, are all DihedralGPU.  Worry about later 
+__global__ void compute_force_dihedral(int nAtoms, float4 *xs, float4 *forces, cudaTextureObject_t idToIdxs, DihedralGPU *dihedrals, int *startstops, BoundsGPU bounds, DIHEDRALTYPE *parameters, int nParameters, EVALUATOR evaluator) {
 
 
     int idx = GETIDX();
     extern __shared__ char all_shr[];
     int idxBeginCopy = startstops[blockDim.x*blockIdx.x];
     int idxEndCopy = startstops[min(nAtoms, blockDim.x*(blockIdx.x+1))];
-    DIHEDRALGPU *dihedrals_shr = (DIHEDRALGPU *) all_shr;
-    int sizeDihedrals = (idxEndCopy - idxBeginCopy) * sizeof(DIHEDRALGPU);
+    DihedralGPU *dihedrals_shr = (DihedralGPU *) all_shr;
+    int sizeDihedrals = (idxEndCopy - idxBeginCopy) * sizeof(DihedralGPU);
     DIHEDRALTYPE *parameters_shr = (DIHEDRALTYPE *) (all_shr + sizeDihedrals);
-    copyToShared<DIHEDRALGPU>(dihedrals + idxBeginCopy, dihedrals_shr, idxEndCopy - idxBeginCopy);
+    copyToShared<DihedralGPU>(dihedrals + idxBeginCopy, dihedrals_shr, idxEndCopy - idxBeginCopy);
     copyToShared<DIHEDRALTYPE>(parameters, parameters_shr, nParameters);
     __syncthreads();
     if (idx < nAtoms) {
@@ -30,7 +30,7 @@ __global__ void compute_force_dihedral(int nAtoms, float4 *xs, float4 *forces, c
            // printf("I am idx %d and I am evaluating atom with pos %f %f %f\n", idx, pos.x, pos.y, pos.z);
             float3 forceSum = make_float3(0, 0, 0);
             for (int i=0; i<n; i++) {
-                DIHEDRALGPU dihedral = dihedrals_shr[shr_idx + i];
+                DihedralGPU dihedral = dihedrals_shr[shr_idx + i];
                 uint32_t typeFull = dihedral.type;
                 myIdxInDihedral = typeFull >> 29;
                 int type = static_cast<int>((typeFull << 3) >> 3);

@@ -5,7 +5,7 @@
 #include "cutils_math.h"
 #include "Dihedral.h"
 #define EPSILON 0.00001f
-class EvaluatorDihedralOPLS {
+class DihedralEvaluatorOPLS {
     public:
         //dihedralType, phi, c, scValues, invLenSqrs, c12Mags, c0,
 
