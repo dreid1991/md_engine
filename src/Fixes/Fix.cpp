@@ -9,10 +9,10 @@
 #include "State.h"
 
 Fix::Fix(boost::shared_ptr<State> state_, std::string handle_, std::string groupHandle_,
-         std::string type_, bool forceSingle_, bool requiresCharges_, bool requiresVirials_, int applyEvery_,
+         std::string type_, bool forceSingle_, int applyEvery_,
          int orderPreference_)
     : state(state_.get()), handle(handle_), groupHandle(groupHandle_),
-      type(type_), forceSingle(forceSingle_), requiresCharges(requiresCharges_), requiresVirials(requiresVirials_), applyEvery(applyEvery_),
+      type(type_), forceSingle(forceSingle_), applyEvery(applyEvery_),
       orderPreference(orderPreference_), restartHandle(type + "_" + handle)
 {
     updateGroupTag();

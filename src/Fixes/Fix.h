@@ -46,7 +46,7 @@ protected:
      * \todo Make constructor protected since this is an abstract base class
      */
     Fix(boost::shared_ptr<State> state_, std::string handle_, std::string groupHandle_,
-        std::string type_, bool forceSingle_, bool requiresCharges_, bool requiresVirials_, int applyEvery_,
+        std::string type_, bool forceSingle_, int applyEvery_,
         int orderPreference_ = 0);
 
 public:
@@ -214,8 +214,6 @@ public:
     const std::string type; //!< String naming the Fix type
     int applyEvery; //!< Applyt this fix every this many timesteps
     unsigned int groupTag; //!< Bitmask for the group handle
-    const bool requiresVirials; //!< True if fix needs virials
-    const bool requiresCharges //!< True if needs atom charges
     const bool forceSingle; //!< True if Fix contributes to single point energy.
     int orderPreference; //!< Fixes with a high order preference are calculated
                          //!< later.

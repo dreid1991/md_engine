@@ -5,7 +5,6 @@
 #include "FixPair.h"
 #include "PairEvaluatorLJ.h"
 #include "xml_func.h"
-#include "defme.h"
 //! Make FixLJCut available to the pair base class in boost
 void export_FixLJCut();
 
