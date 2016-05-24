@@ -69,7 +69,8 @@ BOOST_PYTHON_MODULE(Sim) {
     export_FixCharge();
     export_FixChargePairDSF();
     export_FixChargeEwald();
-    
+
+    export_FixNoseHoover();
     export_FixNVTRescale();
 
     export_AtomGrid();

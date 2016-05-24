@@ -10,6 +10,7 @@
 #include "FixLJCutFS.h"
 #include "Fix2d.h"
 #include "Fix.h"
+#include "FixNoseHoover.h"
 #include "FixNVTRescale.h"
 #include "FixSpringStatic.h"
 #include "FixWallHarmonic.h"
