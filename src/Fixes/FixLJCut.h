@@ -5,7 +5,7 @@
 #include "FixPair.h"
 #include "PairEvaluatorLJ.h"
 #include "xml_func.h"
-
+#include "defme.h"
 //! Make FixLJCut available to the pair base class in boost
 void export_FixLJCut();
 
@@ -82,7 +82,6 @@ class FixLJCut : public FixPair {
 
         //! Return list of cutoff values
         std::vector<float> getRCuts();
-
     public:
         const std::string epsHandle; //!< Handle for parameter epsilon
         const std::string sigHandle; //!< Handle for parameter sigma

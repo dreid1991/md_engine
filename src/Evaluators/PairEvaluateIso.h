@@ -1,9 +1,8 @@
 #include "BoundsGPU.h"
 #include "cutils_func.h"
-
+#include "defme.h"
 template <class T, int N>
-__global__ void compute_force_iso(int nAtoms, float4 *xs, float4 *fs, uint16_t *neighborCounts, uint *neighborlist, uint32_t *cumulSumMaxPerBlock, int warpSize, float *parameters, int numTypes,  BoundsGPU bounds, float onetwoStr, float onethreeStr, float onefourStr, T evaluator) {
-    
+__global__ void compute_force_iso(int nAtoms, float4 *xs, float4 *fs, uint16_t *neighborCounts, uint *neighborlist, uint32_t *cumulSumMaxPerBlock, int warpSize, float *parameters, int numTypes,  BoundsGPU bounds, float onetwoStr, float onethreeStr, float onefourStr, T eval) {
     float multipliers[4] = {1, onetwoStr, onethreeStr, onefourStr};
     extern __shared__ float paramsAll[];
     int sqrSize = numTypes*numTypes;
@@ -43,7 +42,8 @@ __global__ void compute_force_iso(int nAtoms, float4 *xs, float4 *fs, uint16_t *
                 for (int pIdx=0; pIdx<N; pIdx++) {
                     params_pair[pIdx] = params_shr[pIdx][sqrIdx];
                 }
-                evaluator.force(forceSum, dr, params_pair, lenSqr, multiplier);
+                //evaluator.force(forceSum, dr, params_pair, lenSqr, multiplier);
+                eval.force(forceSum, dr, params_pair, lenSqr, multiplier);
             }
 
         }   

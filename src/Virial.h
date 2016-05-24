@@ -4,7 +4,7 @@
 
 class Virial {
     public:
-        float3 onAxis;
+        float3 diagTerms;
         float3 crossTerms;
 };
 

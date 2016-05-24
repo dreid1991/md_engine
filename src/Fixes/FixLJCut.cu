@@ -6,8 +6,25 @@
 #include "PairEvaluateIso.h"
 #include "State.h"
 #include "cutils_func.h"
-
 const std::string LJCutType = "LJCut";
+
+__device__ void eval (float3 &forceSum, float3 dr, float *params, float lenSqr, float multiplier) {
+    printf("here\n");
+    float rCutSqr = params[2];
+    if (lenSqr < rCutSqr) {
+        float epstimes24 = params[0];
+        float sig6 = params[1];
+        float p1 = epstimes24*2*sig6*sig6;
+        float p2 = epstimes24*sig6;
+        float r2inv = 1/lenSqr;
+        float r6inv = r2inv*r2inv*r2inv;
+        float forceScalar = r6inv * r2inv * (p1 * r6inv - p2) * multiplier;
+
+        float3 forceVec = dr * forceScalar;
+        forceSum += forceVec;
+    }
+}
+
 
 FixLJCut::FixLJCut(boost::shared_ptr<State> state_, std::string handle_)
   : FixPair(state_, handle_, "all", LJCutType, true, 1),
@@ -20,7 +37,6 @@ FixLJCut::FixLJCut(boost::shared_ptr<State> state_, std::string handle_)
 }
 
 void FixLJCut::compute(bool computeVirials) {
-
     int nAtoms = state->atoms.size();
     int numTypes = state->atomParams.numTypes;
     GPUData &gpd = state->gpd;
@@ -29,11 +45,12 @@ void FixLJCut::compute(bool computeVirials) {
     uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
     float *neighborCoefs = state->specialNeighborCoefs;
 
-    compute_force_iso<EvaluatorLJ, 3> <<<NBLOCK(nAtoms), PERBLOCK, 3*numTypes*numTypes*sizeof(float)>>>(
+   SAFECALL(( compute_force_iso<EvaluatorLJ, 3> <<<NBLOCK(nAtoms), PERBLOCK, 3*numTypes*numTypes*sizeof(float)>>>(
             nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx),
             neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(),
             state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU,
-            neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], evaluator);
+            neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], evaluator)
+            ));
 
 }
 
@@ -46,9 +63,8 @@ void FixLJCut::singlePointEng(float *perParticleEng) {
     uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
     float *neighborCoefs = state->specialNeighborCoefs;
 
-    compute_energy_iso<EvaluatorLJ, 3><<<NBLOCK(nAtoms), PERBLOCK, 3*numTypes*numTypes*sizeof(float)>>>(nAtoms, gpd.xs(activeIdx), perParticleEng, neighbor\
-Counts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU, ne\
-ighborCoefs[0], neighborCoefs[1], neighborCoefs[2], evaluator);
+    compute_energy_iso<EvaluatorLJ, 3><<<NBLOCK(nAtoms), PERBLOCK, 3*numTypes*numTypes*sizeof(float)>>>(nAtoms, gpd.xs(activeIdx), perParticleEng, 
+                                                                                                        neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], evaluator);
 
 
 
