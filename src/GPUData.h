@@ -23,6 +23,7 @@ public:
     GPUArrayPair<uint> ids;
     GPUArrayPair<float> qs;
     GPUArrayTex<int> idToIdxs;
+    GPUArrayPair<Virial> perParticleVirial;
 
     GPUArrayGlobal<float4> xsBuffer;
     GPUArrayGlobal<float4> vsBuffer;
@@ -41,7 +42,6 @@ public:
     /* for data collection.  If we re-use per-particle arrays, we can't do
      * async kernels to do per-group sums.  Would use less memory though */
     GPUArrayGlobal<float> perParticleEng;
-    GPUArrayGlobal<Virial> perParticleVirial;
 
     std::vector<int> idToIdxsOnCopy;
 
