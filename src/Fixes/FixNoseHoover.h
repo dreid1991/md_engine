@@ -33,11 +33,13 @@ public:
      * \param handle "Name" of the Fix
      * \param groupHandle String specifying group of atoms this Fix acts on
      * \param temp Desired temperature of the system
+     * \param timeConstant Time constant of the Nose-Hoover thermostat
      */
     FixNoseHoover(boost::shared_ptr<State> state,
                   std::string handle,
                   std::string groupHandle,
-                  float temp);
+                  float temp,
+                  float timeConstant);
 
     //! First half step of the integration
     /*!

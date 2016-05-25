@@ -222,8 +222,8 @@ void export_FixNoseHoover()
                boost::noncopyable>
     (
         "FixNoseHoover",
-        py::init<boost::shared_ptr<State>, std::string, std::string, float>(
-            py::args("state", "handle", "groupHandle", "temp")
+        py::init<boost::shared_ptr<State>, std::string, std::string, float, float>(
+            py::args("state", "handle", "groupHandle", "temp", "timeConstant")
         )
     )
     ;
