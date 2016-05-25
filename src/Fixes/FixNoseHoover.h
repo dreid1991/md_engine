@@ -66,9 +66,19 @@ public:
 private:
     //! Perform one half step of the Nose-Hoover thermostatting
     /*!
+     * \param firstHalfStep True for the first half step of the integration
+     *
      * \return False if a problem occured, else return True
      */
-    bool halfStep();
+    bool halfStep(bool firstHalfStep);
+
+    //! This function updates the desired temperature
+    /*!
+     * The thermostat temperature can change during the course of the
+     * simulation. The temperature depends on the timestep and is updated in
+     * this function.
+     */
+    bool updateTemperature();
 
     //! Get the total kinetic energy
     /*!

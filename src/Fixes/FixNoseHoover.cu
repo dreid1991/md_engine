@@ -53,15 +53,15 @@ FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state, std::string handle,
 
 bool FixNoseHoover::stepInit()
 {
-    return halfStep();
+    return halfStep(true);
 }
 
 bool FixNoseHoover::stepFinal()
 {
-    return halfStep();
+    return halfStep(false);
 }
 
-bool FixNoseHoover::halfStep()
+bool FixNoseHoover::halfStep(bool firstHalfStep)
 {
     if (chainLength == 0) {
         mdWarning("Call of FixNoseHoover with zero thermostats in "
@@ -72,6 +72,11 @@ bool FixNoseHoover::halfStep()
     //! \todo Until now, we assume Boltzmann-constant = 1.0. Consider allowing
     //!       other units.
     double boltz = 1.0;
+
+    // Update the desired temperature
+    if (firstHalfStep) {
+        updateTemperature();
+    }
 
     double scale = 1.0;
 
@@ -181,6 +186,20 @@ bool FixNoseHoover::halfStep()
     rescale(scale);
 
     return true;
+}
+
+bool FixNoseHoover::updateTemperature()
+{
+    // This should be modified to allow for temperature changes
+    double newTemp = temp;
+
+    if (newTemp != temp) {
+        // Temperature changed
+        return true;
+    }
+
+    // Temperature remained unchanged
+    return false;
 }
 
 void FixNoseHoover::calculateKineticEnergy()
