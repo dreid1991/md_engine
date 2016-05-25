@@ -75,6 +75,7 @@ private:
     void rescale(float scale);
 
     double temp; //!< Desired temperature
+    double frequency; //!< Frequency of the Nose-Hoover thermostats
     GPUArrayGlobal<float> kineticEnergy; //!< Stores kinetic energy and
                                          //!< number of atoms in Fix group
 

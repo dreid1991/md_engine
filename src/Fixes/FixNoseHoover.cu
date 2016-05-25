@@ -39,30 +39,16 @@ FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state, std::string handle,
               NoseHooverType,   // Fix name
               false,            // forceSingle
               1                 // applyEvery
-             ), temp(temp), kineticEnergy(GPUArrayGlobal<float>(2)),
+             ), temp(temp), frequency(1.0 / timeConstant),
+                kineticEnergy(GPUArrayGlobal<float>(2)),
                 chainLength(3), nTimesteps(1), n_ys(1),
                 weight(std::vector<double>(n_ys,1.0)),
                 thermPos(std::vector<double>(chainLength,0.0)),
                 thermVel(std::vector<double>(chainLength,0.0)),
                 thermForce(std::vector<double>(chainLength,0.0)),
-                thermMass(std::vector<double>(chainLength))
+                thermMass(std::vector<double>(chainLength,0.0))
 {
-    //! \todo Consider using other units
-    double boltz = 1.0;
 
-    //! \todo How to get number of degrees of freedom here?
-    int ndf = state->atoms.size();
-    if (state->is2d) {
-        ndf *= 2;
-    } else {
-        ndf *= 3;
-    }
-
-    double freq = 1.0 / timeConstant;
-    thermMass.at(0) = ndf*boltz*temp / (freq*freq);
-    for (size_t i = 1; i < chainLength; ++i) {
-        thermMass.at(i) = boltz*temp / (freq*freq);
-    }
 }
 
 bool FixNoseHoover::stepInit()
@@ -104,6 +90,14 @@ bool FixNoseHoover::halfStep()
     // Equipartition at desired temperature
     double nkt = ndf * boltz * temp;
 
+    // Update masses
+    //! \todo Masses only need to be updated when the temperature or NDF
+    //!       changed.
+    thermMass.at(0) = nkt / (frequency*frequency);
+    for (size_t i = 1; i < chainLength; ++i) {
+        thermMass.at(i) = boltz*temp / (frequency*frequency);
+    }
+
     // Update the forces
     thermForce.at(0) = (kinEnergy - nkt) / thermMass.at(0);
 
@@ -111,6 +105,9 @@ bool FixNoseHoover::halfStep()
     for (size_t i = 0; i < nTimesteps; ++i) {
         for (size_t j = 0; j < n_ys; ++j) {
             double timestep = weight.at(j)*state->dt / nTimesteps;
+            double timestep2 = 0.5*timestep;
+            double timestep4 = 0.25*timestep;
+            double timestep8 = 0.125*timestep;
 
             // Update thermostat forces
             //! \todo Consider shorter thermostat chains
@@ -122,52 +119,51 @@ bool FixNoseHoover::halfStep()
                 ) / thermMass.at(chainLength-1);
 
             // Update thermostat velocities
-            thermVel.back() += 0.25*timestep*thermForce.back();
+            thermVel.back() += timestep4*thermForce.back();
             for (size_t k = chainLength-2; k > 0; --k) {
-                double preFactor = std::exp( -0.125*timestep*thermVel.at(k+1) );
+                double preFactor = std::exp( -timestep8*thermVel.at(k+1) );
                 thermVel.at(k) *= preFactor;
                 thermForce.at(k) = (
                         thermMass.at(k-1) *
                         thermVel.at(k-1) *
                         thermVel.at(k-1) - boltz*temp
                     ) / thermMass.at(k);
-                thermVel.at(k) += 0.25*timestep * thermForce.at(k);
+                thermVel.at(k) += timestep4 * thermForce.at(k);
                 thermVel.at(k) *= preFactor;
             }
 
-            double preFactor = std::exp( -0.125*timestep*thermVel.at(1) );
+            double preFactor = std::exp( -timestep8*thermVel.at(1) );
             thermVel.at(0) *= preFactor;
-            thermVel.at(0) += 0.25*timestep*thermForce.at(0);
+            thermVel.at(0) += timestep4*thermForce.at(0);
             thermVel.at(0) *= preFactor;
 
             // Update particle velocities
-            double scaleFactor = std::exp( -0.5*timestep*thermVel.at(0) );
+            double scaleFactor = std::exp( -timestep2*thermVel.at(0) );
             scale *= scaleFactor;
 
             kinEnergy *= scaleFactor*scaleFactor;
 
             // Update the thermostat positions
             for (size_t k = 0; k < chainLength; ++k) {
-                thermPos.at(k) += 0.5*timestep*thermVel.at(k);
+                thermPos.at(k) += timestep2*thermVel.at(k);
             }
 
             // Update the forces
-            preFactor = std::exp( -0.125*timestep*thermVel.at(1) );
             thermVel.at(0) *= preFactor;
             thermForce.at(0) = (kinEnergy - nkt) / thermMass.at(0);
-            thermVel.at(0) += 0.25*timestep * thermForce.at(0);
+            thermVel.at(0) += timestep4 * thermForce.at(0);
             thermVel.at(0) *= preFactor;
 
             // Update thermostat velocities
             for (size_t k = 1; k < chainLength-1; ++k) {
-                preFactor = std::exp( -0.125*timestep*thermVel.at(k+1) );
+                preFactor = std::exp( -timestep8*thermVel.at(k+1) );
                 thermVel.at(k) *= preFactor;
                 thermForce.at(k) = (
                         thermMass.at(k-1) *
                         thermVel.at(k-1) *
                         thermVel.at(k-1) - boltz*temp
                     ) / thermMass.at(k);
-                thermVel.at(k) += 0.25*timestep * thermForce.at(k);
+                thermVel.at(k) += timestep4 * thermForce.at(k);
                 thermVel.at(k) *= preFactor;
             }
 
@@ -176,7 +172,7 @@ bool FixNoseHoover::halfStep()
                     thermVel.at(chainLength-2) *
                     thermVel.at(chainLength-2) - boltz*temp
                 ) / thermMass.at(chainLength-1);
-            thermVel.at(chainLength-1) += 0.25*timestep*thermForce.at(chainLength-1);
+            thermVel.at(chainLength-1) += timestep4*thermForce.at(chainLength-1);
         }
     }
 
