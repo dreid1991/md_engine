@@ -20,6 +20,16 @@ void export_FixNoseHoover();
  * The implementation is based on the algorithm proposed by Martyna et al.
  * \cite MartynaEtal:MP1996 .
  *
+ * Note that the Nose-Hoover thermostat should only be used with the
+ * IntegratorVerlet.
+ *
+ * \todo Allow to set temperature
+ * \todo Allow temperature to change linearly (similar to NVTRescale)
+ * \todo Allow to specify desired length of Nose-Hoover chain
+ * \todo Allow to set multiple-timestep integration
+ * \todo Allow to use higher-order approximations
+ * \todo Allow python function pointer to calculate current temperature
+ *
  * \todo Implement barostat.
  */
 class FixNoseHoover : public Fix {
