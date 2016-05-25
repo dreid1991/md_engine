@@ -8,46 +8,55 @@ using namespace std;
 namespace py = boost::python;
 
 void FixPair::prepareParameters(string handle, std::function<float (float, float)> fillFunction, std::function<float (float)> processFunction, bool fillDiag, std::function<float ()> fillDiagFunction) {
-    vector<float> &array = *paramMap[handle];
-    vector<float> *preproc = &paramMapPreproc[handle];
+    vector<float> &preProc = *paramMap[handle];
+    vector<float> *postProc = &paramMapProcessed[handle];
     int desiredSize = state->atomParams.numTypes;
-    ensureParamSize(array);
-    *preproc = array;
+
+    *postProc = preProc;
+    ensureParamSize(*postProc);
     if (fillDiag) {
-        SquareVector::populateDiagonal<float>(&array, desiredSize, fillDiagFunction);
+        SquareVector::populateDiagonal<float>(postProc, desiredSize, fillDiagFunction);
     }
-    SquareVector::populate<float>(&array, desiredSize, fillFunction);
-    SquareVector::process<float>(&array, desiredSize, processFunction);
+    SquareVector::populate<float>(postProc, desiredSize, fillFunction);
+    SquareVector::process<float>(postProc, desiredSize, processFunction);
     
     //okay, now ready to go to device!
 
 }
 
-void FixPair::prepareParameters(string handle,std::function<float (float)> processFunction) {
-    vector<float> &array = *paramMap[handle];
-    vector<float> *preproc = &paramMapPreproc[handle];
+void FixPair::prepareParameters(string handle, std::function<float (float)> processFunction) {
+   // vector<float> &array = *paramMap[handle];
+   // vector<float> *preproc = &paramMapPreproc[handle];
+   // int desiredSize = state->atomParams.numTypes;
+    //ensureParamSize(array);
+   // *preproc = array;
+    vector<float> &preProc = *paramMap[handle];
+    vector<float> *postProc = &paramMapProcessed[handle];
     int desiredSize = state->atomParams.numTypes;
-    ensureParamSize(array);
-    *preproc = array;
-    SquareVector::check_populate<float>(&array, desiredSize);
-    SquareVector::process<float>(&array, desiredSize, processFunction);
+
+    *postProc = preProc;
+    ensureParamSize(*postProc);
+    SquareVector::check_populate<float>(postProc, desiredSize);
+    SquareVector::process<float>(postProc, desiredSize, processFunction);
     
 
 }
 
-void FixPair::prepareParameters(string handle, std::function<float (int,int)>  fillFunction) {
-    vector<float> &array = *paramMap[handle];
+void FixPair::prepareParameters(string handle, std::function<float (int, int)>  fillFunction) {
+    //vector<float> &array = *paramMap[handle];
+    //int desiredSize = state->atomParams.numTypes;
+    //ensureParamSize(array);
+    vector<float> &preProc = *paramMap[handle];
+    vector<float> *postProc = &paramMapProcessed[handle];
     int desiredSize = state->atomParams.numTypes;
-    ensureParamSize(array);
-    SquareVector::populate<float>(&array, desiredSize, fillFunction);
+
+    *postProc = preProc;
+    ensureParamSize(*postProc);
+    SquareVector::populate<float>(postProc, desiredSize, fillFunction);
 
 }
 
-void FixPair::resetToPreproc(string handle) {
-    vector<float> *array = paramMap[handle];
-    vector<float> &preproc = paramMapPreproc[handle];
-    *array = preproc;
-}
+
 
 void FixPair::ensureParamSize(vector<float> &array) {
 
@@ -74,13 +83,13 @@ void FixPair::ensureOrderGivenForAllParams() {
 void FixPair::sendAllToDevice() {
     ensureOrderGivenForAllParams();
     int totalSize = 0;
-    for (auto it = paramMap.begin(); it!=paramMap.end(); it++) {
-        totalSize += it->second->size(); 
+    for (auto it = paramMapProcessed.begin(); it!=paramMapProcessed.end(); it++) {
+        totalSize += it->second.size(); 
     }
     paramsCoalesced = GPUArrayDeviceGlobal<float>(totalSize);
     int runningSize = 0;
     for (string handle : paramOrder) {
-        vector<float> &vals = *(paramMap[handle]);
+        vector<float> &vals = paramMapProcessed[handle];
         paramsCoalesced.set(vals.data(), runningSize, vals.size());
         runningSize += vals.size();
     }
@@ -115,17 +124,17 @@ void FixPair::initializeParameters(string paramHandle,
                                    vector<float> &params) {
     ensureParamSize(params);
     paramMap[paramHandle] = &params;
-    paramMapPreproc[paramHandle] = vector<float>();
+    paramMapProcessed[paramHandle] = vector<float>();
 }
 
 string FixPair::restartChunkPairParams(string format) {
   stringstream ss;
   char buffer[128];
   //ignoring format for now                                                                                                                               
-  for (auto it=paramMapPreproc.begin(); it!=paramMapPreproc.end(); it++) {
+  for (auto it=paramMap.begin(); it!=paramMap.end(); it++) {
     sprintf(buffer, "<parameter handle=\"%s\">", it->first.c_str());
     ss << buffer << "\n";
-    for (float x : (it->second)) {
+    for (float x : *(it->second)) {
       ss << x << "\n";
     }
     ss << "</parameter>\n";

@@ -224,11 +224,11 @@ void Integrator::basicPrepare(int numTurns) {
     state->runningFor = numTurns;
     state->runInit = state->turn;
     state->updateIdxFromIdCache();
+    state->prepareForRun();
     for (Fix *f : state->fixes) {
         f->updateGroupTag();
         f->prepareForRun();
     }
-    state->prepareForRun();
     for (GPUArray *dat : activeData) {
         dat->dataToDevice();
     }

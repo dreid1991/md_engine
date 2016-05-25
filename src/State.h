@@ -430,20 +430,22 @@ public:
     //!
     void partitionAtoms();
 
-    //! Prepare the state for a simulation run
+    //! Copies atom data to gpu
     /*!
      * \return True always
      *
-     * This function prepares the State for a simulation run. For example, it
-     * converts the atom positions, velocities and forces from \link Vector
-     * Vectors \endlink to float4s. This function assumes that the Fixes have
-     * already been prepared.
+     * This function copies atom data to the gpu
      *
-     * \todo I suggest to move preparation of Fixes here from
-     *       Integrator::basicPrepare().
-     *       Why?
      */
     bool prepareForRun();
+    //! Prepares GridGPU member of state.  called after fix prepare run, because 
+    /*!
+     * \return True always
+     *
+     * This function copies atom data to the gpu
+     *
+     */
+
 
     //! Copy atom data from the GPU data back to the atom vectors
     /*!

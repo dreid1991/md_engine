@@ -26,7 +26,8 @@ for i in range(len(f)):
 
 InitializeAtoms.initTemp(state, 'all', 1.2)
 
-fixNVT = FixNoseHoover(state, 'temp', 'all', 1.2, 0.1)
+#fixNVT = FixNoseHoover(state, 'temp', 'all', 1.2, 0.1)
+fixNVT = FixNVTRescale(state, 'temp', 'all', [0, 1], [1.2, 1.2], 100)
 state.activateFix(fixNVT)
 
 integVerlet = IntegratorVerlet(state)
@@ -39,6 +40,7 @@ integVerlet = IntegratorVerlet(state)
 #state.activateWriteConfig(writeconfig)
 
 
+integVerlet.run(10000)
 integVerlet.run(10000)
 print state.atoms[0].pos
 sumV = 0.

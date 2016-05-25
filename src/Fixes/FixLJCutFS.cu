@@ -128,9 +128,6 @@ bool FixLJCutFS::readFromRestart(pugi::xml_node restData) {
 }
 
 bool FixLJCutFS::postRun() {
-    resetToPreproc(sigHandle);
-    resetToPreproc(epsHandle);
-    resetToPreproc(rCutHandle);
 
     return true;
 }
@@ -143,8 +140,18 @@ void FixLJCutFS::addSpecies(std::string handle) {
 
 }
 
-std::vector<float> FixLJCutFS::getRCuts() { //to be called after prepare.  These are squares now
-    return LISTMAP(float, float, rc, rCuts, sqrt(rc));
+std::vector<float> FixLJCutFS::getRCuts() {
+    std::vector<float> res;
+    std::vector<float> &src = *(paramMap[rCutHandle]);
+    for (float x : src) {
+        if (x == DEFAULT_FILL) {
+            res.push_back(-1);
+        } else {
+            res.push_back(x);
+        }
+    }
+
+    return res;
 }
 
 void export_FixLJCutFS() {

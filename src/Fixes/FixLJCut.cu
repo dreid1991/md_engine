@@ -6,7 +6,9 @@
 #include "PairEvaluateIso.h"
 #include "State.h"
 #include "cutils_func.h"
-const std::string LJCutType = "LJCut";
+using namespace std;
+namespace py = boost::python;
+const string LJCutType = "LJCut";
 
 __device__ void eval (float3 &forceSum, float3 dr, float *params, float lenSqr, float multiplier) {
     printf("here\n");
@@ -26,7 +28,7 @@ __device__ void eval (float3 &forceSum, float3 dr, float *params, float lenSqr, 
 }
 
 
-FixLJCut::FixLJCut(boost::shared_ptr<State> state_, std::string handle_)
+FixLJCut::FixLJCut(boost::shared_ptr<State> state_, string handle_)
   : FixPair(state_, handle_, "all", LJCutType, true, 1),
     epsHandle("eps"), sigHandle("sig"), rCutHandle("rCut")
 {
@@ -104,21 +106,21 @@ bool FixLJCut::prepareForRun() {
     return true;
 }
 
-std::string FixLJCut::restartChunk(std::string format) {
-    std::stringstream ss;
+string FixLJCut::restartChunk(string format) {
+    stringstream ss;
     ss << restartChunkPairParams(format);
     return ss.str();
 }
 
 bool FixLJCut::readFromRestart(pugi::xml_node restData) {
-    std::cout << "Reading form restart" << std::endl;
+    cout << "Reading form restart" << endl;
     auto curr_param = restData.first_child();
     while (curr_param) {
         if (curr_param.name() == "parameter") {
-            std::vector<float> val;
-            std::string paramHandle = curr_param.attribute("handle").value();
-            std::string s;
-            std::istringstream ss(curr_param.value());
+            vector<float> val;
+            string paramHandle = curr_param.attribute("handle").value();
+            string s;
+            istringstream ss(curr_param.value());
             while (ss >> s) {
                 val.push_back(atof(s.c_str()));
             }
@@ -126,36 +128,40 @@ bool FixLJCut::readFromRestart(pugi::xml_node restData) {
         }
         curr_param = curr_param.next_sibling();
     }
-    std::cout << "Reading LJ parameters from restart" << std::endl;
+    cout << "Reading LJ parameters from restart" << endl;
     return true;
 }
 
 bool FixLJCut::postRun() {
-    resetToPreproc(sigHandle);
-    resetToPreproc(epsHandle);
-    resetToPreproc(rCutHandle);
 
     return true;
 }
 
-void FixLJCut::addSpecies(std::string handle) {
+void FixLJCut::addSpecies(string handle) {
     initializeParameters(epsHandle, epsilons);
     initializeParameters(sigHandle, sigmas);
     initializeParameters(rCutHandle, rCuts);
 
 }
 
-std::vector<float> FixLJCut::getRCuts() {  // to be called after prepare.  These are squares now
-    return LISTMAP(float, float, rc, rCuts, sqrt(rc));
+vector<float> FixLJCut::getRCuts() { 
+    vector<float> res;
+    vector<float> &src = *(paramMap[rCutHandle]);
+    for (float x : src) {
+        if (x == DEFAULT_FILL) {
+            res.push_back(-1);
+        } else {
+            res.push_back(x);
+        }
+    }
+
+    return res;
 }
 
 void export_FixLJCut() {
-    boost::python::class_<FixLJCut,
-                          boost::shared_ptr<FixLJCut>,
-                          boost::python::bases<FixPair>, boost::noncopyable > (
+    py::class_<FixLJCut, boost::shared_ptr<FixLJCut>, py::bases<FixPair>, boost::noncopyable > (
         "FixLJCut",
-        boost::python::init<boost::shared_ptr<State>, std::string> (
-            boost::python::args("state", "handle"))
+        py::init<boost::shared_ptr<State>, string> (py::args("state", "handle"))
     );
 
 }

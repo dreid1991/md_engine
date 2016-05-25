@@ -282,7 +282,7 @@ bool State::deactivateFix(SHARED(Fix) other) {
 }
 
 float State::getMaxRCut() {
-    float maxRCut = 0;
+    float maxRCut = rCut;
     for (Fix *f : fixes) {
         vector<float> rCuts = f->getRCuts();
         for (float x : rCuts) {

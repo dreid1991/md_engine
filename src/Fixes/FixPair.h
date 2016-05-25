@@ -137,7 +137,7 @@ namespace SquareVector {
     void populate(std::vector<T> *vec, int size, std::function<T (int, int)> fillFunction) {
         for (int i=0; i<size; i++) {
             for (int j=0; j<size; j++) {
-                squareVectorRef<T>(vec->data(), size, i, j) =fillFunction(i,j);
+                squareVectorRef<T>(vec->data(), size, i, j) = fillFunction(i,j);
             }
         }
     }        
@@ -305,8 +305,8 @@ protected:
     //! pair potential parameters
     std::map<std::string, std::vector<float> *> paramMap;
 
-    //! Parameter map before preparing the parameters
-    std::map<std::string, std::vector<float> > paramMapPreproc;
+    //! Parameter map after preparing the parameters
+    std::map<std::string, std::vector<float> > paramMapProcessed;
 
     //! Parameters to be sent to the GPU
     GPUArrayDeviceGlobal<float> paramsCoalesced;
@@ -345,6 +345,5 @@ public:
     /*!
      * \param handle String specifying the parameter
      */
-    void resetToPreproc(std::string handle);
 };
 #endif

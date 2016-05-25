@@ -96,8 +96,6 @@ bool FixTICG::readFromRestart(pugi::xml_node restData) {
 }
 
 bool FixTICG::postRun() {
-    resetToPreproc(CHandle);
-    resetToPreproc(rCutHandle);
     return true;
 }
 
@@ -107,8 +105,18 @@ void FixTICG::addSpecies(std::string handle) {
 
 }
 
-std::vector<float> FixTICG::getRCuts() {  // to be called after prepare.  These are squares now
-    return LISTMAP(float, float, rc, rCuts, sqrt(rc));
+std::vector<float> FixTICG::getRCuts() {  
+    std::vector<float> res;
+    std::vector<float> &src = *(paramMap[rCutHandle]);
+    for (float x : src) {
+        if (x == DEFAULT_FILL) {
+            res.push_back(-1);
+        } else {
+            res.push_back(x);
+        }
+    }
+
+    return res;
 }
 
 void export_FixTICG() {
