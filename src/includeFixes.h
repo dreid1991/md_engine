@@ -8,6 +8,7 @@
 #include "FixDihedralOPLS.h"
 #include "FixLJCut.h"
 #include "FixLJCutFS.h"
+#include "FixTICG.h"
 #include "Fix2d.h"
 #include "Fix.h"
 #include "FixNoseHoover.h"

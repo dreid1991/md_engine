@@ -1,6 +1,3 @@
-import sys
-sys.path.append('/home/marat/work_UC/git_Daniel_MD/md_engine/python/')
-  #/home/marat/work_UC/git_Daniel_MD/md_engine/build/python/build/lib.linux-x86_64-2.7/')
 from Sim import *
 from random import random
 from math import *
@@ -70,10 +67,7 @@ ljcut.setParameter(param='sig', handleA='N', handleB='N', val=0.048)
 
 #init from file
 total_beads=25165
-#total_beads=50
 nchains=48
-#InitializeAtoms.populateOnGrid(state, bounds=bnds, handle='A', n=total_beads)
-#InitializeAtoms.populateRand(state, bounds=bnds, handle='A', n=total_beads, distMin = 0.05)
 
 filename="initial_relaxed_L_"+str(boxsize)\
           +"_polymer_"+str(polymer_density)\
@@ -87,23 +81,15 @@ for i in range(total_beads):
     line= ifile.readline()
     words = line.split()
     state.addAtom(handle=words[3],pos=Vector(float(words[0]),float(words[1]),float(words[2])),q=float(words[4]))
-    #state.addAtom(handle=words[3],pos=Vector(float(words[0]),float(words[1]),float(-1.28+0.005)),q=float(words[4]))-1.289592 
 
 
 bonds=FixBondHarmonic(state,handle="bond")
 for i in range(nchains):
     for j in range(polymer_length-1):
-        #line= ifile.readline()
-        #words = line.split()
-        #bonds.createBond(state.atoms[int(words[0])], state.atoms[int(words[1])], 3.0/pow(bondlen,2.0), 0.0)
         bonds.createBond(state.atoms[i*polymer_length+j], state.atoms[i*polymer_length+j+1], 3.0/pow(bondlen,2.0), 0.0)
-        #system.bonds.add(words[2],int(words[0]),int(words[1]))
 ifile.close() 
 state.activateFix(bonds)
 
-#resume
-#ifile = open(filename, 'r') 
-#InitializeAtoms.initTemp(state, 'all', 0.5) #need to add keyword arguments
 
 #charge
 charge=FixChargeEwald(state, "charge","all")
@@ -111,7 +97,6 @@ charge.setParameters(128,0.25,3);
 state.activateFix(charge)
 
 
-#InitializeAtoms.initTemp(state, 'all', 0.16) #need to add keyword arguments
 
 
 writer = WriteConfig(state, handle='writer', fn='coac_test_*', format='xyz', writeEvery=1000) 
@@ -119,22 +104,8 @@ state.activateWriteConfig(writer)
 state.shoutEvery=1000
 state.dt=0.0003
 
-integrater = IntegraterLangevin(state,1.0)
-#integrater = IntegraterVerlet(state)
-integrater.set_params(1,1.0)
-#integrater.run(2000000)
-integrater.run(10000)
-
-
-#integrater = IntegraterVerlet(state)
-#integrater.run(10000) #letting substrate relax
-#print 'FINISHED FIRST RUN'
-#fixSpring.tetherFunc = springFuncEquiled
-#fixSpring.updateTethers() #tethering to the positions they fell into
-#fixSpring.k = 500
-#fixSpring.multiplier = Vector(1, 1, 0) #now spring holds in both dimensions
-##okay, substrate is set up, going to do deposition
-#integrater.run(10000)
-
-
+integrator = IntegratorLangevin(state,1.0)
+integrator.set_params(1,1.0)
+#integrator.run(2000000)
+integrator.run(10000)
 

@@ -142,6 +142,22 @@ namespace SquareVector {
         }
     }        
 
+    
+    //in case you want it flag any unfilled parameters
+    
+    template <class T>
+    void check_populate(std::vector<T> *vec, int size) {
+        for (int i=0; i<size; i++) {
+            for (int j=0; j<size; j++) {
+                T val = squareVectorRef<T>(vec->data(), size, i, j);
+                if (val == DEFAULT_FILL) {
+                    std::cout << "You have not defined interaction parameters "
+                        "for atom types with indices " << i <<" "<< j << std::endl;
+                    assert(val != DEFAULT_FILL);
+                }
+            }
+        }
+    }    
     //! Call function on each element of the SquareVector
     /*!
      * \tparam Type of data stored in the SquareVector
@@ -243,6 +259,8 @@ protected:
                            std::function<float ()> fillDiagFunction= std::function<float ()> ());
     void prepareParameters(std::string handle,
                            std::function<float (int, int)> fillFunction);
+    void prepareParameters(std::string handle,
+                           std::function<float (float)> processFunction);    
     //! Send parameters to all GPU devices
     void sendAllToDevice();
 
