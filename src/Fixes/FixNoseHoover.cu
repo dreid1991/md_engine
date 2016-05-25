@@ -41,6 +41,7 @@ FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state, std::string handle,
               1                 // applyEvery
              ), temp(temp), frequency(1.0 / timeConstant),
                 kineticEnergy(GPUArrayGlobal<float>(2)),
+                ke_current(0.0), ndf(0),
                 chainLength(3), nTimesteps(1), n_ys(1),
                 weight(std::vector<double>(n_ys,1.0)),
                 thermPos(std::vector<double>(chainLength,0.0)),
@@ -49,6 +50,14 @@ FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state, std::string handle,
                 thermMass(std::vector<double>(chainLength,0.0))
 {
 
+}
+
+bool FixNoseHoover::prepareForRun()
+{
+    // Calculate current kinetic energy
+    calculateKineticEnergy();
+
+    return true;
 }
 
 bool FixNoseHoover::stepInit()
@@ -82,15 +91,6 @@ bool FixNoseHoover::halfStep(bool firstHalfStep)
 
     // Get the total kinetic energy
     calculateKineticEnergy();
-    float kinEnergy = kineticEnergy.h_data[0];
-
-    // Get number of degrees of freedom
-    size_t ndf = *((int *) (kineticEnergy.h_data.data()+1));
-    if (state->is2d) {
-        ndf *= 2;
-    } else {
-        ndf *= 3;
-    }
 
     // Equipartition at desired temperature
     double nkt = ndf * boltz * temp;
@@ -104,7 +104,7 @@ bool FixNoseHoover::halfStep(bool firstHalfStep)
     }
 
     // Update the forces
-    thermForce.at(0) = (kinEnergy - nkt) / thermMass.at(0);
+    thermForce.at(0) = (ke_current - nkt) / thermMass.at(0);
 
     // Multiple timestep procedure
     for (size_t i = 0; i < nTimesteps; ++i) {
@@ -146,7 +146,7 @@ bool FixNoseHoover::halfStep(bool firstHalfStep)
             double scaleFactor = std::exp( -timestep2*thermVel.at(0) );
             scale *= scaleFactor;
 
-            kinEnergy *= scaleFactor*scaleFactor;
+            ke_current *= scaleFactor*scaleFactor;
 
             // Update the thermostat positions
             for (size_t k = 0; k < chainLength; ++k) {
@@ -155,7 +155,7 @@ bool FixNoseHoover::halfStep(bool firstHalfStep)
 
             // Update the forces
             thermVel.at(0) *= preFactor;
-            thermForce.at(0) = (kinEnergy - nkt) / thermMass.at(0);
+            thermForce.at(0) = (ke_current - nkt) / thermMass.at(0);
             thermVel.at(0) += timestep4 * thermForce.at(0);
             thermVel.at(0) *= preFactor;
 
@@ -193,8 +193,9 @@ bool FixNoseHoover::updateTemperature()
     // This should be modified to allow for temperature changes
     double newTemp = temp;
 
-    if (newTemp != temp) {
+    if (temp != newTemp) {
         // Temperature changed
+        temp = newTemp;
         return true;
     }
 
@@ -217,6 +218,14 @@ void FixNoseHoover::calculateKineticEnergy()
         )));
     kineticEnergy.dataToHost();
     cudaDeviceSynchronize();
+
+    ke_current = kineticEnergy.h_data[0];
+    ndf = *((int *) (kineticEnergy.h_data.data()+1));
+    if (state->is2d) {
+        ndf *= 2;
+    } else {
+        ndf *= 3;
+    }
 }
 
 void FixNoseHoover::rescale(float scale)

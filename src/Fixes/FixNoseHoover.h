@@ -51,6 +51,9 @@ public:
                   float temp,
                   float timeConstant);
 
+    //! Prepare Nose-Hoover thermostat for simulation run
+    virtual bool prepareForRun();
+
     //! First half step of the integration
     /*!
      * \return Result of the FixNoseHoover::halfStep() call.
@@ -82,8 +85,6 @@ private:
 
     //! Get the total kinetic energy
     /*!
-     * \return Total kinetic energy
-     *
      * Calculate the total kinetic energy of the atoms in the Fix group
      */
     void calculateKineticEnergy();
@@ -96,8 +97,11 @@ private:
 
     double temp; //!< Desired temperature
     double frequency; //!< Frequency of the Nose-Hoover thermostats
+
     GPUArrayGlobal<float> kineticEnergy; //!< Stores kinetic energy and
                                          //!< number of atoms in Fix group
+    float ke_current; //!< Current kinetic energy
+    size_t ndf; //!< Number of degrees of freedom
 
     size_t chainLength; //!< Number of thermostats in the Nose-Hoover chain
     size_t nTimesteps; //!< Number of timesteps for multi-timestep method
