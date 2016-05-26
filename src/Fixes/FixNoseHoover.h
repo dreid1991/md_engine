@@ -83,6 +83,16 @@ private:
      */
     bool updateTemperature();
 
+    //! This function updates the thermostat masses
+    /*!
+     * The masses of the thermostat depend on the desired temperature. Thus,
+     * they should be updated when the desired temperature is changed.
+     *
+     * This function assumes that ke_current and ndf have already been
+     * calculated and are up to date.
+     */
+    void updateMasses();
+
     //! Get the total kinetic energy
     /*!
      * Calculate the total kinetic energy of the atoms in the Fix group

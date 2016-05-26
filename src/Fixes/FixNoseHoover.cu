@@ -56,6 +56,7 @@ bool FixNoseHoover::prepareForRun()
 {
     // Calculate current kinetic energy
     calculateKineticEnergy();
+    updateMasses();
 
     return true;
 }
@@ -84,7 +85,9 @@ bool FixNoseHoover::halfStep(bool firstHalfStep)
 
     // Update the desired temperature
     if (firstHalfStep) {
-        updateTemperature();
+        if (updateTemperature()) {
+            updateMasses();
+        }
     }
 
     double scale = 1.0;
@@ -99,14 +102,6 @@ bool FixNoseHoover::halfStep(bool firstHalfStep)
 
     // Equipartition at desired temperature
     double nkt = ndf * boltz * temp;
-
-    // Update masses
-    //! \todo Masses only need to be updated when the temperature or NDF
-    //!       changed.
-    thermMass.at(0) = nkt / (frequency*frequency);
-    for (size_t i = 1; i < chainLength; ++i) {
-        thermMass.at(i) = boltz*temp / (frequency*frequency);
-    }
 
     // Update the forces
     thermForce.at(0) = (ke_current - nkt) / thermMass.at(0);
@@ -206,6 +201,16 @@ bool FixNoseHoover::updateTemperature()
 
     // Temperature remained unchanged
     return false;
+}
+
+void FixNoseHoover::updateMasses()
+{
+    double boltz = 1.0;
+
+    thermMass.at(0) = ndf * boltz * temp / (frequency*frequency);
+    for (size_t i = 1; i < chainLength; ++i) {
+        thermMass.at(i) = boltz*temp / (frequency*frequency);
+    }
 }
 
 void FixNoseHoover::calculateKineticEnergy()
