@@ -58,6 +58,17 @@ bool FixNoseHoover::prepareForRun()
     calculateKineticEnergy();
     updateMasses();
 
+    // Update thermostat forces
+    double boltz = 1.0;
+    thermForce.at(0) = (ke_current - ndf * boltz * temp) / thermMass.at(0);
+    for (size_t k = 1; k < chainLength; ++k) {
+        thermForce.at(k) = (
+                thermMass.at(k-1) *
+                thermVel.at(k-1) *
+                thermVel.at(k-1) - boltz*temp
+            ) / thermMass.at(k);
+    }
+
     return true;
 }
 
@@ -103,8 +114,9 @@ bool FixNoseHoover::halfStep(bool firstHalfStep)
     // Equipartition at desired temperature
     double nkt = ndf * boltz * temp;
 
-    // Update the forces
-    thermForce.at(0) = (ke_current - nkt) / thermMass.at(0);
+    if (!firstHalfStep) {
+        thermForce.at(0) = (ke_current - nkt) / thermMass.at(0);
+    }
 
     // Multiple timestep procedure
     for (size_t i = 0; i < nTimesteps; ++i) {
@@ -114,25 +126,11 @@ bool FixNoseHoover::halfStep(bool firstHalfStep)
             double timestep4 = 0.25*timestep;
             double timestep8 = 0.125*timestep;
 
-            // Update thermostat forces
-            //! \todo Consider shorter thermostat chains
-            thermForce.at(chainLength-1) =
-                (
-                    thermMass.at(chainLength-2) *
-                    thermVel.at(chainLength-2) *
-                    thermVel.at(chainLength-2) - boltz*temp
-                ) / thermMass.at(chainLength-1);
-
             // Update thermostat velocities
             thermVel.back() += timestep4*thermForce.back();
             for (size_t k = chainLength-2; k > 0; --k) {
                 double preFactor = std::exp( -timestep8*thermVel.at(k+1) );
                 thermVel.at(k) *= preFactor;
-                thermForce.at(k) = (
-                        thermMass.at(k-1) *
-                        thermVel.at(k-1) *
-                        thermVel.at(k-1) - boltz*temp
-                    ) / thermMass.at(k);
                 thermVel.at(k) += timestep4 * thermForce.at(k);
                 thermVel.at(k) *= preFactor;
             }
