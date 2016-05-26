@@ -225,12 +225,12 @@ void Integrator::basicPrepare(int numTurns) {
     state->runInit = state->turn;
     state->updateIdxFromIdCache();
     state->prepareForRun();
+    for (GPUArray *dat : activeData) {
+        dat->dataToDevice();
+    }
     for (Fix *f : state->fixes) {
         f->updateGroupTag();
         f->prepareForRun();
-    }
-    for (GPUArray *dat : activeData) {
-        dat->dataToDevice();
     }
     state->gridGPU.periodicBoundaryConditions(-1, true);
     state->dataManager.generateSingleDataSetList();
@@ -242,6 +242,9 @@ void Integrator::basicPrepare(int numTurns) {
 
 
 void Integrator::basicFinish() {
+    for (Fix *f : state->fixes) {
+        f->postRun();
+    }
     if (state->asyncData && state->asyncData->joinable()) {
         state->asyncData->join();
     }
@@ -250,10 +253,6 @@ void Integrator::basicFinish() {
     }
     cudaDeviceSynchronize();
     state->downloadFromRun();
-    for (Fix *f : state->fixes) {
-        f->postRun();
-    }
-
 }
 
 
