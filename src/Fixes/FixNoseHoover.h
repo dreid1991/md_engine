@@ -54,6 +54,9 @@ public:
     //! Prepare Nose-Hoover thermostat for simulation run
     virtual bool prepareForRun();
 
+    //! Perform post-Run operations
+    virtual bool postRun();
+
     //! First half step of the integration
     /*!
      * \return Result of the FixNoseHoover::halfStep() call.
@@ -103,7 +106,7 @@ private:
     /*!
      * \param scale Scale factor for rescaling
      */
-    void rescale(float scale);
+    void rescale();
 
     double temp; //!< Desired temperature
     double frequency; //!< Frequency of the Nose-Hoover thermostats
@@ -124,6 +127,8 @@ private:
     std::vector<double> thermVel; //!< Velocity of the Nose-Hoover thermostats
     std::vector<double> thermForce; //!< Force on the Nose-Hoover thermostats
     std::vector<double> thermMass; //!< Masses of the Nose-Hoover thermostats
+
+    float scale; //!< Factor by which the velocities are rescaled
 };
 
 #endif

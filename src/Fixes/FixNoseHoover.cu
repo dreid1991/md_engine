@@ -47,7 +47,8 @@ FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state, std::string handle,
                 //thermPos(std::vector<double>(chainLength,0.0)),
                 thermVel(std::vector<double>(chainLength,0.0)),
                 thermForce(std::vector<double>(chainLength,0.0)),
-                thermMass(std::vector<double>(chainLength,0.0))
+                thermMass(std::vector<double>(chainLength,0.0)),
+                scale(1.0f)
 {
 
 }
@@ -68,6 +69,13 @@ bool FixNoseHoover::prepareForRun()
                 thermVel.at(k-1) - boltz*temp
             ) / thermMass.at(k);
     }
+
+    return true;
+}
+
+bool FixNoseHoover::postRun()
+{
+    rescale();
 
     return true;
 }
@@ -100,8 +108,6 @@ bool FixNoseHoover::halfStep(bool firstHalfStep)
             updateMasses();
         }
     }
-
-    double scale = 1.0;
 
     // Get the total kinetic energy
     if (!firstHalfStep) {
@@ -180,8 +186,12 @@ bool FixNoseHoover::halfStep(bool firstHalfStep)
     }
 
     // Update particle velocites
-    // scale gets converted to float, losing precision
-    rescale(scale);
+    //! \todo In this optimization, I assume that velocities are not accessed
+    //!       between stepFinal() and stepInitial(). Can we ensure that this is
+    //!       indeed the case?
+    if (firstHalfStep) {
+        rescale();
+    }
 
     return true;
 }
@@ -236,14 +246,20 @@ void FixNoseHoover::calculateKineticEnergy()
     }
 }
 
-void FixNoseHoover::rescale(float scale)
+void FixNoseHoover::rescale()
 {
+    if (scale == 1.0f) {
+        return;
+    }
+
     size_t nAtoms = state->atoms.size();
     rescale_cu<<<NBLOCK(nAtoms), PERBLOCK>>>(nAtoms,
                                              groupTag,
                                              state->gpd.vs.getDevData(),
                                              state->gpd.fs.getDevData(),
                                              scale);
+
+    scale = 1.0f;
 }
 
 void export_FixNoseHoover()

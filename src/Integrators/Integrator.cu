@@ -242,6 +242,9 @@ void Integrator::basicPrepare(int numTurns) {
 
 
 void Integrator::basicFinish() {
+    for (Fix *f : state->fixes) {
+        f->postRun();
+    }
     if (state->asyncData && state->asyncData->joinable()) {
         state->asyncData->join();
     }
@@ -250,10 +253,6 @@ void Integrator::basicFinish() {
     }
     cudaDeviceSynchronize();
     state->downloadFromRun();
-    for (Fix *f : state->fixes) {
-        f->postRun();
-    }
-
 }
 
 
