@@ -90,7 +90,12 @@ bool FixNoseHoover::halfStep(bool firstHalfStep)
     double scale = 1.0;
 
     // Get the total kinetic energy
-    calculateKineticEnergy();
+    if (!firstHalfStep) {
+        //! \todo This optimization assumes that the velocities are not changed
+        //!       between stepFinal() and stepInit(). Can we add a check to make
+        //!       sure this is indeed the case?
+        calculateKineticEnergy();
+    }
 
     // Equipartition at desired temperature
     double nkt = ndf * boltz * temp;
