@@ -225,12 +225,12 @@ void Integrator::basicPrepare(int numTurns) {
     state->runInit = state->turn;
     state->updateIdxFromIdCache();
     state->prepareForRun();
+    for (GPUArray *dat : activeData) {
+        dat->dataToDevice();
+    }
     for (Fix *f : state->fixes) {
         f->updateGroupTag();
         f->prepareForRun();
-    }
-    for (GPUArray *dat : activeData) {
-        dat->dataToDevice();
     }
     state->gridGPU.periodicBoundaryConditions(-1, true);
     state->dataManager.generateSingleDataSetList();
