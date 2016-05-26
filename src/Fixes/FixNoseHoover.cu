@@ -44,7 +44,7 @@ FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state, std::string handle,
                 ke_current(0.0), ndf(0),
                 chainLength(3), nTimesteps(1), n_ys(1),
                 weight(std::vector<double>(n_ys,1.0)),
-                thermPos(std::vector<double>(chainLength,0.0)),
+                //thermPos(std::vector<double>(chainLength,0.0)),
                 thermVel(std::vector<double>(chainLength,0.0)),
                 thermForce(std::vector<double>(chainLength,0.0)),
                 thermMass(std::vector<double>(chainLength,0.0))
@@ -147,9 +147,9 @@ bool FixNoseHoover::halfStep(bool firstHalfStep)
             ke_current *= scaleFactor*scaleFactor;
 
             // Update the thermostat positions
-            for (size_t k = 0; k < chainLength; ++k) {
-                thermPos.at(k) += timestep2*thermVel.at(k);
-            }
+            //for (size_t k = 0; k < chainLength; ++k) {
+            //    thermPos.at(k) += timestep2*thermVel.at(k);
+            //}
 
             // Update the forces
             thermVel.at(0) *= preFactor;

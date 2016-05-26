@@ -119,7 +119,8 @@ private:
     size_t n_ys; //!< n_ys from \cite MartynaEtal:MP1996
     std::vector<double> weight; //!< Weights for closer approximation
 
-    std::vector<double> thermPos; //!< Position of the Nose-Hoover thermostats
+    //std::vector<double> thermPos; //!< Position (= Energy) of the Nose-Hoover
+                                    //!< thermostats
     std::vector<double> thermVel; //!< Velocity of the Nose-Hoover thermostats
     std::vector<double> thermForce; //!< Force on the Nose-Hoover thermostats
     std::vector<double> thermMass; //!< Masses of the Nose-Hoover thermostats
