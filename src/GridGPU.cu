@@ -388,38 +388,59 @@ __global__ void assignNeighbors(float4 *xs, int nAtoms, uint *ids,
         int xIdx, yIdx, zIdx;
         int xIdxLoop, yIdxLoop, zIdxLoop;
         float3 offset = make_float3(0, 0, 0);
+        int squaresChecked = 1;
         currentNeighborIdx = assignFromCell(pos, idx, myId, xs, ids, gridCellArrayIdxs, LINEARIDX(sqrIdx, ns), offset, trace, neighCutSqr, currentNeighborIdx, neighborlist, exclusionIds_shr, exclIdxLo_shr, exclIdxHi_shr, warpSize);
+        int zIdxSpecial = sqrIdx.z-1;
+        offset = make_float3(0, 0, -floorf((float) zIdxSpecial / ns.z));
+        if (periodic.z || (offset.z == 0)) {
+            int zIdxLoop = zIdxSpecial + ns.z * offset.z;
+            printf("heyo %d\n", idx);
+            int3 sqrIdxOther = make_int3(sqrIdx.x, sqrIdx.y, zIdxLoop);
+            currentNeighborIdx = assignFromCell(pos, idx, myId, xs, ids, gridCellArrayIdxs, LINEARIDX(sqrIdxOther, ns), offset, trace, neighCutSqr, currentNeighborIdx, neighborlist, exclusionIds_shr, exclIdxLo_shr, exclIdxHi_shr, warpSize);
+            squaresChecked++;
+        }
+        zIdxSpecial = sqrIdx.z+1;
+        offset = make_float3(0, 0, -floorf((float) zIdxSpecial / ns.z));
+        if (periodic.z || (offset.z == 0)) {
+            printf("yeyo %d\n", idx);
+            int zIdxLoop = zIdxSpecial + ns.z * offset.z;
+            int3 sqrIdxOther = make_int3(sqrIdx.x, sqrIdx.y, zIdxLoop);
+            currentNeighborIdx = assignFromCell(pos, idx, myId, xs, ids, gridCellArrayIdxs, LINEARIDX(sqrIdxOther, ns), offset, trace, neighCutSqr, currentNeighborIdx, neighborlist, exclusionIds_shr, exclIdxLo_shr, exclIdxHi_shr, warpSize);
+            squaresChecked++;
+        }
         for (xIdx=sqrIdx.x-1; xIdx<=sqrIdx.x+1; xIdx++) {
             offset.x = -floorf((float) xIdx / ns.x);
             xIdxLoop = xIdx + ns.x * offset.x;
-            if (periodic.x || (!periodic.x && xIdxLoop == xIdx)) {
+            if (periodic.x || offset.x == 0) {
 
                 for (yIdx=sqrIdx.y-1; yIdx<=sqrIdx.y+1; yIdx++) {
+                    if (yIdx == sqrIdx.y and xIdx == sqrIdx.x) {
+                        continue;
+                    }
                     offset.y = -floorf((float) yIdx / ns.y);
                     yIdxLoop = yIdx + ns.y * offset.y;
-                    if (periodic.y || (!periodic.y && yIdxLoop == yIdx)) {
+                    if (periodic.y || offset.y == 0) {
 
                         for (zIdx=sqrIdx.z-1; zIdx<=sqrIdx.z+1; zIdx++) {
                             offset.z = -floorf((float) zIdx / ns.z);
                             zIdxLoop = zIdx + ns.z * offset.z;
-                            if (periodic.z || (!periodic.z && zIdxLoop == zIdx)) {
-                                if (! (xIdx == sqrIdx.x and yIdx == sqrIdx.y and zIdx == sqrIdx.z) ) {
+                            if (periodic.z || offset.z == 0) {
 
-                                    int3 sqrIdxOther = make_int3(xIdxLoop, yIdxLoop, zIdxLoop);
-                                    int sqrIdxOtherLin = LINEARIDX(sqrIdxOther, ns);
-                                    //__device__ int assignFromCell(
-                                    //      float3 pos, int idx, uint myId, float4 *xs, uint *ids, int *gridCellArrayIdxs,
-                                    //      int squareIdx, float3 offset, float3 trace, float neighCutSqr,
-                                    //      int currentNeighborIdx, cudaSurfaceObject_t neighborlist,
-                                    //      uint *exclusionIds_shr, int exclIdxLo_shr, int exclIdxHi_shr,
-                                    //      int warpSize)
-                                    currentNeighborIdx = assignFromCell(
-                                            pos, idx, myId, xs, ids, gridCellArrayIdxs,
-                                            sqrIdxOtherLin, -offset, trace, neighCutSqr,
-                                            currentNeighborIdx, neighborlist,
-                                            exclusionIds_shr, exclIdxLo_shr, exclIdxHi_shr,
-                                            warpSize);
-                                }
+                                int3 sqrIdxOther = make_int3(xIdxLoop, yIdxLoop, zIdxLoop);
+                                int sqrIdxOtherLin = LINEARIDX(sqrIdxOther, ns);
+                                //__device__ int assignFromCell(
+                                //      float3 pos, int idx, uint myId, float4 *xs, uint *ids, int *gridCellArrayIdxs,
+                                //      int squareIdx, float3 offset, float3 trace, float neighCutSqr,
+                                //      int currentNeighborIdx, cudaSurfaceObject_t neighborlist,
+                                //      uint *exclusionIds_shr, int exclIdxLo_shr, int exclIdxHi_shr,
+                                //      int warpSize)
+                                currentNeighborIdx = assignFromCell(
+                                        pos, idx, myId, xs, ids, gridCellArrayIdxs,
+                                        sqrIdxOtherLin, -offset, trace, neighCutSqr,
+                                        currentNeighborIdx, neighborlist,
+                                        exclusionIds_shr, exclIdxLo_shr, exclIdxHi_shr,
+                                        warpSize);
+                                squaresChecked++;
 
                             } // endif periodic.z
                         } // endfor zIdx
@@ -430,6 +451,7 @@ __global__ void assignNeighbors(float4 *xs, int nAtoms, uint *ids,
             } // endif periodic.x
         } // endfor xIdx
 
+        printf("checked %d\n", squaresChecked);
     } // endif idx < natoms
 }
 
@@ -656,7 +678,8 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
                 exclusionIndexes.data(), exclusionIds.size(), maxExclusionsPerAtom
         ));//, state->gpd.nlistExclusionIdxs.getTex(), state->gpd.nlistExclusions.getTex(), state->maxExclusions);
         */
-        assignNeighbors<<<NBLOCK(nAtoms), PERBLOCK, PERBLOCK*maxExclusionsPerAtom*sizeof(uint)>>>(
+   //     assignNeighbors<<<NBLOCK(nAtoms), PERBLOCK, PERBLOCK*maxExclusionsPerAtom*sizeof(uint)>>>(
+        assignNeighbors<<<1, 256, PERBLOCK*maxExclusionsPerAtom*sizeof(uint)>>>(
                 state->gpd.xs(gridIdx), nAtoms, state->gpd.ids(gridIdx),
                 perCellArray.d_data.data(), perBlockArray.d_data.data(), os, ds, ns,
                 bounds.periodic, trace, neighCut*neighCut, neighborlist.data(), warpSize,

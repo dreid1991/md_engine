@@ -40,7 +40,7 @@ integVerlet = IntegratorVerlet(state)
 #state.activateWriteConfig(writeconfig)
 
 
-integVerlet.run(10000)
+integVerlet.run(1)
 #integVerlet.run(10000)
 print state.atoms[0].pos
 sumV = 0.
