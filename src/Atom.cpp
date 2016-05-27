@@ -19,7 +19,6 @@ void export_Atom () {
         //.def_readwrite("pos", &Atom::pos)
         .def_readwrite("vel", &Atom::vel)
         .def_readwrite("force", &Atom::force)
-        .def_readwrite("forceLast", &Atom::forceLast)
         .def_readwrite("groupTag", &Atom::groupTag)
         .def_readonly("neighbors", &Atom::neighbors)
         .def_readwrite("mass", &Atom::mass)

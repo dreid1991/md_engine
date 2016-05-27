@@ -5,6 +5,7 @@ from math import *
 from random import random
 
 state = State()
+f2d = Fix2d(state, handle='2d', applyEvery=10)
 #state.deviceManager.setDevice(0)
 state.periodicInterval = 1
 state.shoutEvery = 50000 #how often is says % done
@@ -15,16 +16,16 @@ state.padding = 0.5
 state.seedRNG()
 
 # z bounds taken care of automatically in 2d simulation
-state.bounds = Bounds(state, lo=Vector(0, 0, 0),
-                             hi=Vector(30, 70.0, 0))
-state.grid = AtomGrid(state, dx=3.5, dy=3.5, dz=1) #as is dz
+state.bounds = Bounds(state, lo=Vector(0, 0, -4),
+                             hi=Vector(30, 70.0, 4))
+state.grid = AtomGrid(state, dx=3.5, dy=3.5, dz=3) #as is dz
 state.atomParams.addSpecies(handle='substrate', mass=1)
 state.atomParams.addSpecies(handle='type1', mass=1)
 state.atomParams.addSpecies(handle='type2', mass=1)
 
 
-f2d = Fix2d(state, handle='2d', applyEvery=10)
-state.activateFix(f2d)
+
+#state.activateFix(f2d)
 
 ljcut = FixLJCut(state, handle='ljcut')
 
@@ -88,7 +89,8 @@ state.activateWriteConfig(writer)
 
 state.dt = 0.001
 integrator = IntegratorVerlet(state)
-integrator.run(10000) #letting substrate relax
+integrator.run(100) #letting substrate relax
+exit()
 integratorRelax = IntegratorRelax(state)
 #integratorRelax.set_params(dtMax_mult=1);
 integratorRelax.run(50000, 1e-5)

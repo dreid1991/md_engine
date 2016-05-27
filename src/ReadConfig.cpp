@@ -196,12 +196,6 @@ bool ReadConfig::read() {
                               ))
           ) ;
     assert(
-            (xml_assign<double, 3>(*config, "forceLast", [&] (int i, double *vals) {
-                               readAtoms[i].forceLast = Vector(vals);	
-                               }
-                              ))
-          ) ;
-    assert(
             (xml_assign<unsigned int, 1>(*config, "groupTag", [&] (int i, unsigned int *vals) {
                                      readAtoms[i].groupTag = *vals;
                                      }
