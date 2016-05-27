@@ -30,6 +30,17 @@ __global__ void rescale_cu(int nAtoms, uint groupTag, float4 *vs, float4 *fs, fl
         }
     }
 }
+__global__ void rescale_no_tags_cu(int nAtoms, float4 *vs, float scale)
+{
+    int idx = GETIDX();
+    if (idx < nAtoms) {
+        float4 vel = vs[idx];
+        float invmass = vel.w;
+        vel *= scale;
+        vel.w = invmass;
+        vs[idx] = vel;
+    }
+}
 
 FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state, std::string handle,
                              std::string groupHandle, float temp, float timeConstant)
@@ -221,22 +232,27 @@ void FixNoseHoover::updateMasses()
     }
 }
 
+
 void FixNoseHoover::calculateKineticEnergy()
 {
     size_t nAtoms = state->atoms.size();
     kineticEnergy.d_data.memset(0);
     if (groupTag == 1) { //if is all atoms
-       sumVectorSqr3DOverW<float, float4, 4>
-            <<<NBLOCK(nAtoms / (double) 4), PERBLOCK, 4*PERBLOCK*sizeof(float)>>>(
+       sumVectorSqr3DOverW<float, float4, 2>
+            <<<NBLOCK(nAtoms / (double) 2), PERBLOCK, 2*PERBLOCK*sizeof(float)>>>(
                     kineticEnergy.d_data.data(),
                     state->gpd.vs.getDevData(),
                     nAtoms,
                     state->devManager.prop.warpSize
             );
-       std::cout << " calling tag-less sum " << std::endl;
+       //std::cout << " calling tag-less sum " << std::endl;
+       kineticEnergy.dataToHost();
+       cudaDeviceSynchronize();
+       ndf = state->atoms.size();
+
     } else {
-        sumVectorSqr3DTagsOverW<float, float4, 1>
-            <<<NBLOCK(nAtoms / (double) 1), PERBLOCK, 1*PERBLOCK*sizeof(float)>>>(
+        sumVectorSqr3DTagsOverW<float, float4, 2>
+            <<<NBLOCK(nAtoms / (double) 2), PERBLOCK, 2*PERBLOCK*sizeof(float)>>>(
                     kineticEnergy.d_data.data(),
                     state->gpd.vs.getDevData(),
                     nAtoms,
@@ -244,18 +260,19 @@ void FixNoseHoover::calculateKineticEnergy()
                     state->gpd.fs.getDevData(),
                     state->devManager.prop.warpSize
             );
+        kineticEnergy.dataToHost();
+        cudaDeviceSynchronize();
+        ndf = *((int *) (kineticEnergy.h_data.data()+1));
     }
-    kineticEnergy.dataToHost();
-    cudaDeviceSynchronize();
 
     ke_current = kineticEnergy.h_data[0];
-    std::cout << "current " << ke_current << std::endl;
-    ndf = *((int *) (kineticEnergy.h_data.data()+1));
+  //  std::cout << "current " << ke_current << std::endl;
     if (state->is2d) {
         ndf *= 2;
     } else {
         ndf *= 3;
     }
+//    std::cout << "temp is " << ke_current / ndf << std::endl;
 }
 
 void FixNoseHoover::rescale()
@@ -265,11 +282,18 @@ void FixNoseHoover::rescale()
     }
 
     size_t nAtoms = state->atoms.size();
-    rescale_cu<<<NBLOCK(nAtoms), PERBLOCK>>>(nAtoms,
-                                             groupTag,
-                                             state->gpd.vs.getDevData(),
-                                             state->gpd.fs.getDevData(),
-                                             scale);
+    if (groupTag == 1) {
+        rescale_no_tags_cu<<<NBLOCK(nAtoms), PERBLOCK>>>(
+                                                 nAtoms,
+                                                 state->gpd.vs.getDevData(),
+                                                 scale);
+    } else {
+        rescale_cu<<<NBLOCK(nAtoms), PERBLOCK>>>(nAtoms,
+                                                 groupTag,
+                                                 state->gpd.vs.getDevData(),
+                                                 state->gpd.fs.getDevData(),
+                                                 scale);
+    }
 
     scale = 1.0f;
 }

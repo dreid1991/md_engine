@@ -40,7 +40,7 @@ integVerlet = IntegratorVerlet(state)
 #state.activateWriteConfig(writeconfig)
 
 
-integVerlet.run(1)
+integVerlet.run(10000)
 #integVerlet.run(10000)
 print state.atoms[0].pos
 sumV = 0.
@@ -48,6 +48,7 @@ for a in state.atoms:
     sumV += a.vel.lenSqr()
 print sumV / len(state.atoms)/3.0
 #print tempData.vals
+#print sum(tempData.vals) / len(tempData.vals)
 #print boundsData.vals[0].getSide(1)
 #print engData.turns[-1]
 #print 'last eng %f' % engData.vals[-1]
