@@ -388,7 +388,7 @@ __global__ void assignNeighbors(float4 *xs, int nAtoms, uint *ids,
         int xIdx, yIdx, zIdx;
         int xIdxLoop, yIdxLoop, zIdxLoop;
         float3 offset = make_float3(0, 0, 0);
-
+        currentNeighborIdx = assignFromCell(pos, idx, myId, xs, ids, gridCellArrayIdxs, LINEARIDX(sqrIdx, ns), offset, trace, neighCutSqr, currentNeighborIdx, neighborlist, exclusionIds_shr, exclIdxLo_shr, exclIdxHi_shr, warpSize);
         for (xIdx=sqrIdx.x-1; xIdx<=sqrIdx.x+1; xIdx++) {
             offset.x = -floorf((float) xIdx / ns.x);
             xIdxLoop = xIdx + ns.x * offset.x;
@@ -403,21 +403,23 @@ __global__ void assignNeighbors(float4 *xs, int nAtoms, uint *ids,
                             offset.z = -floorf((float) zIdx / ns.z);
                             zIdxLoop = zIdx + ns.z * offset.z;
                             if (periodic.z || (!periodic.z && zIdxLoop == zIdx)) {
+                                if (! (xIdx == sqrIdx.x and yIdx == sqrIdx.y and zIdx == sqrIdx.z) ) {
 
-                                int3 sqrIdxOther = make_int3(xIdxLoop, yIdxLoop, zIdxLoop);
-                                int sqrIdxOtherLin = LINEARIDX(sqrIdxOther, ns);
-                                //__device__ int assignFromCell(
-                                //      float3 pos, int idx, uint myId, float4 *xs, uint *ids, int *gridCellArrayIdxs,
-                                //      int squareIdx, float3 offset, float3 trace, float neighCutSqr,
-                                //      int currentNeighborIdx, cudaSurfaceObject_t neighborlist,
-                                //      uint *exclusionIds_shr, int exclIdxLo_shr, int exclIdxHi_shr,
-                                //      int warpSize)
-                                currentNeighborIdx = assignFromCell(
-                                        pos, idx, myId, xs, ids, gridCellArrayIdxs,
-                                        sqrIdxOtherLin, -offset, trace, neighCutSqr,
-                                        currentNeighborIdx, neighborlist,
-                                        exclusionIds_shr, exclIdxLo_shr, exclIdxHi_shr,
-                                        warpSize);
+                                    int3 sqrIdxOther = make_int3(xIdxLoop, yIdxLoop, zIdxLoop);
+                                    int sqrIdxOtherLin = LINEARIDX(sqrIdxOther, ns);
+                                    //__device__ int assignFromCell(
+                                    //      float3 pos, int idx, uint myId, float4 *xs, uint *ids, int *gridCellArrayIdxs,
+                                    //      int squareIdx, float3 offset, float3 trace, float neighCutSqr,
+                                    //      int currentNeighborIdx, cudaSurfaceObject_t neighborlist,
+                                    //      uint *exclusionIds_shr, int exclIdxLo_shr, int exclIdxHi_shr,
+                                    //      int warpSize)
+                                    currentNeighborIdx = assignFromCell(
+                                            pos, idx, myId, xs, ids, gridCellArrayIdxs,
+                                            sqrIdxOtherLin, -offset, trace, neighCutSqr,
+                                            currentNeighborIdx, neighborlist,
+                                            exclusionIds_shr, exclIdxLo_shr, exclIdxHi_shr,
+                                            warpSize);
+                                }
 
                             } // endif periodic.z
                         } // endfor zIdx
