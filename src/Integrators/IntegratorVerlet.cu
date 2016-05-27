@@ -59,9 +59,10 @@ IntegratorVerlet::IntegratorVerlet(State *statePtr)
 
 }
 //so now each thread is responsibe for NPERTHREAD pieces of data
+/*
 template <class K, class T, int NPERTHREAD>
 __global__ void NAME (K *dest, T *src, int n, int warpSize) {
-    extern __shared__ K tmp[]; /*should have length of # threads in a block (PERBLOCK)*/
+    extern __shared__ K tmp[]; 
     const int copyBaseIdx = blockDim.x*blockIdx.x * NPERTHREAD + threadIdx.x;
     //printf("idx %d gets base %d\n", GETIDX(), copyBaseIdx);
     const int copyIncrement = blockDim.x;
@@ -98,6 +99,7 @@ __global__ void NAME (K *dest, T *src, int n, int warpSize) {
         atomicAdd(dest, tmp[0]);
     }
 }
+*/
 void IntegratorVerlet::run(int numTurns)
 {
     basicPreRunChecks();
@@ -106,9 +108,10 @@ void IntegratorVerlet::run(int numTurns)
     basicPrepare(numTurns);
 
     int periodicInterval = state->periodicInterval;
+    /*
     GPUArrayGlobal<float> result(1);
     result.d_data.memset(0);
-    int n = 1e6;
+    int n = 5000;
     float sum = 0;
     GPUArrayGlobal<float4> source(n);
     for (int i=0; i<n; i++) {
@@ -118,7 +121,6 @@ void IntegratorVerlet::run(int numTurns)
     source.dataToDevice();
     cudaDeviceSynchronize();
     int ntest = 100;
-    auto start = std::chrono::high_resolution_clock::now();
     const int nPerThread = 8;
     for (int i=0; i<ntest; i++) {
         result.d_data.memset(0);
@@ -132,6 +134,8 @@ void IntegratorVerlet::run(int numTurns)
     std::chrono::duration<double> duration = end - start;
     mdMessage("runtime %f\n", duration.count());
     exit(0);
+    */
+    auto start = std::chrono::high_resolution_clock::now();
     for (int i=0; i<numTurns; ++i) {
         if (state->turn % periodicInterval == 0) {
             state->gridGPU.periodicBoundaryConditions();
@@ -164,10 +168,10 @@ void IntegratorVerlet::run(int numTurns)
 
     //! \todo These parts could be moved to basicFinish()
     cudaDeviceSynchronize();
-   // auto end = std::chrono::high_resolution_clock::now();
-   // std::chrono::duration<double> duration = end - start;
-   // mdMessage("runtime %f\n%e particle timesteps per second\n",
-    //          duration.count(), state->atoms.size()*numTurns / duration.count());
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> duration = end - start;
+    mdMessage("runtime %f\n%e particle timesteps per second\n",
+              duration.count(), state->atoms.size()*numTurns / duration.count());
 
     basicFinish();
 }

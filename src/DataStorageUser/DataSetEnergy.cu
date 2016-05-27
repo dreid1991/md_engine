@@ -10,7 +10,7 @@ DataSetEnergy::DataSetEnergy(uint32_t groupTag_) : DataSet(groupTag_) {
 
 void DataSetEnergy::collect(int64_t turn, BoundsGPU &, int nAtoms, float4 *xs, float4 *vs, float4 *fs, float *engs, Virial *virials, cudaDeviceProp &prop) {
     engGPU.d_data.memset(0);
-    sumPlain<float, float> <<<NBLOCK(nAtoms), PERBLOCK, PERBLOCK*sizeof(float)>>>(engGPU.getDevData(), engs, nAtoms, groupTag, fs, prop.warpSize);
+    sumPlain<float, float, N_DATA_PER_THREAD> <<<NBLOCK(nAtoms / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*PERBLOCK*sizeof(float)>>>(engGPU.getDevData(), engs, nAtoms, groupTag, fs, prop.warpSize);
     engGPU.dataToHost();
     turns.push_back(turn);
     turnsPy.append(turn);

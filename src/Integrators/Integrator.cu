@@ -290,7 +290,7 @@ double Integrator::singlePointEngPythonAvg(string groupHandle) {
     cudaDeviceSynchronize();
     uint32_t groupTag = state->groupTagFromHandle(groupHandle);
     int warpSize = state->devManager.prop.warpSize;
-    sumPlain<<<NBLOCK(state->atoms.size()), PERBLOCK, sizeof(float)*PERBLOCK>>>(
+    sumPlain<float, float, N_DATA_PER_THREAD><<<NBLOCK(state->atoms.size() / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*sizeof(float)*PERBLOCK>>>(
             eng.getDevData(), state->gpd.perParticleEng.getDevData(),
             state->atoms.size(), groupTag, state->gpd.fs.getDevData(), warpSize);
     eng.dataToHost();

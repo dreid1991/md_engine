@@ -249,7 +249,7 @@ void IntegratorLangevin::postForce(uint activeIdx,int timesteps) {
 
     int atomssize=state->atoms.size();
     VDotV.memsetByVal(0.0);
-    sumVector3D<float,float4> <<<NBLOCK(atomssize),PERBLOCK,sizeof(float)*PERBLOCK>>>(
+    sumVector3D<float,float4,N_DATA_PER_THREAD> <<<NBLOCK(atomssize/(double)N_DATA_PER_THREAD),PERBLOCK,N_DATA_PER_THREAD*sizeof(float)*PERBLOCK>>>(
                                             VDotV.getDevData(),
                                             state->gpd.vs.getDevData(),
                                             atomssize,

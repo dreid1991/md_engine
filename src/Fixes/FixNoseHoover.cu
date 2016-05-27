@@ -225,19 +225,31 @@ void FixNoseHoover::calculateKineticEnergy()
 {
     size_t nAtoms = state->atoms.size();
     kineticEnergy.d_data.memset(0);
-    SAFECALL((sumVectorSqr3DTagsOverW<float, float4>
-        <<<NBLOCK(nAtoms), PERBLOCK, PERBLOCK*sizeof(float)>>>(
-                kineticEnergy.d_data.data(),
-                state->gpd.vs.getDevData(),
-                nAtoms,
-                groupTag,
-                state->gpd.fs.getDevData(),
-                state->devManager.prop.warpSize
-        )));
+    if (groupTag == 1) { //if is all atoms
+       sumVectorSqr3DOverW<float, float4, 4>
+            <<<NBLOCK(nAtoms / (double) 4), PERBLOCK, 4*PERBLOCK*sizeof(float)>>>(
+                    kineticEnergy.d_data.data(),
+                    state->gpd.vs.getDevData(),
+                    nAtoms,
+                    state->devManager.prop.warpSize
+            );
+       std::cout << " calling tag-less sum " << std::endl;
+    } else {
+        sumVectorSqr3DTagsOverW<float, float4, 1>
+            <<<NBLOCK(nAtoms / (double) 1), PERBLOCK, 1*PERBLOCK*sizeof(float)>>>(
+                    kineticEnergy.d_data.data(),
+                    state->gpd.vs.getDevData(),
+                    nAtoms,
+                    groupTag,
+                    state->gpd.fs.getDevData(),
+                    state->devManager.prop.warpSize
+            );
+    }
     kineticEnergy.dataToHost();
     cudaDeviceSynchronize();
 
     ke_current = kineticEnergy.h_data[0];
+    std::cout << "current " << ke_current << std::endl;
     ndf = *((int *) (kineticEnergy.h_data.data()+1));
     if (state->is2d) {
         ndf *= 2;

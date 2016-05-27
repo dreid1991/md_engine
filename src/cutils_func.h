@@ -4,6 +4,7 @@
 
 #include "globalDefs.h"
 #include "cutils_math.h"
+#define N_DATA_PER_THREAD 4 //must be power of 2, 4 found to be fastest for a floats and float4s
 
 inline __device__ int baseNeighlistIdx(uint32_t *cumulSumMaxPerBlock, int warpSize) { 
     uint32_t cumulSumUpToMe = cumulSumMaxPerBlock[blockIdx.x];
@@ -78,23 +79,31 @@ inline __device__ void reduceByN_NOSYNC(T *src, int span) { // where span is how
 }
 //Hey - if you pass warpsize, could avoid syncing al small lookaheads
 #define SUM(NAME, OPERATOR, WRAPPER) \
-template <class K, class T>\
+    template <class K, class T, int NPERTHREAD>\
 __global__ void NAME (K *dest, T *src, int n, int warpSize) {\
     extern __shared__ K tmp[]; /*should have length of # threads in a block (PERBLOCK)*/\
-    int potentialIdx = blockDim.x*blockIdx.x + threadIdx.x;\
-    if (potentialIdx < n) {\
-        tmp[threadIdx.x] = OPERATOR ( WRAPPER (src[blockDim.x*blockIdx.x + threadIdx.x]) ) ;\
-    } else {\
-       tmp[threadIdx.x] = 0;\
-    }\
-    __syncthreads();\
-    int curLookahead = 1;\
-    int maxLookahead = log2f(blockDim.x-1);\
-    for (int i=0; i<=maxLookahead; i++) {\
-        if (! (threadIdx.x % (curLookahead*2))) {\
-            tmp[threadIdx.x] += tmp[threadIdx.x + curLookahead];\
+    const int copyBaseIdx = blockDim.x*blockIdx.x * NPERTHREAD + threadIdx.x;\
+    const int copyIncrement = blockDim.x;\
+    for (int i=0; i<NPERTHREAD; i++) {\
+        int step = i * copyIncrement;\
+        if (copyBaseIdx + step < n) {\
+            tmp[threadIdx.x + step] = length(src[copyBaseIdx + step]);\
+        } else {\
+            tmp[threadIdx.x + step] = 0;\
         }\
-        if (curLookahead >= warpSize) {\
+    }\
+    int curLookahead = NPERTHREAD;\
+    int numLookaheadSteps = log2f(blockDim.x-1);\
+    const int sumBaseIdx = threadIdx.x * NPERTHREAD;\
+    __syncthreads();\
+    for (int i=sumBaseIdx+1; i<sumBaseIdx + NPERTHREAD; i++) {\
+        tmp[sumBaseIdx] += tmp[i];\
+    }\
+    for (int i=0; i<=numLookaheadSteps; i++) {\
+        if (! (sumBaseIdx % (curLookahead*2))) {\
+            tmp[sumBaseIdx] += tmp[sumBaseIdx + curLookahead];\
+        }\
+        if (curLookahead >= (NPERTHREAD * warpSize)) {\
             __syncthreads();\
         }\
         curLookahead *= 2;\
@@ -102,44 +111,49 @@ __global__ void NAME (K *dest, T *src, int n, int warpSize) {\
     if (threadIdx.x == 0) {\
         atomicAdd(dest, tmp[0]);\
     }\
-}\
-
-
+}
 SUM(sumSingle, , );
 SUM(sumVector, length, );
 SUM(sumVectorSqr, lengthSqr, );
 SUM(sumVectorSqr3D, lengthSqr, make_float3);
 
 SUM(sumVector3D, length, make_float3);
+SUM(sumVectorSqr3DOverW, lengthSqrOverW, ); // for temperature
 
 //
 #define SUM_TAGS(NAME, OPERATOR, WRAPPER) \
-    template <class K, class T>\
+    template <class K, class T, int NPERTHREAD>\
 __global__ void NAME (K *dest, T *src, int n, unsigned int groupTag, float4 *fs, int warpSize) {\
     extern __shared__ K tmp[]; /*should have length of # threads in a block (PERBLOCK)  */\
-    int potentialIdx = blockDim.x*blockIdx.x + threadIdx.x;\
-    if (potentialIdx < n) {\
-        unsigned int atomGroup = * (unsigned int *) &(fs[potentialIdx].w);\
-        if (atomGroup & groupTag) {\
-            tmp[threadIdx.x] = OPERATOR ( WRAPPER (src[blockDim.x*blockIdx.x + threadIdx.x]) ) ;\
-            atomicAdd((int *) (dest+1), 1);/*I TRIED DOING ATOMIC ADD IN SHARED MEMORY, BUT IT SET A BUNCH OF THE OTHER SHARED MEMORY VALUES TO ZERO.  VERY CONFUSING*/\
-        } else {\
-            tmp[threadIdx.x] = K();\
+    const int copyBaseIdx = blockDim.x*blockIdx.x * NPERTHREAD + threadIdx.x;\
+    const int copyIncrement = blockDim.x;\
+    for (int i=0; i<NPERTHREAD; i++) {\
+        int step = i * copyIncrement;\
+        if (copyBaseIdx + step < n) {\
+            unsigned int atomGroup = * (unsigned int *) &(fs[copyBaseIdx + step].w);\
+            if (atomGroup & groupTag) {\
+                tmp[threadIdx.x] = OPERATOR ( WRAPPER (src[copyBaseIdx + step]) ) ;\
+                atomicAdd((int *) (dest+1), 1);/*I TRIED DOING ATOMIC ADD IN SHARED MEMORY, BUT IT SET A BUNCH OF THE OTHER SHARED MEMORY VALUES TO ZERO.  VERY CONFUSING*/\
+            } else {\
+                tmp[threadIdx.x] = 0;\
+            }\
         }\
-    } else {\
-        tmp[threadIdx.x] = K();\
     }\
+    int curLookahead = NPERTHREAD;\
+    int numLookaheadSteps = log2f(blockDim.x-1);\
+    const int sumBaseIdx = threadIdx.x * NPERTHREAD;\
     __syncthreads();\
-    int curLookahead = 1;\
-    int maxLookahead = log2f(blockDim.x-1);\
-    for (int i=0; i<=maxLookahead; i++) {\
-        if (! (threadIdx.x % (curLookahead*2))) {\
-            tmp[threadIdx.x] += tmp[threadIdx.x + curLookahead];\
+    for (int i=sumBaseIdx+1; i<sumBaseIdx + NPERTHREAD; i++) {\
+        tmp[sumBaseIdx] += tmp[i];\
+    }\
+    for (int i=0; i<=numLookaheadSteps; i++) {\
+        if (! (sumBaseIdx % (curLookahead*2))) {\
+            tmp[sumBaseIdx] += tmp[sumBaseIdx + curLookahead];\
         }\
-        curLookahead *= 2;\
-        if (curLookahead >= warpSize) {\
+        if (curLookahead >= (NPERTHREAD * warpSize)) {\
             __syncthreads();\
         }\
+        curLookahead *= 2;\
     }\
     if (threadIdx.x == 0) {\
         atomicAdd(dest, tmp[0]);\

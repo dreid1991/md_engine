@@ -141,7 +141,7 @@ double IntegratorRelax::run(int numTurns, num fTol) {
 
         if (VDotF.h_data[0] > 0) {
             //VdotV calc
-            sumVectorSqr3D<float,float4> <<<nblock,PERBLOCK,sizeof(float)*PERBLOCK>>>(
+            sumVectorSqr3D<float,float4, N_DATA_PER_THREAD> <<<NBLOCK(atomssize/(double)N_DATA_PER_THREAD),PERBLOCK,N_DATA_PER_THREAD*sizeof(float)*PERBLOCK>>>(
                                             VDotV.getDevData(),
                                             state->gpd.vs.getDevData(),
                                             atomssize,
@@ -150,7 +150,7 @@ double IntegratorRelax::run(int numTurns, num fTol) {
             VDotV.dataToHost();
 
             //FdotF
-            sumVectorSqr3D<float,float4> <<<nblock,PERBLOCK,sizeof(float)*PERBLOCK>>>(
+            sumVectorSqr3D<float,float4, N_DATA_PER_THREAD> <<<NBLOCK(atomssize/(double)N_DATA_PER_THREAD),PERBLOCK,N_DATA_PER_THREAD*sizeof(float)*PERBLOCK>>>(
                                             FDotF.getDevData(),
                                             state->gpd.fs.getDevData(),
                                             atomssize,
@@ -202,7 +202,7 @@ double IntegratorRelax::run(int numTurns, num fTol) {
             //total force calc
             force.memsetByVal(0.0);
 
-            sumVectorSqr3D<float,float4> <<<nblock,PERBLOCK,sizeof(float)*PERBLOCK>>>(
+            sumVectorSqr3D<float,float4, N_DATA_PER_THREAD> <<<NBLOCK(atomssize/(double)N_DATA_PER_THREAD),PERBLOCK,N_DATA_PER_THREAD*sizeof(float)*PERBLOCK>>>(
                                         force.getDevData(),
                                         state->gpd.fs.getDevData(),
                                         atomssize,
@@ -232,7 +232,7 @@ double IntegratorRelax::run(int numTurns, num fTol) {
     //total force calculation
     force.memsetByVal(0.0);
 
-    sumVectorSqr3D<float,float4> <<<nblock, PERBLOCK, sizeof(float)*PERBLOCK>>>(
+    sumVectorSqr3D<float,float4, N_DATA_PER_THREAD> <<<NBLOCK(atomssize/(double)N_DATA_PER_THREAD),PERBLOCK,N_DATA_PER_THREAD*sizeof(float)*PERBLOCK>>>(
                                   force.getDevData(),
                                   state->gpd.fs.getDevData(),
                                   atomssize,
