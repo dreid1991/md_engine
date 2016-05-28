@@ -49,6 +49,8 @@ FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state, std::string handle,
               groupHandle,      // Group handle
               NoseHooverType,   // Fix name
               false,            // forceSingle
+              false,            // requiresVirials 
+              false,            // requiresCharges
               1                 // applyEvery
              ), temp(temp), frequency(1.0 / timeConstant),
                 kineticEnergy(GPUArrayGlobal<float>(2)),

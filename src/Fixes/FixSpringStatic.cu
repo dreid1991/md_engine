@@ -11,7 +11,7 @@ const std::string springStaticType = "SpringStatic";
 FixSpringStatic::FixSpringStatic(boost::shared_ptr<State> state_,
                                  std::string handle_, std::string groupHandle_,
                                  double k_,  PyObject *tetherFunc_, Vector multiplier_)
-  : Fix(state_, handle_, groupHandle_, springStaticType, true, 1),
+  : Fix(state_, handle_, groupHandle_, springStaticType, true, false, false, 1),
     k(k_), tetherFunc(tetherFunc_), multiplier(multiplier_)
 {
     updateTethers();

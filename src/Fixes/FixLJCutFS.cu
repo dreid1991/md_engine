@@ -10,7 +10,7 @@
 const std::string LJCutType = "LJCutFS";
 
 FixLJCutFS::FixLJCutFS(SHARED(State) state_, std::string handle_)
-    : FixPair(state_, handle_, "all", LJCutType, true, 1),
+    : FixPair(state_, handle_, "all", LJCutType, true, false, 1),
       epsHandle("eps"), sigHandle("sig"), rCutHandle("rCut") {
     initializeParameters(epsHandle, epsilons);
     initializeParameters(sigHandle, sigmas);

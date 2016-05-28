@@ -29,7 +29,7 @@ __device__ void eval (float3 &forceSum, float3 dr, float *params, float lenSqr, 
 
 
 FixLJCut::FixLJCut(boost::shared_ptr<State> state_, string handle_)
-  : FixPair(state_, handle_, "all", LJCutType, true, 1),
+  : FixPair(state_, handle_, "all", LJCutType, true, false, 1),
     epsHandle("eps"), sigHandle("sig"), rCutHandle("rCut")
 {
     initializeParameters(epsHandle, epsilons);

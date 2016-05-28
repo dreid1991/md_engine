@@ -38,7 +38,7 @@ __global__ void sumKeInBounds (float *dest, float4 *src, int n, unsigned int gro
 FixNVTRescale::FixNVTRescale(SHARED(State) state_, string handle_, string groupHandle_,
                              py::list intervals_, py::list temps_, int applyEvery_,
                              SHARED(Bounds) thermoBounds_)
-    : Fix(state_, handle_, groupHandle_, NVTRescaleType, false, applyEvery_),
+    : Fix(state_, handle_, groupHandle_, NVTRescaleType, false, false, false, applyEvery_),
       curIdx(0), tempGPU(GPUArrayDeviceGlobal<float>(2)), finished(false)
 {
     assert(boost::python::len(intervals_) == boost::python::len(temps_)); 
@@ -65,7 +65,7 @@ FixNVTRescale::FixNVTRescale(SHARED(State) state_, string handle_, string groupH
 FixNVTRescale::FixNVTRescale(SHARED(State) state_, string handle_, string groupHandle_,
                              vector<double> intervals_, vector<double> temps_, int applyEvery_,
                              SHARED(Bounds) thermoBounds_)
-    : Fix(state_, handle_, groupHandle_, NVTRescaleType, false, applyEvery_),
+    : Fix(state_, handle_, groupHandle_, NVTRescaleType, false, false, false, applyEvery_),
       curIdx(0), tempGPU(GPUArrayDeviceGlobal<float>(2)), finished(false)
 {
     assert(intervals.size() == temps.size());

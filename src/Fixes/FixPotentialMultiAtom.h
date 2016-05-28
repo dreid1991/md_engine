@@ -20,7 +20,7 @@
 template <class CPUVariant, class CPUMember, class CPUBase, class GPUMember, class ForcerTypeHolder, int N>
 class FixPotentialMultiAtom : public Fix, public TypedItemHolder {
     public:
-        FixPotentialMultiAtom (SHARED(State) state_, std::string handle_, std::string type_, bool forceSingle_) : Fix(state_, handle_, "None", type_, forceSingle_, 1), forcersGPU(1), forcerIdxs(1)
+        FixPotentialMultiAtom (SHARED(State) state_, std::string handle_, std::string type_, bool forceSingle_) : Fix(state_, handle_, "None", type_, forceSingle_, false, false, 1), forcersGPU(1), forcerIdxs(1)
     {
         maxForcersPerBlock = 0;
     }

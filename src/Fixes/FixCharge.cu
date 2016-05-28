@@ -6,7 +6,7 @@ namespace py = boost::python;
 FixCharge::FixCharge(boost::shared_ptr<State> state_,
                      std::string handle_, std::string groupHandle_,
                      std::string type_, bool forceSingle_)
-  : Fix(state_, handle_, groupHandle_, type_, forceSingle_, 1)
+  : Fix(state_, handle_, groupHandle_, type_, forceSingle_, false, true, 1)
 {   }
 
 bool FixCharge::prepareForRun() {

@@ -11,7 +11,7 @@ const std::string wallHarmonicType = "WallHarmonic";
 
 FixWallHarmonic::FixWallHarmonic(SHARED(State) state_, string handle_, string groupHandle_,
                                  Vector origin_, Vector forceDir_, double dist_, double k_)
-  : Fix(state_, handle_, groupHandle_, wallHarmonicType, true, 1),
+  : Fix(state_, handle_, groupHandle_, wallHarmonicType, true, false, false, 1),
     origin(origin_), forceDir(forceDir_.normalized()), dist(dist_), k(k_)
 {
     assert(dist >= 0);

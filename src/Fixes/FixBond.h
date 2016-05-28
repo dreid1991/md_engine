@@ -74,7 +74,7 @@ class FixBond : public Fix, public TypedItemHolder {
         
         FixBond(SHARED(State) state_, std::string handle_, std::string groupHandle_, std::string type_,
                 bool forceSingle_, int applyEvery_)
-            : Fix(state_, handle_, groupHandle_, type_, forceSingle_, applyEvery_) {
+            : Fix(state_, handle_, groupHandle_, type_, forceSingle_, false, false, applyEvery_) {
             maxBondsPerBlock = 0;
         }
 

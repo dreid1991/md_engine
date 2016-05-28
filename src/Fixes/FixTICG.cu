@@ -10,7 +10,7 @@
 const std::string TICGType = "TICG";
 
 FixTICG::FixTICG(boost::shared_ptr<State> state_, std::string handle_)
-  : FixPair(state_, handle_, "all", TICGType, true, 1),
+  : FixPair(state_, handle_, "all", TICGType, true, false, 1),
     CHandle("C"),  rCutHandle("rCut")
 {
     initializeParameters(CHandle, Cs);
