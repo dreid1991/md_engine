@@ -58,7 +58,7 @@ void testFire() {
     nonbond->setParameter("eps", "handle", "handle", 1);
     state->activateFix(nonbond);
     cout << "last" << endl;
-    cout << state->atoms[0].pos[0]<<' '<<state->atoms[0].vel[0]<<' '<<state->atoms[0].force[0]<<' '<<state->atoms[0].forceLast[0]<< endl;
+    cout << state->atoms[0].pos[0]<<' '<<state->atoms[0].vel[0]<<' '<<state->atoms[0].force[0]<< endl;
 
     SHARED(WriteConfig) write = SHARED(WriteConfig) (new WriteConfig(state, "test", "handle", "xml", 10000));
     state->activateWriteConfig(write);

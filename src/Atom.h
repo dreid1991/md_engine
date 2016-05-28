@@ -20,7 +20,6 @@ public:
     Vector pos;
     Vector vel;
     Vector force;
-    Vector forceLast;
     //Vector posAtNeighborListing; // can do this elsewhere
 
     Atom *next;

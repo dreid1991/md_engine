@@ -94,10 +94,6 @@ void writeXMLfileBase64(State *state, string fnFinal, int64_t turn, bool oneFile
             }
             );
 
-    writeXMLChunkBase64<Atom, Vector >(outFile, atoms, "forceLast", [] (Atom &a) {
-            return a.forceLast;
-            }
-            );
     writeXMLChunkBase64<Atom, uint>(outFile, atoms, "groupTag", [] (Atom &a) {
             return a.groupTag;
             }
@@ -208,10 +204,6 @@ void writeXMLfile(State *state, string fnFinal, int64_t turn, bool oneFilePerWri
             }
             );
 
-    writeXMLChunk<Atom>(outFile, atoms, "forceLast", [] (Atom &a, char buffer[BUFFERLEN]) {
-            Vector forceLast = a.forceLast; sprintf(buffer, "%f %f %f\n", (double) forceLast[0], (double) forceLast[1], (double) forceLast[2]);
-            }
-            );
     writeXMLChunk<Atom>(outFile, atoms, "groupTag", [] (Atom &a, char buffer[BUFFERLEN]) {
             sprintf(buffer, "%u\n", a.groupTag);
             }
