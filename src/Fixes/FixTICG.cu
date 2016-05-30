@@ -15,7 +15,7 @@ FixTICG::FixTICG(boost::shared_ptr<State> state_, std::string handle_)
 {
     initializeParameters(CHandle, Cs);
     initializeParameters(rCutHandle, rCuts);
-    paramOrder = {CHandle, rCutHandle};
+    paramOrder = {rCutHandle, CHandle};
 }
 
 void FixTICG::compute(bool computeVirials) {

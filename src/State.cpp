@@ -47,12 +47,14 @@ State::State() {
     verbose = true;
     readConfig = SHARED(ReadConfig) (new ReadConfig(this));
     atomParams = AtomParams(this);
-    computeVirials = false; //will be set to true if a fix need it (like barostat) during run setup
+    computeVirials = false; //will be set to true if a fix needs it (like barostat).  Is max of fixes computesVirials bool
+    requiresCharges = false; //will be set to true if a fix needs it (like ewald sum).  Is max of fixes requiresCharges bool
     dataManager = DataManager(this);
     specialNeighborCoefs[0] = 0;
     specialNeighborCoefs[1] = 0;
     specialNeighborCoefs[2] = 0.5;
     rng_is_seeded = false;
+
 
 }
 
@@ -299,6 +301,13 @@ bool State::prepareForRun() {
     std::vector<uint> ids;
     std::vector<float> qs;
 
+    vector<bool> requireCharges = LISTMAP(Fix *, bool, fix, fixes, fix->requiresCharges);
+    requiresCharges = *max_element(requireCharges.begin(), requireCharges.end());
+
+    vector<bool> requireVirials = LISTMAP(Fix *, bool, fix, fixes, fix->requiresVirials);
+    computeVirials = *max_element(requireVirials.begin(), requireVirials.end());
+
+
     /*
     auto pivot = *std::next(atomsFirst, std::distance(atomsFirst,atomsLast)/2);
     auto middle = std::partition(atomsFirst, atomsLast,
@@ -343,7 +352,13 @@ bool State::prepareForRun() {
     gpd.vs.set(vs_vec);
     gpd.fs.set(fs_vec);
     gpd.ids.set(ids);
-    gpd.qs.set(qs);
+    if (requiresCharges) {
+        gpd.qs.set(qs);
+    }
+    if (computeVirials) {
+        vector<Virial> virials(atoms.size(), Virial());
+        gpd.virials.set(virials);
+    }
 
     // so... wanna keep ids tightly packed.  That's managed by program, not user
     std::vector<int> id_vec = LISTMAPREF(Atom, int, a, atoms, a.id);

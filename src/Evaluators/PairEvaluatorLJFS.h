@@ -10,31 +10,24 @@
 
 class EvaluatorLJFS {
     public:
-        inline __device__ void force(float3 &forceSum, float3 dr, float params[4], float lenSqr, float multiplier) {
-            float rCutSqr = params[2];
-            if (lenSqr < rCutSqr) {
-                float epstimes24 = params[0];
-                float sig6 = params[1];
-                float p1 = epstimes24*2*sig6*sig6;
-                float p2 = epstimes24*sig6;
-                float r2inv = 1/lenSqr;
-                float r6inv = r2inv*r2inv*r2inv;
-                float forceScalar = (r6inv * r2inv * (p1 * r6inv - p2)-params[3]/sqrt(lenSqr)) * multiplier ;
+        inline __device__ float3 force(float3 dr, float params[4], float lenSqr, float multiplier) {
+            float epstimes24 = params[1];
+            float sig6 = params[2];
+            float p1 = epstimes24*2*sig6*sig6;
+            float p2 = epstimes24*sig6;
+            float r2inv = 1/lenSqr;
+            float r6inv = r2inv*r2inv*r2inv;
+            float forceScalar = (r6inv * r2inv * (p1 * r6inv - p2)-params[3]/sqrt(lenSqr)) * multiplier ;
 
-                float3 forceVec = dr * forceScalar;
-                forceSum += forceVec;
-            }
+            return dr * forceScalar;
         }
-        inline __device__ void energy(float &sumEng, float params[4], float lenSqr, float multiplier) {
-            float rCutSqr = params[2];
-            if (lenSqr < rCutSqr) {
-                float epstimes24 = params[0];
-                float sig6 = params[1];
-                float r2inv = 1/lenSqr;
-                float r6inv = r2inv*r2inv*r2inv;
-                float sig6r6inv = sig6 * r6inv;
-                sumEng += 0.5 * (4*(epstimes24 / 24)*sig6r6inv*(sig6r6inv-1.0f)-params[3]*sqrt(lenSqr)) * multiplier; //0.5 b/c we need to half-count energy b/c pairs are redundant
-            }
+        inline __device__ float energy(float params[4], float lenSqr, float multiplier) {
+            float epstimes24 = params[1];
+            float sig6 = params[2];
+            float r2inv = 1/lenSqr;
+            float r6inv = r2inv*r2inv*r2inv;
+            float sig6r6inv = sig6 * r6inv;
+            return 0.5 * (4*(epstimes24 / 24)*sig6r6inv*(sig6r6inv-1.0f)-params[3]*sqrt(lenSqr)) * multiplier; //0.5 b/c we need to half-count energy b/c pairs are redundant
         }
 
 };

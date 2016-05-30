@@ -111,7 +111,7 @@ void Integrator::doDataCollection() {
             if (ds->nextCollectTurn == turn) {
                 ds->collect(turn, bounds, nAtoms, xs, vs, fs,
                             gpd.perParticleEng.getDevData(),
-                            gpd.perParticleVirial.getDevData(),
+                            gpd.virials.getDevData(),
                             prop);
                 ds->setNextCollectTurn(turn);
             }
@@ -225,6 +225,7 @@ void Integrator::basicPrepare(int numTurns) {
     state->runInit = state->turn;
     state->updateIdxFromIdCache();
     state->prepareForRun();
+    setActiveData();
     for (GPUArray *dat : activeData) {
         dat->dataToDevice();
     }
@@ -263,12 +264,16 @@ void Integrator::setActiveData() {
     activeData.push_back((GPUArray *) &state->gpd.vs);
     activeData.push_back((GPUArray *) &state->gpd.fs);
     activeData.push_back((GPUArray *) &state->gpd.idToIdxs);
-    activeData.push_back((GPUArray *) &state->gpd.qs);
+    if (state->requiresCharges) {
+        activeData.push_back((GPUArray *) &state->gpd.qs);
+    }
+    if (state->computeVirials) {
+        activeData.push_back((GPUArray *) &state->gpd.virials);
+    }
 }
 
 
 Integrator::Integrator(State *state_) : state(state_) {
-    setActiveData();
 }
 
 

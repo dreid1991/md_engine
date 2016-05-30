@@ -113,6 +113,7 @@ public:
     int periodicInterval; //!< Periodicity to wrap atoms and rebuild neighbor
                           //!< list
     bool computeVirials; //!< Fixes should compute virials
+    bool requiresCharges; //!< Charges will be stored 
 
     //! Cutoff parameter for pair interactions
     /*!

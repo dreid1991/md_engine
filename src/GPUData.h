@@ -23,7 +23,7 @@ public:
     GPUArrayPair<uint> ids;
     GPUArrayPair<float> qs;
     GPUArrayTex<int> idToIdxs;
-    GPUArrayPair<Virial> perParticleVirial;
+    GPUArrayPair<Virial> virials;
 
     GPUArrayGlobal<float4> xsBuffer;
     GPUArrayGlobal<float4> vsBuffer;
@@ -60,6 +60,7 @@ public:
         vs.switchIdx();
         fs.switchIdx();
         ids.switchIdx();
+        virials.switchIdx();
         return qs.switchIdx();
     }
 

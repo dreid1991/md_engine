@@ -42,7 +42,12 @@ __global__ void compute_force_iso(int nAtoms, float4 *xs, float4 *fs, uint16_t *
                     params_pair[pIdx] = params_shr[pIdx][sqrIdx];
                 }
                 //evaluator.force(forceSum, dr, params_pair, lenSqr, multiplier);
-                eval.force(forceSum, dr, params_pair, lenSqr, multiplier);
+                float rCutSqr = params_pair[0];
+                printf("hello\n");
+                if (rCutSqr < lenSqr) {
+                    float3 force = eval.force(dr, params_pair, lenSqr, multiplier);
+                    forceSum += force;
+                }
             }
 
         }   
@@ -100,7 +105,7 @@ __global__ void compute_energy_iso(int nAtoms, float4 *xs, float *perParticleEng
                 for (int pIdx=0; pIdx<N; pIdx++) {
                     params_pair[pIdx] = params_shr[pIdx][sqrIdx];
                 }
-                evaluator.energy(sumEng, params_pair, lenSqr, multiplier);
+                evaluator.energy(params_pair, lenSqr, multiplier);
 
             }
 

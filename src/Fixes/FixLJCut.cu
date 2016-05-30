@@ -10,22 +10,6 @@ using namespace std;
 namespace py = boost::python;
 const string LJCutType = "LJCut";
 
-__device__ void eval (float3 &forceSum, float3 dr, float *params, float lenSqr, float multiplier) {
-    printf("here\n");
-    float rCutSqr = params[2];
-    if (lenSqr < rCutSqr) {
-        float epstimes24 = params[0];
-        float sig6 = params[1];
-        float p1 = epstimes24*2*sig6*sig6;
-        float p2 = epstimes24*sig6;
-        float r2inv = 1/lenSqr;
-        float r6inv = r2inv*r2inv*r2inv;
-        float forceScalar = r6inv * r2inv * (p1 * r6inv - p2) * multiplier;
-
-        float3 forceVec = dr * forceScalar;
-        forceSum += forceVec;
-    }
-}
 
 
 FixLJCut::FixLJCut(boost::shared_ptr<State> state_, string handle_)
@@ -35,7 +19,7 @@ FixLJCut::FixLJCut(boost::shared_ptr<State> state_, string handle_)
     initializeParameters(epsHandle, epsilons);
     initializeParameters(sigHandle, sigmas);
     initializeParameters(rCutHandle, rCuts);
-    paramOrder = {epsHandle, sigHandle, rCutHandle};
+    paramOrder = {rCutHandle, epsHandle, sigHandle};
 }
 
 void FixLJCut::compute(bool computeVirials) {
