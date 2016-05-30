@@ -43,8 +43,7 @@ __global__ void compute_force_iso(int nAtoms, float4 *xs, float4 *fs, uint16_t *
                 }
                 //evaluator.force(forceSum, dr, params_pair, lenSqr, multiplier);
                 float rCutSqr = params_pair[0];
-                printf("hello\n");
-                if (rCutSqr < lenSqr) {
+                if (lenSqr < rCutSqr) {
                     float3 force = eval.force(dr, params_pair, lenSqr, multiplier);
                     forceSum += force;
                 }
