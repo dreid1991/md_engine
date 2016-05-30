@@ -8,7 +8,7 @@
 #include <boost/variant.hpp>
 #include <unordered_map>
 #include <array>
-
+#include "Virial.h"
 #include "GPUArrayDeviceGlobal.h"
 //#include "Atom.h"
 
@@ -22,6 +22,16 @@ void cumulativeSum(T *data, K n) {
     }
     data[n-1] = currentVal; //okay, so now nth place has grid's starting Idx, n+1th place has ending
 }
+
+inline __device__ void computeVirial(Virial &v, float3 force, float3 dr) {
+    v[0] += force.x * dr.x;
+    v[1] += force.y * dr.x;
+    v[2] += force.y * dr.y;
+    v[3] += force.z * dr.x;
+    v[4] += force.z * dr.y;
+    v[5] += force.z * dr.z;
+}
+
 
 template <class SRCVar, class SRCBase, class SRCFull, class DEST, class TYPEHOLDER, int N>
 int copyMultiAtomToGPU(int nAtoms, std::vector<SRCVar> &src, std::vector<int> &idxFromIdCache, GPUArrayDeviceGlobal<DEST> *dest, GPUArrayDeviceGlobal<int> *destIdxs, std::unordered_map<int, TYPEHOLDER> *forcerTypes, GPUArrayDeviceGlobal<TYPEHOLDER> *parameters, int maxExistingType) {

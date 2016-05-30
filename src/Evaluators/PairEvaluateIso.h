@@ -1,7 +1,9 @@
 #include "BoundsGPU.h"
 #include "cutils_func.h"
-template <class T, int N>
-__global__ void compute_force_iso(int nAtoms, float4 *xs, float4 *fs, uint16_t *neighborCounts, uint *neighborlist, uint32_t *cumulSumMaxPerBlock, int warpSize, float *parameters, int numTypes,  BoundsGPU bounds, float onetwoStr, float onethreeStr, float onefourStr, T eval) {
+#include "Virial.h"
+#include "helpers.h"
+template <class T, int N, bool COMPUTE_VIRIALS>
+__global__ void compute_force_iso(int nAtoms, float4 *xs, float4 *fs, uint16_t *neighborCounts, uint *neighborlist, uint32_t *cumulSumMaxPerBlock, int warpSize, float *parameters, int numTypes,  BoundsGPU bounds, float onetwoStr, float onethreeStr, float onefourStr, Virial *virials, T eval) {
     float multipliers[4] = {1, onetwoStr, onethreeStr, onefourStr};
     extern __shared__ float paramsAll[];
     int sqrSize = numTypes*numTypes;
@@ -10,9 +12,8 @@ __global__ void compute_force_iso(int nAtoms, float4 *xs, float4 *fs, uint16_t *
         params_shr[i] = paramsAll + i * sqrSize;
     }
     copyToShared<float>(parameters, paramsAll, N*sqrSize);
-
     __syncthreads();
-
+    Virial virialsSum = Virial();
     int idx = GETIDX();
     if (idx < nAtoms) {
         int baseIdx = baseNeighlistIdx(cumulSumMaxPerBlock, warpSize);
@@ -46,6 +47,9 @@ __global__ void compute_force_iso(int nAtoms, float4 *xs, float4 *fs, uint16_t *
                 if (lenSqr < rCutSqr) {
                     float3 force = eval.force(dr, params_pair, lenSqr, multiplier);
                     forceSum += force;
+                    if (COMPUTE_VIRIALS) {
+                        computeVirial(virialsSum, force, dr);
+                    }
                 }
             }
 
@@ -54,6 +58,10 @@ __global__ void compute_force_iso(int nAtoms, float4 *xs, float4 *fs, uint16_t *
         float4 forceCur = fs[idx];
         forceCur += forceSum;
         fs[idx] = forceCur;
+        if (COMPUTE_VIRIALS) {
+            virials[idx] += virialsSum;
+        }
+    
         //fs[idx] += forceSum;
 
     }

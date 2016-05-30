@@ -108,34 +108,9 @@ void IntegratorVerlet::run(int numTurns)
     basicPrepare(numTurns);
 
     int periodicInterval = state->periodicInterval;
-    /*
-    GPUArrayGlobal<float> result(1);
-    result.d_data.memset(0);
-    int n = 5000;
-    float sum = 0;
-    GPUArrayGlobal<float4> source(n);
-    for (int i=0; i<n; i++) {
-        source.h_data[i] = make_float4(i, 0, 0, 0);
-        sum += i;
-    }
-    source.dataToDevice();
-    cudaDeviceSynchronize();
-    int ntest = 100;
-    const int nPerThread = 8;
-    for (int i=0; i<ntest; i++) {
-        result.d_data.memset(0);
-        SAFECALL((NAME<float, float4, nPerThread><<<NBLOCK(n/(double)nPerThread), PERBLOCK, nPerThread*sizeof(float) * PERBLOCK>>>(result.d_data.data(), source.d_data.data(), n, 32)));
-        result.dataToHost();
-        cudaDeviceSynchronize();
-        printf("host %f dev %f\n", sum, result.h_data[0]);
 
-    }
-    auto end = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> duration = end - start;
-    mdMessage("runtime %f\n", duration.count());
-    exit(0);
-    */
     auto start = std::chrono::high_resolution_clock::now();
+    bool computeVirials = state->computeVirials;
     for (int i=0; i<numTurns; ++i) {
         if (state->turn % periodicInterval == 0) {
             state->gridGPU.periodicBoundaryConditions();
@@ -146,13 +121,13 @@ void IntegratorVerlet::run(int numTurns)
         asyncOperations();
         doDataCollection();
 
-        stepInit();
+        stepInit(computeVirials);
 
         // Perform first half of velocity-Verlet step
         preForce();
 
         // Recalculate forces
-        force(false);
+        force(computeVirials);
 
         // Perform second half of velocity-Verlet step
         postForce();

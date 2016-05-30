@@ -4,9 +4,20 @@
 
 class Virial {
     public:
-        float3 diagTerms;
-        float3 crossTerms;
-        Virial() : diagTerms(make_float3(0, 0, 0)), crossTerms(make_float3(0, 0, 0)) {};
+        float vals[6];
+        float &__host__ __device__ operator[] (int idx) {
+            return vals[idx];
+        }
+        __host__ __device__ Virial() {
+            for (int i=0; i<6; i++) {
+                vals[i] = 0;
+            }
+        }
+        inline __host__ __device__ void operator += (Virial &other) {
+            for (int i=0; i<6; i++) {
+                vals[i] += other[i];
+            }
+        }
 };
 
 #endif

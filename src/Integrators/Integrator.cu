@@ -11,8 +11,14 @@
 
 using namespace std;
 
-void Integrator::stepInit()
+void Integrator::stepInit(bool computeVirials)
 {
+    if (computeVirials) {
+        //reset virials each turn
+        state->gpd.virials.d_data.memset(0);
+    }
+
+
     for (Fix *f : state->fixes) {
         if (state->turn % f->applyEvery == 0) {
             f->stepInit();

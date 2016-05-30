@@ -91,6 +91,17 @@ public:
     void dataToDevice() {
         d_data.set(h_data.data());
     }
+    bool set(std::vector<T> &other) {
+    
+        if (other.size() < size()) {
+            h_data = other;
+            return true;
+        } else {
+            d_data = GPUArrayDeviceGlobal<T>(other.size());
+            h_data = other;
+        }
+        return false;
+    }
 
     //! Send data from GPU to CPU asynchronously
     void dataToHostAsync(cudaStream_t stream) {

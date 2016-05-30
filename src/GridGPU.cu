@@ -186,7 +186,6 @@ __device__ void copyToOtherList(T *from, T *to, int idx_init, int idx_final) {
                     state->gpd.fs(activeIdx), state->gpd.fs(!activeIdx),
                     state->gpd.ids(activeIdx), state->gpd.ids(!activeIdx),
                     state->gpd.qs(activeIdx), state->gpd.qs(!activeIdx),
-                    state->gpd.virials(activeIdx), state->gpd.virials(!activeIdx),
                     state->gpd.idToIdxs.getSurf(),
                     state->computeVirials,
                     state->requiresCharges,
@@ -199,9 +198,7 @@ __global__ void sortPerAtomArrays(
                     float4 *fsFrom,     float4 *fsTo,
                     uint *idsFrom, uint *idsTo,
                     float *qsFrom, float *qsTo,
-                    Virial *virialsFrom, Virial *virialsTo,
                     cudaSurfaceObject_t idToIdx,
-                    bool computeVirials,
                     bool requiresCharges,
                     uint32_t *gridCellArrayIdxs, uint16_t *idxInGridCell, int nAtoms,
                     float3 os, float3 ds, int3 ns) {
@@ -223,9 +220,6 @@ __global__ void sortPerAtomArrays(
         copyToOtherList<float4>(fsFrom, fsTo, idx, sortedIdx);
         if (requiresCharges) {
             copyToOtherList<float>(qsFrom, qsTo, idx, sortedIdx);
-        }
-        if (computeVirials) {
-            copyToOtherList<Virial>(virialsFrom, virialsTo, idx, sortedIdx);
         }
 
         int xAddrId = XIDX(id, sizeof(int)) * sizeof(int);
@@ -601,15 +595,14 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
         int gridIdx;
 
         //sort atoms by position, matching grid ordering
+
         sortPerAtomArrays<<<NBLOCK(nAtoms), PERBLOCK>>>(
                     state->gpd.xs(activeIdx), state->gpd.xs(!activeIdx),
                     state->gpd.vs(activeIdx), state->gpd.vs(!activeIdx),
                     state->gpd.fs(activeIdx), state->gpd.fs(!activeIdx),
                     state->gpd.ids(activeIdx), state->gpd.ids(!activeIdx),
                     state->gpd.qs(activeIdx), state->gpd.qs(!activeIdx),
-                    state->gpd.virials(activeIdx), state->gpd.virials(!activeIdx),
                     state->gpd.idToIdxs.getSurf(),
-                    state->computeVirials,
                     state->requiresCharges,
                     perCellArray.d_data.data(), perAtomArray.d_data.data(),
                     nAtoms, os, ds, ns

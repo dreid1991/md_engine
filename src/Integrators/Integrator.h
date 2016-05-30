@@ -21,7 +21,7 @@ class Integrator {
 
 protected:
     //! Call fixes just before a step
-    void stepInit();
+    void stepInit(bool computeVirials);
 
     //! Calculate force for all fixes
     /*!
