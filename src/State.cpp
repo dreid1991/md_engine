@@ -306,6 +306,7 @@ bool State::prepareForRun() {
 
     vector<bool> requireVirials = LISTMAP(Fix *, bool, fix, fixes, fix->requiresVirials);
     computeVirials = *max_element(requireVirials.begin(), requireVirials.end());
+    cout << "VIRIALS IS " << computeVirials << endl;
 
 
     /*

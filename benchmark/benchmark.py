@@ -25,7 +25,7 @@ for i in range(len(f)):
     state.addAtom('spc1', Vector(bits[0], bits[1], bits[2]))
 
 #state.addAtom('spc1', pos = Vector(10, 10, 10))
-#state.addAtom('spc1', pos = Vector(11.5, 10, 10))
+#state.addAtom('spc1', pos = Vector(10.5, 10.5, 10.7))
 #InitializeAtoms.initTemp(state, 'all', 1.2)
 
 fixNVT = FixNoseHoover(state, 'temp', 'all', 1.2, 0.1)
@@ -40,7 +40,7 @@ integVerlet = IntegratorVerlet(state)
 
 #writeconfig = WriteConfig(state, fn='test_out', writeEvery=5, format='xyz', handle='writer')
 #state.activateWriteConfig(writeconfig)
-integVerlet.run(100)
+integVerlet.run(1)
 #integVerlet.run(10000)
 print state.atoms[0].pos
 sumV = 0.
