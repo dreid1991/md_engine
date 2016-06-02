@@ -2,28 +2,38 @@
 #include "boost_for_export.h"
 using namespace boost::python;
 
-bool Bond::hasAtomId(int id) {
-	return ids[0] == id or ids[1] == id;
+
+BondHarmonicType::BondHarmonicType(BondHarmonic *bond) {
+    k = bond->k;
+    rEq = bond->rEq;
 }
 
-int Bond::otherId(int id) const {
-	if (ids[0] == id) {
-		return ids[1];
-	} else if (ids[1] == id) {
-		return ids[0];
-	} 
-	return -1;
+
+bool BondHarmonicType::operator==(const BondHarmonicType &other) const {
+    return k == other.k and rEq == other.rEq;
 }
 
-/*
-void Bond::swap() {
-    Atom *x = atoms[0];
-    atoms[0] = atoms[1];
-    atoms[1] = x;
+
+
+
+
+BondHarmonic::BondHarmonic(Atom *a, Atom *b, double k_, double rEq_, int type_) {
+    ids[0] = a->id;
+    ids[1] = b->id;
+    k = k_;
+    rEq = rEq_;
+    type = type_;
 }
-*/
+BondHarmonic::BondHarmonic(double k_, double rEq_, int type_) {
+    k = k_;
+    rEq = rEq_;
+    type = type_;
+}
 
-
+void BondGPU::takeIds(Bond *b) { 
+    myId = b->ids[0];
+    otherId = b->ids[0];
+}
 void export_BondHarmonic() {
   
     boost::python::class_<BondHarmonic,SHARED(BondHarmonic)> ( "BondHarmonic", boost::python::init<>())

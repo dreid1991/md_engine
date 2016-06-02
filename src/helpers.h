@@ -88,7 +88,6 @@ int copyMultiAtomToGPU(int nAtoms, std::vector<SRCVar> &src, std::vector<int> &i
     }
     *parameters = GPUArrayDeviceGlobal<TYPEHOLDER>(types.size());
     parameters->set(types.data());
-    cudaDeviceSynchronize();
 
 
     return maxPerBlock;

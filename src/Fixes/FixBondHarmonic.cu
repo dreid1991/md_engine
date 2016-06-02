@@ -2,12 +2,13 @@
 #include "FixBondHarmonic.h"
 #include "cutils_func.h"
 #include "FixHelpers.h"
-
+#include "BondEvaluate.h"
 namespace py = boost::python;
 using namespace std;
 
 const std::string bondHarmonicType = "BondHarmonic";
 
+/*
 __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureObject_t idToIdxs, BondHarmonicGPU *bonds, int *startstops, BoundsGPU bounds) {
     int idx = GETIDX();
     extern __shared__ BondHarmonicGPU bonds_shr[];
@@ -45,7 +46,7 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
         }
     }
 }
-
+*/
 
 FixBondHarmonic::FixBondHarmonic(SHARED(State) state_, string handle)
     : FixBond(state_, handle, string("None"), bondHarmonicType, true, 1),
@@ -73,14 +74,14 @@ void FixBondHarmonic::createBond(Atom *a, Atom *b, double k, double rEq, int typ
 void FixBondHarmonic::setBondTypeCoefs(int type, double k, double rEq) {
     assert(rEq>=0);
     BondHarmonic dummy(k, rEq, type);
-    setForcerType(type, dummy);
+    setBondType(type, dummy);
 }
 
 void FixBondHarmonic::compute(bool computeVirials) {
     int nAtoms = state->atoms.size();
     int activeIdx = state->gpd.activeIdx();
     //cout << "Max bonds per block is " << maxBondsPerBlock << endl;
-    compute_cu<<<NBLOCK(nAtoms), PERBLOCK, sizeof(BondHarmonicGPU) * maxBondsPerBlock>>>(nAtoms, state->gpd.xs(activeIdx), state->gpd.fs(activeIdx), state->gpd.idToIdxs.getTex(), bondsGPU.data(), bondIdxs.data(), state->boundsGPU);
+    compute_force_bond<<<NBLOCK(nAtoms), PERBLOCK, sizeof(BondGPU) * maxBondsPerBlock + sizeof(BondHarmonicType) * parameters.size()>>>(nAtoms, state->gpd.xs(activeIdx), state->gpd.fs(activeIdx), state->gpd.idToIdxs.getTex(), bondsGPU.data(), bondIdxs.data(), parameters.data(), parameters.size(), state->boundsGPU, evaluator);
 
 }
 

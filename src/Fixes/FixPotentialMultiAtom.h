@@ -84,10 +84,6 @@ class FixPotentialMultiAtom : public Fix, public TypedItemHolder {
             }
         }
 
-//HEY - NEED TO IMPLEMENT REFRESHATOMS
-//void createDihedral(Atom *, Atom *, Atom *, Atom *, double, double, double, double);
-//std::vector<pair<int, std::vector<int> > > neighborlistExclusions();
-//std::string restartChunk(std::string format);
         std::vector<int> getTypeIds() {
             std::vector<int> types;
             for (auto it = forcerTypes.begin(); it != forcerTypes.end(); it++) {

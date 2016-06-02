@@ -5,10 +5,10 @@
 #include "Bond.h"
 #include "FixBond.h"
 #include "VariantPyListInterface.h"
-
+#include "BondEvaluatorHarmonic.h"
 void export_FixBondHarmonic();
 
-class FixBondHarmonic : public FixBond<BondHarmonic, BondHarmonicGPU> {
+class FixBondHarmonic : public FixBond<BondHarmonic, BondGPU, BondHarmonicType> {
 
 public:
     VariantPyListInterface<BondVariant, BondHarmonic> pyListInterface;
@@ -22,6 +22,7 @@ public:
 
     void compute(bool);
     std::string restartChunk(std::string format);
+    BondEvaluatorHarmonic evaluator;
 
     // HEY - NEED TO IMPLEMENT REFRESHATOMS
     // consider that if you do so, max bonds per block could change

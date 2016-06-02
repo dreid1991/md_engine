@@ -29,8 +29,8 @@ class AngleHarmonicType {
 
 class AngleHarmonic : public Angle, public AngleHarmonicType {
     public:
-        AngleHarmonic(Atom *a, Atom *b, Atom *c, double k_, double thetaEq_, int type_=1);
-        AngleHarmonic(double k_, double thetaEq_, int type_=-1);
+        AngleHarmonic(Atom *a, Atom *b, Atom *c, double k_, double thetaEq_, int type_=-1);
+        AngleHarmonic(double k_, double thetaEq_, int type_=-1); //is this constructor used?
         AngleHarmonic(){};
         int type;
     
@@ -46,9 +46,8 @@ namespace std {
             return seed;
         }
     };
-
-
 }
+
 class AngleGPU {
     public:
         int ids[3];

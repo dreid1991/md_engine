@@ -1,11 +1,14 @@
 #define SMALL 0.0001f
-template <class ANGLETYPE, class EVALUATOR>
-__global__ void compute_force_bond(int nAtoms, float4 *xs, float4 *forces, cudaTextureObject_t idToIdxs, BondHarmonicGPU *bonds, int *startstops, BoundsGPU bounds) {
+template <class BONDTYPE, class EVALUATOR>
+__global__ void compute_force_bond(int nAtoms, float4 *xs, float4 *forces, cudaTextureObject_t idToIdxs, BondGPU *bonds, int *startstops, BONDTYPE *parameters, int nTypes, BoundsGPU bounds, EVALUATOR T) {
     int idx = GETIDX();
-    extern __shared__ BondHarmonicGPU bonds_shr[];
+    extern __shared__ int all_shr[];
     int idxBeginCopy = startstops[blockDim.x*blockIdx.x];
     int idxEndCopy = startstops[min(nAtoms, blockDim.x*(blockIdx.x+1))];
-    copyToShared<BondHarmonicGPU>(bonds + idxBeginCopy, bonds_shr, idxEndCopy - idxBeginCopy);
+    BondGPU *bonds_shr = (BondGPU *) all_shr;
+    BONDTYPE *parameters_shr = (BONDTYPE *) (bonds_shr + (idxEndCopy - idxBeginCopy));
+    copyToShared<BondGPU>(bonds + idxBeginCopy, bonds_shr, idxEndCopy - idxBeginCopy);
+    copyToShared<BONDTYPE>(parameters, parameters_shr, nTypes);
     __syncthreads();
     if (idx < nAtoms) {
   //      printf("going to compute %d\n", idx);
@@ -16,24 +19,29 @@ __global__ void compute_force_bond(int nAtoms, float4 *xs, float4 *forces, cudaT
         int shr_idx = startIdx - idxBeginCopy;
         int n = endIdx - startIdx;
         if (n>0) { //if you have atoms w/ zero bonds at the end, they will read one off the end of the bond list
-            int idSelf = bonds_shr[shr_idx].myId;
+            int myId = bonds_shr[shr_idx].myId;
 
-            int idxSelf = tex2D<int>(idToIdxs, XIDX(idSelf, sizeof(int)), YIDX(idSelf, sizeof(int)));
+            int myIdx = tex2D<int>(idToIdxs, XIDX(myId, sizeof(int)), YIDX(myId, sizeof(int)));
 
 
-            float3 pos = make_float3(xs[idxSelf]);
+            float3 pos = make_float3(xs[myIdx]);
             float3 forceSum = make_float3(0, 0, 0);
             for (int i=0; i<n; i++) {
-                BondHarmonicGPU b = bonds_shr[shr_idx + i];
-                int idOther = b.idOther;
-                int idxOther = tex2D<int>(idToIdxs, XIDX(idOther, sizeof(int)), YIDX(idOther, sizeof(int)));
+                BondGPU b = bonds_shr[shr_idx + i];
+                int type = b.type;
+                BONDTYPE bondType = parameters_shr[type];
 
-                float3 posOther = make_float3(xs[idxOther]);
+                int otherId = b.otherId;
+                int otherIdx = tex2D<int>(idToIdxs, XIDX(otherId, sizeof(int)), YIDX(otherId, sizeof(int)));
+
+                float3 posOther = make_float3(xs[otherIdx]);
                 // printf("atom %d bond %d gets force %f\n", idx, i, harmonicForce(bounds, pos, posOther, b.k, b.rEq));
                 // printf("xs %f %f\n", pos.x, posOther.x);
-                forceSum += harmonicForce(bounds, pos, posOther, b.k, b.rEq);
+                float3 bondVec  = bounds.minImage(pos - posOther);
+                float r = length(bondVec);
+                forceSum += T.force(bondVec, r, bondType);
             }
-            forces[idxSelf] += forceSum;
+            forces[myIdx] += forceSum;
         }
     }
 }
