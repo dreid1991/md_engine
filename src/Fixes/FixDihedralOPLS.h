@@ -23,6 +23,7 @@ public:
     FixDihedralOPLS(boost::shared_ptr<State> state_, std::string handle);
 
     void compute(bool);
+    void singlePointEng(float *);
 
     void createDihedral(Atom *, Atom *, Atom *, Atom *, double, double, double, double, int);
     void createDihedralPy(Atom *, Atom *, Atom *, Atom *, boost::python::list, int);

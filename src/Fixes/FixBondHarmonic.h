@@ -21,6 +21,7 @@ public:
     ~FixBondHarmonic(){};
 
     void compute(bool);
+    void singlePointEng(float *);
     std::string restartChunk(std::string format);
     BondEvaluatorHarmonic evaluator;
 

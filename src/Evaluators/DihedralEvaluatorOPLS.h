@@ -18,7 +18,7 @@ class DihedralEvaluatorOPLS {
                 sinPhi = EPSILON;
             }
             float invSinPhi = 1.0f / sinPhi;
-
+    //LAMMPS pre-multiplies all of its coefs by 0.5.  We're doing it in the kernel.
             float derivOfPotential = 0.5 * (
                     dihedralType.coefs[0] 
                     - 2.0f * dihedralType.coefs[1] * sinf(2.0f*phi) * invSinPhi
@@ -70,48 +70,20 @@ class DihedralEvaluatorOPLS {
 
 
         }
+        inline __device__ float energy(DihedralOPLSType dihedralType, float phi, float scValues[3], float invLenSqrs[3], float c12Mangs[3], float c0, float c, float invMagProds[2], float c12Mags[2], float invLens[3], float3 directors[3], int myIdxInDihedral) {
 
+            float eng = 0.5 * (
+                    dihedralType.coefs[0] * (1 + c)
+                    + dihedralType.coefs[1] * (1.0f - cosf(2.0f*phi))
+                    + dihedralType.coefs[2] * (1.0f + cosf(3.0f*phi)) 
+                    + dihedralType.coefs[3] * (1.0f - cosf(4.0f*phi)) 
+                    )
+                ;
+            return (float) (0.25f * eng);
+
+        }
 };
 
 #endif
 
-            //    printf("deriv is %f\n", derivOfPotential);
-            //    printf("coefs %f %f %f %f\n", dihedral.coefs[0],dihedral.coefs[1] , dihedral.coefs[2] , dihedral.coefs[3]);
-
-/*
-
-if (myIdxInDihedral <= 1) {
-    float3 a11Dir1 = directors[0] * a11;
-    float3 a12Dir2 = directors[1] * a12;
-    float3 a13Dir3 = directors[2] * a13;
-    myForce.x += a11Dir1.x + a12Dir2.x + a13Dir3.x;
-    myForce.y += a11Dir1.y + a12Dir2.y + a13Dir3.y;
-    myForce.z += a11Dir1.z + a12Dir2.z + a13Dir3.z;
-
-    if (myIdxInDihedral == 1) {
-
-        myForce = -sFloat3 - myForce;
-        //      printf("dihedral idx 1 gets force %f %f %f\n", myForce.x, myForce.y, myForce.z);
-    }
-    //} else {
-    //   printf("dihedral idx 0 gets force %f %f %f\n", myForce.x, myForce.y, myForce.z);
-    //}
-} else {
-    float3 a13Dir1 = directors[0] * a13;
-    float3 a23Dir2 = directors[1] * a23;
-    float3 a33Dir3 = directors[2] * a33;
-    myForce.x += a13Dir1.x + a23Dir2.x + a33Dir3.x;
-    myForce.y += a13Dir1.y + a23Dir2.y + a33Dir3.y;
-    myForce.z += a13Dir1.z + a23Dir2.z + a33Dir3.z;
-    if (myIdxInDihedral == 2) {
-        myForce = sFloat3 - myForce;
-        //     printf("dihedral idx 2 gets force %f %f %f\n", myForce.x, myForce.y, myForce.z);
-    }
-}
-
-            // } else {
-            //     printf("dihedral idx 3 gets force %f %f %f\n", myForce.x, myForce.y, myForce.z);
-            //}
-
-            */
 

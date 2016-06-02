@@ -33,7 +33,11 @@ public:
 
 
     }
+    inline __device__ float energy(AngleHarmonicType angleType, float theta, float3 directors[2]) {
+        float dTheta = theta - angleType.thetaEq;
+        return (1.0f / 6.0f) * dTheta * dTheta * angleType.k; // 1/6 comes from 1/3 (energy split between three atoms) and 1/2 from 1/2 k dtheta^2
 
+    }
 };
 
 #endif

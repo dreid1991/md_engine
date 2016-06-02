@@ -23,7 +23,7 @@ class EvaluatorLJ {
             float r2inv = 1/lenSqr;
             float r6inv = r2inv*r2inv*r2inv;
             float sig6r6inv = sig6 * r6inv;
-            return 0.5 * 4*(epstimes24 / 24)*sig6r6inv*(sig6r6inv-1.0f) * multiplier; //0.5 b/c we need to half-count energy b/c pairs are redundant
+            return 0.5f * 4*(epstimes24 / 24)*sig6r6inv*(sig6r6inv-1.0f) * multiplier; //0.5 b/c we need to half-count energy b/c pairs are redundant
         }
 
 };

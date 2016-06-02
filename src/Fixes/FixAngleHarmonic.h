@@ -21,6 +21,7 @@ public:
     FixAngleHarmonic(boost::shared_ptr<State> state_, std::string handle);
 
     void compute(bool);
+    void singlePointEng(float *);
 
     void createAngle(Atom *, Atom *, Atom *, double, double, int type_);
     void setAngleTypeCoefs(int, double, double);

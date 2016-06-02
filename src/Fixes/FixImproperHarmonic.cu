@@ -3,11 +3,12 @@
 #include "FixHelpers.h"
 #include "cutils_func.h"
 #define SMALL 0.001f
-
+#include "ImproperEvaluate.h"
 namespace py = boost::python;
 using namespace std;
 
 const std::string improperHarmonicType = "ImproperHarmonic";
+/*
 __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureObject_t idToIdxs, ImproperGPU *impropers, int *startstops, BoundsGPU bounds, ImproperHarmonicType *parameters, int nParameters) {
 
 
@@ -174,7 +175,7 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
         }
     }
 }
-
+*/
 
 FixImproperHarmonic::FixImproperHarmonic(SHARED(State) state_, string handle)
     : FixPotentialMultiAtom (state_, handle, improperHarmonicType, true),
@@ -184,10 +185,15 @@ FixImproperHarmonic::FixImproperHarmonic(SHARED(State) state_, string handle)
 void FixImproperHarmonic::compute(bool computeVirials) {
     int nAtoms = state->atoms.size();
     int activeIdx = state->gpd.activeIdx();
-    compute_cu<<<NBLOCK(nAtoms), PERBLOCK, sizeof(ImproperGPU) * maxForcersPerBlock + forcers.size() * sizeof(ImproperHarmonicType)>>>(nAtoms, state->gpd.xs(activeIdx), state->gpd.fs(activeIdx), state->gpd.idToIdxs.getTex(), forcersGPU.data(), forcerIdxs.data(), state->boundsGPU, parameters.data(), parameters.size());
+    compute_force_improper<<<NBLOCK(nAtoms), PERBLOCK, sizeof(ImproperGPU) * maxForcersPerBlock + forcers.size() * sizeof(ImproperHarmonicType)>>>(nAtoms, state->gpd.xs(activeIdx), state->gpd.fs(activeIdx), state->gpd.idToIdxs.getTex(), forcersGPU.data(), forcerIdxs.data(), state->boundsGPU, parameters.data(), parameters.size(), evaluator);
 
 }
+void FixImproperHarmonic::singlePointEng(float *perParticleEng) {
+    int nAtoms = state->atoms.size();
+    int activeIdx = state->gpd.activeIdx();
+    compute_energy_improper<<<NBLOCK(nAtoms), PERBLOCK, sizeof(ImproperGPU) * maxForcersPerBlock + forcers.size() * sizeof(ImproperHarmonicType)>>>(nAtoms, state->gpd.xs(activeIdx), perParticleEng, state->gpd.idToIdxs.getTex(), forcersGPU.data(), forcerIdxs.data(), state->boundsGPU, parameters.data(), parameters.size(), evaluator);
 
+}
 
 void FixImproperHarmonic::createImproper(Atom *a, Atom *b, Atom *c, Atom *d, double k, double thetaEq, int type) {
     vector<Atom *> atoms = {a, b, c, d};
