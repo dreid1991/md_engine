@@ -3,7 +3,7 @@
 #include "Virial.h"
 #include "helpers.h"
 template <class T, int N, bool COMPUTE_VIRIALS>
-__global__ void compute_force_iso(int nAtoms, float4 *xs, float4 *fs, uint16_t *neighborCounts, uint *neighborlist, uint32_t *cumulSumMaxPerBlock, int warpSize, float *parameters, int numTypes,  BoundsGPU bounds, float onetwoStr, float onethreeStr, float onefourStr, Virial *virials, T eval) {
+__global__ void compute_force_iso(int nAtoms, const float4 *__restrict__ xs, float4 *__restrict__ fs, const uint16_t *__restrict__ neighborCounts, const uint *__restrict__ neighborlist, const uint32_t * __restrict__ cumulSumMaxPerBlock, int warpSize, const float *__restrict__ parameters, int numTypes,  BoundsGPU bounds, float onetwoStr, float onethreeStr, float onefourStr, Virial *__restrict__ virials, T eval) {
     float multipliers[4] = {1, onetwoStr, onethreeStr, onefourStr};
     extern __shared__ float paramsAll[];
     int sqrSize = numTypes*numTypes;

@@ -7,7 +7,7 @@
 #define N_DATA_PER_THREAD 2 //must be power of 2, 4 found to be fastest for a floats and float4s
 //Attenion please: tests show that N_DATA_PER_THREAD = 4 is faster, but it gives lower accuracy. Could reformulate in-thread adding to work like a parallel reduction, then accuracy should be the same
 
-inline __device__ int baseNeighlistIdx(uint32_t *cumulSumMaxPerBlock, int warpSize) { 
+inline __device__ int baseNeighlistIdx(const uint32_t *cumulSumMaxPerBlock, int warpSize) { 
     uint32_t cumulSumUpToMe = cumulSumMaxPerBlock[blockIdx.x];
     uint32_t maxNeighInMyBlock = cumulSumMaxPerBlock[blockIdx.x+1] - cumulSumUpToMe;
     int myWarp = threadIdx.x / warpSize;
@@ -25,8 +25,9 @@ inline __device__ int baseNeighlistIdxFromIndex(uint32_t *cumulSumMaxPerBlock, i
     return baseIdx;
 
 }
+
 template <class T>
-__device__ void copyToShared (T *src, T *dest, int n) {
+__device__ void copyToShared (const T *src, T *dest, int n) {
     for (int i=threadIdx.x; i<n; i+=blockDim.x) {
         dest[i] = src[i];
     }
