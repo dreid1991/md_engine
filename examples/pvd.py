@@ -97,6 +97,8 @@ integratorRelax.run(50000, 1e-5)
 print 'FINISHED FIRST RUN'
 state.dt = 0.005
 
+InitializeAtoms.initTemp(state, 'all', subTemp) #need to add keyword arguments
+
 fixSpring.tetherFunc = springFuncEquiled
 fixSpring.updateTethers() #tethering to the positions they fell into
 fixSpring.k = 1000
@@ -162,7 +164,7 @@ for i in range(depositionRuns):
     toDepIdx += 1
     toDepIdx = toDepIdx % len(toDeposit)
 
-    curTemp = sum([a.vel.lenSqr()/3.0 for a in state.atoms]) / len(state.atoms)
+    curTemp = sum([a.vel.lenSqr()/2.0 for a in state.atoms]) / len(state.atoms)
     print 'cur temp %f ' % curTemp
 
 #and we're done!
