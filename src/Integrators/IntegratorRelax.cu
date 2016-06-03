@@ -195,8 +195,7 @@ double IntegratorRelax::run(int numTurns, num fTol) {
                             dt);
         CUT_CHECK_ERROR("FIRE_preForce_cu kernel execution failed");
 
-        int activeIdx = state->gpd.activeIdx();
-        Integrator::forceSingle(activeIdx);
+        Integrator::forceSingle(state->computeVirials);
 
         if (fTol > 0 and i > delay and not (i%delay)) { //only check every so often
             //total force calc

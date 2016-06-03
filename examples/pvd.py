@@ -89,7 +89,7 @@ state.activateWriteConfig(writer)
 state.dt = 0.001
 integrator = IntegratorVerlet(state)
 integrator.run(100) #letting substrate relax
-exit()
+
 integratorRelax = IntegratorRelax(state)
 #integratorRelax.set_params(dtMax_mult=1);
 integratorRelax.run(50000, 1e-5)
