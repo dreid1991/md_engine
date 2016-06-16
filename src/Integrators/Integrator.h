@@ -29,6 +29,8 @@ protected:
      *
      * This function iterates over all fixes and if the Fix should be applied
      * its force (and virials) is computed.
+     *
+     * \todo Use state->computeVirials instead of parameter
      */
     void force(bool computeVirials);
     
@@ -129,6 +131,8 @@ public:
      *
      * Calculate single point energy, i.e. calculate energy only for \link Fix
      * Fixes \endlink with Fix::forceSingle == True.
+     *
+     * \todo Use state->computeVirials instead of parameter
      */
     void forceSingle(bool computeVirials);
 

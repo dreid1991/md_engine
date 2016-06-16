@@ -13,7 +13,15 @@ class Fix2d : public Fix {
 
 public:
     Fix2d(boost::shared_ptr<State> state_, std::string handle_, int applyEvery_)
-      : Fix(state_, handle_, "all", _2dType, true, applyEvery_, false, false, 999)
+      : Fix(state_,      // state
+            handle_,     // handle
+            "all",       // groupHandle
+            _2dType,     // type
+            true,        // forceSingle
+            false,       // requiresVirials
+            false,       // requiresCharges
+            applyEvery_, // applyEvery
+            999)         // orderPreference
     {   }
 
     void compute(bool);

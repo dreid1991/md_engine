@@ -295,17 +295,22 @@ float State::getMaxRCut() {
 }
 
 bool State::prepareForRun() {
-
     // fixes have already prepared by the time the integrator calls this prepare
     std::vector<float4> xs_vec, vs_vec, fs_vec;
     std::vector<uint> ids;
     std::vector<float> qs;
 
+    requiresCharges = false;
     vector<bool> requireCharges = LISTMAP(Fix *, bool, fix, fixes, fix->requiresCharges);
-    requiresCharges = *max_element(requireCharges.begin(), requireCharges.end());
+    if (!requireCharges.empty()) {
+        requiresCharges = *max_element(requireCharges.begin(), requireCharges.end());
+    }
 
+    computeVirials = false;
     vector<bool> requireVirials = LISTMAP(Fix *, bool, fix, fixes, fix->requiresVirials);
-    computeVirials = *max_element(requireVirials.begin(), requireVirials.end());
+    if (!requireVirials.empty()) {
+        computeVirials = *max_element(requireVirials.begin(), requireVirials.end());
+    }
 
 
     /*

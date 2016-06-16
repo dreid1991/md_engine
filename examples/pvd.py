@@ -5,7 +5,6 @@ from math import *
 from random import random
 
 state = State()
-f2d = Fix2d(state, handle='2d', applyEvery=10)
 #state.deviceManager.setDevice(0)
 state.periodicInterval = 1
 state.shoutEvery = 50000 #how often is says % done
@@ -24,8 +23,8 @@ state.atomParams.addSpecies(handle='type1', mass=1)
 state.atomParams.addSpecies(handle='type2', mass=1)
 
 
-
-#state.activateFix(f2d)
+f2d = Fix2d(state, handle='2d', applyEvery=10)
+state.activateFix(f2d)
 
 ljcut = FixLJCut(state, handle='ljcut')
 
@@ -90,7 +89,7 @@ state.activateWriteConfig(writer)
 state.dt = 0.001
 integrator = IntegratorVerlet(state)
 integrator.run(100) #letting substrate relax
-exit()
+
 integratorRelax = IntegratorRelax(state)
 #integratorRelax.set_params(dtMax_mult=1);
 integratorRelax.run(50000, 1e-5)
