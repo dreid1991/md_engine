@@ -591,6 +591,8 @@ bool State::validAtom(Atom *a) {
 
 void State::deleteAtoms() {
     atoms.erase(atoms.begin(), atoms.end());
+    idBuffer.erase(idBuffer.begin(), idBuffer.end());
+    maxIdExisting = -1;
 }
 
 void State::setAtoms(std::vector<Atom> &fromSave) {
