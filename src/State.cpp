@@ -117,6 +117,11 @@ bool State::addAtomDirect(Atom a) {
     return true;
 }
 
+Atom &State::duplicateAtom(Atom a) {
+    addAtomDirect(a); //really just reassigns id (and mass, but will be unchanged)
+    return atoms.back();
+}
+
 //constructor should be same
 /*
 bool State::addBond(Atom *a, Atom *b, double k, double rEq) {
@@ -164,9 +169,37 @@ bool State::removeAtom(Atom *a) {
     return true;
 }
 
-void State::createMolecule(py::list ids) {
-    //implement
+void State::createMolecule(py::list idsPy) {
+    int len = py::len(idsPy);
+    vector<int> ids(len);
+    for (int i=0; i<len; i++) {
+        py::extract<int> idPy(idsPy[i]);
+        if (!idPy.check()) {
+            mdAssert(idPy.check(), "Non-integer number given for atom id in molecule");
+        }
+        int id = idPy;
+        ids[i] = id;
+        mdAssert(idToIdx[id] != -1, "Invalid atom id given for molecule");
+    }
+    molecules.append(Molecule(this, ids));
 }
+
+
+
+Molecule &State::duplicateMolecule(Molecule &molec) {
+    map<int, int> oldToNew;
+    for (int id : molec.ids) {
+        Atom &a = atoms[idToIdx[id]];
+        Atom &dup = duplicateAtom(a);
+        oldToNew[a.id] = dup.id;
+    }
+    for (Fix *fix : fixes) {
+        fix->duplicateMolecule(oldToNew);
+    }
+}
+
+
+
 
 //void State::updateIdxFromIdCache() {
 //    idToIdx = vector<int>(maxIdExisting+1);
@@ -177,7 +210,7 @@ void State::createMolecule(py::list ids) {
 
 //complete refresh of idToIdx map.  used to removing atoms
 void State::refreshIdToIdx() {
-    idToIdx = vector<int>(maxIdExisting+1);
+    idToIdx = vector<int>(maxIdExisting+1, -1);
     for (int i=0; i<atoms.size(); i++) {
         idToIdx[atoms[i].id] = i;
     }

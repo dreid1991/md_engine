@@ -16,11 +16,12 @@
 
 #define COEF_DEFAULT INT_MAX  // invalid coef value
 #include "TypedItemHolder.h"
+#include "VariantPyListInterface.h"
 //#include "FixHelpers.h"
 template <class CPUVariant, class CPUMember, class CPUBase, class GPUMember, class ForcerTypeHolder, int N>
 class FixPotentialMultiAtom : public Fix, public TypedItemHolder {
     public:
-        FixPotentialMultiAtom (SHARED(State) state_, std::string handle_, std::string type_, bool forceSingle_) : Fix(state_, handle_, "None", type_, forceSingle_, false, false, 1), forcersGPU(1), forcerIdxs(1)
+        FixPotentialMultiAtom (SHARED(State) state_, std::string handle_, std::string type_, bool forceSingle_) : Fix(state_, handle_, "None", type_, forceSingle_, false, false, 1), forcersGPU(1), forcerIdxs(1), pyListInterface(&forcers, &pyForcers)
     {
         maxForcersPerBlock = 0;
     }
@@ -31,6 +32,7 @@ class FixPotentialMultiAtom : public Fix, public TypedItemHolder {
         GPUArrayDeviceGlobal<GPUMember> forcersGPU;
         GPUArrayDeviceGlobal<int> forcerIdxs;
         GPUArrayDeviceGlobal<ForcerTypeHolder> parameters;
+        VariantPyListInterface<CPUVariant, CPUMember> pyListInterface;
         int maxForcersPerBlock;
 
         bool prepareForRun() {
@@ -90,6 +92,29 @@ class FixPotentialMultiAtom : public Fix, public TypedItemHolder {
                 types.push_back(it->first);
             }
             return types;
+        }
+        void duplicateMolecule(std::map<int, int> &oldToNew) {
+            int ii = forcers.size();
+            for (int i=0; i<ii; i++) {
+                CPUMember &forcer = boost::get<CPUMember>(forcers[i]);
+                std::array<int, N> &ids = forcer.ids;
+                std::array<int, N> idsNew = ids;
+                for (int j=0; j<N; j++) {
+                    if (oldToNew.find(ids[j]) != oldToNew.end()) {
+                        idsNew[j] = oldToNew[ids[j]];
+                    }
+                }
+                if (ids != idsNew) {
+                    CPUMember duplicate = forcer;
+                    duplicate.ids = idsNew;
+                    forcers.push_back(duplicate);
+                    pyListInterface.updateAppendedMember(false);
+
+
+                }
+            }
+            pyListInterface.requestRefreshPyList();            
+            
         }
 
 };

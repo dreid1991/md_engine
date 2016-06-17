@@ -7,8 +7,7 @@
 using namespace std;
 const string angleHarmonicType = "AngleHarmonic";
 FixAngleHarmonic::FixAngleHarmonic(boost::shared_ptr<State> state_, string handle)
-  : FixPotentialMultiAtom(state_, handle, angleHarmonicType, true),
-    pyListInterface(&forcers, &pyForcers)
+  : FixPotentialMultiAtom(state_, handle, angleHarmonicType, true)
 {   }
 
 namespace py = boost::python;

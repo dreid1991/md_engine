@@ -85,7 +85,7 @@ private:
 
 public:
     std::vector<Atom> atoms; //!< List of all atoms in the simulation
-    std::vector<Molecule> molecules; //!< List of all molecules in the simulation.  Molecules are just groups of atom ids with some tools for managing them
+    boost::python::list molecules; //!< List of all molecules in the simulation.  Molecules are just groups of atom ids with some tools for managing them.  Using python list because users should to be able to 'hold on' to molecules without worrying about segfaults
     GridGPU gridGPU; //!< The Grid on the GPU
     BoundsGPU boundsGPU; //!< Bounds on the GPU
     GPUData gpd; //!< All GPU data
@@ -308,6 +308,9 @@ public:
     bool removeAtom(Atom *a);
 
     void createMolecule(boost::python::list ids);
+
+    Molecule &duplicateMolecule(Molecule &);
+    Atom &duplicateAtom(Atom);
     void refreshIdToIdx();
     
     bool verbose; //!< Verbose output

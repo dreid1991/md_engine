@@ -5,6 +5,7 @@
 #include "Bond.h"
 #include "globalDefs.h"
 #include <pugixml.hpp>
+#include <map>
 
 class Atom;
 class State;
@@ -156,6 +157,14 @@ public:
      * Setup Fix from restart data.
      */
     virtual bool readFromRestart(pugi::xml_node restData){return true;};
+   //! Makes copies of appropriate data to handle duplicating molecules
+    /*!
+     * \param map of ids - original to copied
+     *
+     * \return void
+     *
+     */
+    virtual void duplicateMolecule(std::map<int, int> &oldToNew) {};
 
     //! Write restart data
     /*!

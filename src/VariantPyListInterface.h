@@ -23,7 +23,6 @@ private:
     std::vector<CPUVariant> *CPUMembers;
     boost::python::list *pyList;
     CPUVariant *CPUData;
-
     void refreshPyList() {
         int ii = boost::python::len(*pyList);
         for (int i=0; i<ii; i++) {
@@ -32,16 +31,22 @@ private:
             (*pyList)[i] = shrptr;
         }
     }
-    
 public:
+   
     VariantPyListInterface(std::vector<CPUVariant> *CPUMembers_, boost::python::list *pyList_)
       : CPUMembers(CPUMembers_), pyList(pyList_), CPUData(CPUMembers->data())
     {   }
 
-    void updateAppendedMember() {
+    void requestRefreshPyList() {
         if (CPUMembers->data() != CPUData) {
             refreshPyList();
             CPUData = CPUMembers->data();
+        }
+    }
+ 
+    void updateAppendedMember(bool copy=true) {
+        if (copy) {
+            requestRefreshPyList();
         }
         CPUMember *member = boost::get<CPUMember>(&(CPUMembers->back()));
         boost::shared_ptr<CPUMember> shrptr(member, deleter<CPUMember>);

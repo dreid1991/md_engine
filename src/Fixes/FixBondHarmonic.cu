@@ -9,8 +9,7 @@ using namespace std;
 const std::string bondHarmonicType = "BondHarmonic";
 
 FixBondHarmonic::FixBondHarmonic(SHARED(State) state_, string handle)
-    : FixBond(state_, handle, string("None"), bondHarmonicType, true, 1),
-      pyListInterface(&bonds, &pyBonds) {}
+    : FixBond(state_, handle, string("None"), bondHarmonicType, true, 1) {}
 
 
 

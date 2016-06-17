@@ -4,14 +4,12 @@
 
 #include "Bond.h"
 #include "FixBond.h"
-#include "VariantPyListInterface.h"
 #include "BondEvaluatorHarmonic.h"
 void export_FixBondHarmonic();
 
 class FixBondHarmonic : public FixBond<BondHarmonic, BondGPU, BondHarmonicType> {
 
 public:
-    VariantPyListInterface<BondVariant, BondHarmonic> pyListInterface;
     //int maxBondsPerBlock;
     //DataSet *eng;
     //DataSet *press;

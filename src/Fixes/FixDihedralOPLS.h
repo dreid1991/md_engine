@@ -6,7 +6,6 @@
 
 #include "FixPotentialMultiAtom.h"
 #include "Dihedral.h"
-#include "VariantPyListInterface.h"
 #include "DihedralEvaluatorOPLS.h"
 
 void export_FixDihedralOPLS();
@@ -16,7 +15,6 @@ class FixDihedralOPLS : public FixPotentialMultiAtom<DihedralVariant, DihedralOP
 private:
     DihedralEvaluatorOPLS evaluator;
 public:
-    VariantPyListInterface<DihedralVariant, DihedralOPLS> pyListInterface;
     //DataSet *eng;
     //DataSet *press;
 

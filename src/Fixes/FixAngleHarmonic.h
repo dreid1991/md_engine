@@ -4,7 +4,6 @@
 
 #include "FixPotentialMultiAtom.h"
 #include "Angle.h"
-#include "VariantPyListInterface.h"
 #include "AngleEvaluatorHarmonic.h"
 
 void export_FixAngleHarmonic();
@@ -16,7 +15,6 @@ private:
 public:
     //DataSet *eng;
     //DataSet *press;
-    VariantPyListInterface<AngleVariant, AngleHarmonic> pyListInterface;
 
     FixAngleHarmonic(boost::shared_ptr<State> state_, std::string handle);
 

@@ -9,7 +9,7 @@ using namespace std;
 const std::string dihedralOPLSType = "DihedralOPLS";
 
 
-FixDihedralOPLS::FixDihedralOPLS(SHARED(State) state_, string handle) : FixPotentialMultiAtom (state_, handle, dihedralOPLSType, true), pyListInterface(&forcers, &pyForcers) {}
+FixDihedralOPLS::FixDihedralOPLS(SHARED(State) state_, string handle) : FixPotentialMultiAtom (state_, handle, dihedralOPLSType, true){}
 
 
 void FixDihedralOPLS::compute(bool computeVirials) {

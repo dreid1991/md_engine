@@ -13,8 +13,7 @@
 #include "helpers.h"  // cumulative sum
 #include "TypedItemHolder.h"
 #include <unordered_map>
-
-
+#include "VariantPyListInterface.h"
 
 
 
@@ -86,12 +85,13 @@ class FixBond : public Fix, public TypedItemHolder {
         GPUArrayDeviceGlobal<BONDTYPEHOLDER> parameters; 
         std::vector<BondVariant> bonds;
         boost::python::list pyBonds;
+        VariantPyListInterface<BondVariant, CPUMember> pyListInterface;
         int maxBondsPerBlock;
         std::unordered_map<int, BONDTYPEHOLDER> bondTypes;
         
         FixBond(SHARED(State) state_, std::string handle_, std::string groupHandle_, std::string type_,
                 bool forceSingle_, int applyEvery_)
-            : Fix(state_, handle_, groupHandle_, type_, forceSingle_, false, false, applyEvery_) {
+            : Fix(state_, handle_, groupHandle_, type_, forceSingle_, false, false, applyEvery_), pyListInterface(&bonds, &pyBonds) {
             maxBondsPerBlock = 0;
         }
 
@@ -151,6 +151,30 @@ class FixBond : public Fix, public TypedItemHolder {
                 ids.push_back(it->first);
             }
             return ids;
+        }
+        void duplicateMolecule(std::map<int, int> &oldToNew) {
+            int ii = bonds.size();
+            for (int i=0; i<ii; i++) {
+                CPUMember &b = boost::get<CPUMember>(bonds[i]);
+                std::array<int, 2> &ids = b.ids;
+                std::array<int, 2> idsNew = ids;
+                for (int j=0; j<2; j++) {
+                    if (oldToNew.find(ids[j]) != oldToNew.end()) {
+                        idsNew[j] = oldToNew[ids[j]];
+                    }
+                }
+                if (ids != idsNew) {
+                    CPUMember duplicate = b;
+                    duplicate.ids = idsNew;
+                    bonds.push_back(duplicate);
+                    pyListInterface.updateAppendedMember(false);
+
+
+                }
+            }
+            pyListInterface.requestRefreshPyList();
+
+            
         }
 
 
