@@ -34,7 +34,7 @@ inline __device__ void computeVirial(Virial &v, float3 force, float3 dr) {
 
 
 template <class SRCVar, class SRCBase, class SRCFull, class DEST, class TYPEHOLDER, int N>
-int copyMultiAtomToGPU(int nAtoms, std::vector<SRCVar> &src, std::vector<int> &idxFromIdCache, GPUArrayDeviceGlobal<DEST> *dest, GPUArrayDeviceGlobal<int> *destIdxs, std::unordered_map<int, TYPEHOLDER> *forcerTypes, GPUArrayDeviceGlobal<TYPEHOLDER> *parameters, int maxExistingType) {
+int copyMultiAtomToGPU(int nAtoms, std::vector<SRCVar> &src, std::vector<int> &idToIdx, GPUArrayDeviceGlobal<DEST> *dest, GPUArrayDeviceGlobal<int> *destIdxs, std::unordered_map<int, TYPEHOLDER> *forcerTypes, GPUArrayDeviceGlobal<TYPEHOLDER> *parameters, int maxExistingType) {
     std::vector<int> idxs(nAtoms+1, 0); //started out being used as counts
     std::vector<int> numAddedPerAtom(nAtoms, 0);
     //so I can arbitrarily order.  I choose to do it by the the way atoms happen to be sorted currently.  Could be improved.
@@ -42,7 +42,7 @@ int copyMultiAtomToGPU(int nAtoms, std::vector<SRCVar> &src, std::vector<int> &i
         SRCFull &s = boost::get<SRCFull>(sVar);
         for (int i=0; i<N; i++) {
             int id = s.ids[i];
-            idxs[idxFromIdCache[id]]++;
+            idxs[idToIdx[id]]++;
         }
 
     }
@@ -54,7 +54,7 @@ int copyMultiAtomToGPU(int nAtoms, std::vector<SRCVar> &src, std::vector<int> &i
         std::array<int, N> atomIds = s.ids;
         std::array<int, N> atomIndexes;
         for (int i=0; i<N; i++) {
-            atomIndexes[i] = idxFromIdCache[atomIds[i]];
+            atomIndexes[i] = idToIdx[atomIds[i]];
         }
         DEST d;
         d.takeIds(base);

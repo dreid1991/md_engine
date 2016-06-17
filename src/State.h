@@ -37,6 +37,7 @@
 #include "boost_for_export.h"
 #include "DeviceManager.h"
 
+
 void export_State();
 
 class PythonOperation;
@@ -471,10 +472,10 @@ public:
 
     // these two are for managing atom ids such that they are densely packed
     // and it's quick at add atoms in large systems
-    std::vector<int> idxFromIdCache; //!< Cache for easier Atom index lookup.
+    std::vector<int> idToIdx; //!< Cache for easier Atom index lookup.
 
     //! Update the Atom index cache
-    void updateIdxFromIdCache();
+    //void updateIdxFromIdCache();
 
     //! Maximum Atom Id for all existing Atoms
     /*!

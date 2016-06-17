@@ -43,7 +43,7 @@ public:
     typedef typename Array::value_type key_type;
     typedef typename Array::size_type index_type;
     typedef typename Array::size_type size_type;
-    typedef typename Array::difference_type difference_type;
+    //typedef typename Array::difference_type difference_type;
 
     static data_type& get_item(Array& arr, index_type i) {
         std::cout << "getter!" << std::endl;

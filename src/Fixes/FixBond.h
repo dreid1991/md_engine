@@ -20,7 +20,7 @@
 
 template <class SRC, class DEST, class BONDTYPEHOLDER>
 int copyBondsToGPU(std::vector<Atom> &atoms, 
-                   std::vector<BondVariant> &src, std::vector<int> &idxFromIdCache,
+                   std::vector<BondVariant> &src, std::vector<int> &idToIdx,
                    GPUArrayDeviceGlobal<DEST> *dest, GPUArrayDeviceGlobal<int> *destIdxs, 
                    GPUArrayDeviceGlobal<BONDTYPEHOLDER> *parameters, int maxExistingType, std::unordered_map<int, BONDTYPEHOLDER> &bondTypes) {
 
@@ -31,7 +31,7 @@ int copyBondsToGPU(std::vector<Atom> &atoms,
     for (BondVariant &sVar : src) {
         SRC &s = boost::get<SRC>(sVar);
         for (int i=0; i<2; i++) {
-            idxs[idxFromIdCache[s.ids[i]]] ++;
+            idxs[idToIdx[s.ids[i]]] ++;
         }
     }
     cumulativeSum(idxs.data(), atoms.size()+1);  
@@ -41,7 +41,7 @@ int copyBondsToGPU(std::vector<Atom> &atoms,
         std::array<int, 2> atomIds = s.ids;
         std::array<int, 2> atomIndexes;
         for (int i=0; i<2; i++) {
-            atomIndexes[i] = idxFromIdCache[atomIds[i]];
+            atomIndexes[i] = idToIdx[atomIds[i]];
         }
         for (int i=0; i<2; i++) {
             DEST a;
@@ -135,8 +135,8 @@ class FixBond : public Fix, public TypedItemHolder {
                 } 
             }
             maxBondsPerBlock = copyBondsToGPU<CPUMember, GPUMember, BONDTYPEHOLDER>(
-                    atoms, bonds, state->idxFromIdCache, &bondsGPU, &bondIdxs, &parameters, maxExistingType, bondTypes);
-           // maxbondsPerBlock = copyMultiAtomToGPU<CPUVariant, CPUBase, CPUMember, GPUMember, ForcerTypeHolder, N>(state->atoms.size(), forcers, state->idxFromIdCache, &forcersGPU, &forcerIdxs, &forcerTypes, &parameters, maxExistingType);
+                    atoms, bonds, state->idToIdx, &bondsGPU, &bondIdxs, &parameters, maxExistingType, bondTypes);
+           // maxbondsPerBlock = copyMultiAtomToGPU<CPUVariant, CPUBase, CPUMember, GPUMember, ForcerTypeHolder, N>(state->atoms.size(), forcers, state->idToIdx, &forcersGPU, &forcerIdxs, &forcerTypes, &parameters, maxExistingType);
 
             return true;
         } 

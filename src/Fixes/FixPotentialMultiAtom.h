@@ -61,7 +61,7 @@ class FixPotentialMultiAtom : public Fix, public TypedItemHolder {
                     }
                 } 
             }
-            maxForcersPerBlock = copyMultiAtomToGPU<CPUVariant, CPUBase, CPUMember, GPUMember, ForcerTypeHolder, N>(state->atoms.size(), forcers, state->idxFromIdCache, &forcersGPU, &forcerIdxs, &forcerTypes, &parameters, maxExistingType);
+            maxForcersPerBlock = copyMultiAtomToGPU<CPUVariant, CPUBase, CPUMember, GPUMember, ForcerTypeHolder, N>(state->atoms.size(), forcers, state->idToIdx, &forcersGPU, &forcerIdxs, &forcerTypes, &parameters, maxExistingType);
 
             return true;
         } 

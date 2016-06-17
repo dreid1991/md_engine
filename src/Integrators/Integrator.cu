@@ -229,7 +229,7 @@ void Integrator::basicPrepare(int numTurns) {
     int nAtoms = state->atoms.size();
     state->runningFor = numTurns;
     state->runInit = state->turn;
-    state->updateIdxFromIdCache();
+    //state->updateIdxFromIdCache();
     state->prepareForRun();
     setActiveData();
     for (GPUArray *dat : activeData) {
