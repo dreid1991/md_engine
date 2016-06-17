@@ -602,6 +602,7 @@ void State::deleteAtoms() {
     atoms.erase(atoms.begin(), atoms.end());
     idBuffer.erase(idBuffer.begin(), idBuffer.end());
     maxIdExisting = -1;
+    idToIdx.erase(idToIdx.begin(), idToIdx.end());
 }
 
 void State::setAtoms(std::vector<Atom> &fromSave) {
