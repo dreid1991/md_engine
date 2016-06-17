@@ -3,7 +3,10 @@
 
 #include <vector>
 #include "Vector.h"
+
 class State;
+
+void export_Molecule();
 
 class Molecule {
 private:
@@ -14,10 +17,9 @@ public:
     void translate(Vector &);
     void rotate(Vector &around, Vector &axis, double theta);
     Vector COM();
-    
-
-
 };
+
+
 
 
 #endif
