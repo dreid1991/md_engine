@@ -30,6 +30,7 @@ public:
     BondHarmonicType(BondHarmonic *);
     BondHarmonicType(){};
     bool operator==(const BondHarmonicType &) const;
+    std::string getInfoString();
 };
 //
 //for forcer maps
@@ -61,6 +62,7 @@ class BondHarmonic : public Bond, public BondHarmonicType {
         BondHarmonic(double k_, double rEq_, int type_=-1); //is this constructor used?
         BondHarmonic(){};
         int type;
+	std::string getInfoString();
 };	
 
 void export_BondHarmonic();

@@ -133,29 +133,6 @@ vector<Bond> buildBonds(pugi::xml_node &config, State *state, string tag, int nu
 }
 */
 
-void loadFixes(pugi::xml_node &config, State *state) {
-  auto fixes_xml = config.child("fixes");
-  if (fixes_xml) {
-    auto curr_fix = fixes_xml.first_child();
-
-    string tag = curr_fix.name();
-    while (tag  == "fix") {
-
-      string handle = curr_fix.attribute("handle").value();
-      string type = curr_fix.attribute("type").value();
-
-      // looping through fixes to find a match                                                                                                          
-      for (Fix *f : state->fixes) {
-	if (f->handle == handle && f->type == type){
-	  f->readFromRestart(curr_fix);
-	}
-      }
-      curr_fix = curr_fix.next_sibling();
-      tag = curr_fix.name();
-    }
-  }
-}
-
 bool ReadConfig::read() {
     cout << "READING A CONFIG" << endl;
 	//state->deleteBonds();
@@ -217,7 +194,6 @@ bool ReadConfig::read() {
 
 	loadAtomParams(*config, state);
 	loadBounds(*config, state);
-	loadFixes(*config, state);
 	for (Atom &a : readAtoms) {
 		state->addAtomDirect(a);
 	}
@@ -291,10 +267,31 @@ void ReadConfig::loadFile(string fn_) {
 	config = SHARED(pugi::xml_node) (new pugi::xml_node());
 	fn = fn_;
 	pugi::xml_parse_result result = doc->load_file(fn.c_str());
+	if (result != pugi::status_ok) {
+	  std::cout << "XML [" << fn << "] parsed with errors\n";
+	  std::cout << "Error description: " << result.description() << "\n";
+	  std::cout << "Error offset: " << result.offset << "\n\n";
+        }
 	assert(result.status == pugi::status_ok);
     fileOpen = true;
 }
 
+pugi::xml_node ReadConfig::readFix(string type, string handle) {
+  if (config) {
+    cout << "config exists" << endl;
+    auto node = config->child("fixes").first_child();
+    while (node) {
+      string t = node.attribute("type").value();
+      string h = node.attribute("handle").value();
+      if (t == type && h == handle) {
+        cout << "found the correct node: " << node.attribute("handle").value() << endl;
+        return node;
+      }
+      node = node.next_sibling();
+    }
+  }
+  return pugi::xml_node();
+}
 
 pugi::xml_node ReadConfig::readNode(string nodeTag) {
     if (config) {

@@ -16,6 +16,7 @@ class Dihedral{
         std::array<int, 4> ids;
         int type;
         void takeIds(Dihedral *);
+	std::string getInfoString();
 };
 
 class DihedralOPLSType {
@@ -24,6 +25,7 @@ class DihedralOPLSType {
         DihedralOPLSType(DihedralOPLS *);
         DihedralOPLSType(){};
         bool operator==(const DihedralOPLSType &) const;
+	std::string getInfoString();
 };
 
 
@@ -33,7 +35,7 @@ class DihedralOPLS : public Dihedral, public DihedralOPLSType {
         DihedralOPLS(Atom *a, Atom *b, Atom *c, Atom *d, double coefs_[4], int type_);
         DihedralOPLS(double coefs_[4], int type_);
         DihedralOPLS(){};
-    
+	std::string getInfoString();
 };
 
 class DihedralGPU {

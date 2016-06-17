@@ -16,6 +16,7 @@ class Improper {
         std::array<int, 4> ids;
         int type;
         void takeIds(Improper *);
+	std::string getInfoString();
 };
 
 
@@ -27,7 +28,7 @@ class ImproperHarmonic : public Improper {
         ImproperHarmonic(Atom *a, Atom *b, Atom *c, Atom *d, double k, double thetaEq, int type_=-1);
         ImproperHarmonic(double k, double thetaEq, int type_=-1);
         ImproperHarmonic(){};
-    
+	std::string getInfoString();
 };
 
 class ImproperHarmonicType {
@@ -37,6 +38,7 @@ class ImproperHarmonicType {
         ImproperHarmonicType(ImproperHarmonic *);
         ImproperHarmonicType(){}; //for hashing, need default constructor, == operator, and std::hash function
         bool operator==(const ImproperHarmonicType &) const;
+	std::string getInfoString();
 };
 
 class ImproperGPU{

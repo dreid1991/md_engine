@@ -17,7 +17,7 @@ class FixImproperHarmonic: public FixPotentialMultiAtom<ImproperVariant, Imprope
 
         void compute(bool);
         void singlePointEng(float *);
-        std::string restartChunk(std::string format);
+	bool readFromRestart(pugi::xml_node restData);
 
         void createImproper(Atom *, Atom *, Atom *, Atom *, double, double, int);
         void setImproperTypeCoefs(int, double, double);

@@ -28,7 +28,7 @@ public:
     void setDihedralTypeCoefs(int, boost::python::list);
 
     //std::vector<pair<int, std::vector<int> > > neighborlistExclusions();
-    std::string restartChunk(std::string format);
+    bool readFromRestart(pugi::xml_node restData);
 
 };
 

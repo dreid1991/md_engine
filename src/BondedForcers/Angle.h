@@ -16,6 +16,7 @@ class Angle {
         int type;
         std::array<int, 3> ids;
         void takeIds(Angle *);
+	std::string getInfoString();
 };
 
 class AngleHarmonicType {
@@ -25,6 +26,7 @@ class AngleHarmonicType {
         AngleHarmonicType(AngleHarmonic *);
         AngleHarmonicType(){};
         bool operator==(const AngleHarmonicType &) const;
+	std::string getInfoString();
 };
 
 class AngleHarmonic : public Angle, public AngleHarmonicType {
@@ -33,7 +35,7 @@ class AngleHarmonic : public Angle, public AngleHarmonicType {
         AngleHarmonic(double k_, double thetaEq_, int type_=-1); //is this constructor used?
         AngleHarmonic(){};
         int type;
-    
+	std::string getInfoString();
 };
 
 //for forcer maps

@@ -13,6 +13,7 @@
 #include "State.h"
 #include "Fix.h"
 #include "helpers.h"
+#include "ReadConfig.h"
 
 #define COEF_DEFAULT INT_MAX  // invalid coef value
 #include "TypedItemHolder.h"
@@ -75,6 +76,23 @@ class FixPotentialMultiAtom : public Fix, public TypedItemHolder {
             ForcerTypeHolder holder (&forcer); 
             forcerTypes[n] = holder;
         }
+
+	std::string restartChunk(std::string format) {
+	  std::stringstream ss;
+	  ss << "<types>\n";
+	  for (auto it = forcerTypes.begin(); it != forcerTypes.end(); it++) {
+	    ss << "<" << "type id='" << it->first << "'";
+	    ss << forcerTypes[it->first].getInfoString() << "'/>\n";
+	  }
+	  ss << "</types>\n";
+	  ss << "<members>\n";
+	  for (CPUVariant &forcerVar : forcers) {
+	    CPUMember &forcer= boost::get<CPUMember>(forcerVar);
+	    ss << forcer.getInfoString();
+	  }
+	  ss << "</members>\n";
+	  return ss.str();
+	}
 
         void atomsValid(std::vector<Atom *> &atoms) {
             for (int i=0; i<atoms.size(); i++) {

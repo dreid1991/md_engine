@@ -35,6 +35,7 @@ public:
     {   }
     ReadConfig(State *state_);
 
+    pugi::xml_node readFix(std::string type, std::string handle);
     pugi::xml_node readNode(std::string nodeTag);
 
     void loadFile(std::string);  // change to bool or something to give feedback about if it's a file or not

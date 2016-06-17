@@ -34,6 +34,19 @@ void BondGPU::takeIds(Bond *b) {
     myId = b->ids[0];
     otherId = b->ids[0];
 }
+
+std::string BondHarmonicType::getInfoString() {
+  std::stringstream ss;
+  ss << " k='" << k << "' rEq='" << rEq;
+  return ss.str();
+}
+
+std::string BondHarmonic::getInfoString() {
+  std::stringstream ss;
+  ss << "<member type='" << type << "' k='" << k << " rEq='" << rEq << "' atomID_a='" << ids[0] <<  "' atomID_b='" << ids[1] << "'>\n";
+  return ss.str();
+}
+
 void export_BondHarmonic() {
   
     boost::python::class_<BondHarmonic,SHARED(BondHarmonic)> ( "BondHarmonic", boost::python::init<>())

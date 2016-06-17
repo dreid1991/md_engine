@@ -42,6 +42,24 @@ DihedralOPLSType::DihedralOPLSType(DihedralOPLS *dihedral) {
     }
 }
 
+std::string Dihedral::getInfoString() {
+  std::stringstream ss;
+  ss << "<dihedral type=" << Dihedral::type << " />\n";
+  ss << "<atomIDs>\n";
+  for (int id : Dihedral::ids) {
+    ss << id << "\n";
+  }
+  ss << "</atomIDs>\n";
+  ss << "</dihedral>\n";
+  return ss.str();
+}
+
+std::string DihedralOPLSType::getInfoString() {
+  std::stringstream ss;
+  ss << " coef_a='" << coefs[0]<< "' coef_b='" << coefs[1] << "' coef_c='" << coefs[2] << "' coef_d='" << coefs[3];
+  return ss.str();
+}
+
 bool DihedralOPLSType::operator==(const DihedralOPLSType &other) const {
     for (int i=0; i<4; i++) {
         if (coefs[i] != other.coefs[i]) {

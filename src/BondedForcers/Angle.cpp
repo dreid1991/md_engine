@@ -37,6 +37,19 @@ AngleHarmonicType::AngleHarmonicType(AngleHarmonic *angle) {
     thetaEq = angle->thetaEq;
 }
 
+std::string AngleHarmonicType::getInfoString() {
+  std::stringstream ss;
+  ss << " k='" << k << "' thetaEq='" << thetaEq;
+  return ss.str();
+}
+
+std::string AngleHarmonic::getInfoString() {
+  std::stringstream ss;
+  ss << "<member type='" << type << "' k='" << k << "' thetaEq='" << thetaEq << "' atomID_a='" << ids[0] << "' atomID_b='" << ids[1] << "' atomID_c\
+='" << ids[2] << "'/>\n";
+  return ss.str();
+}
+
 bool AngleHarmonicType::operator==(const AngleHarmonicType &other) const {
     return k == other.k and thetaEq == other.thetaEq;
 }
