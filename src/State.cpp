@@ -156,39 +156,32 @@ bool State::removeAtom(Atom *a) {
     }
     int idx = a - &atoms[0];
     atoms.erase(atoms.begin()+idx, atoms.begin()+idx+1);
+    refreshIdToIdx();
+
 
     changedAtoms = true;
     redoNeighbors = true;
     return true;
 }
 
-
-int State::idxFromId(int id) {
-    //! \todo Is variable ii really more efficient?
-    //        Atoms are sorted, right? Binary search?
-    for (int i=0,ii=atoms.size(); i<ii; i++) {
-        if (atoms[i].id == id) {
-            return i;
-        }
-    }
-    return -1;
+void State::createMolecule(py::list ids) {
+    //implement
 }
+
 //void State::updateIdxFromIdCache() {
 //    idToIdx = vector<int>(maxIdExisting+1);
 //    for (int i=0; i<atoms.size(); i++) {
 //        idToIdx[atoms[i].id] = i;
  //   }
 //}
-Atom *State::atomFromId(int id) {
-    for (int i=0,ii=atoms.size(); i<ii; i++) {
-        if (atoms[i].id == id) {
-            return &atoms[i];
-        }
+
+//complete refresh of idToIdx map.  used to removing atoms
+void State::refreshIdToIdx() {
+    idToIdx = vector<int>(maxIdExisting+1);
+    for (int i=0; i<atoms.size(); i++) {
+        idToIdx[atoms[i].id] = i;
     }
-    return NULL;
 }
-
-
 /*  use atomParams.addSpecies
 int State::addSpecies(std::string handle, double mass) {
     int id = atomParams.addSpecies(handle, mass);
@@ -670,7 +663,6 @@ BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(State_seedRNG_overloads,State::seedRNG,0,
                 .def("getPeriodic", &State::getPeriodic) //boost is grumpy about readwriting static arrays.  can readonly, but that's weird to only allow one w/ wrapper func for other.  doing wrapper funcs for both
                 .def("removeAtom", &State::removeAtom)
                 //.def("removeBond", &State::removeBond)
-                .def("idxFromId", &State::idxFromId)
 
                 .def("addToGroup", &State::addToGroupPy)
                 .def("destroyGroup", &State::destroyGroup)

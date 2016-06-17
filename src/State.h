@@ -27,6 +27,7 @@
 
 #include "AtomParams.h"
 #include "Atom.h"
+#include "Molecule.h"
 #include "Bond.h"
 #include "GPUData.h"
 #include "GridGPU.h"
@@ -84,6 +85,7 @@ private:
 
 public:
     std::vector<Atom> atoms; //!< List of all atoms in the simulation
+    std::vector<Molecule> molecules; //!< List of all molecules in the simulation.  Molecules are just groups of atom ids with some tools for managing them
     GridGPU gridGPU; //!< The Grid on the GPU
     BoundsGPU boundsGPU; //!< Bounds on the GPU
     GPUData gpd; //!< All GPU data
@@ -305,24 +307,9 @@ public:
      */
     bool removeAtom(Atom *a);
 
-    //! Get the index of an Atom in the list of Atoms from the Atom Id
-    /*!
-     * \param id Atom Id to find in the list
-     * \return Index in the Atom list and -1 if no Atom with this Id exists
-     *
-     * As Atoms can be added and removed from the simulation, the index of an
-     * Atom in the atoms vector is not identical to the Atom Id. This function
-     * returns the index in the vector for a given Atom Id.
-     */
-    int idxFromId(int id);
-
-    //! Get Atom pointer for a given Atom Id
-    /*!
-     * \param id Atom Id to find
-     * \return Pointer to Atom with given Id. nullptr if Id is not found.
-     */
-    Atom *atomFromId(int id);
-
+    void createMolecule(boost::python::list ids);
+    void refreshIdToIdx();
+    
     bool verbose; //!< Verbose output
     int shoutEvery; //!< Report state of simulation every this many timesteps
     AtomParams atomParams; //!< Generic properties of the Atoms, e.g. masses,
