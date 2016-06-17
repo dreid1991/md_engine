@@ -125,10 +125,14 @@ bool FixDihedralOPLS::readFromRestart(pugi::xml_node restData) {
 	coefs[1] = atof(coef_b.c_str());
 	coefs[2] = atof(coef_c.c_str());
 	coefs[3] = atof(coef_d.c_str());
-	Atom * a = state->idToAtom(ids[0]);
-	Atom * b = state->idToAtom(ids[1]);
-	Atom * c = state->idToAtom(ids[2]);
-	Atom * d = state->idToAtom(ids[3]);
+	Atom aa = state->idToAtom(ids[0]);
+	Atom bb = state->idToAtom(ids[1]);
+	Atom cc = state->idToAtom(ids[2]);
+	Atom dd = state->idToAtom(ids[3]);
+	Atom *a = &aa;
+	Atom *b = &bb;
+	Atom *c = &cc;
+	Atom *d = &dd;
 	if (a == NULL) {cout << "The first atom does not exist" <<endl; return false;};
 	if (b == NULL) {cout << "The second atom does not exist" <<endl; return false;};
 	if (c == NULL) {cout << "The third atom does not exist" <<endl; return false;};

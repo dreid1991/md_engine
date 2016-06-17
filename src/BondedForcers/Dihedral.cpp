@@ -42,7 +42,7 @@ DihedralOPLSType::DihedralOPLSType(DihedralOPLS *dihedral) {
     }
 }
 
-std::string Dihedral::getInfoString() {
+std::string DihedralOPLS::getInfoString() {
   std::stringstream ss;
   ss << "<dihedral type=" << Dihedral::type << " />\n";
   ss << "<atomIDs>\n";

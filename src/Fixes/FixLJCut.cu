@@ -6,6 +6,7 @@
 #include "PairEvaluateIso.h"
 #include "State.h"
 #include "cutils_func.h"
+#include "ReadConfig.h"
 using namespace std;
 namespace py = boost::python;
 const string LJCutType = "LJCut";

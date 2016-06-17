@@ -16,7 +16,6 @@ class Dihedral{
         std::array<int, 4> ids;
         int type;
         void takeIds(Dihedral *);
-	std::string getInfoString();
 };
 
 class DihedralOPLSType {

@@ -254,11 +254,15 @@ bool FixImproperHarmonic::readFromRestart(pugi::xml_node restData) {
         ids[1] = atoi(atom_b.c_str());
         ids[2] = atoi(atom_c.c_str());
         ids[3] = atoi(atom_d.c_str());
-        Atom * a = state->idToAtom(ids[0]);
-        Atom * b = state->idToAtom(ids[1]);
-        Atom * c = state->idToAtom(ids[2]);
-        Atom * d = state->idToAtom(ids[3]);
-        k = atof(k_.c_str());
+        Atom aa = state->idToAtom(ids[0]);
+        Atom bb = state->idToAtom(ids[1]);
+        Atom cc = state->idToAtom(ids[2]);
+        Atom dd = state->idToAtom(ids[3]);
+	Atom * a = &aa;
+	Atom * b = &bb;
+	Atom * c = &cc;
+	Atom * d = &dd;
+	k = atof(k_.c_str());
         thetaEq = atof(thetaEq_.c_str());
 
         createImproper(a, b, c, d, k, thetaEq, type);
