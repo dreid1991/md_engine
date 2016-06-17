@@ -234,14 +234,56 @@ void test_charge_ewald() {
 
 
 void testRead() {
-    SHARED(State) state = SHARED(State) (new State());
-    state->readConfig->loadFile("test.xml");
+  SHARED(State) state = SHARED(State) (new State());
+    int baseLen = 40;
+    double mult = 1.5;
+    state->periodicInterval = 40;
+    state->bounds = Bounds(state, Vector(0, 0, 0), Vector(mult*baseLen, mult*baseLen, 10));
+    state->rCut = 2;
+    state->grid = AtomGrid(state.get(), 3, 3, 3);
+    state->atomParams.addSpecies("handle", 2);
+
+    state->addAtom("handle", Vector(1, 1, 1), 0);
+    state->addAtom("handle", Vector(3.8, 1, 1), 0);
+    state->addAtom("handle", Vector(2, 1, 2), 0);
+    state->addAtom("handle", Vector(4, 3, 1), 0);
+
+    SHARED(FixLJCut) nonbond = SHARED(FixLJCut) (new FixLJCut(state, "ljcut"));
+    nonbond->setParameter("sig", "handle", "handle", 1);
+    nonbond->setParameter("eps", "handle", "handle", 1);
+    state->activateFix(nonbond);
+
+    SHARED(FixAngleHarmonic) angle = SHARED(FixAngleHarmonic) (new FixAngleHarmonic(state, "angHarm"));
+    state->activateFix(angle);
+
+    SHARED(FixImproperHarmonic) imp = SHARED(FixImproperHarmonic) (new FixImproperHarmonic(state, "impHarm"));
+    state->activateFix(imp);
+
+    SHARED(FixBondHarmonic) bh = SHARED(FixBondHarmonic) (new FixBondHarmonic(state, "bh"));
+    state->activateFix(bh);
+    state->readConfig->loadFile("test_out.xml");
     state->readConfig->next();
+    SHARED(FixDihedralOPLS) dihedral = SHARED(FixDihedralOPLS) (new FixDihedralOPLS(state, "dihedral"));
+   // auto foo = boost::python::list();
+   // cout << "len " << (int) boost::python::len(foo) << endl;
+  //  cout << "length is " <<  (int) boost::python::len(dihedral->pyForcers) << endl;
+  //  cout.flush();
+    state->activateFix(dihedral);
+    dihedral->createDihedral(state->atoms.data(), state->atoms.data()+1, state->atoms.data()+2, state->atoms.data()+3, 1, 2, 3, 4, -1);
+
+    cout << dihedral->forcers.size() << endl;
+
     for (Atom &a : state->atoms) {
         cout << a.id << endl;
     }
+
+    IntegratorVerlet verlet(state);
+    SHARED(WriteConfig) wc = SHARED(WriteConfig) (new WriteConfig(state, "test", "handley", "xml", 100));
+    state->activateWriteConfig(wc);
+
+    verlet.run(1);
     return;
-    int baseLen = 40;
+    /*int baseLen = 40;
     double mult = 1.5;
     state->periodicInterval = 40;
     state->bounds = Bounds(state, Vector(0, 0, 0), Vector(mult*baseLen, mult*baseLen, 10));
@@ -251,12 +293,12 @@ void testRead() {
 
     state->addAtom("handle", Vector(1, 1, 1), 0);
     state->addAtom("handle", Vector(3.8, 1, 1), 0);
-
+    
     SHARED(FixLJCut) nonbond = SHARED(FixLJCut) (new FixLJCut(state, "ljcut"));
     nonbond->setParameter("sig", "handle", "handle", 1);
     nonbond->setParameter("eps", "handle", "handle", 1);
     state->activateFix(nonbond);
-
+    */
 
     //SHARED(FixBondHarmonic) harmonic = SHARED(FixBondHarmonic) (new FixBondHarmonic(state, "harmonic"));
     //state->activateFix(harmonic);
@@ -344,6 +386,8 @@ void testBondHarmonic() {
     cout << bond->getBond(0).rEq << endl;
     cout << bond->getBond(1).rEq << endl;
     IntegratorRelax integratorR(state);
+    SHARED(WriteConfig) write = SHARED(WriteConfig) (new WriteConfig(state, "test", "handley", "base64", 50));
+    state->activateWriteConfig(write);
     integratorR.run(1,1e-8);
     for (int i=0; i<3; i++) {
         cout << state->atoms[i].pos[0] << endl;
@@ -638,9 +682,8 @@ void testLJ() {
     //SHARED(FixSpringStatic) springStatic = SHARED(FixSpringStatic) (new FixSpringStatic(state, "spring", "all", 1, Py_None));
     //state->activateFix(springStatic);
 
-    //SHARED(WriteConfig) write = SHARED(WriteConfig) (new WriteConfig(state, "test", "handley", "base64", 50));
-    //state->activateWriteConfig(write);
-    //state->integrator.run(1000);
+    SHARED(WriteConfig) write = SHARED(WriteConfig) (new WriteConfig(state, "test", "handley", "base64", 50));
+    state->activateWriteConfig(write);
 
 }
 void testGPUArrayTex() {
@@ -663,8 +706,9 @@ int main(int argc, char **argv) {
     if (argc > 1) {
         int arg = atoi(argv[1]);
         if (arg==0) {
-    //        testDihedral();
-            testLJ();
+	  //testBondHarmonic();
+	  //testLJ();
+	  testRead();
             // testLJ();
             // hoomdBench();
             //testBondHarmonicGridToGPU();

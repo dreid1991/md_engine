@@ -44,8 +44,8 @@ public:
             CPUData = CPUMembers->data();
         }
         CPUMember *member = boost::get<CPUMember>(&(CPUMembers->back()));
-        boost::shared_ptr<CPUMember> shrptr(member, deleter<CPUMember>);
-        pyList->append(shrptr);
+	boost::shared_ptr<CPUMember> shrptr(member, deleter<CPUMember>);
+	pyList->append(shrptr);
     }
 
 };

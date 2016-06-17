@@ -16,13 +16,14 @@ Fix::Fix(boost::shared_ptr<State> state_, std::string handle_, std::string group
       orderPreference(orderPreference_), restartHandle(type + "_" + handle)
 {
     updateGroupTag();
-    if (state->readConfig->fileOpen) {
-        auto restData = state->readConfig->readNode(restartHandle);
+
+    /*if (state->readConfig->fileOpen) {
+      auto restData = state->readConfig->readFix(type, handle);
         if (restData) {
             std::cout << "Reading restart data for fix " << handle << std::endl;
             readFromRestart(restData);
         }
-    }
+	}*/
 }
 
 bool Fix::isEqual(Fix &f) {

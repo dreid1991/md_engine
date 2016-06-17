@@ -3,7 +3,7 @@
 #define ANGLE_H
 #include "globalDefs.h"
 #include "Atom.h"
-
+#include "xml_func.h"
 #include "cutils_math.h"
 #include <boost/variant.hpp>
 #include <array>
@@ -16,6 +16,7 @@ class Angle {
         int type;
         std::array<int, 3> ids;
         void takeIds(Angle *);
+	std::string getInfoString();
 };
 
 class AngleHarmonicType {
@@ -25,6 +26,8 @@ class AngleHarmonicType {
         AngleHarmonicType(AngleHarmonic *);
         AngleHarmonicType(){};
         bool operator==(const AngleHarmonicType &) const;
+	std::string getInfoString();
+	bool readFromRestart(pugi::xml_node restData);
 };
 
 class AngleHarmonic : public Angle, public AngleHarmonicType {
@@ -33,7 +36,8 @@ class AngleHarmonic : public Angle, public AngleHarmonicType {
         AngleHarmonic(double k_, double thetaEq_, int type_=-1);
         AngleHarmonic(){};
         int type;
-    
+	std::string getInfoString();
+	bool readFromRestart(pugi::xml_node restData);
 };
 
 //for forcer maps

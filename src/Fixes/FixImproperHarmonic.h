@@ -18,11 +18,12 @@ class FixImproperHarmonic: public FixPotentialMultiAtom<ImproperVariant, Imprope
         FixImproperHarmonic(SHARED(State) state_, std::string handle);
 
         void compute(bool);
-        std::string restartChunk(std::string format);
+        //std::string restartChunk(std::string format);
 
         void createImproper(Atom *, Atom *, Atom *, Atom *, double, double, int);
         void setImproperTypeCoefs(int, double, double);
 
+	bool readFromRestart(pugi::xml_node restData);
         //std::vector<pair<int, std::vector<int> > > neighborlistExclusions();
 
 };

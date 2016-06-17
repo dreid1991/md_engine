@@ -25,8 +25,8 @@ public:
     void createDihedralPy(Atom *, Atom *, Atom *, Atom *, boost::python::list, int);
     void setDihedralTypeCoefs(int, boost::python::list);
     
+    bool readFromRestart(pugi::xml_node restData);
     //std::vector<pair<int, std::vector<int> > > neighborlistExclusions();
-    std::string restartChunk(std::string format);
 
 };
 

@@ -136,7 +136,7 @@ public:
      *
      * Setup Fix from restart data.
      */
-    virtual bool readFromRestart(pugi::xml_node restData){return true;};
+    // virtual bool readFromRestart(pugi::xml_node restData){std::cout << "WRONG\n"; return true;};
 
     //! Write restart data
     /*!

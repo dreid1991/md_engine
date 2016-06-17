@@ -23,6 +23,24 @@ void Bond::swap() {
 }
 */
 
+std::string BondHarmonic::getInfoString() {
+  std::stringstream ss;
+    ss << "<members type='" << type << "' k='" << k << " rEq='" << rEq << "' atomID_a='" << ids[0] <<  "' atomID_b='" << ids[1] << "'>\n";
+    return ss.str();
+}
+
+bool BondHarmonic::readFromRestart(pugi::xml_node restData) {
+    auto curr_param = restData.first_child();
+    std::string atom_a = curr_param.attribute("atom_a").value();
+    std::string atom_b = curr_param.attribute("atom_b").value();
+    std::string k_ = curr_param.attribute("k").value();
+    std::string rEq_ = curr_param.attribute("thetaEq").value();
+    ids[0] = atoi(atom_a.c_str());
+    ids[1] = atoi(atom_b.c_str());
+    k = atof(k_.c_str());
+    rEq = atof(rEq_.c_str());
+    return true;
+}
 
 void export_BondHarmonic() {
   

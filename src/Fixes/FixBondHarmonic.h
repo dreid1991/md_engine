@@ -21,7 +21,7 @@ public:
     ~FixBondHarmonic(){};
 
     void compute(bool);
-    std::string restartChunk(std::string format);
+    //std::string restartChunk(std::string format);
 
     // HEY - NEED TO IMPLEMENT REFRESHATOMS
     // consider that if you do so, max bonds per block could change
@@ -29,6 +29,8 @@ public:
 
     void createBond(Atom *, Atom *, double, double, int);  // by ids
     void setBondTypeCoefs(int, double, double);
+
+    bool readFromRestart(pugi::xml_node restData);
 
     const BondHarmonic getBond(size_t i) {
         return boost::get<BondHarmonic>(bonds[i]);

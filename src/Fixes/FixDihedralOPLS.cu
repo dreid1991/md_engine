@@ -11,7 +11,6 @@ const std::string dihedralOPLSType = "DihedralOPLS";
 template <class DIHEDRALGPU, class DIHEDRALTYPE> //don't need DIHEDRALGPU, are all DihedralGPU.  Worry about later 
 __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureObject_t idToIdxs, DIHEDRALGPU *dihedrals, int *startstops, BoundsGPU bounds, DIHEDRALTYPE *parameters, int nParameters) {
 
-
     int idx = GETIDX();
     extern __shared__ char all_shr[];
     int idxBeginCopy = startstops[blockDim.x*blockIdx.x];
@@ -222,7 +221,15 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
 }
 
 
-FixDihedralOPLS::FixDihedralOPLS(SHARED(State) state_, string handle) : FixPotentialMultiAtom (state_, handle, dihedralOPLSType, true), pyListInterface(&forcers, &pyForcers) {}
+FixDihedralOPLS::FixDihedralOPLS(SHARED(State) state_, string handle) : FixPotentialMultiAtom (state_, handle, dihedralOPLSType, true), pyListInterface(&forcers, &pyForcers) {
+  if (state->readConfig->fileOpen) {
+    auto restData = state->readConfig->readFix(type, handle);
+    if (restData) {
+      std::cout << "Reading restart data for fix " << handle << std::endl;
+      readFromRestart(restData);
+    }
+  }
+}
 
 
 void FixDihedralOPLS::compute(bool computeVirials) {
@@ -242,6 +249,8 @@ void FixDihedralOPLS::createDihedral(Atom *a, Atom *b, Atom *c, Atom *d, double 
             assert(vs[i] != COEF_DEFAULT);
         }
     }
+    DihedralOPLS dihedral(vs, type);
+    cout << a->id << " " << b->id << " " << c->id << " " << d->id << endl;
     forcers.push_back(DihedralOPLS(a, b, c, d, vs, type));
     pyListInterface.updateAppendedMember();
 }
@@ -277,11 +286,78 @@ void FixDihedralOPLS::setDihedralTypeCoefs(int type, py::list coefs) {
 }
 
 
-
+/*
 string FixDihedralOPLS::restartChunk(string format) {
     stringstream ss;
 
     return ss.str();
+}*/
+
+bool FixDihedralOPLS::readFromRestart(pugi::xml_node restData) {
+  cout << "Reading from restart for FixDihedralOPLS\n";  
+  auto curr_node = restData.first_child();
+  std::cout << curr_node.name();
+    while (curr_node) {
+      cout << "while (curr_node)" << endl;
+      string tag = curr_node.name();
+      if (tag == "types") {
+	cout << "tag == type is true" << endl;
+	for (auto type_node = curr_node.first_child(); type_node; type_node = type_node.next_sibling()) {
+	  int type;
+	  double coefs[4];
+	  std::string type_ = type_node.attribute("id").value();
+	  type = atoi(type_.c_str());
+	  std::string coef_a = type_node.attribute("coef_a").value();
+	  std::string coef_b = type_node.attribute("coef_b").value();
+	  std::string coef_c = type_node.attribute("coef_c").value();
+	  std::string coef_d = type_node.attribute("coef_d").value();
+	  coefs[0] = atof(coef_a.c_str());
+	  coefs[1] = atof(coef_b.c_str());
+	  coefs[2] = atof(coef_c.c_str());
+	  coefs[3] = atof(coef_d.c_str());
+	  DihedralOPLS dummy(coefs, type);
+	  setForcerType(type, dummy);
+	}
+      } else if (tag == "members") {
+	for (auto member_node = curr_node.first_child(); member_node; member_node = member_node.next_sibling()) {
+	  int type;
+	  double coefs[4];
+	  int ids[4];
+	  std::string type_ = member_node.attribute("type").value();
+	  std::string atom_a = member_node.attribute("atomID_a").value();
+	  std::string atom_b = member_node.attribute("atomID_b").value();
+	  std::string atom_c = member_node.attribute("atomID_c").value();
+	  std::string atom_d = member_node.attribute("atomID_d").value();
+	  std::string coef_a = member_node.attribute("coef_a").value();
+	  std::string coef_b = member_node.attribute("coef_b").value();
+	  std::string coef_c = member_node.attribute("coef_c").value();
+	  std::string coef_d = member_node.attribute("coef_d").value();
+	  type = atoi(type_.c_str());
+	  ids[0] = atoi(atom_a.c_str());
+	  ids[1] = atoi(atom_b.c_str());
+	  ids[2] = atoi(atom_c.c_str());
+	  ids[3] = atoi(atom_d.c_str());
+	  coefs[0] = atof(coef_a.c_str());
+	  coefs[1] = atof(coef_b.c_str());
+	  coefs[2] = atof(coef_c.c_str());
+	  coefs[3] = atof(coef_d.c_str());
+	  Atom * a = state->atomFromId(ids[0]);
+	  Atom * b = state->atomFromId(ids[1]);
+	  Atom * c = state->atomFromId(ids[2]);
+	  Atom * d = state->atomFromId(ids[3]);
+	  if (a == NULL) {cout << "The first atom does not exist" <<endl; return false;};
+	  if (b == NULL) {cout << "The second atom does not exist" <<endl; return false;};
+	  if (c == NULL) {cout << "The third atom does not exist" <<endl; return false;};
+	  if (d == NULL) {cout << "The fourth atom does not exist" <<endl; return false;};
+	  cout << "about to create dihedral" << endl;
+	  createDihedral(a, b, c, d, coefs[0], coefs[1], coefs[2], coefs[3], type);
+	  cout << "created dihedreal" << endl;
+	}
+      }
+      curr_node = curr_node.next_sibling();
+    }
+    cout << "Parsed Dihedrals\n";
+    return true;
 }
 
 void export_FixDihedralOPLS() {
@@ -302,6 +378,7 @@ void export_FixDihedralOPLS() {
             (py::arg("type"), 
              py::arg("coefs"))
             )
+
     .def_readonly("dihedrals", &FixDihedralOPLS::pyForcers)
 
     ;

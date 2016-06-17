@@ -5,6 +5,7 @@
 #include "Atom.h"
 
 #include "cutils_math.h"
+#include "xml_func.h"
 #include <boost/variant.hpp>
 #include <boost/functional/hash.hpp>
 #include <array>
@@ -16,6 +17,7 @@ class Dihedral{
         std::array<int, 4> ids;
         int type;
         void takeIds(Dihedral *);
+	std::string getInfoString();
 };
 
 class DihedralOPLSType {
@@ -24,6 +26,8 @@ class DihedralOPLSType {
         DihedralOPLSType(DihedralOPLS *);
         DihedralOPLSType(){};
         bool operator==(const DihedralOPLSType &) const;
+	std::string getInfoString();
+	//bool readFromRestart(pugi::xml_node restData);
 };
 
 
@@ -33,7 +37,8 @@ class DihedralOPLS : public Dihedral, public DihedralOPLSType {
         DihedralOPLS(Atom *a, Atom *b, Atom *c, Atom *d, double coefs_[4], int type_);
         DihedralOPLS(double coefs_[4], int type_);
         DihedralOPLS(){};
-    
+	std::string getInfoString();
+	//bool readFromRestart(pugi::xml_node restData);
 };
 
 class DihedralGPU {

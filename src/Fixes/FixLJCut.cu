@@ -6,6 +6,7 @@
 #include "PairEvaluateIso.h"
 #include "State.h"
 #include "cutils_func.h"
+#include "ReadConfig.h"
 
 const std::string LJCutType = "LJCut";
 
@@ -17,6 +18,14 @@ FixLJCut::FixLJCut(boost::shared_ptr<State> state_, std::string handle_)
     initializeParameters(sigHandle, sigmas);
     initializeParameters(rCutHandle, rCuts);
     paramOrder = {epsHandle, sigHandle, rCutHandle};
+    
+    if (state->readConfig->fileOpen) {
+      auto restData = state->readConfig->readFix(type, handle);
+      if (restData) {
+	std::cout << "Reading restart data for fix " << handle << std::endl;
+	readFromRestart(restData);
+      }
+    }
 }
 
 void FixLJCut::compute(bool computeVirials) {
@@ -98,19 +107,39 @@ bool FixLJCut::readFromRestart(pugi::xml_node restData) {
     std::cout << "Reading form restart" << std::endl;
     auto curr_param = restData.first_child();
     while (curr_param) {
-        if (curr_param.name() == "parameter") {
+      std::string tag = curr_param.name();
+        if (tag == "parameter") {
             std::vector<float> val;
             std::string paramHandle = curr_param.attribute("handle").value();
             std::string s;
             std::istringstream ss(curr_param.value());
             while (ss >> s) {
                 val.push_back(atof(s.c_str()));
-            }
-            initializeParameters(paramHandle, val);
+	    }
+	    if (paramHandle == epsHandle) {
+	      epsilons = val;
+	    } else if (paramHandle == sigHandle) {
+	      sigmas = val;
+	    } else if (paramHandle == rCutHandle) {
+	      rCuts = val;
+	    } else {
+	      std::cout << "Error: Invalid FixLJCut parameter handle, " << paramHandle << std::endl;
+	      return false;
+	    }
         }
         curr_param = curr_param.next_sibling();
     }
-    std::cout << "Reading LJ parameters from restart" << std::endl;
+    int count = 0;
+    for (int i = 0; i < state->atomParams.handles.size(); i++) {
+      for (int j = 0; j < state->atomParams.handles.size(); j++) {
+	std::cout << "setting parameters" << std::endl;
+	  setParameter(epsHandle, state->atomParams.handles[i], state->atomParams.handles[j], epsilons[count]);
+	  setParameter(sigHandle, state->atomParams.handles[i], state->atomParams.handles[j], sigmas[count]);
+	  setParameter(rCutHandle, state->atomParams.handles[i], state->atomParams.handles[j], rCuts[count]);
+	  count++;
+      }
+    }
+    std::cout << "Read LJ parameters from restart" << std::endl;
     return true;
 }
 
@@ -140,6 +169,9 @@ void export_FixLJCut() {
         "FixLJCut",
         boost::python::init<boost::shared_ptr<State>, std::string> (
             boost::python::args("state", "handle"))
-    );
-
+    )
+      .def_readonly("epsilons", &FixLJCut::epsilons)
+      .def("restartChunk", &FixLJCut::restartChunk,
+	   (boost::python::arg("format")="xml"))
+      ;
 }

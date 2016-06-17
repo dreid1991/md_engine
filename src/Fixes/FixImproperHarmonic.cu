@@ -178,7 +178,15 @@ __global__ void compute_cu(int nAtoms, float4 *xs, float4 *forces, cudaTextureOb
 
 FixImproperHarmonic::FixImproperHarmonic(SHARED(State) state_, string handle)
     : FixPotentialMultiAtom (state_, handle, improperHarmonicType, true),
-      pyListInterface(&forcers, &pyForcers) {}
+      pyListInterface(&forcers, &pyForcers) {
+  if (state->readConfig->fileOpen) {
+    auto restData = state->readConfig->readFix(type, handle);
+    if (restData) {
+      std::cout << "Reading restart data for fix " << handle << std::endl;
+      readFromRestart(restData);
+    }
+  }
+}
 
 
 void FixImproperHarmonic::compute(bool computeVirials) {
@@ -206,12 +214,64 @@ void FixImproperHarmonic::setImproperTypeCoefs(int type, double k, double thetaE
 
 
 
-
+/*
 string FixImproperHarmonic::restartChunk(string format) {
     stringstream ss;
 
     return ss.str();
+}*/
+
+bool FixImproperHarmonic::readFromRestart(pugi::xml_node restData) {
+  auto curr_node = restData.first_child();
+  while (curr_node) {
+    std::string tag = curr_node.name();
+    if (tag == "types") {
+      for (auto type_node = curr_node.first_child(); type_node; type_node = type_node.next_sibling()) {
+	int type;
+	double k;
+	double thetaEq;
+	std::string type_ = type_node.attribute("id").value();
+	type = atoi(type_.c_str());
+	std::string k_ = type_node.attribute("k").value();
+	std::string thetaEq_ = type_node.attribute("thetaEq").value();
+	k = atof(k_.c_str());
+	thetaEq = atof(thetaEq_.c_str());
+
+	setImproperTypeCoefs(type, k, thetaEq);
+      }
+    } else if (tag == "members") {
+      for (auto member_node = curr_node.first_child(); member_node; member_node = member_node.next_sibling()) {
+        int type;
+	double k;
+	double thetaEq;
+	int ids[4];
+	std::string type_ = member_node.attribute("type").value();
+	std::string atom_a = member_node.attribute("atom_a").value();
+	std::string atom_b = member_node.attribute("atom_b").value();
+	std::string atom_c = member_node.attribute("atom_c").value();
+	std::string atom_d = member_node.attribute("atom_d").value();
+	std::string k_ = member_node.attribute("k").value();
+	std::string thetaEq_ = member_node.attribute("thetaEq").value();
+        type = atoi(type_.c_str());
+        ids[0] = atoi(atom_a.c_str());
+        ids[1] = atoi(atom_b.c_str());
+        ids[2] = atoi(atom_c.c_str());
+	ids[3] = atoi(atom_d.c_str());
+        Atom * a = state->atomFromId(ids[0]);
+        Atom * b = state->atomFromId(ids[1]);
+        Atom * c = state->atomFromId(ids[2]);
+	Atom * d = state->atomFromId(ids[3]);
+        k = atof(k_.c_str());
+        thetaEq = atof(thetaEq_.c_str());
+
+        createImproper(a, b, c, d, k, thetaEq, type);
+      }
+    }
+    curr_node = curr_node.next_sibling();
+  }
+  return true;
 }
+
 
 void export_FixImproperHarmonic() {
 
@@ -233,7 +293,7 @@ void export_FixImproperHarmonic() {
              boost::python::arg("thetaEq")=COEF_DEFAULT
              )
         )
-    ;
+      .def_readonly("impropers", &FixImproperHarmonic::pyForcers);
 
 }
 

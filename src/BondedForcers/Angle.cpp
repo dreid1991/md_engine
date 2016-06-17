@@ -37,6 +37,44 @@ AngleHarmonicType::AngleHarmonicType(AngleHarmonic *angle) {
     thetaEq = angle->thetaEq;
 }
 
+std::string AngleHarmonicType::getInfoString() {
+  std::stringstream ss;
+  ss << " k='" << k << "' thetaEq='" << thetaEq;
+  return ss.str();
+}
+
+bool AngleHarmonicType::readFromRestart(pugi::xml_node restData) {
+    auto curr_param = restData.first_child();
+    std::string k_ = curr_param.attribute("k").value();
+    std::string thetaEq_ = curr_param.attribute("thetaEq").value();
+    k = atof(k_.c_str());
+    thetaEq = atof(thetaEq_.c_str());
+    return true;
+}
+
+std::string AngleHarmonic::getInfoString() {
+  std::stringstream ss;
+  ss << "<member type='" << type << "' k='" << k << "' thetaEq='" << thetaEq << "' atomID_a='" << ids[0] << "' atomID_b='" << ids[1] << "' atomID_c='" << ids[2] << "'/>\n";
+  return ss.str();
+}
+
+bool AngleHarmonic::readFromRestart(pugi::xml_node restData) {
+    auto curr_param = restData.first_child();
+    std::string type_ = curr_param.attribute("type").value();
+    std::string atom_a = curr_param.attribute("atom_a").value();
+    std::string atom_b = curr_param.attribute("atom_b").value();
+    std::string atom_c = curr_param.attribute("atom_c").value();
+    std::string k_ = curr_param.attribute("k").value();
+    std::string thetaEq_ = curr_param.attribute("thetaEq").value();
+    type = atoi(type_.c_str());
+    ids[0] = atoi(atom_a.c_str());
+    ids[1] = atoi(atom_b.c_str());
+    ids[2] = atoi(atom_c.c_str());
+    k = atof(k_.c_str());
+    thetaEq = atof(thetaEq_.c_str());
+    return true;
+}
+
 bool AngleHarmonicType::operator==(const AngleHarmonicType &other) const {
     return k == other.k and thetaEq == other.thetaEq;
 }

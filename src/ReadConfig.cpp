@@ -46,8 +46,8 @@ void loadAtomParams(pugi::xml_node &config, State *state) {
 	params->epsilons = mapTo2d(epsilon, numTypes);
 
 	params->setParams();
-	
-*/
+*/	
+
 	
 
 }
@@ -133,39 +133,67 @@ vector<Bond> buildBonds(pugi::xml_node &config, State *state, string tag, int nu
 }
 */
 
+/*
 void loadFixes(pugi::xml_node &config, State *state) {
   auto fixes_xml = config.child("fixes");
   if (fixes_xml) {
     auto curr_fix = fixes_xml.first_child();
-
     string tag = curr_fix.name();
     while (tag  == "fix") {
-
+      cout << "current fix.name() =   " << curr_fix.attribute("type").value() << " \n";
       string handle = curr_fix.attribute("handle").value();
       string type = curr_fix.attribute("type").value();
 
-      // looping through fixes to find a match                                                                                                          
+      // looping through fixes to find a match
+      bool fix_exists = false;
       for (Fix *f : state->fixes) {
-	if (f->handle == handle && f->type == type){
+	if (f->handle == handle && f->type == type && handle == "ljcut"){
 	  f->readFromRestart(curr_fix);
+	  cout << "Read fix " << f->type << "\n";
+	  fix_exists = true;
 	}
+      }
+      
+      if (!fix_exists) {
+	if (type == "DihedralOPLS") {
+	  //SHARED(State) state;
+	  //FixDihedralOPLS* dihedral = new FixDihedralOPLS(state_shr, handle);
+	  //SHARED(FixDihedralOPLS) dihedral = SHARED(FixDihedralOPLS) (new FixDihedralOPLS(state_shr, handle));
+	  //dihedral->readFromRestart(curr_fix);
+	  //cout << "Successfully read dihedral fix\n";
+	}
+	if (type == "AngleHarmonic") {
+	  SHARED(FixAngleHarmonic) angle = SHARED(FixAngleHarmonic) (new FixAngleHarmonic(state, handle));
+	  angle->readFromRestart(curr_fix);
+	  cout << "Successfully read angle fix\n";
+	}
+	if (type == "ImproperHarmonic") {
+	  SHARED(FixImproperHarmonic) improper = SHARED(FixImproperHarmonic) (new FixImproperHarmonic(state, handle));
+	  improper->readFromRestart(curr_fix);
+	  cout << "Successfully read improper fix\n";
+	}
+	if (type == "BondHarmonic") {
+	  SHARED(FixBondHarmonic) bond = SHARED(FixBondHarmonic) (new FixBondHarmonic((SHARED(State)) state, handle));
+	  bond->readFromRestart(curr_fix);
+	  cout << "Successfully read bond fix\n";
+	  }
       }
       curr_fix = curr_fix.next_sibling();
       tag = curr_fix.name();
     }
   }
-}
+}*/
 
 bool ReadConfig::read() {
     cout << "READING A CONFIG" << endl;
-	//state->deleteBonds();
-	state->deleteAtoms();
+    //state->deleteBonds();
+    state->deleteAtoms();
 	vector<Atom> readAtoms;
 	int64_t readTurn = boost::lexical_cast<int64_t>(config->attribute("turn").value());
 	int numAtoms = boost::lexical_cast<int>(config->attribute("numAtoms").value());
 	bool readIs2d = !strcmp(config->attribute("dimension").value(), "2");
 	const char *periodic = config->attribute("periodic").value();
-    cout << "periodic is " << periodic << endl;
+	cout << "periodic is " << periodic << endl;
 	for (int i=0; i<3; i++) {
 		char bit[1];
 		bit[0] = periodic[i];
@@ -223,10 +251,11 @@ bool ReadConfig::read() {
 
 	loadAtomParams(*config, state);
 	loadBounds(*config, state);
-	loadFixes(*config, state);
+	//loadFixes(*config, state);
 	for (Atom &a : readAtoms) {
 		state->addAtomDirect(a);
 	}
+	cout << "read() done\n";
 //	buildBonds(*config, state.get(), "bond", numBonds);
 	return true;
 
@@ -297,10 +326,31 @@ void ReadConfig::loadFile(string fn_) {
 	config = SHARED(pugi::xml_node) (new pugi::xml_node());
 	fn = fn_;
 	pugi::xml_parse_result result = doc->load_file(fn.c_str());
+	if (result != pugi::status_ok) {
+	  std::cout << "XML [" << fn << "] parsed with errors\n";
+	  std::cout << "Error description: " << result.description() << "\n";
+	  std::cout << "Error offset: " << result.offset << "\n\n";
+	}
 	assert(result.status == pugi::status_ok);
     fileOpen = true;
 }
 
+pugi::xml_node ReadConfig::readFix(string type, string handle) {
+  if (config) {
+    cout << "config exists" << endl;
+    auto node = config->child("fixes").first_child();
+    while (node) {
+      string t = node.attribute("type").value();
+      string h = node.attribute("handle").value();
+      if (t == type && h == handle) {
+	cout << "found the correct node: " << node.attribute("handle").value() << endl;
+	return node;
+      }
+      node = node.next_sibling();
+    }
+  }
+  return pugi::xml_node();
+}
 
 pugi::xml_node ReadConfig::readNode(string nodeTag) {
     if (config) {
@@ -312,12 +362,11 @@ pugi::xml_node ReadConfig::readNode(string nodeTag) {
 
 void export_ReadConfig() {
     boost::python::class_<ReadConfig,
-                          SHARED(ReadConfig) >(
-        "ReadConfig"
-    )
+                          SHARED(ReadConfig), boost::noncopyable>("ReadConfig", boost::python::no_init)
     .def("loadFile", &ReadConfig::loadFile)
     .def("next", &ReadConfig::next)
     .def("prev", &ReadConfig::prev)
     .def("moveBy", &ReadConfig::moveBy)
     ;
 }
+

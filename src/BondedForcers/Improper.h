@@ -4,7 +4,7 @@
 
 #include "globalDefs.h"
 #include "Atom.h"
-
+#include "xml_func.h"
 #include "cutils_math.h"
 #include <boost/variant.hpp>
 #include <boost/functional/hash.hpp>
@@ -27,7 +27,8 @@ class ImproperHarmonic : public Improper {
         ImproperHarmonic(Atom *a, Atom *b, Atom *c, Atom *d, double k, double thetaEq, int type_=-1);
         ImproperHarmonic(double k, double thetaEq, int type_=-1);
         ImproperHarmonic(){};
-    
+	std::string getInfoString();
+	bool readFromRestart(pugi::xml_node restData);
 };
 
 class ImproperHarmonicType {
@@ -37,6 +38,8 @@ class ImproperHarmonicType {
         ImproperHarmonicType(ImproperHarmonic *);
         ImproperHarmonicType(){}; //for hashing, need default constructor, == operator, and std::hash function
         bool operator==(const ImproperHarmonicType &) const;
+	std::string getInfoString();
+	bool readFromRestart(pugi::xml_node restData);
 };
 
 class ImproperGPU{

@@ -22,7 +22,7 @@ public:
     void createAngle(Atom *, Atom *, Atom *, double, double, int type_);
     void setAngleTypeCoefs(int, double, double);
 
-    std::string restartChunk(std::string format);
+    bool readFromRestart(pugi::xml_node restData);
 
 };
 

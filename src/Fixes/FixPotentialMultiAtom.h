@@ -13,6 +13,7 @@
 #include "State.h"
 #include "Fix.h"
 #include "helpers.h"
+#include "ReadConfig.h"
 
 #define COEF_DEFAULT INT_MAX  // invalid coef value
 #include "TypedItemHolder.h"
@@ -20,9 +21,9 @@
 template <class CPUVariant, class CPUMember, class CPUBase, class GPUMember, class ForcerTypeHolder, int N>
 class FixPotentialMultiAtom : public Fix, public TypedItemHolder {
     public:
-        FixPotentialMultiAtom (SHARED(State) state_, std::string handle_, std::string type_, bool forceSingle_) : Fix(state_, handle_, "None", type_, forceSingle_, 1), forcersGPU(1), forcerIdxs(1)
+        FixPotentialMultiAtom (SHARED(State) state_, std::string handle_, std::string type_, bool forceSingle_) : Fix(state_, handle_, "None", type_, forceSingle_, 1), pyForcers(boost::python::list()), forcersGPU(1), forcerIdxs(1)
     {
-        maxForcersPerBlock = 0;
+      maxForcersPerBlock = 0;
     }
         //TO DO - make copies of the forcer, forcer typesbefore doing all the prepare for run modifications
         std::vector<CPUVariant> forcers;
@@ -87,7 +88,38 @@ class FixPotentialMultiAtom : public Fix, public TypedItemHolder {
 //HEY - NEED TO IMPLEMENT REFRESHATOMS
 //void createDihedral(Atom *, Atom *, Atom *, Atom *, double, double, double, double);
 //std::vector<pair<int, std::vector<int> > > neighborlistExclusions();
-//std::string restartChunk(std::string format);
+	std::string restartChunk(std::string format) {
+	  std::stringstream ss;
+	  ss << "<types>\n";
+	  for (auto it = forcerTypes.begin(); it != forcerTypes.end(); it++) {
+	    ss << "<" << "type id='" << it->first << "'";
+	    ss << forcerTypes[it->first].getInfoString() << "'/>\n";
+	  }
+	  ss << "</types>\n";
+	  ss << "<members>\n";
+	  for (CPUVariant &forcerVar : forcers) {
+	    CPUMember &forcer= boost::get<CPUMember>(forcerVar);
+	    ss << forcer.getInfoString();
+	  }
+	  ss << "</members>\n";
+	  /*	  for (auto it = forcerTypes.begin(); it != forcerTypes.end(); it++) {
+	    CPUMember &forcerType = boost::get<CPUMember>(it->second);
+	    ss << forcerType.getInfoString();
+	    }*/
+	  return ss.str();
+	}
+	/*
+	bool readForcers(pugi::xml_node restData) {
+	    auto curr_node = restData.first_child();
+	    while (curr_node) {
+	        if (curr_node.name() == "type") {
+		  for (auto type_node = curr_node.first_child(); type_node; type_node = type_node.next_sibling()) {
+		    
+		  }
+		}
+	    }
+	    }*/
+
         std::vector<int> getTypeIds() {
             std::vector<int> types;
             for (auto it = forcerTypes.begin(); it != forcerTypes.end(); it++) {

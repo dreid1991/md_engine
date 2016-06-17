@@ -3,7 +3,7 @@
 #define BOND_H
 
 #include <boost/variant.hpp>
-
+#include "xml_func.h"
 #include "globalDefs.h"
 #include "Atom.h"
 #include <array>
@@ -64,6 +64,7 @@ class Bond {
 
         /*! \brief Swap the position of the two atoms in the internal memory */
         //void swap();
+
 };
 
 /*! \brief Bond with a harmonic potential (a spring)
@@ -104,8 +105,8 @@ class BondHarmonic : public Bond {
         }
 
 		//Vector vectorFrom(Atom *);
-
-
+	std::string getInfoString();
+	bool readFromRestart(pugi::xml_node restData);
 };	
 void export_BondHarmonic();
 
