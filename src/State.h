@@ -307,9 +307,10 @@ public:
      */
     bool removeAtom(Atom *a);
 
-    void createMolecule(boost::python::list ids);
+    void createMolecule(std::vector<int> &ids);
+    void createMoleculePy(boost::python::list ids);
 
-    Molecule &duplicateMolecule(Molecule &);
+    void duplicateMolecule(Molecule &);
     Atom &duplicateAtom(Atom);
     void refreshIdToIdx();
     
@@ -464,9 +465,7 @@ public:
     // and it's quick at add atoms in large systems
     std::vector<int> idToIdx; //!< Cache for easier Atom index lookup.
 
-    //! Update the Atom index cache
-    //void updateIdxFromIdCache();
-
+    Atom &idToAtom(int id);
     //! Maximum Atom Id for all existing Atoms
     /*!
      * The maximum Atom Id is not identical to the number of Atoms as Atoms can

@@ -7,7 +7,7 @@ from Sim import *
 from math import *
 state = State()
 state.deviceManager.setDevice(0)
-state.bounds = Bounds(state, lo = Vector(-30, -30, -30), hi = Vector(180, 180, 180))
+state.bounds = Bounds(state, lo = Vector(-30, -30, -30), hi = Vector(360, 360, 360))
 state.rCut = 3.0
 state.padding = 0.6
 state.periodicInterval = 7
@@ -30,9 +30,8 @@ state.activateFix(dihedralOPLS)
 state.activateFix(improperHarm)
 
 unitLen = 3.5
-writeconfig = WriteConfig(state, fn='poly_out', writeEvery=10, format='xyz', handle='writer')
+writeconfig = WriteConfig(state, fn='poly_out', writeEvery=100, format='xyz', handle='writer')
 writeconfig.unitLen = 1/unitLen
-state.activateWriteConfig(writeconfig)
 temp = state.dataManager.recordEnergy('all', collectEvery = 50)
 #reader = LAMMPS_Reader(state=state, unitLen = unitLen, unitMass = 12, unitEng = 0.066, bondFix = bondHarm, angleFix = angleHarm, nonbondFix = ljcut, dihedralFix = dihedralOPLS, improperFix=improperHarm, atomTypePrefix = 'PTB7_', setBounds=False)
 reader = LAMMPS_Reader(state=state, unitLen = unitLen, unitMass = 12, unitEng = 0.066, bondFix = bondHarm, nonbondFix = ljcut,  angleFix = angleHarm, dihedralFix = dihedralOPLS,improperFix=improperHarm,atomTypePrefix = 'PTB7_', setBounds=False)
@@ -79,7 +78,16 @@ fixNVT = FixNVTRescale(state, 'temp', 'all', [0, 1], [0.1, 3.8], 100)
 state.activateFix(fixNVT)
 
 integVerlet = IntegratorVerlet(state)
-integVerlet.run(15000)
+integVerlet.run(1500)
+
+state.activateWriteConfig(writeconfig)
+state.createMolecule([a.id for a in state.atoms])
+print len(state.atoms)
+for i in range(5):
+    state.duplicateMolecule(state.molecules[-1])
+    print state.molecules
+    state.molecules[-1].translate(Vector(0, 0, 8))
+integVerlet.run(150000)
 print [x / len(state.atoms) for x in temp.vals]
 
 #integVerlet = IntegraterVerlet(state)

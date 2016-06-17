@@ -122,6 +122,10 @@ Atom &State::duplicateAtom(Atom a) {
     return atoms.back();
 }
 
+Atom &State::idToAtom(int id) {
+    return atoms[idToIdx[id]];
+}
+
 //constructor should be same
 /*
 bool State::addBond(Atom *a, Atom *b, double k, double rEq) {
@@ -169,7 +173,14 @@ bool State::removeAtom(Atom *a) {
     return true;
 }
 
-void State::createMolecule(py::list idsPy) {
+void State::createMolecule(vector<int> &ids) {
+    for (int id : ids) {
+        mdAssert(idToIdx[id] != -1, "Invalid atom id given for molecule");
+    }
+    molecules.append(Molecule(this, ids));
+}
+
+void State::createMoleculePy(py::list idsPy) {
     int len = py::len(idsPy);
     vector<int> ids(len);
     for (int i=0; i<len; i++) {
@@ -179,23 +190,27 @@ void State::createMolecule(py::list idsPy) {
         }
         int id = idPy;
         ids[i] = id;
-        mdAssert(idToIdx[id] != -1, "Invalid atom id given for molecule");
     }
-    molecules.append(Molecule(this, ids));
+    createMolecule(ids);
 }
 
 
 
-Molecule &State::duplicateMolecule(Molecule &molec) {
+void State::duplicateMolecule(Molecule &molec) {
     map<int, int> oldToNew;
+    vector<int> newIds;
     for (int id : molec.ids) {
         Atom &a = atoms[idToIdx[id]];
         Atom &dup = duplicateAtom(a);
         oldToNew[a.id] = dup.id;
+        newIds.push_back(dup.id);
     }
     for (Fix *fix : fixes) {
         fix->duplicateMolecule(oldToNew);
     }
+    createMolecule(newIds);
+
+
 }
 
 
@@ -511,11 +526,11 @@ bool State::makeReady() {
     return true;
 }
 
-bool State::addToGroupPy(std::string handle, boost::python::list toAdd) {//testF takes index, returns bool
+bool State::addToGroupPy(std::string handle, py::list toAdd) {//testF takes index, returns bool
     int tagBit = groupTagFromHandle(handle);  //if I remove asserts from this, could return things other than true, like if handle already exists
-    int len = boost::python::len(toAdd);
+    int len = py::len(toAdd);
     for (int i=0; i<len; i++) {
-        boost::python::extract<Atom *> atomPy(toAdd[i]);
+        py::extract<Atom *> atomPy(toAdd[i]);
         if (!atomPy.check()) {
             cout << "Invalid atom found when trying to add to group" << endl;
             assert(atomPy.check());
@@ -567,14 +582,14 @@ bool State::destroyGroup(std::string handle) {
     return true;
 }
 
-bool State::createGroup(std::string handle, boost::python::list forGrp) {
+bool State::createGroup(std::string handle, py::list forGrp) {
     uint res = addGroupTag(handle);
     if (!res) {
         std::cout << "Tried to create group " << handle
                   << " << that already exists" << std::endl;
         return false;
     }
-    if (boost::python::len(forGrp)) {
+    if (py::len(forGrp)) {
         addToGroupPy(handle, forGrp);
     }
     return true;
@@ -685,13 +700,14 @@ BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(State_seedRNG_overloads,State::seedRNG,0,
 
     void export_State() {
         py::class_<State,
-            SHARED(State) >("State", boost::python::init<>())
+            SHARED(State) >("State", py::init<>())
                 .def("addAtom", &State::addAtom,
-                        (boost::python::arg("handle"),
-                         boost::python::arg("pos"),
-                         boost::python::arg("q")=0)
+                        (py::arg("handle"),
+                         py::arg("pos"),
+                         py::arg("q")=0)
                     )
                 .def_readonly("atoms", &State::atoms)
+                .def_readonly("molecules", &State::molecules)
                 .def("setPeriodic", &State::setPeriodic)
                 .def("getPeriodic", &State::getPeriodic) //boost is grumpy about readwriting static arrays.  can readonly, but that's weird to only allow one w/ wrapper func for other.  doing wrapper funcs for both
                 .def("removeAtom", &State::removeAtom)
@@ -700,9 +716,11 @@ BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(State_seedRNG_overloads,State::seedRNG,0,
                 .def("addToGroup", &State::addToGroupPy)
                 .def("destroyGroup", &State::destroyGroup)
                 .def("createGroup", &State::createGroup,
-                        (boost::python::arg("handle"),
-                         boost::python::arg("atoms") = boost::python::list())
+                        (py::arg("handle"),
+                         py::arg("atoms") = py::list())
                     )
+                .def("createMolecule", &State::createMoleculePy, (py::arg("ids")))
+                .def("duplicateMolecule", &State::duplicateMolecule)
                 .def("selectGroup", &State::selectGroup)
                 .def("copyAtoms", &State::copyAtoms)
                 .def("setAtoms", &State::setAtoms)

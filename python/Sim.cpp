@@ -33,6 +33,7 @@ using namespace std;
 #include "Angle.h"
 #include "Dihedral.h"
 #include "Improper.h"
+#include "Molecule.h"
 //#include "DataTools.h"
 BOOST_PYTHON_MODULE(Sim) {
     export_stls();	
@@ -40,6 +41,7 @@ BOOST_PYTHON_MODULE(Sim) {
     export_Vector();
     export_VectorInt();	
     export_Atom();
+    export_Molecule();
     export_Neighbor();
     export_Bounds();
     export_Integrator();
