@@ -353,7 +353,8 @@ def bondHarmonic_data(reader, args):
         print 'Ignoring LAMMPS bond type %d from data file.  Bond not used in data file' % LMPType
         return False
     type = reader.LMPTypeToSimTypeBond[LMPType]
-    k =  reader.unitLen * reader.unitLen * float(args[1]) / reader.unitEng
+    k =  reader.unitLen * reader.unitLen * 2 * float(args[1]) / reader.unitEng #2 because LAMMPS includes the 1/2 in its k
+
     rEq = float(args[2]) / reader.unitLen
     return [type, k, rEq]
 
@@ -363,7 +364,7 @@ def bondHarmonic_input(reader, args):
         print 'Ignoring LAMMPS bond type %d from input script.  Bond not used in data file' % LMPType
         return False
     type = reader.LMPTypeToSimTypeBond[LMPType]
-    k = reader.unitLen * reader.unitLen * float(args[2]) / reader.unitEng
+    k = reader.unitLen * reader.unitLen * 2 * float(args[2]) / reader.unitEng #2 because LAMMPS includes the 1/2 in its k
     rEq = float(args[3]) / reader.unitLen
     return [type, k, rEq]
 
@@ -373,7 +374,8 @@ def angleHarmonic_data(reader, args):
         print 'Ignoring LAMMPS angle type %d from data file.  Angle not used in data file' % LMPType
         return False
     type = reader.LMPTypeToSimTypeAngle[LMPType]
-    k = float(args[1]) / reader.unitEng
+    k = float(args[1]) * 2 / reader.unitEng #2 because LAMMPS includes the 1/2 in its k
+
     thetaEq = float(args[2]) * DEGREES_TO_RADIANS
     return [type, k, thetaEq]
 
@@ -383,7 +385,8 @@ def angleHarmonic_input(reader, args):
         print 'Ignoring LAMMPS angle type %d from input script.  Angle not used in data file' % LMPType
         return False
     type = reader.LMPTypeToSimTypeAngle[LMPType]
-    k = float(args[2]) / reader.unitEng
+    k = float(args[2]) * 2 / reader.unitEng #2 because LAMMPS includes the 1/2 in its k
+
     thetaEq = float(args[3]) * DEGREES_TO_RADIANS
     return [type, k, thetaEq]
 
