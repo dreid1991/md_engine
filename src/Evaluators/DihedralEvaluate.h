@@ -33,7 +33,7 @@ __global__ void compute_force_dihedral(int nAtoms, float4 *xs, float4 *forces, c
                 DihedralGPU dihedral = dihedrals_shr[shr_idx + i];
                 uint32_t typeFull = dihedral.type;
                 myIdxInDihedral = typeFull >> 29;
-                int type = static_cast<int>((typeFull << 3) >> 3);
+                int type = (typeFull << 3) >> 3;
                 DIHEDRALTYPE dihedralType = parameters_shr[type];
                 //USE SHARED AGAIN ONCE YOU FIGURE OUT BUG
 
@@ -65,6 +65,9 @@ __global__ void compute_force_dihedral(int nAtoms, float4 *xs, float4 *forces, c
                 for (int i=1; i<3; i++) {
                     positions[i] = positions[0] + bounds.minImage(positions[i]-positions[0]);
                 }
+                //for (int i=0; i<4; i++) {
+                //    printf("position %d %f %f %f\n", i, positions[i].x, positions[i].y, positions[i].z);
+               // }
                 float3 directors[3]; //vb_xyz in lammps
                 float lenSqrs[3]; //bnmag2 in lammps
                 float lens[3]; //bnmag in lammps
@@ -119,18 +122,22 @@ __global__ void compute_force_dihedral(int nAtoms, float4 *xs, float4 *forces, c
                 cVector.z = directors[0].x*directors[1].y - directors[0].y*directors[1].x;
                 float cVectorLen = length(cVector);
                 float dx = dot(cVector, directors[2]) * invLens[2] / cVectorLen;
-            //    printf("c is %f\n", c);
+                //printf("c xyz %f %f %f directors xyz %f %f %f\n", cVector.x, cVector.y, cVector.z, directors[2].x, directors[2].y, directors[2].z);
+                //printf("c is %f\n", c);
                 if (c > 1.0f) {
                     c = 1.0f;
                 } else if (c < -1.0f) {
                     c = -1.0f;
                 }
                 float phi = acosf(c);
-                //printf("phi is %f\n", phi);
+               // printf("phi is %f\n", phi);
+               // printf("dx is %f\n", dx);
                 if (dx < 0) {
                     phi = -phi;
                 }
-            //    printf("phi is %f\n", phi);
+               // printf("phi is %f\n", phi);
+
+                //printf("no force\n");
                 float3 myForce = evaluator.force(dihedralType, phi, scValues, invLenSqrs, c12Mags, c0, c, invMagProds, c12Mags, invLens, directors, myIdxInDihedral);
                 
                 forceSum += myForce;

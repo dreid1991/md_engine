@@ -6,12 +6,12 @@ from Sim import *
 from math import *
 state = State()
 state.deviceManager.setDevice(1)
-state.bounds = Bounds(state, lo = Vector(-10, -10, -10), hi = Vector(55.12934875488, 55.12934875488, 55.12934875488))
+state.bounds = Bounds(state, lo = Vector(-0, -0, -0), hi = Vector(20, 20, 20))
 state.rCut = 3.0
 state.padding = 0.6
 state.periodicInterval = 7
 state.shoutEvery = 1000
-state.dt = .005
+state.dt = .000
 
 state.grid = AtomGrid(state, 3.6, 3.6, 3.6)
 state.atomParams.addSpecies(handle='spc1', mass=1, atomicNum=8)
@@ -20,33 +20,33 @@ nonbond.setParameter('sig', 'spc1', 'spc1', 1)
 nonbond.setParameter('eps', 'spc1', 'spc1', 1)
 state.activateFix(nonbond)
 #dihedral testing
-state.addAtom('spc1', Vector(5, 5, 5))
+state.addAtom('spc1', Vector(1, 5, 5))
 state.addAtom('spc1', Vector(5, 6, 5))
-state.addAtom('spc1', Vector(5.1, 7, 5))
-#state.addAtom('spc1', Vector(6, 5, 6))
+state.addAtom('spc1', Vector(6, 19, 5))
+state.addAtom('spc1', Vector(6, 5, 1))
+
+eng = state.dataManager.recordEnergy('all', collectEvery = 1)
 
 bondHarm = FixBondHarmonic(state, 'bondHarm')
-bondHarm.setBondTypeCoefs(type=0, k=15, rEq=1.3);
-bondHarm.setBondTypeCoefs(type=1, k=15, rEq=2.3);
+bondHarm.setBondTypeCoefs(type=0, k=0, rEq=1.);
 bondHarm.createBond(state.atoms[0], state.atoms[1], type=0)
-bondHarm.createBond(state.atoms[1], state.atoms[2], type=1)
+bondHarm.createBond(state.atoms[1], state.atoms[2], type=0)
+bondHarm.createBond(state.atoms[3], state.atoms[2], type=0)
 #bondHarm.createBond(state.atoms[2], state.atoms[3], type=1)
 
 state.activateFix(bondHarm)
 
 angleHarm = FixAngleHarmonic(state, 'angHarm')
-angleHarm.setAngleTypeCoefs(type=0, k=2, thetaEq=3);
+angleHarm.setAngleTypeCoefs(type=0, k=2, thetaEq=pi/2+1.5);
 angleHarm.createAngle(state.atoms[0], state.atoms[1], state.atoms[2], type=0)#thetaEq=3*pi/4, k=3)
-state.activateFix(angleHarm)
-#dihedralOPLS = FixDihedralOPLS(state, 'dihedral')
-#dihedralOPLS.setDihedralTypeCoefs(type=0, coefs=[15, -10, 4, -12])
-'''
+#state.activateFix(angleHarm)
 dihedralOPLS = FixDihedralOPLS(state, 'dihedral')
 dihedralOPLS.setDihedralTypeCoefs(type=0, coefs=[15, -10, 4, -12])
 
 
 dihedralOPLS.createDihedral(state.atoms[0], state.atoms[1], state.atoms[2], state.atoms[3], type=0)
 state.activateFix(dihedralOPLS)
+'''
 #print dihedralOPLS.dihedrals
 #print dihedralOPLS.dihedrals[0].coefs[2]
 
@@ -100,6 +100,6 @@ integVerlet = IntegratorVerlet(state)
 
 #tempData = state.dataManager.recordTemperature('all', 100)
 #boundsData = state.dataManager.recordBounds(100)
-#engData = state.dataManager.recordEnergy('all', 100)
 
-integVerlet.run(1)
+integVerlet.run(2)
+print eng.vals

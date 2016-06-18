@@ -48,7 +48,7 @@ void FixAngleHarmonic::createAngle(Atom *a, Atom *b, Atom *c, double k, double t
 
 void FixAngleHarmonic::setAngleTypeCoefs(int type, double k, double thetaEq) {
     //cout << type << " " << k << " " << thetaEq << endl;
-    assert(thetaEq>=0);
+    mdAssert(thetaEq>=0 and thetaEq <= M_PI, "Angle theta must be between zero and pi");
     AngleHarmonic dummy(k, thetaEq);
     setForcerType(type, dummy);
 }
