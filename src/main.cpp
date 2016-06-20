@@ -21,7 +21,6 @@
 
 #include "IntegratorVerlet.h"
 #include "IntegratorRelax.h"
-#include "IntegratorLangevin.h"
 
 #include "FixChargePairDSF.h"
 
