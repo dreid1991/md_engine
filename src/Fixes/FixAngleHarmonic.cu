@@ -88,12 +88,9 @@ bool FixAngleHarmonic::readFromRestart(pugi::xml_node restData) {
         ids[0] = atoi(atom_a.c_str());
         ids[1] = atoi(atom_b.c_str());
         ids[2] = atoi(atom_c.c_str());
-        Atom aa = state->idToAtom(ids[0]);
-        Atom bb = state->idToAtom(ids[1]);
-        Atom cc = state->idToAtom(ids[2]);
-        Atom * a = &aa;
-	Atom * b = &bb;
-	Atom * c = &cc;
+        Atom * a = &state->idToAtom(ids[0]);
+        Atom * b = &state->idToAtom(ids[1]);
+        Atom * c = &state->idToAtom(ids[2]);
 	k = atof(k_.c_str());
         thetaEq = atof(thetaEq_.c_str());
 

@@ -267,7 +267,7 @@ void ReadConfig::loadFile(string fn_) {
 	config = SHARED(pugi::xml_node) (new pugi::xml_node());
 	fn = fn_;
 	pugi::xml_parse_result result = doc->load_file(fn.c_str());
-	if (result != pugi::status_ok) {
+	if (result.status != pugi::status_ok) {
 	  std::cout << "XML [" << fn << "] parsed with errors\n";
 	  std::cout << "Error description: " << result.description() << "\n";
 	  std::cout << "Error offset: " << result.offset << "\n\n";

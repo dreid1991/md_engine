@@ -43,7 +43,7 @@ std::string BondHarmonicType::getInfoString() {
 
 std::string BondHarmonic::getInfoString() {
   std::stringstream ss;
-  ss << "<member type='" << type << "' k='" << k << " rEq='" << rEq << "' atomID_a='" << ids[0] <<  "' atomID_b='" << ids[1] << "'>\n";
+  ss << "<member type='" << type << "' k='" << k << "' rEq='" << rEq << "' atomID_a='" << ids[0] <<  "' atomID_b='" << ids[1] << "'/>\n";
   return ss.str();
 }
 
