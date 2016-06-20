@@ -119,6 +119,9 @@ FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state_, std::string handle
 bool FixNoseHoover::prepareForRun()
 {
     // Calculate current kinetic energy
+    turnBeginRun = state->runInit;
+    turnFinishRun = state->runInit + state->runningFor;
+
     calculateKineticEnergy();
     computeCurrentTemp(state->runInit);
     updateMasses();
@@ -187,7 +190,6 @@ bool FixNoseHoover::halfStep(bool firstHalfStep)
         temp = getCurrentTemp();
         calculateKineticEnergy();
     }
-
     // Equipartition at desired temperature
     double nkt = ndf * boltz * temp;
 

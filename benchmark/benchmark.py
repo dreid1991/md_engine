@@ -35,20 +35,20 @@ state.activateFix(fixNVT)
 
 integVerlet = IntegratorVerlet(state)
 
-tempData = state.dataManager.recordTemperature('all', 10)
+#tempData = state.dataManager.recordTemperature('all', 10)
 #boundsData = state.dataManager.recordBounds(100)
 #engData = state.dataManager.recordEnergy('all', 100)
 
 #writeconfig = WriteConfig(state, fn='test_out', writeEvery=5, format='xyz', handle='writer')
 #state.activateWriteConfig(writeconfig)
-integVerlet.run(1000)
+integVerlet.run(10000)
 #integVerlet.run(10000)
 print state.atoms[0].pos
 sumV = 0.
 for a in state.atoms:
     sumV += a.vel.lenSqr()
 print sumV / len(state.atoms)/3.0
-print tempData.vals
+#print tempData.vals
 #print sum(tempData.vals) / len(tempData.vals)
 #print boundsData.vals[0].getSide(1)
 #print engData.turns[-1]
