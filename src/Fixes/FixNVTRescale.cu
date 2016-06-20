@@ -35,33 +35,35 @@ __global__ void sumKeInBounds (float *dest, float4 *src, int n, unsigned int gro
 }
 
 
-FixNVTRescale::FixNVTRescale(SHARED(State) state_, string handle_, string groupHandle_,
-                             py::list intervals_, py::list temps_, int applyEvery_,
-                             SHARED(Bounds) thermoBounds_)
-    : Fix(state_, handle_, groupHandle_, NVTRescaleType, false, false, false, applyEvery_),
+FixNVTRescale::FixNVTRescale(SHARED(State) state_, string handle_, string groupHandle_, py::list intervals_, py::list temps_, int applyEvery_, SHARED(Bounds) thermoBounds_)
+    : FixThermostatBase(intervals_, temps_), Fix(state_, handle_, groupHandle_, NVTRescaleType, false, false, false, applyEvery_),
       curIdx(0), tempGPU(GPUArrayDeviceGlobal<float>(2)), finished(false)
 {
-    assert(boost::python::len(intervals_) == boost::python::len(temps_)); 
-    assert(boost::python::len(intervals_) > 1);
-    int len = boost::python::len(intervals_);
-    for (int i=0; i<len; i++) {
-        boost::python::extract<double> intPy(intervals_[i]);
-        boost::python::extract<double> tempPy(temps_[i]);
-        if (!intPy.check() or !tempPy.check()) {
-            cout << "Invalid value given to fix with handle " << handle << endl;
-            assert(intPy.check() and tempPy.check());
-        }
-        double interval = intPy;
-        double temp = tempPy;
-        intervals.push_back(interval);
-        temps.push_back(temp);
-    }
     thermoBounds = thermoBounds_;
 
-   assert(intervals[0] == 0 and intervals.back() == 1); 
 
 }
 
+FixNVTRescale::FixNVTRescale(SHARED(State) state_, string handle_, string groupHandle_, py::object tempFunc_, int applyEvery_, SHARED(Bounds) thermoBounds_)
+    : FixThermostatBase(tempFunc_), Fix(state_, handle_, groupHandle_, NVTRescaleType, false, false, false, applyEvery_),
+      curIdx(0), tempGPU(GPUArrayDeviceGlobal<float>(2)), finished(false)
+{
+    thermoBounds = thermoBounds_;
+
+
+}
+
+FixNVTRescale::FixNVTRescale(SHARED(State) state_, string handle_, string groupHandle_, double constTemp_, int applyEvery_, SHARED(Bounds) thermoBounds_)
+    : FixThermostatBase(constTemp_), Fix(state_, handle_, groupHandle_, NVTRescaleType, false, false, false, applyEvery_),
+      curIdx(0), tempGPU(GPUArrayDeviceGlobal<float>(2)), finished(false)
+{
+    thermoBounds = thermoBounds_;
+
+
+}
+
+
+//this one is for testing on the C++ side
 FixNVTRescale::FixNVTRescale(SHARED(State) state_, string handle_, string groupHandle_,
                              vector<double> intervals_, vector<double> temps_, int applyEvery_,
                              SHARED(Bounds) thermoBounds_)
@@ -76,6 +78,8 @@ FixNVTRescale::FixNVTRescale(SHARED(State) state_, string handle_, string groupH
 
 bool FixNVTRescale::prepareForRun() {
     usingBounds = thermoBounds != SHARED(Bounds) (NULL);
+    turnBeginRun = state->runInit;
+    turnFinishRun = state->runInit + state->runningFor;
     if (usingBounds) {
         assert(state == thermoBounds->state);
         boundsGPU = thermoBounds->makeGPU();
@@ -162,21 +166,8 @@ void FixNVTRescale::compute(bool computeVirials) {
     tempGPU.memset(0);
     int nAtoms = state->atoms.size();
     int64_t turn = state->turn;
-    double temp;
-    if (finished) {
-        temp = temps.back();
-    } else {
-        double frac = (turn-state->runInit) / (double) state->runningFor;
-        while (frac > intervals[curIdx+1] and curIdx < intervals.size()-1) {
-            curIdx++;
-        }
-        double tempA = temps[curIdx];
-        double tempB = temps[curIdx+1];
-        double intA = intervals[curIdx];
-        double intB = intervals[curIdx+1];
-        double fracThroughInterval = (frac-intA) / (intB-intA);
-        temp = tempB*fracThroughInterval + tempA*(1-fracThroughInterval);
-    }
+    computeCurrentTemp(turn);
+    double temp = getCurrentTemp();
     GPUData &gpd = state->gpd;
     int activeIdx = gpd.activeIdx();
     int warpSize = state->devManager.prop.warpSize;
@@ -196,20 +187,32 @@ void FixNVTRescale::compute(bool computeVirials) {
 
 
 bool FixNVTRescale::postRun() {
-    finished = true;
+    finishRun();
     return true;
 }
 
 
+
+
 void export_FixNVTRescale() {
     py::class_<FixNVTRescale, SHARED(FixNVTRescale), py::bases<Fix> > (
-        "FixNVTRescale",
-        py::init<SHARED(State), string, string, py::list, py::list,
-                 py::optional<int, SHARED(Bounds)> > (
-            py::args("state", "handle", "groupHandle", "intervals", "temps", "applyEvery",
-                     "thermoBounds")
-        )
+        "FixNVTRescale", 
+        py::init<boost::shared_ptr<State>, string, string, py::list, py::list, py::optional<int, boost::shared_ptr<Bounds> > >(
+            py::args("state", "handle", "groupHandle", "intervals", "temps", "applyEvery", "thermoBounds")
+            )
+
+        
     )
+   //HEY - ORDER IS IMPORTANT HERE.  LAST CONS ADDED IS CHECKED FIRST. A DOUBLE _CAN_ BE CAST AS A py::object, SO IF YOU PUT THE TEMPFUNC CONS LAST, CALLING WITH DOUBLE AS ARG WILL GO THERE, NOT TO CONST TEMP CONSTRUCTOR 
+    .def(py::init<boost::shared_ptr<State>, string, string, py::object, py::optional<int, boost::shared_ptr<Bounds> > >(
+                
+            py::args("state", "handle", "groupHandle", "tempFunc", "applyEvery", "thermoBounds")
+                )
+            )
+    .def(py::init<boost::shared_ptr<State>, string, string, double, py::optional<int, boost::shared_ptr<Bounds> > >(
+            py::args("state", "handle", "groupHandle", "temp", "applyEvery", "thermoBounds")
+                )
+            )
     .def_readwrite("finished", &FixNVTRescale::finished)
     .def_readwrite("thermoBounds", &FixNVTRescale::thermoBounds);
     ;

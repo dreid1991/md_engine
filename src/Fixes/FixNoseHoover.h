@@ -9,6 +9,8 @@
 
 #include <boost/shared_ptr.hpp>
 
+#include "FixThermostatBase.h"
+
 //! Make FixNoseHoover available to the python interface
 void export_FixNoseHoover();
 
@@ -23,16 +25,13 @@ void export_FixNoseHoover();
  * Note that the Nose-Hoover thermostat should only be used with the
  * IntegratorVerlet.
  *
- * \todo Allow to set temperature
- * \todo Allow temperature to change linearly (similar to NVTRescale)
  * \todo Allow to specify desired length of Nose-Hoover chain
  * \todo Allow to set multiple-timestep integration
  * \todo Allow to use higher-order approximations
- * \todo Allow python function pointer to calculate current temperature
  *
  * \todo Implement barostat.
  */
-class FixNoseHoover : public Fix {
+class FixNoseHoover : public FixThermostatBase, public Fix {
 public:
     //! Delete default constructor
     FixNoseHoover() = delete;
@@ -48,26 +47,37 @@ public:
     FixNoseHoover(boost::shared_ptr<State> state,
                   std::string handle,
                   std::string groupHandle,
-                  float temp,
-                  float timeConstant);
+                  double temp,
+                  double timeConstant);
+    FixNoseHoover(boost::shared_ptr<State> state,
+                  std::string handle,
+                  std::string groupHandle,
+                  boost::python::list intervals,
+                  boost::python::list temps,
+                  double timeConstant);
+    FixNoseHoover(boost::shared_ptr<State> state,
+                  std::string handle,
+                  std::string groupHandle,
+                  boost::python::object tempFunc,
+                  double timeConstant);
 
     //! Prepare Nose-Hoover thermostat for simulation run
-    virtual bool prepareForRun();
+    bool prepareForRun();
 
     //! Perform post-Run operations
-    virtual bool postRun();
+    bool postRun();
 
     //! First half step of the integration
     /*!
      * \return Result of the FixNoseHoover::halfStep() call.
      */
-    virtual bool stepInit();
+    bool stepInit();
 
     //! Second half step of the integration
     /*!
      * \return Result of FixNoseHoover::halfStep() call.
      */
-    virtual bool stepFinal();
+    bool stepFinal();
 
 private:
     //! Perform one half step of the Nose-Hoover thermostatting
@@ -108,8 +118,7 @@ private:
      */
     void rescale();
 
-    double temp; //!< Desired temperature
-    double frequency; //!< Frequency of the Nose-Hoover thermostats
+    float frequency; //!< Frequency of the Nose-Hoover thermostats
 
     GPUArrayGlobal<float> kineticEnergy; //!< Stores kinetic energy and
                                          //!< number of atoms in Fix group

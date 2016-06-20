@@ -310,10 +310,7 @@ void WriteConfig::write(int64_t turn) {
 
 void export_WriteConfig() {
     boost::python::class_<WriteConfig,
-                          SHARED(WriteConfig) >(
-        "WriteConfig",
-        boost::python::init<SHARED(State), string, string, string, int>(
-            boost::python::args("fn", "handle", "format", "writeEvery"))
+                          SHARED(WriteConfig) >("WriteConfig", boost::python::init<SHARED(State), string, string, string, int>(boost::python::args("fn", "handle", "format", "writeEvery"))
     )
     .def_readwrite("writeEvery", &WriteConfig::writeEvery)
     .def_readonly("handle", &WriteConfig::handle)

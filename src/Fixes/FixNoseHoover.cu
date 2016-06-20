@@ -42,17 +42,18 @@ __global__ void rescale_no_tags_cu(int nAtoms, float4 *vs, float scale)
     }
 }
 
-FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state, std::string handle,
-                             std::string groupHandle, float temp, float timeConstant)
-        : Fix(state,
-              handle,           // Fix handle
-              groupHandle,      // Group handle
+FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state_, std::string handle_,
+                             std::string groupHandle_, double temp_, double timeConstant_)
+        : FixThermostatBase(temp_),
+          Fix(state_,
+              handle_,           // Fix handle
+              groupHandle_,      // Group handle
               NoseHooverType,   // Fix name
               false,            // forceSingle
               false,            // requiresVirials 
               false,            // requiresCharges
               1                 // applyEvery
-             ), temp(temp), frequency(1.0 / timeConstant),
+             ), frequency(1.0 / timeConstant_),
                 kineticEnergy(GPUArrayGlobal<float>(2)),
                 ke_current(0.0), ndf(0),
                 chainLength(3), nTimesteps(1), n_ys(1),
@@ -63,17 +64,68 @@ FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state, std::string handle,
                 thermMass(std::vector<double>(chainLength,0.0)),
                 scale(1.0f)
 {
-
 }
+
+FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state_, std::string handle_,
+                             std::string groupHandle_, py::object tempFunc_, double timeConstant_)
+        : FixThermostatBase(tempFunc_),
+          Fix(state_,
+              handle_,           // Fix handle
+              groupHandle_,      // Group handle
+              NoseHooverType,   // Fix name
+              false,            // forceSingle
+              false,            // requiresVirials 
+              false,            // requiresCharges
+              1                 // applyEvery
+             ), frequency(1.0 / timeConstant_),
+                kineticEnergy(GPUArrayGlobal<float>(2)),
+                ke_current(0.0), ndf(0),
+                chainLength(3), nTimesteps(1), n_ys(1),
+                weight(std::vector<double>(n_ys,1.0)),
+                //thermPos(std::vector<double>(chainLength,0.0)),
+                thermVel(std::vector<double>(chainLength,0.0)),
+                thermForce(std::vector<double>(chainLength,0.0)),
+                thermMass(std::vector<double>(chainLength,0.0)),
+                scale(1.0f)
+{
+}
+
+
+FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state_, std::string handle_,
+                             std::string groupHandle_, py::list intervals_, py::list temps_, double timeConstant_)
+        : FixThermostatBase(intervals_, temps_),
+          Fix(state_,
+              handle_,           // Fix handle
+              groupHandle_,      // Group handle
+              NoseHooverType,   // Fix name
+              false,            // forceSingle
+              false,            // requiresVirials 
+              false,            // requiresCharges
+              1                 // applyEvery
+             ), frequency(1.0 / timeConstant_),
+                kineticEnergy(GPUArrayGlobal<float>(2)),
+                ke_current(0.0), ndf(0),
+                chainLength(3), nTimesteps(1), n_ys(1),
+                weight(std::vector<double>(n_ys,1.0)),
+                //thermPos(std::vector<double>(chainLength,0.0)),
+                thermVel(std::vector<double>(chainLength,0.0)),
+                thermForce(std::vector<double>(chainLength,0.0)),
+                thermMass(std::vector<double>(chainLength,0.0)),
+                scale(1.0f)
+{
+}
+
 
 bool FixNoseHoover::prepareForRun()
 {
     // Calculate current kinetic energy
     calculateKineticEnergy();
+    computeCurrentTemp(state->runInit);
     updateMasses();
 
     // Update thermostat forces
     double boltz = 1.0;
+    double temp = getCurrentTemp();
     thermForce.at(0) = (ke_current - ndf * boltz * temp) / thermMass.at(0);
     for (size_t k = 1; k < chainLength; ++k) {
         thermForce.at(k) = (
@@ -88,6 +140,7 @@ bool FixNoseHoover::prepareForRun()
 
 bool FixNoseHoover::postRun()
 {
+    finishRun();
     rescale();
 
     return true;
@@ -116,8 +169,12 @@ bool FixNoseHoover::halfStep(bool firstHalfStep)
     double boltz = 1.0;
 
     // Update the desired temperature
+    double temp;
     if (firstHalfStep) {
-        if (updateTemperature()) {
+        double currentTemp = getCurrentTemp();
+        computeCurrentTemp(state->turn);
+        temp = getCurrentTemp();
+        if (currentTemp != temp) {
             updateMasses();
         }
     }
@@ -127,6 +184,7 @@ bool FixNoseHoover::halfStep(bool firstHalfStep)
         //! \todo This optimization assumes that the velocities are not changed
         //!       between stepFinal() and stepInit(). Can we add a check to make
         //!       sure this is indeed the case?
+        temp = getCurrentTemp();
         calculateKineticEnergy();
     }
 
@@ -209,25 +267,11 @@ bool FixNoseHoover::halfStep(bool firstHalfStep)
     return true;
 }
 
-bool FixNoseHoover::updateTemperature()
-{
-    // This should be modified to allow for temperature changes
-    double newTemp = temp;
-
-    if (temp != newTemp) {
-        // Temperature changed
-        temp = newTemp;
-        return true;
-    }
-
-    // Temperature remained unchanged
-    return false;
-}
 
 void FixNoseHoover::updateMasses()
 {
     double boltz = 1.0;
-
+    double temp = getCurrentTemp();
     thermMass.at(0) = ndf * boltz * temp / (frequency*frequency);
     for (size_t i = 1; i < chainLength; ++i) {
         thermMass.at(i) = boltz*temp / (frequency*frequency);
@@ -308,9 +352,20 @@ void export_FixNoseHoover()
                boost::noncopyable>
     (
         "FixNoseHoover",
-        py::init<boost::shared_ptr<State>, std::string, std::string, float, float>(
-            py::args("state", "handle", "groupHandle", "temp", "timeConstant")
+        py::init<boost::shared_ptr<State>, std::string, std::string, py::object, double>(
+            py::args("state", "handle", "groupHandle", "tempFunc", "timeConstant")
         )
     )
+    .def(py::init<boost::shared_ptr<State>, std::string, std::string, py::list, py::list, double>(
+                py::args("state", "handle", "groupHandle", "intervals", "temps", "timeConstant")
+
+                )
+        )
+    .def(py::init<boost::shared_ptr<State>, std::string, std::string, double, double>(
+                py::args("state", "handle", "groupHandle", "temp", "timeConstant")
+
+                )
+        )
+
     ;
 }
