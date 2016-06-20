@@ -119,7 +119,7 @@ class FixBond : public Fix, public TypedItemHolder {
                 if (bond.type == -1) {
                     //cout << "gotta do" << endl;
                     //cout << "max existing type " << maxExistingType  << endl;
-                    BONDTYPEHOLDER typeHolder = BONDTYPEHOLDER(&bond);
+                    BONDTYPEHOLDER typeHolder = *(BONDTYPEHOLDER *) (&bond);
                     bool parameterFound = reverseMap.find(typeHolder) != reverseMap.end();
                     //cout << "is found " << parameterFound << endl;
                     if (parameterFound) {

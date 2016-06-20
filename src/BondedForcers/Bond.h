@@ -22,12 +22,13 @@ class Bond {
         int type; //!< Bond type
 };
 
-
+//bond harmonic classes
+//
 class BondHarmonicType {
 public:
     float k;
     float rEq;
-    BondHarmonicType(BondHarmonic *);
+ //   BondHarmonicType(BondHarmonic *);
     BondHarmonicType(){};
     bool operator==(const BondHarmonicType &) const;
     std::string getInfoString();
@@ -66,6 +67,59 @@ class BondHarmonic : public Bond, public BondHarmonicType {
 };	
 
 void export_BondHarmonic();
+//end bond harmonic classes
+
+
+
+
+//bond fene classes
+//
+class BondFENEType {
+public:
+    float k;
+    float rEq;
+    float eps;
+    float sig;
+    BondFENEType(){};
+    bool operator==(const BondFENEType &) const;
+    std::string getInfoString();
+};
+//
+//for forcer maps
+namespace std {
+    template<> struct hash<BondFENEType> {
+        size_t operator() (BondFENEType const& bond) const {
+            size_t seed = 0;
+            boost::hash_combine(seed, bond.k);
+            boost::hash_combine(seed, bond.rEq);
+            boost::hash_combine(seed, bond.eps);
+            boost::hash_combine(seed, bond.sig);
+            return seed;
+        }
+    };
+}
+
+/*! \brief Bond with a FENE potential
+ *
+ *
+ */
+
+
+
+
+
+class BondFENE: public Bond, public BondFENEType {
+public:
+    BondFENE(Atom *a, Atom *b, double k_, double rEq_, double eps_, double sig_, int type_=-1);
+    BondFENE(double k_, double rEq_, double eps_, double sig_, int type_=-1); 
+    BondFENE(){};
+    int type;
+	std::string getInfoString();
+};	
+
+void export_BondFENE();
+//end bond fene classes
+
 
 
 class __align__(16) BondGPU {
@@ -81,6 +135,7 @@ class __align__(16) BondGPU {
 /*! \typedef Boost Variant for any bond */
 typedef boost::variant<
 	BondHarmonic, 
+    BondFENE,
 	Bond
 > BondVariant;
 

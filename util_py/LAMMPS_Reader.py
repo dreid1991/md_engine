@@ -358,6 +358,7 @@ def bondHarmonic_data(reader, args):
     rEq = float(args[2]) / reader.unitLen
     return [type, k, rEq]
 
+
 def bondHarmonic_input(reader, args):
     LMPType = int(args[1])
     if not LMPType in reader.LMPTypeToSimTypeBond:
@@ -368,6 +369,29 @@ def bondHarmonic_input(reader, args):
     rEq = float(args[3]) / reader.unitLen
     return [type, k, rEq]
 
+def bondFENE_data(reader, args):
+    LMPType = int(args[0])
+    if not LMPType in reader.LMPTypeToSimTypeBond:
+        print 'Ignoring LAMMPS bond type %d from data file.  Bond not used in data file' % LMPType
+        return False
+    type = reader.LMPTypeToSimTypeBond[LMPType]
+    k =  reader.unitLen * reader.unitLen * float(args[1]) / reader.unitEng #2 because LAMMPS includes the 1/2 in its k
+    rEq = float(args[2]) / reader.unitLen
+    eps = float(args[3]) / reader.unitEng
+    sig = float(args[4]) / reader.unitLen
+    return [type, k, rEq, eps, sig]
+
+def bondHarmonic_input(reader, args):
+    LMPType = int(args[1])
+    if not LMPType in reader.LMPTypeToSimTypeBond:
+        print 'Ignoring LAMMPS bond type %d from input script.  Bond not used in data file' % LMPType
+        return False
+    type = reader.LMPTypeToSimTypeBond[LMPType]
+    k = reader.unitLen * reader.unitLen * 2 * float(args[2]) / reader.unitEng #2 because LAMMPS includes the 1/2 in its k
+    rEq = float(args[3]) / reader.unitLen
+    eps = float(args[4]) / reader.unitEng
+    sig = float(args[5]) / reader.unitLen
+    return [type, k, rEq, eps, sig]
 def angleHarmonic_data(reader, args):
     LMPType = int(args[0])
     if not LMPType in reader.LMPTypeToSimTypeAngle:
@@ -436,6 +460,7 @@ argumentConverters = {
         'data':
         {
             'BondHarmonic': bondHarmonic_data,
+            'BondFENE': bondFENE_data,
             'AngleHarmonic': angleHarmonic_data,
             'DihedralOPLS': dihedralOPLS_data,
             'ImproperHarmonic': improperHarmonic_data
@@ -443,6 +468,7 @@ argumentConverters = {
         'input':
         {
             'BondHarmonic': bondHarmonic_input,
+            'BondFENE': bondFENE_input,
             'AngleHarmonic': angleHarmonic_input,
             'DihedralOPLS': dihedralOPLS_input,
             'ImproperHarmonic': improperHarmonic_input

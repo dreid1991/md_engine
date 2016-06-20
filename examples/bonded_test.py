@@ -20,16 +20,15 @@ nonbond.setParameter('sig', 'spc1', 'spc1', 1)
 nonbond.setParameter('eps', 'spc1', 'spc1', 1)
 state.activateFix(nonbond)
 #dihedral testing
-'''
-state.addAtom('spc1', Vector(1, 5, 5))
+state.addAtom('spc1', Vector(5, 5, 5))
 state.addAtom('spc1', Vector(5, 6, 5))
-state.addAtom('spc1', Vector(6, 19, 5))
-state.addAtom('spc1', Vector(6, 5, 1))
+state.addAtom('spc1', Vector(6, 6, 5))
+state.addAtom('spc1', Vector(6, 5, 5))
 
 eng = state.dataManager.recordEnergy('all', collectEvery = 1)
 
-bondHarm = FixBondHarmonic(state, 'bondHarm')
-bondHarm.setBondTypeCoefs(type=0, k=0, rEq=1.);
+bondHarm = FixBondFENE(state, 'bondHarm')
+bondHarm.setBondTypeCoefs(type=0, k=.1, rEq=.6, eps=2.0, sig=1.5);
 bondHarm.createBond(state.atoms[0], state.atoms[1], type=0)
 bondHarm.createBond(state.atoms[1], state.atoms[2], type=0)
 bondHarm.createBond(state.atoms[3], state.atoms[2], type=0)
@@ -48,7 +47,6 @@ dihedralOPLS.setDihedralTypeCoefs(type=0, coefs=[15, -10, 4, -12])
 dihedralOPLS.createDihedral(state.atoms[0], state.atoms[1], state.atoms[2], state.atoms[3], type=0)
 state.activateFix(dihedralOPLS)
 '''
-
 #improper testing
 eng = state.dataManager.recordEnergy('all', collectEvery = 1)
 state.addAtom('spc1', Vector(5, 5, 5))
@@ -81,8 +79,8 @@ improperHarmonic.setImproperTypeCoefs(type=0, k=6, thetaEq=pi)
 
 improperHarmonic.createImproper(state.atoms[0], state.atoms[1], state.atoms[2], state.atoms[3], type=0)
 state.activateFix(improperHarmonic)
-
-fixNVT = FixNVTRescale(state, 'temp', 'all', [0, 1], [.02, .02], 10)
+'''
+fixNVT = FixNVTRescale(state, 'temp', 'all', [0, 1], [.02, .02], 1)
 state.activateFix(fixNVT)
 
 writeconfig = WriteConfig(state, fn='test_out', writeEvery=10, format='xyz', handle='writer')

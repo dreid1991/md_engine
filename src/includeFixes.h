@@ -3,6 +3,7 @@
 #define INCLUDEFIXES_H
 
 #include "FixBondHarmonic.h"
+#include "FixBondFENE.h"
 #include "FixAngleHarmonic.h"
 #include "FixImproperHarmonic.h"
 #include "FixDihedralOPLS.h"
