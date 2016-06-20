@@ -20,7 +20,7 @@ using namespace std;
 #include "includeFixes.h"
 #include "IntegratorVerlet.h"
 #include "IntegratorRelax.h"
-#include "IntegratorLangevin.h"
+#include "FixLangevin.h"
 #include "boost_stls.h"
 #include "PythonOperation.h"
 //#include "DataManager.h"
@@ -47,7 +47,6 @@ BOOST_PYTHON_MODULE(Sim) {
     export_Integrator();
     export_IntegratorVerlet();
     export_IntegratorRelax();
-    export_IntegratorLangevin();
     export_TypedItemHolder();
     export_Fix();
     export_FixBondHarmonic();
@@ -75,6 +74,7 @@ BOOST_PYTHON_MODULE(Sim) {
 
     export_FixNoseHoover();
     export_FixNVTRescale();
+    export_FixLangevin();
 
     export_AtomGrid();
     export_AtomParams();

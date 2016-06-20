@@ -37,7 +37,7 @@ __global__ void sumKeInBounds (float *dest, float4 *src, int n, unsigned int gro
 
 FixNVTRescale::FixNVTRescale(SHARED(State) state_, string handle_, string groupHandle_, py::list intervals_, py::list temps_, int applyEvery_, SHARED(Bounds) thermoBounds_)
     : FixThermostatBase(intervals_, temps_), Fix(state_, handle_, groupHandle_, NVTRescaleType, false, false, false, applyEvery_),
-      curIdx(0), tempGPU(GPUArrayDeviceGlobal<float>(2)), finished(false)
+      curIdx(0), tempGPU(GPUArrayDeviceGlobal<float>(2))
 {
     thermoBounds = thermoBounds_;
 
@@ -46,7 +46,7 @@ FixNVTRescale::FixNVTRescale(SHARED(State) state_, string handle_, string groupH
 
 FixNVTRescale::FixNVTRescale(SHARED(State) state_, string handle_, string groupHandle_, py::object tempFunc_, int applyEvery_, SHARED(Bounds) thermoBounds_)
     : FixThermostatBase(tempFunc_), Fix(state_, handle_, groupHandle_, NVTRescaleType, false, false, false, applyEvery_),
-      curIdx(0), tempGPU(GPUArrayDeviceGlobal<float>(2)), finished(false)
+      curIdx(0), tempGPU(GPUArrayDeviceGlobal<float>(2))
 {
     thermoBounds = thermoBounds_;
 
@@ -55,7 +55,7 @@ FixNVTRescale::FixNVTRescale(SHARED(State) state_, string handle_, string groupH
 
 FixNVTRescale::FixNVTRescale(SHARED(State) state_, string handle_, string groupHandle_, double constTemp_, int applyEvery_, SHARED(Bounds) thermoBounds_)
     : FixThermostatBase(constTemp_), Fix(state_, handle_, groupHandle_, NVTRescaleType, false, false, false, applyEvery_),
-      curIdx(0), tempGPU(GPUArrayDeviceGlobal<float>(2)), finished(false)
+      curIdx(0), tempGPU(GPUArrayDeviceGlobal<float>(2))
 {
     thermoBounds = thermoBounds_;
 
@@ -68,7 +68,7 @@ FixNVTRescale::FixNVTRescale(SHARED(State) state_, string handle_, string groupH
                              vector<double> intervals_, vector<double> temps_, int applyEvery_,
                              SHARED(Bounds) thermoBounds_)
     : Fix(state_, handle_, groupHandle_, NVTRescaleType, false, false, false, applyEvery_),
-      curIdx(0), tempGPU(GPUArrayDeviceGlobal<float>(2)), finished(false)
+      curIdx(0), tempGPU(GPUArrayDeviceGlobal<float>(2))
 {
     assert(intervals.size() == temps.size());
     intervals = intervals_;
@@ -213,7 +213,6 @@ void export_FixNVTRescale() {
             py::args("state", "handle", "groupHandle", "temp", "applyEvery", "thermoBounds")
                 )
             )
-    .def_readwrite("finished", &FixNVTRescale::finished)
     .def_readwrite("thermoBounds", &FixNVTRescale::thermoBounds);
     ;
 }
