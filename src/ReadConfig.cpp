@@ -284,7 +284,6 @@ pugi::xml_node ReadConfig::readFix(string type, string handle) {
       string t = node.attribute("type").value();
       string h = node.attribute("handle").value();
       if (t == type && h == handle) {
-        cout << "found the correct node: " << node.attribute("handle").value() << endl;
         return node;
       }
       node = node.next_sibling();

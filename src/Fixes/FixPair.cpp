@@ -134,9 +134,16 @@ string FixPair::restartChunkPairParams(string format) {
   for (auto it=paramMap.begin(); it!=paramMap.end(); it++) {
     sprintf(buffer, "<parameter handle=\"%s\">", it->first.c_str());
     ss << buffer << "\n";
-    for (float x : *(it->second)) {
-      ss << x << "\n";
+    for (int i = 0; i < it->second->size(); i++) {
+      for (int j = 0; j < it->second[i].size(); j++) {
+	ss << it->second[i][j] << "\n";
+      }
     }
+    /*
+    for (float x : *(it->second)) {
+      cout << "Parameter: " << x << endl;
+      ss << x << "\n";
+      }*/
     ss << "</parameter>\n";
   }
   return ss.str();
