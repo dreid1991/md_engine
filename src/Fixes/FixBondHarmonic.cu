@@ -22,20 +22,20 @@ FixBondHarmonic::FixBondHarmonic(SHARED(State) state_, string handle)
 
 
 
-void FixBondHarmonic::createBond(Atom *a, Atom *b, double k, double rEq, int type) {
+void FixBondHarmonic::createBond(Atom *a, Atom *b, double k, double r0, int type) {
     vector<Atom *> atoms = {a, b};
     validAtoms(atoms);
     if (type == -1) {
-        assert(k!=-1 and rEq!=-1);
+        assert(k!=-1 and r0!=-1);
     }
-    bonds.push_back(BondHarmonic(a, b, k, rEq, type));
+    bonds.push_back(BondHarmonic(a, b, k, r0, type));
     pyListInterface.updateAppendedMember();
     
 }
 
-void FixBondHarmonic::setBondTypeCoefs(int type, double k, double rEq) {
-    assert(rEq>=0);
-    BondHarmonic dummy(k, rEq, type);
+void FixBondHarmonic::setBondTypeCoefs(int type, double k, double r0) {
+    assert(r0>=0);
+    BondHarmonic dummy(k, r0, type);
     setBondType(type, dummy);
 }
 
@@ -78,36 +78,36 @@ bool FixBondHarmonic::readFromRestart(pugi::xml_node restData) {
             for (auto type_node = curr_node.first_child(); type_node; type_node = type_node.next_sibling()) {
                 int type;
                 double k;
-                double rEq;
+                double r0;
                 std::string type_ = type_node.attribute("id").value();
                 type = atoi(type_.c_str());
                 std::string k_ = type_node.attribute("k").value();
-                std::string rEq_ = type_node.attribute("rEq").value();
+                std::string r0_ = type_node.attribute("r0").value();
                 k = atof(k_.c_str());
-                rEq = atof(rEq_.c_str());
+                r0 = atof(r0_.c_str());
 
-                setBondTypeCoefs(type, k, rEq);
+                setBondTypeCoefs(type, k, r0);
             }
         } else if (tag == "members") {
             for (auto member_node = curr_node.first_child(); member_node; member_node = member_node.next_sibling()) {
                 int type;
                 double k;
-                double rEq;
+                double r0;
                 int ids[2];
                 std::string type_ = member_node.attribute("type").value();
                 std::string atom_a = member_node.attribute("atom_a").value();
                 std::string atom_b = member_node.attribute("atom_b").value();
                 std::string k_ = member_node.attribute("k").value();
-                std::string rEq_ = member_node.attribute("rEq").value();
+                std::string r0_ = member_node.attribute("r0").value();
                 type = atoi(type_.c_str());
                 ids[0] = atoi(atom_a.c_str());
                 ids[1] = atoi(atom_b.c_str());
                 Atom * a = &state->idToAtom(ids[0]);
                 Atom * b = &state->idToAtom(ids[1]);
                 k = atof(k_.c_str());
-                rEq = atof(rEq_.c_str());
+                r0 = atof(r0_.c_str());
 
-                createBond(a, b, k, rEq, type);
+                createBond(a, b, k, r0, type);
             }
         }
         curr_node = curr_node.next_sibling();
@@ -125,13 +125,13 @@ void export_FixBondHarmonic() {
     )
     .def("createBond", &FixBondHarmonic::createBond,
             (py::arg("k")=-1,
-             py::arg("rEq")=-1,
+             py::arg("r0")=-1,
              py::arg("type")=-1)
         )
     .def("setBondTypeCoefs", &FixBondHarmonic::setBondTypeCoefs,
             (py::arg("type"),
              py::arg("k"),
-             py::arg("rEq"))
+             py::arg("r0"))
         )
     .def_readonly("bonds", &FixBondHarmonic::pyBonds)    
     ;

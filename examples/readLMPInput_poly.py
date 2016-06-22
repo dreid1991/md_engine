@@ -87,7 +87,7 @@ for i in range(5):
     state.duplicateMolecule(state.molecules[-1])
     print state.molecules
     state.molecules[-1].translate(Vector(0, 0, 8))
-integVerlet.run(15000)
+integVerlet.run(150000)
 print [x / len(state.atoms) for x in temp.vals]
 
 #integVerlet = IntegraterVerlet(state)

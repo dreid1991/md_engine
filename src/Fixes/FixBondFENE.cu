@@ -22,21 +22,21 @@ FixBondFENE::FixBondFENE(SHARED(State) state_, string handle)
 
 
 
-void FixBondFENE::createBond(Atom *a, Atom *b, double k, double rEq, double eps, double sig, int type) {
+void FixBondFENE::createBond(Atom *a, Atom *b, double k, double r0, double eps, double sig, int type) {
     vector<Atom *> atoms = {a, b};
     validAtoms(atoms);
     if (type == -1) {
-        assert(k!=-1 and rEq!=-1);
+        assert(k!=-1 and r0!=-1);
     }
-    bonds.push_back(BondFENE(a, b, k, rEq, eps, sig, type));
+    bonds.push_back(BondFENE(a, b, k, r0, eps, sig, type));
     pyListInterface.updateAppendedMember();
     
 }
 
-void FixBondFENE::setBondTypeCoefs(int type, double k, double rEq, double eps, double sig) {
-    assert(rEq>=0);
-    printf("create bond type with %f %f %f %f\n", k, rEq, eps, sig);
-    BondFENE dummy(k, rEq, type, eps, sig);
+void FixBondFENE::setBondTypeCoefs(int type, double k, double r0, double eps, double sig) {
+    assert(r0>=0);
+    printf("create bond type with k %f r0 %f eps %f sig %f\n", k, r0, eps, sig);
+    BondFENE dummy(k, r0, eps, sig, type);
     setBondType(type, dummy);
 }
 
@@ -79,27 +79,27 @@ bool FixBondFENE::readFromRestart(pugi::xml_node restData) {
             for (auto type_node = curr_node.first_child(); type_node; type_node = type_node.next_sibling()) {
                 int type;
                 double k;
-                double rEq;
+                double r0;
                 double eps;
                 double sig;
                 std::string type_ = type_node.attribute("id").value();
                 type = atoi(type_.c_str());
                 std::string k_ = type_node.attribute("k").value();
-                std::string rEq_ = type_node.attribute("rEq").value();
+                std::string r0_ = type_node.attribute("r0").value();
                 std::string eps_ = type_node.attribute("eps").value();
                 std::string sig_ = type_node.attribute("sig").value();
                 k = atof(k_.c_str());
-                rEq = atof(rEq_.c_str());
+                r0 = atof(r0_.c_str());
                 eps = atof(eps_.c_str());
                 sig = atof(sig_.c_str());
 
-                setBondTypeCoefs(type, k, rEq, eps, sig);
+                setBondTypeCoefs(type, k, r0, eps, sig);
             }
         } else if (tag == "members") {
             for (auto member_node = curr_node.first_child(); member_node; member_node = member_node.next_sibling()) {
                 int type;
                 double k;
-                double rEq;
+                double r0;
                 double eps;
                 double sig;
                 int ids[2];
@@ -107,7 +107,7 @@ bool FixBondFENE::readFromRestart(pugi::xml_node restData) {
                 std::string atom_a = member_node.attribute("atom_a").value();
                 std::string atom_b = member_node.attribute("atom_b").value();
                 std::string k_ = member_node.attribute("k").value();
-                std::string rEq_ = member_node.attribute("rEq").value();
+                std::string r0_ = member_node.attribute("r0").value();
                 std::string eps_ = member_node.attribute("eps").value();
                 std::string sig_ = member_node.attribute("sig").value();
                 type = atoi(type_.c_str());
@@ -116,11 +116,11 @@ bool FixBondFENE::readFromRestart(pugi::xml_node restData) {
                 Atom * a = &state->idToAtom(ids[0]);
                 Atom * b = &state->idToAtom(ids[1]);
                 k = atof(k_.c_str());
-                rEq = atof(rEq_.c_str());
+                r0 = atof(r0_.c_str());
                 eps = atof(eps_.c_str());
                 sig = atof(sig_.c_str());
 
-                createBond(a, b, k, rEq, eps, sig, type);
+                createBond(a, b, k, r0, eps, sig, type);
             }
         }
         curr_node = curr_node.next_sibling();
@@ -138,7 +138,7 @@ void export_FixBondFENE() {
     )
     .def("createBond", &FixBondFENE::createBond,
             (py::arg("k")=-1,
-             py::arg("rEq")=-1,
+             py::arg("r0")=-1,
              py::arg("eps")=-1,
              py::arg("sig")=-1,
              py::arg("type")=-1)
@@ -146,7 +146,7 @@ void export_FixBondFENE() {
     .def("setBondTypeCoefs", &FixBondFENE::setBondTypeCoefs,
             (py::arg("type"),
              py::arg("k"),
-             py::arg("rEq"),
+             py::arg("r0"),
              py::arg("eps"),
              py::arg("sig")
              )

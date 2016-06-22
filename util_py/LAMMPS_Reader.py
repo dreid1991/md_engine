@@ -381,7 +381,7 @@ def bondFENE_data(reader, args):
     sig = float(args[4]) / reader.unitLen
     return [type, k, rEq, eps, sig]
 
-def bondHarmonic_input(reader, args):
+def bondFENE_input(reader, args):
     LMPType = int(args[1])
     if not LMPType in reader.LMPTypeToSimTypeBond:
         print 'Ignoring LAMMPS bond type %d from input script.  Bond not used in data file' % LMPType

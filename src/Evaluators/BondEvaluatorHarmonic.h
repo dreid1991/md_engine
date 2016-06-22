@@ -6,8 +6,9 @@
 
 class BondEvaluatorHarmonic {
 public:
-    inline __device__ float3 force(float3 bondVec, float r, BondHarmonicType bondType) {
-        float dr = r - bondType.rEq;
+    inline __device__ float3 force(float3 bondVec, float rSqr, BondHarmonicType bondType) {
+        float r = sqrtf(rSqr);
+        float dr = r - bondType.r0;
         float rk = bondType.k * dr;
         if (r > 0) {//MAKE SURE ALL THIS WORKS, I JUST BORROWED FROM LAMMPS
             float fBond = -rk/r;
@@ -15,8 +16,9 @@ public:
         } 
         return make_float3(0, 0, 0);
     }
-    inline __device__ float energy(float3 bondVec, float r, BondHarmonicType bondType) {
-        float dr = r - bondType.rEq;
+    inline __device__ float energy(float3 bondVec, float rSqr, BondHarmonicType bondType) {
+        float r = sqrtf(rSqr);
+        float dr = r - bondType.r0;
         float eng = bondType.k * dr * dr * 0.5f;
         return 0.5f * eng; //0.5 for splitting between atoms
     }

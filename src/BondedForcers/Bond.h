@@ -27,7 +27,7 @@ class Bond {
 class BondHarmonicType {
 public:
     float k;
-    float rEq;
+    float r0;
  //   BondHarmonicType(BondHarmonic *);
     BondHarmonicType(){};
     bool operator==(const BondHarmonicType &) const;
@@ -40,7 +40,7 @@ namespace std {
         size_t operator() (BondHarmonicType const& bond) const {
             size_t seed = 0;
             boost::hash_combine(seed, bond.k);
-            boost::hash_combine(seed, bond.rEq);
+            boost::hash_combine(seed, bond.r0);
             return seed;
         }
     };
@@ -59,8 +59,8 @@ namespace std {
 
 class BondHarmonic : public Bond, public BondHarmonicType {
 	public:
-        BondHarmonic(Atom *a, Atom *b, double k_, double rEq_, int type_=-1);
-        BondHarmonic(double k_, double rEq_, int type_=-1); //is this constructor used?
+        BondHarmonic(Atom *a, Atom *b, double k_, double r0_, int type_=-1);
+        BondHarmonic(double k_, double r0_, int type_=-1); //is this constructor used?
         BondHarmonic(){};
         int type;
 	std::string getInfoString();
@@ -77,7 +77,7 @@ void export_BondHarmonic();
 class BondFENEType {
 public:
     float k;
-    float rEq;
+    float r0;
     float eps;
     float sig;
     BondFENEType(){};
@@ -91,7 +91,7 @@ namespace std {
         size_t operator() (BondFENEType const& bond) const {
             size_t seed = 0;
             boost::hash_combine(seed, bond.k);
-            boost::hash_combine(seed, bond.rEq);
+            boost::hash_combine(seed, bond.r0);
             boost::hash_combine(seed, bond.eps);
             boost::hash_combine(seed, bond.sig);
             return seed;
@@ -110,8 +110,8 @@ namespace std {
 
 class BondFENE: public Bond, public BondFENEType {
 public:
-    BondFENE(Atom *a, Atom *b, double k_, double rEq_, double eps_, double sig_, int type_=-1);
-    BondFENE(double k_, double rEq_, double eps_, double sig_, int type_=-1); 
+    BondFENE(Atom *a, Atom *b, double k_, double r0_, double eps_, double sig_, int type_=-1);
+    BondFENE(double k_, double r0_, double eps_, double sig_, int type_=-1); 
     BondFENE(){};
     int type;
 	std::string getInfoString();

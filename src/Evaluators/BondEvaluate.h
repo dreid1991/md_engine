@@ -38,8 +38,8 @@ __global__ void compute_force_bond(int nAtoms, float4 *xs, float4 *forces, cudaT
                 // printf("atom %d bond %d gets force %f\n", idx, i, harmonicForce(bounds, pos, posOther, b.k, b.rEq));
                 // printf("xs %f %f\n", pos.x, posOther.x);
                 float3 bondVec  = bounds.minImage(pos - posOther);
-                float r = length(bondVec);
-                forceSum += T.force(bondVec, r, bondType);
+                float rSqr = lengthSqr(bondVec);
+                forceSum += T.force(bondVec, rSqr, bondType);
             }
             forces[myIdx] += forceSum;
         }
@@ -87,8 +87,8 @@ __global__ void compute_energy_bond(int nAtoms, float4 *xs, float *perParticleEn
                 // printf("atom %d bond %d gets force %f\n", idx, i, harmonicForce(bounds, pos, posOther, b.k, b.rEq));
                 // printf("xs %f %f\n", pos.x, posOther.x);
                 float3 bondVec  = bounds.minImage(pos - posOther);
-                float r = length(bondVec);
-                energySum += T.energy(bondVec, r, bondType);
+                float rSqr = lengthSqr(bondVec);
+                energySum += T.energy(bondVec, rSqr, bondType);
             }
             perParticleEng[myIdx] += energySum;
         }
