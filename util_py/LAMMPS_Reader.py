@@ -95,7 +95,7 @@ class LAMMPS_Reader:
 
     def readBounds(self):
         #reBase = '^\s+[\-\.\d]+\s+[\-\.\d]\s+%s\s+%s\s$'
-        reBase = '^\s+[\-\.\d\e]+[\s]+[\-\.\d\e]+[\s]+%s[\s]+%s'
+        reBase = '^\s*[\-\.\d\e]+[\s]+[\-\.\d\e]+[\s]+%s[\s]+%s'
         bits = [('xlo', 'xhi'), ('ylo', 'yhi'), ('zlo', 'zhi')]
         lo = self.state.Vector()
         hi = self.state.Vector()
@@ -240,7 +240,6 @@ class LAMMPS_Reader:
     def readBondCoefs(self):
         rawData = self.readSection(self.dataFileLines, re.compile('Bond Coeffs'))
         dataConverter = argumentConverters['data'][self.bondFix.type]
-        print self.bondFix.type
         inputConverter = argumentConverters['input'][self.bondFix.type]
         for line in rawData:
             args = dataConverter(self, line)
@@ -339,8 +338,10 @@ class LAMMPS_Reader:
                 line = f[lineNum]
                 if regex.search(f[lineNum]):
                     lineStrip = self.stripComments(line)
-                    bits = lineStrip.split()
-                    res.append(bits)
+                    if regex.search(lineStrip):
+#if still valid after comments stripped
+                        bits = lineStrip.split()
+                        res.append(bits)
                 lineNum+=1
             fIdx+=1
         return res

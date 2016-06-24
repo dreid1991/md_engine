@@ -226,6 +226,7 @@ public:
     const bool forceSingle; //!< True if Fix contributes to single point energy.
     const bool requiresVirials; //!< True if Fix needs virials.  Fixes will compute virials if any fix has this as true
     const bool requiresCharges; //!< True if Fix needs charges.  Fixes will be stored if any fix has this as true
+    const bool isThermostat; //!< True if is a thermostat. Used for barostats.
     int orderPreference; //!< Fixes with a high order preference are calculated
                          //!< later.
 
