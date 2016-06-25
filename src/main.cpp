@@ -710,18 +710,6 @@ int main(int argc, char **argv) {
   //  state->addAtom("handle", Vector(4, 2.7, 0));
   //  state->atoms[0].vel = Vector(2, 0, 0);
 
-    for (int i=0; i<baseLen; i++) {
-        for (int j=0; j<baseLen; j++) {
-            state->atoms.push_back(Atom(Vector(mult*j, mult*i, 0), 0, i*baseLen+j, 2, 0));
-            state->atoms.push_back(Atom(Vector(mult*j, mult*i, 3), 0, i*baseLen+j, 2, 0));
-            state->atoms.push_back(Atom(Vector(mult*j, mult*i, 6), 0, i*baseLen+j, 2, 0));
-            state->atoms.push_back(Atom(Vector(mult*(j+0.5), mult*(i+0.5), 1.5), 0, i*baseLen+j, 2, 0));
-            state->atoms.push_back(Atom(Vector(mult*(j+0.5), mult*(i+0.5), 4.5), 0, i*baseLen+j, 2, 0));
-            state->atoms.push_back(Atom(Vector(mult*(j+0.5), mult*(i+0.5), 7.5), 0, i*baseLen+j, 2, 0));
-            //state->addAtom("handle", Vector(mult*i, mult*j, 0)); //SLOW
-        }
-    }
-    InitializeAtoms::initTemp(state, "all", 0.1);
     //SHARED(WriteConfig) write = SHARED(WriteConfig) (new WriteConfig(state, "test", "handley", "xml", 5));
     //state->activateWriteConfig(write);
     int n = 8000;

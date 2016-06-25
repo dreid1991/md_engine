@@ -3,17 +3,14 @@
 #define ATOM_H
 
 #include <vector>
-
+#include <string.h>
 #include "Vector.h"
 #include "OffsetObj.h"
 
 class Atom;
 
-typedef OffsetObj<Atom *> Neighbor;
-typedef std::vector<Atom *> atomlist;
 
 void export_Atom();
-void export_Neighbor();
 
 class Atom {
 public:
@@ -22,32 +19,19 @@ public:
     Vector force;
     //Vector posAtNeighborListing; // can do this elsewhere
 
-    Atom *next;
     double mass;
     double q;
-    int type;  // do this here, since otherwise would have to get it from some other array in the heap
+    int type;  
     int id;
     uint32_t groupTag;
-    std::vector<Neighbor> neighbors;
     bool isChanged;
+    std::vector<std::string> *handles;
 
-    Atom()
-      : mass(-1), id(0), groupTag(1)
-    {   }
-
-    Atom(int type_, int id_)
-      : next(nullptr), mass(-1), q(0),
-        type(type_), id(id_), groupTag(1)
-    {   }
-
-    Atom(Vector pos_, int type_, int id_)
-      : pos(pos_), next(nullptr), mass(-1), q(0),
-        type(type_), id(id_), groupTag(1)
-    {   }
-
-    Atom(Vector pos_, int type_, int id_, double mass_, double q_)
-      : pos(pos_), next(nullptr), mass(mass_), q(q_),
-        type(type_), id(id_), groupTag(1)
+    Atom (std::vector<std::string> *handles_) 
+        : handles(handles_) 
+    {};
+    Atom(Vector pos_, int type_, int id_, double mass_, double q_, std::vector<std::string> *handles_)
+        : pos(pos_), mass(mass_), q(q_), type(type_), id(id_), groupTag(1), handles(handles_)
     {   }
 
     bool operator==(const Atom &other) {
@@ -61,9 +45,17 @@ public:
         return 0.5 * mass * vel.lenSqr();
     }
 
-    void setPos(Vector pos_);
-
+    void setPos(Vector &x);
     Vector getPos();
+
+    void setVel(Vector &x);
+    Vector getVel();
+
+    void setForce(Vector &x);
+    Vector getForce();
+
+    std::string getType();
+
 
 };
 

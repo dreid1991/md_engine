@@ -152,7 +152,7 @@ bool ReadConfig::read() {
 	state->is2d = readIs2d;
 	readAtoms.reserve(numAtoms);
 	for (int i=0; i<numAtoms; i++) {
-		readAtoms.push_back(Atom());
+		readAtoms.push_back(Atom(&state->atomParams.handles));
 	}
     assert(
             (xml_assign<double, 3>(*config, "position", [&] (int i, double *vals) {

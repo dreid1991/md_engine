@@ -73,7 +73,7 @@ int State::addAtom(std::string handle, Vector pos, double q) {
     auto it = find(handles.begin(), handles.end(), handle);
     assert(it != handles.end());
     int idx = it - handles.begin();//okay, so index in handles is type
-    Atom a(pos, idx, -1, atomParams.masses[idx], q);
+    Atom a(pos, idx, -1, atomParams.masses[idx], q, &handles);
     bool added = addAtomDirect(a);
     if (added) {
         return atoms.back().id;
@@ -599,7 +599,6 @@ std::vector<Atom> State::copyAtoms() {
     save.reserve(atoms.size());
     for (Atom &a : atoms) {
         Atom copy = a;
-        copy.neighbors = vector<Neighbor>();
         save.push_back(copy);
     }
     return save;

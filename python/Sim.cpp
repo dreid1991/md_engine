@@ -41,7 +41,6 @@ BOOST_PYTHON_MODULE(Sim) {
     export_VectorInt();	
     export_Atom();
     export_Molecule();
-    export_Neighbor();
     export_Bounds();
     export_Integrator();
     export_IntegratorVerlet();
