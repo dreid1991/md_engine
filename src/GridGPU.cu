@@ -45,20 +45,11 @@ GridGPU::GridGPU() {
     //initStream();
 }
 
-GridGPU::GridGPU(State *state_, float3 ds_, float3 dsOrig_,
-                 float3 os_, int3 ns_, float maxRCut_)
-  : state(state_), ds(ds_), dsOrig(dsOrig_), os(os_), ns(ns_),
-    neighCutoffMax(maxRCut_ + state->padding) {
 
-    streamCreated = false;
-    initArrays();
-    initStream();
-    handleExclusions();
-    numChecksSinceLastBuild = 0;
-}
 
-GridGPU::GridGPU(State *state_, float dx_, float dy_, float dz_)
+GridGPU::GridGPU(State *state_, float dx_, float dy_, float dz_, float neighCutoffMax_)
   : state(state_) {
+    neighCutoffMax = neighCutoffMax_;
 
     streamCreated = false;
     Vector trace = state->bounds.trace;  // EEHHHHH SHOULD CHANGE TO BOUNDSGPU, but it doesn't really matter because you initialize them at the same time.  FOR NOW

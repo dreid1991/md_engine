@@ -27,7 +27,6 @@ State::State() {
     //! \todo I think it would be great to also have the group "none"
     //!       in addition to "all"
     is2d = false;
-    buildNeighborlists = true;
     rCut = RCUT_INIT;
     padding = PADDING_INIT;
     turn = 0;
@@ -339,6 +338,16 @@ float State::getMaxRCut() {
     return maxRCut;
 }
 
+
+
+void State::initializeGrid() {
+    double maxRCut = getMaxRCut();// ALSO PADDING PLS
+    cout << "cut is " << maxRCut << endl;
+    double gridDim = maxRCut + padding;
+    gridGPU = GridGPU(this, gridDim, gridDim, gridDim, gridDim);
+
+}
+
 bool State::prepareForRun() {
     // fixes have already prepared by the time the integrator calls this prepare
     std::vector<float4> xs_vec, vs_vec, fs_vec;
@@ -358,27 +367,6 @@ bool State::prepareForRun() {
     }
 
 
-    /*
-    auto pivot = *std::next(atomsFirst, std::distance(atomsFirst,atomsLast)/2);
-    auto middle = std::partition(atomsFirst, atomsLast,
-                                 [pivot](const Atom &a) {
-                                     return a.pos[0] < pivot.pos[0];
-                                 }
-    );
-    */
-
-    /*
-    std::sort(atoms.begin(), atoms.end(), [](const Atom &a, const Atom &b) {
-                                              return a.pos[0] < b.pos[0];
-                                          }
-    );
-    auto split = *std::next(atoms.begin(), atoms.size()/2);
-    if (mpiRank == 0) {
-        atoms.erase(split, atoms.end());
-    } else if (mpiRank == 1) {
-        atoms.erase(atoms.begin(), split);
-    }
-    */
 
     int nAtoms = atoms.size();
 
@@ -426,7 +414,8 @@ bool State::prepareForRun() {
     gpd.idToIdxs.set(idToIdxs_vec);
     boundsGPU = bounds.makeGPU();
     float maxRCut = getMaxRCut();
-    gridGPU = grid.makeGPU(maxRCut);  // uses os, ns, ds, dsOrig from AtomGrid
+    initializeGrid();
+    //gridGPU = grid.makeGPU(maxRCut);  // uses os, ns, ds, dsOrig from AtomGrid
 
     gpd.xsBuffer = GPUArrayGlobal<float4>(nAtoms);
     gpd.vsBuffer = GPUArrayGlobal<float4>(nAtoms);
@@ -507,24 +496,6 @@ bool State::downloadFromRun() {
 }
 
 
-bool State::makeReady() {
-    if (changedAtoms or changedGroups) {
-        for (Fix *fix : fixes) {
-            fix->refreshAtoms();
-        }
-    }
-    if (changedAtoms) {
-    //    refreshBonds();//this must go before doing pbc, otherwise atom pointers could be messed up when you get atom offsets for bonds, which happens in pbc
-    }
-    if ((changedAtoms || redoNeighbors)) {
-        //grid->periodicBoundaryConditions(); //UNCOMMENT THIS, WAS DONE FOR CUDA INITIAL STUFF
-    }
-
-    changedAtoms = false;
-    changedGroups = false;
-    redoNeighbors = false;
-    return true;
-}
 
 bool State::addToGroupPy(std::string handle, py::list toAdd) {//testF takes index, returns bool
     int tagBit = groupTagFromHandle(handle);  //if I remove asserts from this, could return things other than true, like if handle already exists
@@ -739,7 +710,6 @@ BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(State_seedRNG_overloads,State::seedRNG,0,
                 .def_readwrite("is2d", &State::is2d)
                 .def_readonly("changedAtoms", &State::changedAtoms)
                 .def_readonly("changedGroups", &State::changedGroups)
-                .def_readwrite("buildNeighborlists", &State::buildNeighborlists)
                 .def_readwrite("turn", &State::turn)
                 .def_readwrite("periodicInterval", &State::periodicInterval)
                 .def_readwrite("rCut", &State::rCut)
@@ -748,7 +718,6 @@ BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(State_seedRNG_overloads,State::seedRNG,0,
                 .def_readonly("groupTags", &State::groupTags)
                 .def_readonly("dataManager", &State::dataManager)
                 //shared ptrs
-                .def_readwrite("grid", &State::grid)
                 .def_readwrite("bounds", &State::bounds)
                 .def_readwrite("fixes", &State::fixes)
                 .def_readwrite("atomParams", &State::atomParams)

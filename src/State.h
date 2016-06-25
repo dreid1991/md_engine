@@ -32,7 +32,6 @@
 #include "GPUData.h"
 #include "GridGPU.h"
 #include "Bounds.h"
-#include "AtomGrid.h"
 #include "DataManager.h"
 
 #include "boost_for_export.h"
@@ -91,7 +90,6 @@ public:
     GPUData gpd; //!< All GPU data
     DeviceManager devManager; //!< GPU device manager
 
-    AtomGrid grid; //!< Grid on the CPU
     Bounds bounds; //!< Bounds on the CPU
     std::vector<Fix *> fixes; //!< List of all fixes
     std::vector<boost::shared_ptr<Fix> > fixesShr; //!< List of shared pointers to fixes
@@ -102,8 +100,6 @@ public:
     std::map<std::string, uint32_t> groupTags; //!< Map of group handles and
                                                //!< bitmasks
     bool is2d; //!< True for 2d simulations, else False
-    bool buildNeighborlists; //!< If True neighbor lists are built in
-                             //!< AtomGrid::periodicBoundaryConditions()
     bool periodic[3]; //!< If True, simulation is periodic in given dimension
     float dt; //!< Timestep
     float specialNeighborCoefs[3]; //!< Coefficients for modified neighbor
@@ -416,7 +412,6 @@ public:
      *       refreshBonds() and grid->periodicBoundaryConditions(). Either
      *       uncomment them or remove them if they are no longer necessary.
      */
-    bool makeReady();
 
     int maxExclusions; //!< Unused. \todo Remove? Grid uses maxExclusionsPerAtom
 
@@ -472,7 +467,8 @@ public:
      * be added and deleted.
      */
     int maxIdExisting;
-
+    //! set gridGPU member.  used when preparing for run
+    void initializeGrid();
     std::vector<int> idBuffer; //!< Buffer of unused Atom Ids
 
     //! Return reference to the Random Number Generator

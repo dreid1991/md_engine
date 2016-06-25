@@ -3,7 +3,6 @@ import matplotlib.pyplot as plt
 sys.path = sys.path + ['../build/python/build/lib.linux-x86_64-2.7']
 #from Sim import *
 from Sim import *
-print FixPair
 state = State()
 state.deviceManager.setDevice(0)
 state.bounds = Bounds(state, lo = Vector(0, 0, 0), hi = Vector(55.12934875488, 55.12934875488, 55.12934875488))
@@ -12,7 +11,6 @@ state.padding = 0.6
 state.periodicInterval = 7
 state.shoutEvery = 100
 
-state.grid = AtomGrid(state, 3.6, 3.6, 3.6)
 state.atomParams.addSpecies(handle='spc1', mass=1, atomicNum=1)
 nonbond = FixLJCut(state, 'cut')
 nonbond.setParameter('sig', 'spc1', 'spc1', 1)
@@ -28,8 +26,8 @@ for i in range(len(f)):
 #state.addAtom('spc1', pos = Vector(10.5, 10.5, 10.7))
 InitializeAtoms.initTemp(state, 'all', 1.2)
 
-fixNVT = FixLangevin(state, 'temp', 'all', 1.2)
-#fixNVT = FixNoseHoover(state, 'temp', 'all', 1.2, 0.1)
+#fixNVT = FixLangevin(state, 'temp', 'all', 1.2)
+fixNVT = FixNoseHoover(state, 'temp', 'all', 1.2, 0.1)
 #fixNVT = FixNVTRescale(state, 'temp', 'all', 1.2)
 
 state.activateFix(fixNVT)
@@ -42,14 +40,14 @@ integVerlet = IntegratorVerlet(state)
 
 #writeconfig = WriteConfig(state, fn='test_out', writeEvery=1, format='xyz', handle='writer')
 #state.activateWriteConfig(writeconfig)
-integVerlet.run(1000)
+integVerlet.run(10000)
 #integVerlet.run(10000)
 print state.atoms[0].pos
 sumV = 0.
 for a in state.atoms:
     sumV += a.vel.lenSqr()
 print sumV / len(state.atoms)/3.0
-print tempData.vals
+#print tempData.vals
 #print sum(tempData.vals) / len(tempData.vals)
 #print boundsData.vals[0].getSide(1)
 #print engData.turns[-1]

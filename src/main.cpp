@@ -37,7 +37,6 @@ void testFire() {
     double mult = 1.5;
     state->bounds = Bounds(state, Vector(0, 0, 0), Vector(mult*baseLen, mult*baseLen, 10));
     state->rCut = 3.5;
-    state->grid = AtomGrid(state.get(), 4, 4, 3);
     state->atomParams.addSpecies("handle", 2);
     state->is2d = true;
     state->periodic[2] = false;
@@ -81,7 +80,6 @@ void testCharge() {
                            Vector(0, 0, 0),
                            Vector(mult*baseLen, mult*baseLen, mult*baseLen));
     state->rCut = 9.5;
-    state->grid = AtomGrid(state.get(), 9.5, 9.5, 9.5);
     state->atomParams.addSpecies("anion", 2);
     state->atomParams.addSpecies("cation", 3);
     double eps = 2.0;
@@ -161,7 +159,6 @@ void testPair() {
 
     state->bounds = Bounds(state, Vector(0, 0, 0), Vector(L,L,L));
     state->rCut = 5.0;
-    state->grid = AtomGrid(state.get(), L,L,L);
     state->atomParams.addSpecies("handle", 2);
     state->addAtom("handle",Vector(0, 0, 0), 0);
     state->addAtom("handle",Vector(5, 0, 0), 0);
@@ -198,7 +195,6 @@ void test_charge_ewald() {
 
     state->bounds = Bounds(state, Vector(0, 0, 0), Vector(L,L,L));
     state->rCut = 5.0;
-    state->grid = AtomGrid(state.get(), L,L,L);
     state->atomParams.addSpecies("handle", 2);
     state->addAtom("handle",Vector(0.5*L, 0.5*L, 0.5*L), 0);
     state->addAtom("handle",Vector(0.75*L, 0.5*L, 0.5*L), 0);
@@ -245,7 +241,6 @@ void testRead() {
     state->periodicInterval = 40;
     state->bounds = Bounds(state, Vector(0, 0, 0), Vector(mult*baseLen, mult*baseLen, 10));
     state->rCut = 2.9;
-    state->grid = AtomGrid(state.get(), 3, 3, 3);
     state->atomParams.addSpecies("handle", 2);
 
     state->addAtom("handle", Vector(1, 1, 1), 0);
@@ -274,7 +269,6 @@ void testWallHarmonic() {
     SHARED(State) state = SHARED(State) (new State());
     state->bounds = Bounds(state, Vector(0, 0, 0), Vector(50, 50, 10));
     state->rCut = 3.5;
-    state->grid = AtomGrid(state.get(), 4, 4, 3);
     state->atomParams.addSpecies("handle", 2);
     state->atomParams.addSpecies("other", 2);
     state->is2d = true;
@@ -317,7 +311,6 @@ void testBondHarmonic() {
     SHARED(State) state = SHARED(State) (new State());
     state->bounds = Bounds(state, Vector(0, 0, 0), Vector(50, 50, 10));
     state->rCut = 3.5;
-    state->grid = AtomGrid(state.get(), 4, 4, 3);
     state->atomParams.addSpecies("handle", 2);
     state->is2d = true;
     state->periodic[2] = false;
@@ -358,7 +351,6 @@ void testBondHarmonicGrid() {
     state->periodic[2] = false;
     state->bounds = Bounds(state, Vector(0, 0, 0), Vector(50, 50, 10));
     state->rCut = 3.5;
-    state->grid = AtomGrid(state.get(), 4, 4, 3);
     state->atomParams.addSpecies("handle", 2);
 
     SHARED(FixBondHarmonic) bond (new FixBondHarmonic(state, "bondh"));
@@ -427,7 +419,6 @@ void testBondHarmonicGridToGPU() {
     state->periodic[2] = false;
     state->bounds = Bounds(state, Vector(0, 0, 0), Vector(50, 50, 10));
     state->rCut = 3.5;
-    state->grid = AtomGrid(state.get(), 4, 4, 3);
     state->atomParams.addSpecies("handle", 2);
 
     SHARED(FixBondHarmonic) bond (new FixBondHarmonic(state, "bondh"));
@@ -511,7 +502,6 @@ void hoomdBench() {
     state->bounds = Bounds(state, Vector(0, 0, 0), Vector(boxLen, boxLen, boxLen));
     state->rCut = 3.0;
     state->padding = 0.6;
-    state->grid = AtomGrid(state.get(), 3.6, 3.6, 3.6);
     state->atomParams.addSpecies("handle", 1);
     InitializeAtoms::populateRand(state, state->bounds, "handle", 6000, 0.6);
 
@@ -573,7 +563,6 @@ void testLJ() {
     state->bounds = Bounds(state, Vector(0, 0, 0), Vector(mult*baseLen, mult*baseLen, mult*baseLen));
     state->rCut = 2.5;
     state->padding = 0.5;
-    state->grid = AtomGrid(state.get(), 3.5, 3.5, 3);
     state->atomParams.addSpecies("handle", 2);
     vector<double> intervals = {0, 1};
     vector<double> temps = {1.2, 1.2};
@@ -709,7 +698,6 @@ int main(int argc, char **argv) {
     //SORTING NOT WORKING FOR IS2d = true
     state->bounds = Bounds(state, Vector(0, 0, 0), Vector(mult*baseLen, mult*baseLen, 10));
     state->rCut = 2.9;
-    state->grid = AtomGrid(state.get(), 3, 3, 3);
     state->atomParams.addSpecies("handle", 2);
     SHARED(FixLJCut) nonbond = SHARED(FixLJCut) (new FixLJCut(state, "nb"));
     SHARED(Fix2d) f2d = SHARED(Fix2d) (new Fix2d(state, "2d", 30));

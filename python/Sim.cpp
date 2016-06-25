@@ -13,7 +13,6 @@ using namespace boost::python;
 using namespace std;
 #include "State.h"
 #include "Atom.h"
-#include "AtomGrid.h"
 #include "Vector.h" 
 #include "InitializeAtoms.h"
 #include "Bounds.h"
@@ -78,7 +77,6 @@ BOOST_PYTHON_MODULE(Sim) {
     export_FixNVTRescale();
     export_FixLangevin();
 
-    export_AtomGrid();
     export_AtomParams();
     export_DataManager();
     export_ReadConfig();

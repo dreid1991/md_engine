@@ -139,15 +139,6 @@ public:
     //! Recalculate group bitmask from a (possibly changed) handle
     void updateGroupTag();
 
-    //! Refresh Atoms
-    /*!
-     * \return False if a problem occured, else True
-     *
-     * This function should be called whenever the number of atoms in the
-     * simulation has changed.
-     */
-    virtual bool refreshAtoms(){return true;};
-
     //! Restart Fix
     /*!
      * \param restData XML node containing the restart data for the Fix
