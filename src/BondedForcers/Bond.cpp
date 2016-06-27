@@ -1,13 +1,12 @@
 #include "Bond.h"
 #include "boost_for_export.h"
-using namespace boost::python;
 
+namespace py = boost::python;
 
 //BondHarmonicType::BondHarmonicType(BondHarmonic *bond) {
 //    k = bond->k;
 //    r0 = bond->r0;
 //}
-
 
 bool BondHarmonicType::operator==(const BondHarmonicType &other) const {
     return k == other.k and r0 == other.r0;
@@ -105,8 +104,8 @@ std::string BondFENE::getInfoString() {
 
 void export_BondFENE() {
   
-    boost::python::class_<BondFENE,SHARED(BondFENE)> ( "BondFENE", boost::python::init<>())
-//         .def(boost::python::init<int, int ,double, double,int>())
+    py::class_<BondFENE,SHARED(BondFENE)> ( "BondFENE", py::init<>())
+//         .def(py::init<int, int ,double, double,int>())
         .def_readonly("ids", &BondFENE::ids)
         .def_readwrite("k", &BondFENE::k)
         .def_readwrite("r0", &BondFENE::r0)
