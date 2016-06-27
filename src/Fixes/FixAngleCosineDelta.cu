@@ -1,13 +1,13 @@
 
 #include "FixHelpers.h"
 #include "helpers.h"
-#include "FixAngleHarmonic.h"
+#include "FixAngleCosineDelta.h"
 #include "cutils_func.h"
 #include "AngleEvaluate.h"
 using namespace std;
-const string angleHarmonicType = "AngleHarmonic";
-FixAngleHarmonic::FixAngleHarmonic(boost::shared_ptr<State> state_, string handle)
-  : FixPotentialMultiAtom(state_, handle, angleHarmonicType, true)
+const string angleCosineDeltaType = "AngleCosineDelta";
+FixAngleCosineDelta::FixAngleCosineDelta(boost::shared_ptr<State> state_, string handle)
+  : FixPotentialMultiAtom(state_, handle, angleCosineDeltaType, true)
 {
   if (state->readConfig->fileOpen) {
     auto restData = state->readConfig->readFix(type, handle);
@@ -20,41 +20,41 @@ FixAngleHarmonic::FixAngleHarmonic(boost::shared_ptr<State> state_, string handl
 
 namespace py = boost::python;
 
-void FixAngleHarmonic::compute(bool computeVirials) {
+void FixAngleCosineDelta::compute(bool computeVirials) {
     int nAtoms = state->atoms.size();
     int activeIdx = state->gpd.activeIdx();
-    compute_force_angle<<<NBLOCK(nAtoms), PERBLOCK, sizeof(AngleGPU) * maxForcersPerBlock + parameters.size() * sizeof(AngleHarmonicType)>>>(nAtoms, state->gpd.xs(activeIdx), state->gpd.fs(activeIdx), state->gpd.idToIdxs.getTex(), forcersGPU.data(), forcerIdxs.data(), state->boundsGPU, parameters.data(), parameters.size(), evaluator);
+    compute_force_angle<<<NBLOCK(nAtoms), PERBLOCK, sizeof(AngleGPU) * maxForcersPerBlock + parameters.size() * sizeof(AngleCosineDeltaType)>>>(nAtoms, state->gpd.xs(activeIdx), state->gpd.fs(activeIdx), state->gpd.idToIdxs.getTex(), forcersGPU.data(), forcerIdxs.data(), state->boundsGPU, parameters.data(), parameters.size(), evaluator);
 
 }
 
-void FixAngleHarmonic::singlePointEng(float *perParticleEng) {
+void FixAngleCosineDelta::singlePointEng(float *perParticleEng) {
     int nAtoms = state->atoms.size();
     int activeIdx = state->gpd.activeIdx();
-    compute_energy_angle<<<NBLOCK(nAtoms), PERBLOCK, sizeof(AngleGPU) * maxForcersPerBlock + parameters.size() * sizeof(AngleHarmonicType)>>>(nAtoms, state->gpd.xs(activeIdx), perParticleEng, state->gpd.idToIdxs.getTex(), forcersGPU.data(), forcerIdxs.data(), state->boundsGPU, parameters.data(), parameters.size(), evaluator);
+    compute_energy_angle<<<NBLOCK(nAtoms), PERBLOCK, sizeof(AngleGPU) * maxForcersPerBlock + parameters.size() * sizeof(AngleCosineDeltaType)>>>(nAtoms, state->gpd.xs(activeIdx), perParticleEng, state->gpd.idToIdxs.getTex(), forcersGPU.data(), forcerIdxs.data(), state->boundsGPU, parameters.data(), parameters.size(), evaluator);
 }
 //void cumulativeSum(int *data, int n);
 // okay, so the net result of this function is that two arrays (items, idxs of
 // items) are on the gpu and we know how many bonds are in bondiest block
 
-void FixAngleHarmonic::createAngle(Atom *a, Atom *b, Atom *c, double k, double theta0, int type) {
+void FixAngleCosineDelta::createAngle(Atom *a, Atom *b, Atom *c, double k, double theta0, int type) {
     vector<Atom *> atoms = {a, b, c};
     validAtoms(atoms);
     if (type == -1) {
         assert(k!=COEF_DEFAULT and theta0!=COEF_DEFAULT);
     }
-    forcers.push_back(AngleHarmonic(a, b, c, k, theta0, type));
+    forcers.push_back(AngleCosineDelta(a, b, c, k, theta0, type));
     pyListInterface.updateAppendedMember();
 }
 
-void FixAngleHarmonic::setAngleTypeCoefs(int type, double k, double theta0) {
+void FixAngleCosineDelta::setAngleTypeCoefs(int type, double k, double theta0) {
     //cout << type << " " << k << " " << theta0 << endl;
     mdAssert(theta0>=0 and theta0 <= M_PI, "Angle theta must be between zero and pi");
-    AngleHarmonic dummy(k, theta0);
+    AngleCosineDelta dummy(k, theta0);
     setForcerType(type, dummy);
 }
 
 
-bool FixAngleHarmonic::readFromRestart(pugi::xml_node restData) {
+bool FixAngleCosineDelta::readFromRestart(pugi::xml_node restData) {
     auto curr_node = restData.first_child();
     while (curr_node) {
         std::string tag = curr_node.name();
@@ -102,26 +102,26 @@ bool FixAngleHarmonic::readFromRestart(pugi::xml_node restData) {
     return true;
 }
 
-void export_FixAngleHarmonic() {
-    boost::python::class_<FixAngleHarmonic,
-                          boost::shared_ptr<FixAngleHarmonic>,
+void export_FixAngleCosineDelta() {
+    boost::python::class_<FixAngleCosineDelta,
+                          boost::shared_ptr<FixAngleCosineDelta>,
                           boost::python::bases<Fix, TypedItemHolder> >(
-        "FixAngleHarmonic",
+        "FixAngleCosineDelta",
         boost::python::init<boost::shared_ptr<State>, string>(
                                 boost::python::args("state", "handle"))
     )
-    .def("createAngle", &FixAngleHarmonic::createAngle,
+    .def("createAngle", &FixAngleCosineDelta::createAngle,
             (boost::python::arg("k")=COEF_DEFAULT,
              boost::python::arg("theta0")=COEF_DEFAULT,
              boost::python::arg("type")=-1)
         )
-    .def("setAngleTypeCoefs", &FixAngleHarmonic::setAngleTypeCoefs,
+    .def("setAngleTypeCoefs", &FixAngleCosineDelta::setAngleTypeCoefs,
             (boost::python::arg("type")=-1,
              boost::python::arg("k")=COEF_DEFAULT,
              boost::python::arg("theta0")=COEF_DEFAULT
             )
         )
-    .def_readonly("angles", &FixAngleHarmonic::pyForcers)
+    .def_readonly("angles", &FixAngleCosineDelta::pyForcers)
     ;
 }
 

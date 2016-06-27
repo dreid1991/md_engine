@@ -1,0 +1,31 @@
+#pragma once
+#ifndef FIXANGLEHARMONIC_H
+#define FIXANGLEHARMONIC_H
+
+#include "FixPotentialMultiAtom.h"
+#include "Angle.h"
+#include "AngleEvaluatorCosineDelta.h"
+
+void export_FixAngleCosineDelta();
+
+class FixAngleCosineDelta : public FixPotentialMultiAtom<AngleVariant, AngleCosineDelta, Angle, AngleGPU, AngleCosineDeltaType, 3> {
+
+private:
+    AngleEvaluatorCosineDelta evaluator; 
+public:
+    //DataSet *eng;
+    //DataSet *press;
+
+    FixAngleCosineDelta(boost::shared_ptr<State> state_, std::string handle);
+
+    void compute(bool);
+    void singlePointEng(float *);
+
+    void createAngle(Atom *, Atom *, Atom *, double, double, int type_);
+    void setAngleTypeCoefs(int, double, double);
+
+    bool readFromRestart(pugi::xml_node restData);
+
+};
+
+#endif

@@ -415,6 +415,29 @@ def angleHarmonic_input(reader, args):
     thetaEq = float(args[3]) * DEGREES_TO_RADIANS
     return [type, k, thetaEq]
 
+def angleCosineDelta_data(reader, args):
+    LMPType = int(args[0])
+    if not LMPType in reader.LMPTypeToSimTypeAngle:
+        print 'Ignoring LAMMPS angle type %d from data file.  Angle not used in data file' % LMPType
+        return False
+    type = reader.LMPTypeToSimTypeAngle[LMPType]
+    k = float(args[1]) / reader.unitEng
+
+    thetaEq = float(args[2]) * DEGREES_TO_RADIANS
+    return [type, k, thetaEq]
+
+def angleCosineDelta_input(reader, args):
+    LMPType = int(args[1])
+    if not LMPType in reader.LMPTypeToSimTypeAngle:
+        print 'Ignoring LAMMPS angle type %d from input script.  Angle not used in data file' % LMPType
+        return False
+    type = reader.LMPTypeToSimTypeAngle[LMPType]
+    k = float(args[2]) / reader.unitEng
+
+    thetaEq = float(args[3]) * DEGREES_TO_RADIANS
+    return [type, k, thetaEq]
+
+
 def dihedralOPLS_data(reader, args):
     LMPType = int(args[0])
     if not LMPType in reader.LMPTypeToSimTypeDihedral:
@@ -463,6 +486,7 @@ argumentConverters = {
             'BondHarmonic': bondHarmonic_data,
             'BondFENE': bondFENE_data,
             'AngleHarmonic': angleHarmonic_data,
+            'AngleCosineDelta': angleCosineDelta_data,
             'DihedralOPLS': dihedralOPLS_data,
             'ImproperHarmonic': improperHarmonic_data
             },
@@ -471,6 +495,7 @@ argumentConverters = {
             'BondHarmonic': bondHarmonic_input,
             'BondFENE': bondFENE_input,
             'AngleHarmonic': angleHarmonic_input,
+            'AngleCosineDelta': angleCosineDelta_input,
             'DihedralOPLS': dihedralOPLS_input,
             'ImproperHarmonic': improperHarmonic_input
             }
