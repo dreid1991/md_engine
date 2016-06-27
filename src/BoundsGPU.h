@@ -23,21 +23,17 @@ public:
      * \param periodic_ Stores whether the box is periodic in x-, y-, and
      *                  z-direction
      */
-    BoundsGPU(float3 lo_, float3 *sides_, float3 periodic_) {
+    BoundsGPU(float3 lo_, float3 rectComponents_, float3 periodic_) {
         lo = lo_;
-        for (int i=0; i<3; i++) {
-            sides[i] = sides_[i];
-            periodic = periodic_;
-        }
-        rectLen = make_float3(sides[0].x, sides[1].y, sides[2].z);
-        invRectLen = (float) 1 / rectLen;
+        rectComponents = rectComponents_;
+        invRectLen = 1.0f / rectComponents;
+        periodic = periodic_;
     }
 
     /*! \brief Default constructor */
     BoundsGPU() {};
 
-    float3 sides[3]; //!< 3 vectors defining the x-, y-, and z- direction
-    float3 rectLen; //!< Length of box in standard coordinates
+    float3 rectComponents; //!< 3 sides - xx, yy, zz
     float3 invRectLen; //!< Inverse of the box expansion in standard
                        //!< coordinates
     float3 lo; //!< Point of origin
@@ -49,22 +45,26 @@ public:
      * \return Unskewed copy of this box.
      */
     BoundsGPU unskewed() {
+        /*
         float3 sidesNew[3];
         memset(sidesNew, 0, 3*sizeof(float3));
         sidesNew[0].x = sides[0].x;
         sidesNew[1].y = sides[1].y;
         sidesNew[2].z = sides[2].z;
         return BoundsGPU(lo, sidesNew, periodic);
+        */
+        return *this;
     }
 
     /*! \brief Return trace of this box
      *
      * \return Trace for the box
      *
-     * \todo Trace is identical to rectLen, isn't it?
+     * Will be updated to handle box shearing
      */
     GPUMEMBER float3 trace() {
-        return make_float3(sides[0].x, sides[1].y, sides[2].z);
+        return rectComponents;
+        //return make_float3(sides[0].x, sides[1].y, sides[2].z);
     }
 
     /*! \brief Return vector wrapped into the main simulation box
@@ -73,12 +73,8 @@ public:
      * \return Copy of the vector, wrapped into main simulation box
      */
     GPUMEMBER float3 minImage(float3 v) {
-        int img = rintf(v.x * invRectLen.x);
-        v -= sides[0] * img * periodic.x;
-        img = rintf(v.y * invRectLen.y);
-        v -= sides[1] * img * periodic.y;
-        img = rintf(v.z * invRectLen.z);
-        v -= sides[2] * img * periodic.z;
+        float3 img = make_float3(rintf(v.x * invRectLen.x), rintf(v.y * invRectLen.y), rintf(v.z * invRectLen.z));
+        v -= rectComponents * img * periodic;
         return v;
     }
 
@@ -89,7 +85,11 @@ public:
      */
     GPUMEMBER bool inBounds(float3 v) {
         float3 diff = v - lo;
-        return diff.x < sides[0].x and diff.y < sides[1].y and diff.z < sides[2].z and diff.x >= 0 and diff.y >= 0 and diff.z >= 0;
+        return diff.x < rectComponents.x and diff.y < rectComponents.y and diff.z < rectComponents.z and diff.x >= 0 and diff.y >= 0 and diff.z >= 0;
+    }
+    bool isSkewed() {
+        //dummy function until skewing added
+        return false;
     }
 };
 

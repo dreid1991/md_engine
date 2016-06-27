@@ -30,7 +30,7 @@ void InitializeAtoms::populateOnGrid(SHARED(State) state, Bounds &bounds,
     int n_final = atoms.size() + n;
 
     int nPerSide = ceil(pow(n, 1.0/3.0));
-    Vector deltaPerSide = bounds.trace / nPerSide;
+    Vector deltaPerSide = bounds.rectComponents / nPerSide;
     for (int i=0; i<nPerSide; i++) {
         for (int j=0; j<nPerSide; j++) {
             for (int k=0; k<nPerSide; k++) {
@@ -59,8 +59,7 @@ void InitializeAtoms::populateRand(SHARED(State) state, Bounds &bounds,
     unsigned int n_final = atoms.size() + n;
     uniform_real_distribution<double> dists[3];
     for (int i=0; i<3; i++) {
-        dists[i] = uniform_real_distribution<double>(bounds.lo[i],
-                                                     bounds.hi[i]);
+        dists[i] = uniform_real_distribution<double>(bounds.lo[i], bounds.lo[i] + bounds.rectComponents[i]);
     }
     if (state->is2d) {
         dists[2] = uniform_real_distribution<double>(0, 0);

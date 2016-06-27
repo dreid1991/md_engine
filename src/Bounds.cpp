@@ -8,28 +8,27 @@
 
 using namespace std;
 
+void Bounds::init(State *state_, Vector lo_, Vector hi_) {
+    state = state_;
+    lo = lo_;
+    rectComponents = hi_ - lo;
+
+}
+
 void Bounds::handle2d() {
     if (state->is2d) {
         lo[2] = -0.5;
-        hi[2] = +0.5;
-        trace[2] = 1.0;
-        sides[2] = Vector(0, 0, 1.0);
+        rectComponents[2] = 1.0;
     }
 }
 
 BoundsGPU Bounds::makeGPU() {
-    float3 sidesGPU[3];
-    for (int i=0; i<3; ++i) {
-        sidesGPU[i] = sides[i].asFloat3();
-    }
     bool *periodic = state->periodic;
-    return BoundsGPU(lo.asFloat3(), sidesGPU, make_float3((int)periodic[0],
-                                                          (int)periodic[1],
-                                                          (int)periodic[2])
-    );
+    return BoundsGPU(lo.asFloat3(), rectComponents.asFloat3(), make_float3((int) periodic[0], (int) periodic[1], (int) periodic[2]));
 }
 
 bool Bounds::atomInBounds(Atom &a) {
+    Vector hi = lo + rectComponents;
     for (int i=0; i<3; i++) {
         if (not (a.pos[i] >= lo[i] and a.pos[i] <= hi[i])) {
             return false;
@@ -39,14 +38,11 @@ bool Bounds::atomInBounds(Atom &a) {
 }
 
 double Bounds::volume() {
-    double v = 1;
-    for (int i=0; i<3; i++) {
-        v *= sides[i][i];
-    }
-    return v;
+    return rectComponents.prod();
 }
 
 
+/*
 bool Bounds::skew(Vector skewBy) {
     skewBy[2] = 0;
     sides[0][1] += skewBy[1];
@@ -54,7 +50,6 @@ bool Bounds::skew(Vector skewBy) {
     trace += skewBy;
     return true;
 }
-
 double Bounds::getSkewX() {
     return atan2(sides[0][1], sides[0][0]);
 }
@@ -62,14 +57,9 @@ double Bounds::getSkewX() {
 double Bounds::getSkewY() {
     return atan2(sides[1][0], sides[1][1]);
 }
+*/
 
-double Bounds::getSkew(int idx) {
-    if (idx == 0) {
-        return getSkewX();
-    }   // return y skew if not x
-    return getSkewY();
-}
-
+/*
 Bounds Bounds::unskewed() {
     Vector hiNew = lo;
     for (int i=0; i<3; i++) {
@@ -89,15 +79,31 @@ bool Bounds::isSkewed() {
     }
     return false;
 }
-
+*/
 Vector Bounds::minImage(Vector v) {
     for (int i=0; i<3; i++) {
-        int img = round(v[i] / trace[i]);
-        v -= sides[i] * (state->periodic[i] * img);
+        int img = round(v[i] / rectComponents[i]);
+        v[i] -= rectComponents[i] * (state->periodic[i] * img);
     }
     return v;
 }
 
+void Bounds::setHiPy(Vector &v) {
+    rectComponents = v - lo;
+}
+Vector Bounds::getHiPy() {
+    return lo + rectComponents;
+}
+
+//keeping hi constant
+void Bounds::setLoPy(Vector &v) {
+    Vector dlo = v - lo;
+    rectComponents -= dlo;
+    lo = v;
+}
+Vector Bounds::getLoPy() {
+    return lo;
+}
 
 void export_Bounds() {
     boost::python::class_<Bounds, SHARED(Bounds)>(
@@ -108,11 +114,8 @@ void export_Bounds() {
     )
     .def("copy", &Bounds::copy)
     .def("set", &Bounds::setPython)
-    .def("getSide", &Bounds::getSide)
-    .def("setSide", &Bounds::setSide)
     .def("minImage", &Bounds::minImage)
-    .def_readwrite("lo", &Bounds::lo)
-    .def_readwrite("hi", &Bounds::hi)
-    .def_readwrite("trace", &Bounds::trace)
+    .add_property("lo", &Bounds::getLoPy, &Bounds::setLoPy)
+    .add_property("hi", &Bounds::getHiPy, &Bounds::setHiPy)
     ;
 }
