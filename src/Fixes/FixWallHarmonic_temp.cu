@@ -5,11 +5,20 @@
 #include "State.h"
 #include "boost_for_export.h"
 #include "cutils_math.h"
+#include "WallEvaluate.h"
 
-const std::string wallHarmonicType = "WallHarmonic";
+const std::string wallHarmonicType = "WallHarmonic_temp";
+using namespace std;
+namespace py = boost::python;
 
-// FixWallHarmonic_temp.cu
-// need a constructor up in here (its a .cu!)
+// the constructor for FixWallHarmonic
+FixWallHarmonic_temp::FixWallHarmonic_temp(SHARED(State) state_, std::string handle_, std::string groupHandle_,
+                                 Vector origin_, Vector forceDir_, float dist_, float k_)
+  : FixWall(state_, handle_, groupHandle_, wallHarmonicType, true,  false, 1, origin_, forceDir_.normalized()),
+    dist(dist_), k(k_)
+{
+    assert(dist >= 0);
+};
 
 
 
@@ -21,6 +30,7 @@ void FixWallHarmonic_temp::compute(bool computeVirials) {
 	int n = state->atoms.size();
 	if (computeVirials) {
 		// I think we just need the evaluator and whether or not to compute the virials - correct? we'll see..
+		// ^ referring to what to pass in as template specifiers
 		compute_wall_iso<EvaluatorWallHarmonic, true> <<<NBLOCK(n), PERBLOCK>>>(n,  gpd.xs(activeIdx),
                     gpd.fs(activeIdx), origin.asFloat3(), forceDir.asFloat3(), dist, groupTag, evaluator);
 	} else {
@@ -30,19 +40,20 @@ void FixWallHarmonic_temp::compute(bool computeVirials) {
 };
 
 void FixWallHarmonic_temp::singlePointEng(float *perParticleEng) {
-	int nAtoms = state->atoms.size();
 
-	//TODO is this needed for a wall? I would imagine, but the original harmonic wall doesnt have it implemented
 };
 
 
 
-bool prepareForRun() {
-	return true;
+bool FixWallHarmonic_temp::prepareForRun() {
+    // instantiate this fix's evaulator with the appropriate parameters
+
+    evaluator.setParameters(k,dist);
+    return true;
 };
 
-bool postRun () {
-	return true;
+bool FixWallHarmonic_temp::postRun () {
+    return true;
 };
 
 
@@ -53,13 +64,14 @@ bool postRun () {
 
 
 // export function
-void export_WallHarmonic_temp() {
-	py::class_<FixWallHarmonic_temp, boost::shared_ptr<FixWallHarmonic_temp>, py::bases<FixWall>, boost::noncopyable > (
+// and this is where all the errors are now :) to fix!
+void export_FixWallHarmonic_temp() {
+	py::class_<FixWallHarmonic_temp, SHARED(FixWallHarmonic_temp), py::bases<FixWall>, boost::noncopyable > (
 		"FixWallHarmonic_temp",
-		py::init<boost::shared_ptr<State>, string, string, Vector, Vector, double, double> (
+		py::init<SHARED(State), string, string, Vector, Vector, float, float> (
 			py::args("state", "handle", "groupHandle", "origin", "forceDir", "dist", "k")
 		)
-	) // it's expected that this will throw an error, via incorrectly accessing non-static members of the parent class?
+	)
 	.def_readwrite("k", &FixWallHarmonic_temp::k)
 	.def_readwrite("dist", &FixWallHarmonic_temp::dist)
 	.def_readwrite("forceDir", &FixWallHarmonic_temp::forceDir)
