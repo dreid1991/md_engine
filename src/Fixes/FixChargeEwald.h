@@ -31,6 +31,11 @@ private:
     float alpha;
     float r_cut;
     bool first_run;
+    
+    void find_optimal_parameters();
+    
+    float total_Q;
+    float total_Q2;
 
     void calc_Green_function();
     void calc_potential(cufftComplex *phi_buf);
@@ -47,8 +52,19 @@ public:
         setParameters(sz_, sz_, sz_, rcut_, interpolation_order_);
     }
 
+    //! Compute forces
     void compute(bool);
 
+    //! Compute single point energy
+    void singlePointEng(float *);
+
+    
+    //! Return list of cutoff values.
+    std::vector<float> getRCuts() {
+        std::vector<float> res;
+        res.push_back(r_cut);
+        return res;
+    }    
 };
 
 #endif

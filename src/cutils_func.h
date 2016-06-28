@@ -116,6 +116,7 @@ __global__ void NAME (K *dest, T *src, int n, int warpSize) {\
 }
 
 SUM(sumSingle, , );
+SUM(sumSqr,Sqr , );
 SUM(sumVector, length, );
 SUM(sumVectorSqr, lengthSqr, );
 SUM(sumVectorSqr3D, lengthSqr, make_float3);
