@@ -72,7 +72,7 @@ __global__ void Mod::skewAtomsFromZero(float4 *xs, int nAtoms, float3 xFinal, fl
 }
 
 // CPU versions
-
+/*
 void Mod::scaleAtomCoords(SHARED(State) state, string groupHandle, Vector around, Vector scaleBy) {
     return scaleAtomCoords(state.get(), groupHandle, around, scaleBy);
 }
@@ -190,3 +190,4 @@ void Mod::skew(SHARED(State) state, Vector skewBy) { //x component is how much t
     Vector yFinal = b.sides[1];
 	Mod::skewAtoms(raw->atoms, xOrig, xFinal, yOrig, yFinal);
 }
+*/

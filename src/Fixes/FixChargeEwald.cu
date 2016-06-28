@@ -521,7 +521,7 @@ void FixChargeEwald::find_optimal_parameters(){
 
 void FixChargeEwald::calc_potential(cufftComplex *phi_buf){
      Bounds b=state->bounds;
-    float volume=b.trace[0]*b.trace[1]*b.trace[2];
+    float volume=b.rectComponents[0]*b.rectComponents[1]*b.rectComponents[2];
     
     dim3 dimBlock(8,8,8);
     dim3 dimGrid((sz.x + dimBlock.x - 1) / dimBlock.x,(sz.y + dimBlock.y - 1) / dimBlock.y,(sz.z + dimBlock.z - 1) / dimBlock.z);    
