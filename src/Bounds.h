@@ -18,16 +18,14 @@ void export_Bounds();
 class State;
 
 class Bounds {
-
 public:
     State *state;
     bool isSet;
     Vector lo;
     Vector rectComponents; //xx, yy, zz components of the bounds.  lo + rectComponents = upper corner of the box when box is rectangular
-    Bounds() {
-        state = nullptr;
-    };
-
+    Bounds();
+    Bounds(State *); //constructor to be called within state's constructor.  Initializes values to some default values which can be used to check if values are set
+    
     Bounds(SHARED(State) state_, Vector lo_, Vector hi_) {
         init(state_.get(), lo_, hi_);
     }
@@ -55,7 +53,7 @@ public:
     Bounds copy() {
         return *this;
     }
-
+    bool isInitialized();
     void set(BoundsGPU &b) {
         /*
         lo = Vector(b.lo);

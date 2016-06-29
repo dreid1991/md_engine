@@ -30,7 +30,6 @@ writeconfig = WriteConfig(state, fn='poly_out', writeEvery=10, format='xyz', han
 #reader = LAMMPS_Reader(state=state, unitLen = unitLen, unitMass = 12, unitEng = 0.066, bondFix = bondHarm, angleFix = angleHarm, nonbondFix = ljcut, dihedralFix = dihedralOPLS, improperFix=improperHarm, atomTypePrefix = 'PTB7_', setBounds=False)
 reader = LAMMPS_Reader(state=state, unitLen = 1, unitMass = 1, unitEng = 1, bondFix = bondFENE, nonbondFix = ljcut, angleFix = angleHarm, atomTypePrefix = 'POLY_', setBounds=False)
 reader.read(dataFn = 'brush.data', inputFns = ['brush.in', 'brush.init', 'brush.settings'])
-state.grid = AtomGrid(state, 3.6, 3.6, 3.6)
 InitializeAtoms.initTemp(state, 'all', 0.1)
 
 state.atomParams.setValues('POLY_0', atomicNum=6)

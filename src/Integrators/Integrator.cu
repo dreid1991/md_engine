@@ -207,6 +207,13 @@ void Integrator::basicPreRunChecks() {
         cout << "2d system cannot be periodic is z dimension" << endl;
         assert(not (state->is2d and state->periodic[2]));
     }
+    mdAssert(state->bounds.isInitialized(), "Bounds must be initialized");
+    /*
+    if (not state->bounds.isInitialized()) {
+        cout << "Bounds not initialized" << endl;
+        assert(state->bounds.isInitialized());
+    }
+    */
 
 }
 

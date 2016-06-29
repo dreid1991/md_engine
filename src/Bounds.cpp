@@ -7,6 +7,14 @@
 #include "AtomParams.h"
 
 using namespace std;
+#define DEFAULT_VAL -1
+Bounds::Bounds() {
+    state = nullptr;
+}
+Bounds::Bounds(State *state_) {
+    state = state_;
+    rectComponents = Vector(DEFAULT_VAL, DEFAULT_VAL, DEFAULT_VAL);
+}
 
 void Bounds::init(State *state_, Vector lo_, Vector hi_) {
     state = state_;
@@ -15,6 +23,9 @@ void Bounds::init(State *state_, Vector lo_, Vector hi_) {
 
 }
 
+bool Bounds::isInitialized() {
+    return rectComponents != Vector(DEFAULT_VAL, DEFAULT_VAL, DEFAULT_VAL);
+}
 void Bounds::handle2d() {
     if (state->is2d) {
         lo[2] = -0.5;
