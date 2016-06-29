@@ -77,6 +77,9 @@ public:
         v -= rectComponents * img * periodic;
         return v;
     }
+    GPUMEMBER float volume() {
+        return rectComponents.x * rectComponents.y * rectComponents.z;
+    }
 
     /*! \brief Test if point is within simulation box
      *

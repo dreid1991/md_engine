@@ -773,8 +773,8 @@ void FixChargeEwald::singlePointEng(float * perParticleEng) {
     
 
     //calc field energy 
-    Bounds b=state->bounds;
-    float volume=b.trace[0]*b.trace[1]*b.trace[2];
+    BoundsGPU &b=state->boundsGPU;
+    float volume=b.volume();
     
     Energy_cu<<<dimGrid, dimBlock>>>(sz,Green_function.getDevData(), FFT_Qs,FFT_Ex);//use Ex as buffer
     CUT_CHECK_ERROR("Energy_cu kernel execution failed");    
