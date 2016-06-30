@@ -17,7 +17,7 @@ state.dt = 0.005
 
 ljcut = FixLJCut(state, 'ljcut')
 bondFENE = FixBondFENE(state, 'bondFENE')
-angleHarm = FixAngleHarmonic(state, 'angleHarm')
+angleHarm = FixAngleCosineDelta(state, 'angleHarm')
 #tempData = state.dataManager.recordTemperature('all', 100)
 state.activateFix(ljcut)
 state.activateFix(bondFENE)
@@ -41,15 +41,28 @@ ewald = FixChargeEwald(state, "chargeFix", "all")
 ewald.setParameters(64, 1.0, 3)
 state.activateFix(ewald)
 
-
+substrateIds = [a.id for a in state.atoms if a.type == 'POLY_0']
+state.createGroup('substrate', substrateIds)
+fixSpring = FixSpringStatic(state, handle='substrateSpring', groupHandle='substrate', k=100)
+state.activateFix(fixSpring)
 #integRelax = IntegratorRelax(state)
 #integRelax.writeOutput()
 #integRelax.run(11, 1e-9)
-fixNVT = FixNoseHoover(state, 'temp', 'all', .1, 0.5)
+fixNVT = FixLangevin(state, 'temp', 'all', .1)
 state.activateFix(fixNVT)
+zs = [a.pos[2] for a in state.atoms]
+print min(zs), max(zs)
+print state.bounds.lo[2], state.bounds.hi[2]
+print state.bounds.lo
+print state.bounds.hi
+wallDist = 5
+topWall = FixWallHarmonic(state, handle='wall', groupHandle='all', origin=Vector(0, state.bounds.hi[2], 0), forceDir=Vector(0, -1, 0), dist=wallDist, k=100)
+bottomWall = FixWallHarmonic(state, handle='wall', groupHandle='all', origin=Vector(0, state.bounds.lo[2], 0), forceDir=Vector(0, 1, 0), dist=wallDist, k=100)
+
+
 
 integVerlet = IntegratorVerlet(state)
-integVerlet.run(1500)
+integVerlet.run(15000)
 
 
 

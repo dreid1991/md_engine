@@ -497,36 +497,19 @@ bool State::downloadFromRun() {
 
 
 
-bool State::addToGroupPy(std::string handle, py::list toAdd) {//testF takes index, returns bool
+bool State::addToGroupPy(std::string handle, py::list toAdd) {//list of atom ids
     int tagBit = groupTagFromHandle(handle);  //if I remove asserts from this, could return things other than true, like if handle already exists
     int len = py::len(toAdd);
     for (int i=0; i<len; i++) {
-        py::extract<Atom *> atomPy(toAdd[i]);
-        if (!atomPy.check()) {
-            cout << "Invalid atom found when trying to add to group" << endl;
-            assert(atomPy.check());
-        }
-        Atom *a = atomPy;
-        if (not (a >= &atoms[0] and a <= &atoms.back())) {
-            std::cout << "Tried to add atom that is not in the atoms list.  "
-                      << "If you added or removed atoms after taking a "
-                      << "reference to this atom, the list storing atoms may "
-                      << "have moved in memory, making this an invalid pointer."
-                      << "  Consider resetting your atom variables"
-                      << std::endl;
-            assert(false);
-        }
+        py::extract<int> idPy(toAdd[i]);
+        mdAssert(idPy.check(), "Invalid atom found when trying to add to group");
+        int id = idPy;
+        mdAssert(id>=0 and id <= idToIdx.size(), "Invalid atom found when trying to add to group");
+        int idx = idToIdx[id];
+        mdAssert(idx >= 0 and idx < atoms.size(), "Invalid atom found when trying to add to group");
+        Atom *a = &atoms[idx];
         a->groupTag |= tagBit;
     }
-    /*
-    for (unsigned int i=0; i<atoms.size(); i++) {
-        PyObject *res = PyObject_CallFunction(testF, (char *) "i", i);
-        assert(PyBool_Check(res));
-        if (PyObject_IsTrue(res)) {
-            atoms[i].groupTag |= tagBit;
-        }
-    }
-    */
     return true;
 
 }

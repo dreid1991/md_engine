@@ -1,6 +1,6 @@
 #pragma once
-#ifndef FIXANGLEHARMONIC_H
-#define FIXANGLEHARMONIC_H
+#ifndef FIXANGLECOSINEDELTA_H
+#define FIXANGLECOSINEDELTA_H
 
 #include "FixPotentialMultiAtom.h"
 #include "Angle.h"

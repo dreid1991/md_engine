@@ -10,7 +10,7 @@ const std::string springStaticType = "SpringStatic";
 
 FixSpringStatic::FixSpringStatic(boost::shared_ptr<State> state_,
                                  std::string handle_, std::string groupHandle_,
-                                 double k_,  PyObject *tetherFunc_, Vector multiplier_)
+                                 double k_,  py::object tetherFunc_, Vector multiplier_)
   : Fix(state_, handle_, groupHandle_, springStaticType, true, false, false, 1),
     k(k_), tetherFunc(tetherFunc_), multiplier(multiplier_)
 {
@@ -19,10 +19,11 @@ FixSpringStatic::FixSpringStatic(boost::shared_ptr<State> state_,
 
 void FixSpringStatic::updateTethers() {
     std::vector<float4> tethers_loc;
-    if (tetherFunc != Py_None) {
+    PyObject *funcRaw = tetherFunc.ptr();
+    if (PyCallable_Check(funcRaw)) {
         for (Atom &a : state->atoms) {
             if (a.groupTag & groupTag) {
-                Vector res = boost::python::call<Vector>(tetherFunc, a.id, a.pos);
+                Vector res = boost::python::call<Vector>(funcRaw, a.id, a.pos);
                 tethers_loc.push_back(make_float4(res[0], res[1], res[2], *(float *)&a.id));
             }
         }
@@ -73,7 +74,7 @@ void export_FixSpringStatic() {
     py::class_<FixSpringStatic, boost::shared_ptr<FixSpringStatic>, py::bases<Fix> > (
             "FixSpringStatic",
             py::init<boost::shared_ptr<State>, std::string, std::string,
-                     double, PyObject *, py::optional<Vector>
+                     double, py::optional<py::object, Vector>
                     >(
                 py::args("state", "handle", "groupHandle",
                          "k", "tetherFunc", "multiplier")
