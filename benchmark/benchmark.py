@@ -46,7 +46,7 @@ sumV = 0.
 for a in state.atoms:
     sumV += a.vel.lenSqr()
 print sumV / len(state.atoms)/3.0
-#plt.plot([x/len(state.atoms) for x in engData.vals])
+#plt.plot([x/len(ids) for x in engData.vals])
 #plt.show()
 #print sum(tempData.vals) / len(tempData.vals)
 #print boundsData.vals[0].getSide(1)
