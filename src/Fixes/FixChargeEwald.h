@@ -28,6 +28,7 @@ private:
     GPUArrayGlobal<float> Green_function;  // Green function in k space
 
     int3 sz;
+
     float alpha;
     float r_cut;
     bool first_run;
@@ -41,6 +42,13 @@ private:
     void calc_potential(cufftComplex *phi_buf);
 
     int interpolation_order;
+//! RMS variables
+    double DeltaF_k(double t_alpha);
+    double DeltaF_real(double t_alpha);
+    float3 h;
+    float3 L;
+    int nAtoms;
+        
 
 public:
     FixChargeEwald(boost::shared_ptr<State> state_,
