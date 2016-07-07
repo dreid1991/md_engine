@@ -59,7 +59,9 @@ BOOST_PYTHON_MODULE(Sim) {
     export_Impropers();
     export_FixDihedralOPLS();
     export_Dihedrals();
+    export_FixWall();
     export_FixWallHarmonic();
+    export_FixWallLJ126();
     export_FixSpringStatic();
     export_Fix2d();
 

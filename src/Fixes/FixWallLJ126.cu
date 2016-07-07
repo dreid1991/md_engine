@@ -29,10 +29,10 @@ void FixWallLJ126::compute(bool computeVirials) {
 	int n = state->atoms.size();
 	if (computeVirials) {
 		compute_wall_iso<EvaluatorWallLJ126, true> <<<NBLOCK(n), PERBLOCK>>>(n,  gpd.xs(activeIdx),
-                    gpd.fs(activeIdx), origin.asFloat3(), forceDir.asFloat3(), dist, groupTag, evaluator);
+                    gpd.fs(activeIdx), origin.asFloat3(), forceDir.asFloat3(),  groupTag, evaluator);
 	} else {
 		compute_wall_iso<EvaluatorWallLJ126, false> <<<NBLOCK(n), PERBLOCK>>>(n, gpd.xs(activeIdx),
-                    gpd.fs(activeIdx), origin.asFloat3(), forceDir.asFloat3(), dist, groupTag, evaluator);
+                    gpd.fs(activeIdx), origin.asFloat3(), forceDir.asFloat3(),  groupTag, evaluator);
 	}
 };
 

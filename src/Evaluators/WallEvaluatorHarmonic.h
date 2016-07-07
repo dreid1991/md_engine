@@ -11,17 +11,26 @@ class EvaluatorWallHarmonic {
 
         // default constructor
         EvaluatorWallHarmonic () {};
-       
-        // setParameters method, called in FixWallHarmonic_temp::prepareForRun()
-        void setParameters(float k_, float r0_) {
+        EvaluatorWallHarmonic (float k_, float r0_) {
             k = k_;
             r0= r0_;
         };
+       
+        // setParameters method, called in FixWallHarmonic_temp::prepareForRun()
+        //void setParameters(float k_, float r0_) {
+         //   k = k_;
+         //   r0= r0_;
+       // };
 
         // force function called by compute_wall_iso(...) in WallEvaluate.h
-		inline __device__ float3 force(float dist, float magProj, float3 forceDir) {
-            float forceScalar = k * (dist - magProj); 
-            return forceDir * forceScalar;
+		inline __device__ float3 force(float magProj, float3 forceDir) {
+           if (magProj < r0) { 
+                float forceScalar = k * (r0 - magProj); 
+                return forceDir * forceScalar;
+           } else {
+                return forceDir * 0.0;
+           };
+
         };
 };
 #endif

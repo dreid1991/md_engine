@@ -7,7 +7,7 @@ namespace py = boost::python;
 void export_FixWall() {
 	py::class_<FixWall, SHARED(FixWall), py::bases<Fix> > (
 		"FixWall",
-		boost::python::no_init
+		py::no_init
 	);
 
 }

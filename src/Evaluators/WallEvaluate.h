@@ -5,7 +5,7 @@
 
 template <class EVALUATOR, bool COMPUTE_VIRIALS>
 __global__ void compute_wall_iso(int nAtoms,float4 *xs, float4 *fs,float3 origin,
-		float3 forceDir, float dist, uint groupTag, EVALUATOR eval) {
+		float3 forceDir,  uint groupTag, EVALUATOR eval) {
 
 
 	int idx = GETIDX();
@@ -19,17 +19,20 @@ __global__ void compute_wall_iso(int nAtoms,float4 *xs, float4 *fs,float3 origin
 			float3 particleDist = pos - origin;
 			float projection = dot(particleDist, forceDir);
 			float magProj = cu_abs(projection);
-			if (magProj <= dist) {
-				float3 force = eval.force(dist, magProj, forceDir);
-				float4 f = fs[idx];
-				if (projection >= 0) {
-					f = f + force;
-				} else {
-					f = f-force;
-				}
-				fs[idx] = f;
-				// TODO compute virials? do we need this here?
-			}
+            float3 force = eval.force(magProj, forceDir);
+
+            float4 f = fs[idx];
+            if (projection >= 0) {
+                f = f + force;
+            } else {
+                assert(projection>0); // projection should be greater than 0, otherwise
+                // the wall is ill-defined (forceDir pointing out of box)
+                //
+            }
+            fs[idx] = f;
+
+
+			 
 		}
 	}
 }
