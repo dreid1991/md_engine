@@ -81,23 +81,26 @@ void loadBounds(pugi::xml_node &config, State *state) {
         lo[2] = processRaw(bounds_xml.attribute("zlo").value());
 		auto xhi = bounds_xml.attribute("xhi").value();
 		auto sxx = bounds_xml.attribute("sxx").value();
+        Vector rectComponents;
+        //ignoring skew of now
 		if (strcmp(xhi, "") != 0) { //using square box
-			hi[0] = processRaw(xhi);
-			hi[1] = processRaw(bounds_xml.attribute("yhi").value());
-			hi[2] = processRaw(bounds_xml.attribute("zhi").value());
-            state->bounds = Bounds(state, lo, hi);
+			rectComponents[0] = processRaw(xhi) - lo[0];
+			rectComponents[1] = processRaw(bounds_xml.attribute("yhi").value()) - lo[1];
+			rectComponents[2] = processRaw(bounds_xml.attribute("zhi").value()) - lo[2];
+            state->bounds = Bounds(state, lo, rectComponents);
 		} else if (strcmp(sxx, "") != 0) {
-			Vector sides[3];
-			sides[0][0] = processRaw(sxx);
-			sides[0][1] = processRaw(bounds_xml.attribute("sxy").value());
-			sides[0][2] = processRaw(bounds_xml.attribute("sxz").value());
-			sides[1][0] = processRaw(bounds_xml.attribute("syx").value());
-			sides[1][1] = processRaw(bounds_xml.attribute("syy").value());
-			sides[1][2] = processRaw(bounds_xml.attribute("syz").value());
-			sides[2][0] = processRaw(bounds_xml.attribute("szx").value());
-			sides[2][1] = processRaw(bounds_xml.attribute("szy").value());
-			sides[2][2] = processRaw(bounds_xml.attribute("szz").value());
-			state->bounds = Bounds(state, lo, sides);
+			rectComponents[0] = processRaw(sxx);
+			rectComponents[1] = processRaw(bounds_xml.attribute("syy").value());
+			rectComponents[2] = processRaw(bounds_xml.attribute("szz").value());
+			//sides[0][1] = processRaw(bounds_xml.attribute("sxy").value());
+			//sides[0][2] = processRaw(bounds_xml.attribute("sxz").value());
+			//sides[1][0] = processRaw(bounds_xml.attribute("syx").value());
+			//sides[1][1] = processRaw(bounds_xml.attribute("syy").value());
+			//sides[1][2] = processRaw(bounds_xml.attribute("syz").value());
+			//sides[2][0] = processRaw(bounds_xml.attribute("szx").value());
+			//sides[2][1] = processRaw(bounds_xml.attribute("szy").value());
+			//sides[2][2] = processRaw(bounds_xml.attribute("szz").value());
+			state->bounds = Bounds(state, lo, rectComponents);
            
 		} else {
 			assert(strcmp("Tried to load bad bounds data", ""));
@@ -152,7 +155,7 @@ bool ReadConfig::read() {
 	state->is2d = readIs2d;
 	readAtoms.reserve(numAtoms);
 	for (int i=0; i<numAtoms; i++) {
-		readAtoms.push_back(Atom());
+		readAtoms.push_back(Atom(&state->atomParams.handles));
 	}
     assert(
             (xml_assign<double, 3>(*config, "position", [&] (int i, double *vals) {
@@ -284,7 +287,6 @@ pugi::xml_node ReadConfig::readFix(string type, string handle) {
       string t = node.attribute("type").value();
       string h = node.attribute("handle").value();
       if (t == type && h == handle) {
-        cout << "found the correct node: " << node.attribute("handle").value() << endl;
         return node;
       }
       node = node.next_sibling();

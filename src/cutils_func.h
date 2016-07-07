@@ -4,8 +4,8 @@
 
 #include "globalDefs.h"
 #include "cutils_math.h"
-#define N_DATA_PER_THREAD 2 //must be power of 2, 4 found to be fastest for a floats and float4s
-//Attenion please: tests show that N_DATA_PER_THREAD = 4 is faster, but it gives lower accuracy. Could reformulate in-thread adding to work like a parallel reduction, then accuracy should be the same
+#define N_DATA_PER_THREAD 4 //must be power of 2, 4 found to be fastest for a floats and float4s
+//tests show that N_DATA_PER_THREAD = 4 is fastest
 
 inline __device__ int baseNeighlistIdx(const uint32_t *cumulSumMaxPerBlock, int warpSize) { 
     uint32_t cumulSumUpToMe = cumulSumMaxPerBlock[blockIdx.x];
@@ -79,100 +79,135 @@ inline __device__ void reduceByN_NOSYNC(T *src, int span) { // where span is how
         curLookahead *= 2;
     }
 }
-//Hey - if you pass warpsize, could avoid syncing al small lookaheads
-#define SUM(NAME, OPERATOR, WRAPPER) \
-template <class K, class T, int NPERTHREAD>\
-__global__ void NAME (K *dest, T *src, int n, int warpSize) {\
-    extern __shared__ K tmp[]; \
-    const int copyBaseIdx = blockDim.x*blockIdx.x * NPERTHREAD + threadIdx.x;\
-    const int copyIncrement = blockDim.x;\
-    for (int i=0; i<NPERTHREAD; i++) {\
-        int step = i * copyIncrement;\
-        if (copyBaseIdx + step < n) {\
-            tmp[threadIdx.x + step] = OPERATOR(WRAPPER((src[copyBaseIdx + step])));\
-        } else {\
-            tmp[threadIdx.x + step] = 0;\
-        }\
+
+#define ACCUMULATION_CLASS(NAME, TO, FROM, VARNAME_PROC, PROC, ZERO)\
+class NAME {\
+public:\
+    inline __host__ __device__ TO process (FROM & VARNAME_PROC ) {\
+        return ( PROC );\
     }\
-    int curLookahead = NPERTHREAD;\
-    int numLookaheadSteps = log2f(blockDim.x-1);\
-    const int sumBaseIdx = threadIdx.x * NPERTHREAD;\
-    __syncthreads();\
-    for (int i=sumBaseIdx+1; i<sumBaseIdx + NPERTHREAD; i++) {\
-        tmp[sumBaseIdx] += tmp[i];\
+    inline __host__ __device__ TO zero() {\
+        return ( ZERO );\
     }\
-    for (int i=0; i<=numLookaheadSteps; i++) {\
-        if (! (sumBaseIdx % (curLookahead*2))) {\
-            tmp[sumBaseIdx] += tmp[sumBaseIdx + curLookahead];\
-        }\
-        if (curLookahead >= (NPERTHREAD * warpSize)) {\
-            __syncthreads();\
-        }\
-        curLookahead *= 2;\
-    }\
-    if (threadIdx.x == 0) {\
-        atomicAdd(dest, tmp[0]);\
-    }\
+};
+
+
+ACCUMULATION_CLASS(SumSingle, float, float, x, x, 0);
+ACCUMULATION_CLASS(SumSqr, float, float, x, x*x, 0);
+ACCUMULATION_CLASS(SumVectorSqr3D, float, float4, v, lengthSqr(make_float3(v)), 0);
+ACCUMULATION_CLASS(SumVectorSqr3DOverW, float, float4, v, lengthSqrOverW(v), 0); //for temperature
+ACCUMULATION_CLASS(SumVectorXYZOverW, float4, float4, v, xyzOverW(v), make_float4(0, 0, 0, 0)); //for linear momentum
+
+
+template <class K, class T, class C, int NPERTHREAD>
+__global__ void accumulate_gpu(K *dest, T *src, int n, int warpSize, C instance) {
+
+    extern __shared__ K tmp[]; 
+    const int copyBaseIdx = blockDim.x*blockIdx.x * NPERTHREAD + threadIdx.x;
+    const int copyIncrement = blockDim.x;
+    for (int i=0; i<NPERTHREAD; i++) {
+        int step = i * copyIncrement;
+        if (copyBaseIdx + step < n) {
+            tmp[threadIdx.x + step] = instance.process(src[copyBaseIdx + step]);
+        } else {
+            tmp[threadIdx.x + step] = instance.zero();
+        }
+    }
+    int curLookahead = NPERTHREAD;
+    int numLookaheadSteps = log2f(blockDim.x-1);
+    const int sumBaseIdx = threadIdx.x * NPERTHREAD;
+    __syncthreads();
+    for (int i=sumBaseIdx+1; i<sumBaseIdx + NPERTHREAD; i++) {
+        tmp[sumBaseIdx] += tmp[i];
+    }
+    for (int i=0; i<=numLookaheadSteps; i++) {
+        if (! (sumBaseIdx % (curLookahead*2))) {
+            tmp[sumBaseIdx] += tmp[sumBaseIdx + curLookahead];
+        }
+        curLookahead *= 2;
+        if (curLookahead >= (NPERTHREAD * warpSize)) {
+            __syncthreads();
+        }
+    }
+    if (threadIdx.x < sizeof(K) / sizeof(float)) {
+        //one day, some hero will find out why it doesn't work to do atomicAdd as a member of the accumulation class.
+        //in the mean time, just adding 32 bit chunks.  Could template this to do ints too.
+        float *destFloat = (float *) dest;
+        float *tmpFloat = (float *) tmp;
+        atomicAdd(destFloat + threadIdx.x, tmpFloat[threadIdx.x]);
+    }
 }
-
-SUM(sumSingle, , );
-SUM(sumVector, length, );
-SUM(sumVectorSqr, lengthSqr, );
-SUM(sumVectorSqr3D, lengthSqr, make_float3);
-
-SUM(sumVector3D, length, make_float3);
-SUM(sumVectorSqr3DOverW, lengthSqrOverW, ); // for temperature
-
-
-#define SUM_TAGS(NAME, OPERATOR, WRAPPER) \
-template <class K, class T, int NPERTHREAD>\
-__global__ void NAME (K *dest, T *src, int n, unsigned int groupTag, float4 *fs, int warpSize) {\
-    extern __shared__ K tmp[]; \
-    const int copyBaseIdx = blockDim.x*blockIdx.x * NPERTHREAD + threadIdx.x;\
-    const int copyIncrement = blockDim.x;\
-    int numAdded = 0;\
-    for (int i=0; i<NPERTHREAD; i++) {\
-        int step = i * copyIncrement;\
-        if (copyBaseIdx + step < n) {\
-            unsigned int atomGroup = * (unsigned int *) &(fs[copyBaseIdx + step].w);\
-            if (atomGroup & groupTag) {\
-                tmp[threadIdx.x + step] = OPERATOR ( WRAPPER( src[copyBaseIdx + step] ) );\
-                numAdded++;\
-            } else {\
-                tmp[threadIdx.x + step] = 0;\
-            }\
-        } else {\
-            tmp[threadIdx.x + step] = 0;\
-        }\
+//dealing with the common case of summing based on group tags
+#define ACCUMULATION_CLASS_IF(NAME, TO, FROM, VARNAME_PROC, PROC, ZERO)\
+class NAME {\
+public:\
+    float4 *fs;\
+    uint32_t groupTag;\
+    NAME(float4 *fs_, uint32_t groupTag_) : fs(fs_), groupTag(groupTag_) {}\
+    inline __host__ __device__ TO process (FROM & VARNAME_PROC ) {\
+        return ( PROC );\
     }\
-    int curLookahead = NPERTHREAD;\
-    int numLookaheadSteps = log2f(blockDim.x-1);\
-    const int sumBaseIdx = threadIdx.x * NPERTHREAD;\
-    atomicAdd(((int *) dest) + 1, numAdded);\
-    __syncthreads();\
-    for (int i=sumBaseIdx+1; i<sumBaseIdx + NPERTHREAD; i++) {\
-        tmp[sumBaseIdx] += tmp[i];\
+    inline __host__ __device__ TO zero() {\
+        return ( ZERO );\
     }\
-    for (int i=0; i<=numLookaheadSteps; i++) {\
-        if (! (sumBaseIdx % (curLookahead*2))) {\
-            tmp[sumBaseIdx] += tmp[sumBaseIdx + curLookahead];\
-        }\
-        if (curLookahead >= (NPERTHREAD * warpSize)) {\
-            __syncthreads();\
-        }\
-        curLookahead *= 2;\
+    inline __host__ __device__ bool willProcess(FROM *src, int idx) {\
+        uint32_t atomGroupTag = * (uint32_t *) &(fs[idx].w);\
+        return atomGroupTag & groupTag;\
     }\
-    if (threadIdx.x == 0) {\
-        atomicAdd(dest, tmp[0]);\
-    }\
+};
+ACCUMULATION_CLASS_IF(SumSingleIf, float, float, x, x, 0);
+ACCUMULATION_CLASS_IF(SumSqrIf, float, float, x, x*x, 0);
+ACCUMULATION_CLASS_IF(SumVectorSqr3DIf, float, float4, v, lengthSqr(make_float3(v)), 0);
+ACCUMULATION_CLASS_IF(SumVectorSqr3DOverWIf, float, float4, v, lengthSqrOverW(v), 0); //for temperature
+ACCUMULATION_CLASS_IF(SumVectorXYZOverWIf, float4, float4, v, xyzOverW(v), make_float4(0, 0, 0, 0)); //for linear momentum
+
+
+
+template <class K, class T, class C, int NPERTHREAD>
+__global__ void accumulate_gpu_if(K *dest, T *src, int n, int warpSize, C instance) {
+
+    extern __shared__ K tmp[]; 
+    int numAdded = 0;
+    const int copyBaseIdx = blockDim.x*blockIdx.x * NPERTHREAD + threadIdx.x;
+    const int copyIncrement = blockDim.x;
+    for (int i=0; i<NPERTHREAD; i++) {
+        int step = i * copyIncrement;
+        if (copyBaseIdx + step < n) {
+            int curIdx = copyBaseIdx + step;
+            if (instance.willProcess(src, curIdx)) { //can deal with bounds here
+                numAdded ++;
+                tmp[threadIdx.x + step] = instance.process(src[curIdx]);
+            } else {
+                tmp[threadIdx.x + step] = instance.zero();
+            }
+        } else {
+            tmp[threadIdx.x + step] = instance.zero();
+        }
+    }
+    int curLookahead = NPERTHREAD;
+    int numLookaheadSteps = log2f(blockDim.x-1);
+    const int sumBaseIdx = threadIdx.x * NPERTHREAD;
+    atomicAdd((int *) (dest + 1), numAdded);
+    __syncthreads();
+    for (int i=sumBaseIdx+1; i<sumBaseIdx + NPERTHREAD; i++) {
+        tmp[sumBaseIdx] += tmp[i];
+    }
+    for (int i=0; i<=numLookaheadSteps; i++) {
+        if (! (sumBaseIdx % (curLookahead*2))) {
+            tmp[sumBaseIdx] += tmp[sumBaseIdx + curLookahead];
+        }
+        curLookahead *= 2;
+        if (curLookahead >= (NPERTHREAD * warpSize)) {
+            __syncthreads();
+        }
+    }
+    if (threadIdx.x < sizeof(K) / sizeof(float)) {
+        //one day, some hero will find out why it doesn't work to do atomicAdd as a member of the accumulation class.
+        //in the mean time, just adding 32 bit chunks.  Could template this to do ints too.
+        float *destFloat = (float *) dest;
+        float *tmpFloat = (float *) tmp;
+        atomicAdd(destFloat + threadIdx.x, tmpFloat[threadIdx.x]);
+    }
 }
-
-
-
-
-SUM_TAGS(sumPlain, , );
-SUM_TAGS(sumVectorSqr3DTags, lengthSqr, make_float3);
-SUM_TAGS(sumVectorSqr3DTagsOverW, lengthSqrOverW, ); // for temperature
-SUM_TAGS(sumVector3DTagsOverW, xyzOverW, ); //for linear momentum
 
 #endif

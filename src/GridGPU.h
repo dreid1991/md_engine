@@ -83,30 +83,13 @@ public:
      * \param dx Attempted x-resolution of the simulation grid
      * \param dy Attempted y-resolution of the simulation grid
      * \param dz Attempted z-resolution of the simulation grid
+     * \param  neighCutoffMax rCut + padding of the simulation
      *
      * Constructor to create Grid with approximate resolution. The final
      * resolution will be the next larger value such that the box size is
      * a multiple of the resolution.
      */
-    GridGPU(State *state_, float dx, float dy, float dz);
-
-    /*! \brief Constructor
-     *
-     * \param state_ Pointer to the simulation state
-     * \param ds_ float3 containing the grid resolution
-     * \param dsOrig_ float3 of the original grid resolution
-     * \param os_ Specifying the point of origin
-     * \param ns_ Number of grid points in each dimension
-     *
-     * This constructor assumes that you know exactly what you are doing.
-     * For example, it will not check that the grid resolution is
-     * commensurate with the box dimensions.
-     *
-     * \todo Here it would be nicer to have a constructor that takes the
-     *       AtomGrid directly like explicit GridGPU(AtomGrid const &atomGrid)
-     */
-    GridGPU(State *state_, float3 ds_, float3 dsOrig_,
-            float3 os_, int3 ns_, float maxRCut_);
+    GridGPU(State *state_, float dx, float dy, float dz, float neighCutoffMax);
 
     /*! \brief Default constructor
      *

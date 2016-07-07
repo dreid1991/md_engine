@@ -45,23 +45,14 @@ GridGPU::GridGPU() {
     //initStream();
 }
 
-GridGPU::GridGPU(State *state_, float3 ds_, float3 dsOrig_,
-                 float3 os_, int3 ns_, float maxRCut_)
-  : state(state_), ds(ds_), dsOrig(dsOrig_), os(os_), ns(ns_),
-    neighCutoffMax(maxRCut_ + state->padding) {
 
-    streamCreated = false;
-    initArrays();
-    initStream();
-    handleExclusions();
-    numChecksSinceLastBuild = 0;
-}
 
-GridGPU::GridGPU(State *state_, float dx_, float dy_, float dz_)
+GridGPU::GridGPU(State *state_, float dx_, float dy_, float dz_, float neighCutoffMax_)
   : state(state_) {
+    neighCutoffMax = neighCutoffMax_;
 
     streamCreated = false;
-    Vector trace = state->bounds.trace;  // EEHHHHH SHOULD CHANGE TO BOUNDSGPU, but it doesn't really matter because you initialize them at the same time.  FOR NOW
+    Vector trace = state->bounds.rectComponents;  // EEHHHHH SHOULD CHANGE TO BOUNDSGPU, but it doesn't really matter because you initialize them at the same time.  FOR NOW
     Vector attemptDDim = Vector(dx_, dy_, dz_);
     VectorInt nGrid = trace / attemptDDim;  // so rounding to bigger grid
     Vector actualDDim = trace / nGrid;
@@ -565,10 +556,11 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
         os -= make_float3(EPSILON, EPSILON, EPSILON);
 
         BoundsGPU boundsUnskewed = bounds.unskewed();
-        if (bounds.sides[0].y or bounds.sides[1].x) {
-            Mod::unskewAtoms<<<NBLOCK(nAtoms), PERBLOCK>>>(
-                        state->gpd.xs(activeIdx), nAtoms,
-                        bounds.sides[0], bounds.sides[1], bounds.lo);
+        if (bounds.isSkewed()) {
+            //skewing not implemented
+            //Mod::unskewAtoms<<<NBLOCK(nAtoms), PERBLOCK>>>(
+            //            state->gpd.xs(activeIdx), nAtoms,
+            //            bounds.sides[0], bounds.sides[1], bounds.lo);
         }
         periodicWrap<<<NBLOCK(nAtoms), PERBLOCK>>>(state->gpd.xs(activeIdx), nAtoms, boundsUnskewed);
 
@@ -688,10 +680,11 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
         printNeighborCounts(neighCounts, state->atoms.size());
         free(neighCounts);
         */
-        if (bounds.sides[0].y or bounds.sides[1].x) {
-            Mod::skewAtomsFromZero<<<NBLOCK(nAtoms), PERBLOCK>>>(
-                    state->gpd.xs(activeIdx), nAtoms,
-                    bounds.sides[0], bounds.sides[1], bounds.lo);
+        if (bounds.isSkewed()) {
+            //implement when adding skew
+            //Mod::skewAtomsFromZero<<<NBLOCK(nAtoms), PERBLOCK>>>(
+            //        state->gpd.xs(activeIdx), nAtoms,
+            //        bounds.sides[0], bounds.sides[1], bounds.lo);
         }
         ds = ds_orig;
         os = os_orig;

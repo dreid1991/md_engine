@@ -10,8 +10,8 @@ public:
 
     //evaluator.force(theta, angleType, s, distSqrs, directors, invDotProd);
     inline __device__ float3 force(AngleHarmonicType angleType, float theta, float s, float c, float distSqrs[2], float3 directors[2], float invDistProd, int myIdxInAngle) {
-        float dTheta = theta - angleType.thetaEq;
-        //   printf("current %f theta eq %f idx %d, type %d\n", acosf(c), angleType.thetaEq, myIdxInAngle, type);
+        float dTheta = theta - angleType.theta0;
+        //   printf("current %f theta eq %f idx %d, type %d\n", acosf(c), angleType.theta0, myIdxInAngle, type);
         
 
         float forceConst = angleType.k * dTheta;
@@ -20,7 +20,7 @@ public:
         float a12 = -a*invDistProd;
         float a22 = a*c/distSqrs[1];
         //   printf("forceConst %f a %f s %f dists %f %f %f\n", forceConst, a, s, a11, a12, a22);
-        //printf("hey %f, eq %f\n", theta, angleType.thetaEq);
+        //printf("hey %f, eq %f\n", theta, angleType.theta0);
         //printf("directors %f %f %f .. %f %f %f\n", directors[0].x, directors[0].y, directors[0].z,directors[1].x, directors[1].y, directors[1].z);
         //printf("a a11 a12 a22 %f %f %f %f\n", a, a11, a12, a22);
         if (myIdxInAngle==0) {
@@ -34,7 +34,7 @@ public:
 
     }
     inline __device__ float energy(AngleHarmonicType angleType, float theta, float3 directors[2]) {
-        float dTheta = theta - angleType.thetaEq;
+        float dTheta = theta - angleType.theta0;
         return (1.0f / 6.0f) * dTheta * dTheta * angleType.k; // 1/6 comes from 1/3 (energy split between three atoms) and 1/2 from 1/2 k dtheta^2
 
     }

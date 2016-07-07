@@ -3,7 +3,9 @@
 #define INCLUDEFIXES_H
 
 #include "FixBondHarmonic.h"
+#include "FixBondFENE.h"
 #include "FixAngleHarmonic.h"
+#include "FixAngleCosineDelta.h"
 #include "FixImproperHarmonic.h"
 #include "FixDihedralOPLS.h"
 #include "FixLJCut.h"

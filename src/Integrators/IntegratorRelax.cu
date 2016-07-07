@@ -141,20 +141,43 @@ double IntegratorRelax::run(int numTurns, num fTol) {
 
         if (VDotF.h_data[0] > 0) {
             //VdotV calc
+            accumulate_gpu<float, float4, SumVectorSqr3D, N_DATA_PER_THREAD> <<<NBLOCK(atomssize / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*sizeof(float)*PERBLOCK>>> 
+                (
+                 VDotV.getDevData(),
+                 state->gpd.vs.getDevData(),
+                 atomssize,
+                 warpSize,
+                 SumVectorSqr3D()
+                );
+
+
+            /*
             sumVectorSqr3D<float,float4, N_DATA_PER_THREAD> <<<NBLOCK(atomssize/(double)N_DATA_PER_THREAD),PERBLOCK,N_DATA_PER_THREAD*sizeof(float)*PERBLOCK>>>(
                                             VDotV.getDevData(),
                                             state->gpd.vs.getDevData(),
                                             atomssize,
                                             warpSize);
+                                            */
             CUT_CHECK_ERROR("vdotV_cu kernel execution failed");
             VDotV.dataToHost();
 
             //FdotF
+            accumulate_gpu<float, float4, SumVectorSqr3D, N_DATA_PER_THREAD> <<<NBLOCK(atomssize / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*sizeof(float)*PERBLOCK>>> 
+                (
+                 FDotF.getDevData(),
+                 state->gpd.fs.getDevData(),
+                 atomssize,
+                 warpSize,
+                 SumVectorSqr3D()
+                );
+
+            /*
             sumVectorSqr3D<float,float4, N_DATA_PER_THREAD> <<<NBLOCK(atomssize/(double)N_DATA_PER_THREAD),PERBLOCK,N_DATA_PER_THREAD*sizeof(float)*PERBLOCK>>>(
                                             FDotF.getDevData(),
                                             state->gpd.fs.getDevData(),
                                             atomssize,
                                             warpSize);
+                                            */
             CUT_CHECK_ERROR("fdotF_cu kernel execution failed");
             FDotF.dataToHost();
 
@@ -200,12 +223,21 @@ double IntegratorRelax::run(int numTurns, num fTol) {
         if (fTol > 0 and i > delay and not (i%delay)) { //only check every so often
             //total force calc
             force.memsetByVal(0.0);
-
+            accumulate_gpu<float, float4, SumVectorSqr3D, N_DATA_PER_THREAD> <<<NBLOCK(atomssize/(double)N_DATA_PER_THREAD),PERBLOCK,N_DATA_PER_THREAD*sizeof(float)*PERBLOCK>>> 
+                (
+                 force.getDevData(),
+                 state->gpd.fs.getDevData(),
+                 atomssize,
+                 warpSize,
+                 SumVectorSqr3D()
+                );
+            /*
             sumVectorSqr3D<float,float4, N_DATA_PER_THREAD> <<<NBLOCK(atomssize/(double)N_DATA_PER_THREAD),PERBLOCK,N_DATA_PER_THREAD*sizeof(float)*PERBLOCK>>>(
                                         force.getDevData(),
                                         state->gpd.fs.getDevData(),
                                         atomssize,
                                         warpSize);
+                                        */
             CUT_CHECK_ERROR("kernel execution failed");//Debug feature, check error code
 
             force.dataToHost();
@@ -230,12 +262,21 @@ double IntegratorRelax::run(int numTurns, num fTol) {
     }
     //total force calculation
     force.memsetByVal(0.0);
-
+    accumulate_gpu<float, float4, SumVectorSqr3D, N_DATA_PER_THREAD> <<<NBLOCK(atomssize/(double)N_DATA_PER_THREAD),PERBLOCK,N_DATA_PER_THREAD*sizeof(float)*PERBLOCK>>> 
+        (
+         force.getDevData(),
+         state->gpd.fs.getDevData(),
+         atomssize,
+         warpSize,
+         SumVectorSqr3D()
+        );
+    /*
     sumVectorSqr3D<float,float4, N_DATA_PER_THREAD> <<<NBLOCK(atomssize/(double)N_DATA_PER_THREAD),PERBLOCK,N_DATA_PER_THREAD*sizeof(float)*PERBLOCK>>>(
                                   force.getDevData(),
                                   state->gpd.fs.getDevData(),
                                   atomssize,
                                   warpSize);
+                                  */
     CUT_CHECK_ERROR("kernel execution failed"); //Debug feature, check error code
 
     basicFinish();

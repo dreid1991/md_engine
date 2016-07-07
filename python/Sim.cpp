@@ -13,7 +13,6 @@ using namespace boost::python;
 using namespace std;
 #include "State.h"
 #include "Atom.h"
-#include "AtomGrid.h"
 #include "Vector.h" 
 #include "InitializeAtoms.h"
 #include "Bounds.h"
@@ -42,7 +41,6 @@ BOOST_PYTHON_MODULE(Sim) {
     export_VectorInt();	
     export_Atom();
     export_Molecule();
-    export_Neighbor();
     export_Bounds();
     export_Integrator();
     export_IntegratorVerlet();
@@ -50,10 +48,14 @@ BOOST_PYTHON_MODULE(Sim) {
     export_TypedItemHolder();
     export_Fix();
     export_FixBondHarmonic();
+    export_FixBondFENE();
     export_BondHarmonic();
+    export_BondFENE();
     
     export_FixAngleHarmonic();
+    export_FixAngleCosineDelta();
     export_AngleHarmonic();
+    export_AngleCosineDelta();
 
     export_FixImproperHarmonic();
     export_Impropers();
@@ -78,7 +80,6 @@ BOOST_PYTHON_MODULE(Sim) {
     export_FixNVTRescale();
     export_FixLangevin();
 
-    export_AtomGrid();
     export_AtomParams();
     export_DataManager();
     export_ReadConfig();

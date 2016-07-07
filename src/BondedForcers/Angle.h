@@ -8,7 +8,9 @@
 #include <boost/variant.hpp>
 #include <array>
 class AngleHarmonic;
+class AngleCosineDelta;
 void export_AngleHarmonic();
+void export_AngleCosineDelta();
 
 class Angle {
     public:
@@ -19,22 +21,31 @@ class Angle {
 	std::string getInfoString();
 };
 
-class AngleHarmonicType {
+class AngleGPU {
     public:
-        float k;
-        float thetaEq;
-        AngleHarmonicType(AngleHarmonic *);
-        AngleHarmonicType(){};
-        bool operator==(const AngleHarmonicType &) const;
+        int ids[3];
+        uint32_t type; //myIdx (which atom in these three we're actually calcing the for for) is stored in two left-most bits
+        void takeIds(Angle *);
+
+
+};
+//angle harmonic
+class AngleHarmonicType {
+public:
+    float k;
+    float theta0;
+    AngleHarmonicType(AngleHarmonic *);
+    AngleHarmonicType(){};
+    bool operator==(const AngleHarmonicType &) const;
 	std::string getInfoString();
 };
 
 class AngleHarmonic : public Angle, public AngleHarmonicType {
-    public:
-        AngleHarmonic(Atom *a, Atom *b, Atom *c, double k_, double thetaEq_, int type_=-1);
-        AngleHarmonic(double k_, double thetaEq_, int type_=-1); //is this constructor used?
-        AngleHarmonic(){};
-        int type;
+public:
+    AngleHarmonic(Atom *a, Atom *b, Atom *c, double k_, double theta0_, int type_=-1);
+    AngleHarmonic(double k_, double theta0_, int type_=-1);
+    AngleHarmonic(){};
+    int type;
 	std::string getInfoString();
 };
 
@@ -44,23 +55,57 @@ namespace std {
         size_t operator() (AngleHarmonicType const& ang) const {
             size_t seed = 0;
             boost::hash_combine(seed, ang.k);
-            boost::hash_combine(seed, ang.thetaEq);
+            boost::hash_combine(seed, ang.theta0);
             return seed;
         }
     };
 }
 
-class AngleGPU {
-    public:
-        int ids[3];
-        uint32_t type; //myIdx (which atom in these three we're actually calcing the for for) is stored in two left-most bits
-        void takeIds(Angle *);
 
 
+
+//angle cosine delta
+class AngleCosineDeltaType {
+public:
+    float k;
+    float theta0;
+    AngleCosineDeltaType(AngleCosineDelta *);
+    AngleCosineDeltaType(){};
+    bool operator==(const AngleCosineDeltaType &) const;
+	std::string getInfoString();
 };
+
+class AngleCosineDelta : public Angle, public AngleCosineDeltaType {
+public:
+    AngleCosineDelta(Atom *a, Atom *b, Atom *c, double k_, double theta0_, int type_=-1);
+    AngleCosineDelta(double k_, double theta0_, int type_=-1); 
+    AngleCosineDelta(){};
+    int type;
+	std::string getInfoString();
+};
+
+//for forcer maps
+namespace std {
+    template<> struct hash<AngleCosineDeltaType> {
+        size_t operator() (AngleCosineDeltaType const& ang) const {
+            size_t seed = 0;
+            boost::hash_combine(seed, ang.k);
+            boost::hash_combine(seed, ang.theta0);
+            return seed;
+        }
+    };
+}
+
+
+
+
+
+
+
 // lets us store a list of vectors to any kind of angles we want
 typedef boost::variant<
 	AngleHarmonic, 
+    AngleCosineDelta,
     Angle	
 > AngleVariant;
 #endif

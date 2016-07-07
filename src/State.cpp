@@ -24,10 +24,7 @@ using namespace std;
 namespace py = boost::python;
 State::State() {
     groupTags["all"] = (unsigned int) 1;
-    //! \todo I think it would be great to also have the group "none"
-    //!       in addition to "all"
     is2d = false;
-    buildNeighborlists = true;
     rCut = RCUT_INIT;
     padding = PADDING_INIT;
     turn = 0;
@@ -42,6 +39,8 @@ State::State() {
     for (int i=0; i<3; i++) {
         periodic[i] = true;
     }
+    bounds = Bounds(this);
+
     //! \todo It would be nice to set verbose true/false in Logging.h and use
     //!       it for mdMessage.
     verbose = true;
@@ -74,7 +73,7 @@ int State::addAtom(std::string handle, Vector pos, double q) {
     auto it = find(handles.begin(), handles.end(), handle);
     assert(it != handles.end());
     int idx = it - handles.begin();//okay, so index in handles is type
-    Atom a(pos, idx, -1, atomParams.masses[idx], q);
+    Atom a(pos, idx, -1, atomParams.masses[idx], q, &handles);
     bool added = addAtomDirect(a);
     if (added) {
         return atoms.back().id;
@@ -339,6 +338,16 @@ float State::getMaxRCut() {
     return maxRCut;
 }
 
+
+
+void State::initializeGrid() {
+    double maxRCut = getMaxRCut();// ALSO PADDING PLS
+    cout << "cut is " << maxRCut << endl;
+    double gridDim = maxRCut + padding;
+    gridGPU = GridGPU(this, gridDim, gridDim, gridDim, gridDim);
+
+}
+
 bool State::prepareForRun() {
     // fixes have already prepared by the time the integrator calls this prepare
     std::vector<float4> xs_vec, vs_vec, fs_vec;
@@ -358,27 +367,6 @@ bool State::prepareForRun() {
     }
 
 
-    /*
-    auto pivot = *std::next(atomsFirst, std::distance(atomsFirst,atomsLast)/2);
-    auto middle = std::partition(atomsFirst, atomsLast,
-                                 [pivot](const Atom &a) {
-                                     return a.pos[0] < pivot.pos[0];
-                                 }
-    );
-    */
-
-    /*
-    std::sort(atoms.begin(), atoms.end(), [](const Atom &a, const Atom &b) {
-                                              return a.pos[0] < b.pos[0];
-                                          }
-    );
-    auto split = *std::next(atoms.begin(), atoms.size()/2);
-    if (mpiRank == 0) {
-        atoms.erase(split, atoms.end());
-    } else if (mpiRank == 1) {
-        atoms.erase(atoms.begin(), split);
-    }
-    */
 
     int nAtoms = atoms.size();
 
@@ -426,7 +414,8 @@ bool State::prepareForRun() {
     gpd.idToIdxs.set(idToIdxs_vec);
     boundsGPU = bounds.makeGPU();
     float maxRCut = getMaxRCut();
-    gridGPU = grid.makeGPU(maxRCut);  // uses os, ns, ds, dsOrig from AtomGrid
+    initializeGrid();
+    //gridGPU = grid.makeGPU(maxRCut);  // uses os, ns, ds, dsOrig from AtomGrid
 
     gpd.xsBuffer = GPUArrayGlobal<float4>(nAtoms);
     gpd.vsBuffer = GPUArrayGlobal<float4>(nAtoms);
@@ -507,55 +496,20 @@ bool State::downloadFromRun() {
 }
 
 
-bool State::makeReady() {
-    if (changedAtoms or changedGroups) {
-        for (Fix *fix : fixes) {
-            fix->refreshAtoms();
-        }
-    }
-    if (changedAtoms) {
-    //    refreshBonds();//this must go before doing pbc, otherwise atom pointers could be messed up when you get atom offsets for bonds, which happens in pbc
-    }
-    if ((changedAtoms || redoNeighbors)) {
-        //grid->periodicBoundaryConditions(); //UNCOMMENT THIS, WAS DONE FOR CUDA INITIAL STUFF
-    }
 
-    changedAtoms = false;
-    changedGroups = false;
-    redoNeighbors = false;
-    return true;
-}
-
-bool State::addToGroupPy(std::string handle, py::list toAdd) {//testF takes index, returns bool
-    int tagBit = groupTagFromHandle(handle);  //if I remove asserts from this, could return things other than true, like if handle already exists
+bool State::addToGroupPy(std::string handle, py::list toAdd) {//list of atom ids
+    uint32_t tagBit = groupTagFromHandle(handle);  //if I remove asserts from this, could return things other than true, like if handle already exists
     int len = py::len(toAdd);
     for (int i=0; i<len; i++) {
-        py::extract<Atom *> atomPy(toAdd[i]);
-        if (!atomPy.check()) {
-            cout << "Invalid atom found when trying to add to group" << endl;
-            assert(atomPy.check());
-        }
-        Atom *a = atomPy;
-        if (not (a >= &atoms[0] and a <= &atoms.back())) {
-            std::cout << "Tried to add atom that is not in the atoms list.  "
-                      << "If you added or removed atoms after taking a "
-                      << "reference to this atom, the list storing atoms may "
-                      << "have moved in memory, making this an invalid pointer."
-                      << "  Consider resetting your atom variables"
-                      << std::endl;
-            assert(false);
-        }
+        py::extract<int> idPy(toAdd[i]);
+        mdAssert(idPy.check(), "Invalid atom found when trying to add to group");
+        int id = idPy;
+        mdAssert(id>=0 and id <= idToIdx.size(), "Invalid atom found when trying to add to group");
+        int idx = idToIdx[id];
+        mdAssert(idx >= 0 and idx < atoms.size(), "Invalid atom found when trying to add to group");
+        Atom *a = &atoms[idx];
         a->groupTag |= tagBit;
     }
-    /*
-    for (unsigned int i=0; i<atoms.size(); i++) {
-        PyObject *res = PyObject_CallFunction(testF, (char *) "i", i);
-        assert(PyBool_Check(res));
-        if (PyObject_IsTrue(res)) {
-            atoms[i].groupTag |= tagBit;
-        }
-    }
-    */
     return true;
 
 }
@@ -583,7 +537,7 @@ bool State::destroyGroup(std::string handle) {
 }
 
 bool State::createGroup(std::string handle, py::list forGrp) {
-    uint res = addGroupTag(handle);
+    uint32_t res = addGroupTag(handle);
     if (!res) {
         std::cout << "Tried to create group " << handle
                   << " << that already exists" << std::endl;
@@ -628,7 +582,6 @@ std::vector<Atom> State::copyAtoms() {
     save.reserve(atoms.size());
     for (Atom &a : atoms) {
         Atom copy = a;
-        copy.neighbors = vector<Neighbor>();
         save.push_back(copy);
     }
     return save;
@@ -739,7 +692,6 @@ BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(State_seedRNG_overloads,State::seedRNG,0,
                 .def_readwrite("is2d", &State::is2d)
                 .def_readonly("changedAtoms", &State::changedAtoms)
                 .def_readonly("changedGroups", &State::changedGroups)
-                .def_readwrite("buildNeighborlists", &State::buildNeighborlists)
                 .def_readwrite("turn", &State::turn)
                 .def_readwrite("periodicInterval", &State::periodicInterval)
                 .def_readwrite("rCut", &State::rCut)
@@ -748,7 +700,6 @@ BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(State_seedRNG_overloads,State::seedRNG,0,
                 .def_readonly("groupTags", &State::groupTags)
                 .def_readonly("dataManager", &State::dataManager)
                 //shared ptrs
-                .def_readwrite("grid", &State::grid)
                 .def_readwrite("bounds", &State::bounds)
                 .def_readwrite("fixes", &State::fixes)
                 .def_readwrite("atomParams", &State::atomParams)

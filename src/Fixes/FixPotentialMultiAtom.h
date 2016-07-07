@@ -49,7 +49,10 @@ class FixPotentialMultiAtom : public Fix, public TypedItemHolder {
                 if (forcer.type == -1) {
                     //cout << "gotta do" << endl;
                     //cout << "max existing type " << maxExistingType  << endl;
+                    //
+                    //to do: make it so I just cast forcer as a type.  Gave nans last time I tried it
                     ForcerTypeHolder typeHolder = ForcerTypeHolder(&forcer);
+                    std::cout << typeHolder.getInfoString() << std::endl;
                     bool parameterFound = reverseMap.find(typeHolder) != reverseMap.end();
                     //cout << "is found " << parameterFound << endl;
                     if (parameterFound) {

@@ -95,7 +95,7 @@ class LAMMPS_Reader:
 
     def readBounds(self):
         #reBase = '^\s+[\-\.\d]+\s+[\-\.\d]\s+%s\s+%s\s$'
-        reBase = '^\s+[\-\.\d\e]+[\s]+[\-\.\d\e]+[\s]+%s[\s]+%s'
+        reBase = '^\s*[\-\.\d\e]+[\s]+[\-\.\d\e]+[\s]+%s[\s]+%s'
         bits = [('xlo', 'xhi'), ('ylo', 'yhi'), ('zlo', 'zhi')]
         lo = self.state.Vector()
         hi = self.state.Vector()
@@ -240,7 +240,6 @@ class LAMMPS_Reader:
     def readBondCoefs(self):
         rawData = self.readSection(self.dataFileLines, re.compile('Bond Coeffs'))
         dataConverter = argumentConverters['data'][self.bondFix.type]
-        print self.bondFix.type
         inputConverter = argumentConverters['input'][self.bondFix.type]
         for line in rawData:
             args = dataConverter(self, line)
@@ -339,8 +338,10 @@ class LAMMPS_Reader:
                 line = f[lineNum]
                 if regex.search(f[lineNum]):
                     lineStrip = self.stripComments(line)
-                    bits = lineStrip.split()
-                    res.append(bits)
+                    if regex.search(lineStrip):
+#if still valid after comments stripped
+                        bits = lineStrip.split()
+                        res.append(bits)
                 lineNum+=1
             fIdx+=1
         return res
@@ -358,6 +359,7 @@ def bondHarmonic_data(reader, args):
     rEq = float(args[2]) / reader.unitLen
     return [type, k, rEq]
 
+
 def bondHarmonic_input(reader, args):
     LMPType = int(args[1])
     if not LMPType in reader.LMPTypeToSimTypeBond:
@@ -368,6 +370,29 @@ def bondHarmonic_input(reader, args):
     rEq = float(args[3]) / reader.unitLen
     return [type, k, rEq]
 
+def bondFENE_data(reader, args):
+    LMPType = int(args[0])
+    if not LMPType in reader.LMPTypeToSimTypeBond:
+        print 'Ignoring LAMMPS bond type %d from data file.  Bond not used in data file' % LMPType
+        return False
+    type = reader.LMPTypeToSimTypeBond[LMPType]
+    k =  reader.unitLen * reader.unitLen * float(args[1]) / reader.unitEng #2 because LAMMPS includes the 1/2 in its k
+    rEq = float(args[2]) / reader.unitLen
+    eps = float(args[3]) / reader.unitEng
+    sig = float(args[4]) / reader.unitLen
+    return [type, k, rEq, eps, sig]
+
+def bondFENE_input(reader, args):
+    LMPType = int(args[1])
+    if not LMPType in reader.LMPTypeToSimTypeBond:
+        print 'Ignoring LAMMPS bond type %d from input script.  Bond not used in data file' % LMPType
+        return False
+    type = reader.LMPTypeToSimTypeBond[LMPType]
+    k = reader.unitLen * reader.unitLen * 2 * float(args[2]) / reader.unitEng #2 because LAMMPS includes the 1/2 in its k
+    rEq = float(args[3]) / reader.unitLen
+    eps = float(args[4]) / reader.unitEng
+    sig = float(args[5]) / reader.unitLen
+    return [type, k, rEq, eps, sig]
 def angleHarmonic_data(reader, args):
     LMPType = int(args[0])
     if not LMPType in reader.LMPTypeToSimTypeAngle:
@@ -389,6 +414,29 @@ def angleHarmonic_input(reader, args):
 
     thetaEq = float(args[3]) * DEGREES_TO_RADIANS
     return [type, k, thetaEq]
+
+def angleCosineDelta_data(reader, args):
+    LMPType = int(args[0])
+    if not LMPType in reader.LMPTypeToSimTypeAngle:
+        print 'Ignoring LAMMPS angle type %d from data file.  Angle not used in data file' % LMPType
+        return False
+    type = reader.LMPTypeToSimTypeAngle[LMPType]
+    k = float(args[1]) / reader.unitEng
+
+    thetaEq = float(args[2]) * DEGREES_TO_RADIANS
+    return [type, k, thetaEq]
+
+def angleCosineDelta_input(reader, args):
+    LMPType = int(args[1])
+    if not LMPType in reader.LMPTypeToSimTypeAngle:
+        print 'Ignoring LAMMPS angle type %d from input script.  Angle not used in data file' % LMPType
+        return False
+    type = reader.LMPTypeToSimTypeAngle[LMPType]
+    k = float(args[2]) / reader.unitEng
+
+    thetaEq = float(args[3]) * DEGREES_TO_RADIANS
+    return [type, k, thetaEq]
+
 
 def dihedralOPLS_data(reader, args):
     LMPType = int(args[0])
@@ -436,14 +484,18 @@ argumentConverters = {
         'data':
         {
             'BondHarmonic': bondHarmonic_data,
+            'BondFENE': bondFENE_data,
             'AngleHarmonic': angleHarmonic_data,
+            'AngleCosineDelta': angleCosineDelta_data,
             'DihedralOPLS': dihedralOPLS_data,
             'ImproperHarmonic': improperHarmonic_data
             },
         'input':
         {
             'BondHarmonic': bondHarmonic_input,
+            'BondFENE': bondFENE_input,
             'AngleHarmonic': angleHarmonic_input,
+            'AngleCosineDelta': angleCosineDelta_input,
             'DihedralOPLS': dihedralOPLS_input,
             'ImproperHarmonic': improperHarmonic_input
             }

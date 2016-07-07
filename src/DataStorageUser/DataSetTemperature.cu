@@ -12,7 +12,9 @@ DataSetTemperature::DataSetTemperature(uint32_t groupTag_) : DataSet(groupTag_) 
 
 void DataSetTemperature::collect(int64_t turn, BoundsGPU &, int nAtoms, float4 *xs, float4 *vs, float4 *fs, float *engs, Virial *virials, cudaDeviceProp &prop) {
     tempGPU.d_data.memset(0);
-    sumVectorSqr3DTagsOverW<float, float4, 1> <<<NBLOCK(nAtoms / (double) 1), PERBLOCK, 1*PERBLOCK*sizeof(float)>>>(tempGPU.getDevData(), vs, nAtoms, groupTag, fs, prop.warpSize);
+    accumulate_gpu_if<float, float4, SumVectorSqr3DOverWIf, N_DATA_PER_THREAD> <<<NBLOCK(nAtoms / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*PERBLOCK*sizeof(float)>>>
+        (tempGPU.getDevData(), vs, nAtoms, prop.warpSize, SumVectorSqr3DOverWIf(fs, groupTag));
+    //sumVectorSqr3DTagsOverW<float, float4, 1> <<<NBLOCK(nAtoms / (double) 1), PERBLOCK, 1*PERBLOCK*sizeof(float)>>>(tempGPU.getDevData(), vs, nAtoms, groupTag, fs, prop.warpSize);
     tempGPU.dataToHost();
     turns.push_back(turn);
     turnsPy.append(turn);

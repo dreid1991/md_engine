@@ -37,7 +37,6 @@ void testFire() {
     double mult = 1.5;
     state->bounds = Bounds(state, Vector(0, 0, 0), Vector(mult*baseLen, mult*baseLen, 10));
     state->rCut = 3.5;
-    state->grid = AtomGrid(state.get(), 4, 4, 3);
     state->atomParams.addSpecies("handle", 2);
     state->is2d = true;
     state->periodic[2] = false;
@@ -81,7 +80,6 @@ void testCharge() {
                            Vector(0, 0, 0),
                            Vector(mult*baseLen, mult*baseLen, mult*baseLen));
     state->rCut = 9.5;
-    state->grid = AtomGrid(state.get(), 9.5, 9.5, 9.5);
     state->atomParams.addSpecies("anion", 2);
     state->atomParams.addSpecies("cation", 3);
     double eps = 2.0;
@@ -161,7 +159,6 @@ void testPair() {
 
     state->bounds = Bounds(state, Vector(0, 0, 0), Vector(L,L,L));
     state->rCut = 5.0;
-    state->grid = AtomGrid(state.get(), L,L,L);
     state->atomParams.addSpecies("handle", 2);
     state->addAtom("handle",Vector(0, 0, 0), 0);
     state->addAtom("handle",Vector(5, 0, 0), 0);
@@ -198,7 +195,6 @@ void test_charge_ewald() {
 
     state->bounds = Bounds(state, Vector(0, 0, 0), Vector(L,L,L));
     state->rCut = 5.0;
-    state->grid = AtomGrid(state.get(), L,L,L);
     state->atomParams.addSpecies("handle", 2);
     state->addAtom("handle",Vector(0.5*L, 0.5*L, 0.5*L), 0);
     state->addAtom("handle",Vector(0.75*L, 0.5*L, 0.5*L), 0);
@@ -245,7 +241,6 @@ void testRead() {
     state->periodicInterval = 40;
     state->bounds = Bounds(state, Vector(0, 0, 0), Vector(mult*baseLen, mult*baseLen, 10));
     state->rCut = 2.9;
-    state->grid = AtomGrid(state.get(), 3, 3, 3);
     state->atomParams.addSpecies("handle", 2);
 
     state->addAtom("handle", Vector(1, 1, 1), 0);
@@ -261,7 +256,7 @@ void testRead() {
     //state->activateFix(harmonic);
     //harmonic->createBond(&state->atoms[0], &state->atoms[1], 1, 2);
 
-    SHARED(FixSpringStatic) springStatic = SHARED(FixSpringStatic) (new FixSpringStatic(state, "spring", "all", 1, Py_None));
+    SHARED(FixSpringStatic) springStatic = SHARED(FixSpringStatic) (new FixSpringStatic(state, "spring", "all", 1));
     state->activateFix(springStatic);
 
     SHARED(WriteConfig) write = SHARED(WriteConfig) (new WriteConfig(state, "test", "handley", "base64", 50));
@@ -274,7 +269,6 @@ void testWallHarmonic() {
     SHARED(State) state = SHARED(State) (new State());
     state->bounds = Bounds(state, Vector(0, 0, 0), Vector(50, 50, 10));
     state->rCut = 3.5;
-    state->grid = AtomGrid(state.get(), 4, 4, 3);
     state->atomParams.addSpecies("handle", 2);
     state->atomParams.addSpecies("other", 2);
     state->is2d = true;
@@ -317,7 +311,6 @@ void testBondHarmonic() {
     SHARED(State) state = SHARED(State) (new State());
     state->bounds = Bounds(state, Vector(0, 0, 0), Vector(50, 50, 10));
     state->rCut = 3.5;
-    state->grid = AtomGrid(state.get(), 4, 4, 3);
     state->atomParams.addSpecies("handle", 2);
     state->is2d = true;
     state->periodic[2] = false;
@@ -340,8 +333,8 @@ void testBondHarmonic() {
     bond->createBond(&state->atoms[0], &state->atoms[1], 1, 2, -1);
     bond->createBond(&state->atoms[1], &state->atoms[2], 1, 2, -1);
     cout << "req" << endl;
-    cout << bond->getBond(0).rEq << endl;
-    cout << bond->getBond(1).rEq << endl;
+    cout << bond->getBond(0).r0 << endl;
+    cout << bond->getBond(1).r0 << endl;
     IntegratorRelax integratorR(state);
     integratorR.run(1,1e-8);
     for (int i=0; i<3; i++) {
@@ -358,7 +351,6 @@ void testBondHarmonicGrid() {
     state->periodic[2] = false;
     state->bounds = Bounds(state, Vector(0, 0, 0), Vector(50, 50, 10));
     state->rCut = 3.5;
-    state->grid = AtomGrid(state.get(), 4, 4, 3);
     state->atomParams.addSpecies("handle", 2);
 
     SHARED(FixBondHarmonic) bond (new FixBondHarmonic(state, "bondh"));
@@ -375,14 +367,14 @@ void testBondHarmonicGrid() {
   //  state->addAtom("handle", Vector(1, 1, 0), 0);
    // state->addAtom("handle", Vector(3, 1, 0), 0);
 
-    double rEq = 1.0;
+    double r0 = 1.0;
     for (int i=0; i<n; i++) {
         for (int j=0; j<n; j++) {
             if (i<n-1) {
-                bond->createBond(&state->atoms[(i+1)*n+j], &state->atoms[i*n+j], 1, rEq, -1);
+                bond->createBond(&state->atoms[(i+1)*n+j], &state->atoms[i*n+j], 1, r0, -1);
             }
             if (j<n-1) {
-                bond->createBond(&state->atoms[i*n+j+1], &state->atoms[i*n+j], 1, rEq, -1);
+                bond->createBond(&state->atoms[i*n+j+1], &state->atoms[i*n+j], 1, r0, -1);
             }
         }
     }
@@ -427,7 +419,6 @@ void testBondHarmonicGridToGPU() {
     state->periodic[2] = false;
     state->bounds = Bounds(state, Vector(0, 0, 0), Vector(50, 50, 10));
     state->rCut = 3.5;
-    state->grid = AtomGrid(state.get(), 4, 4, 3);
     state->atomParams.addSpecies("handle", 2);
 
     SHARED(FixBondHarmonic) bond (new FixBondHarmonic(state, "bondh"));
@@ -444,14 +435,14 @@ void testBondHarmonicGridToGPU() {
   //  state->addAtom("handle", Vector(1, 1, 0), 0);
    // state->addAtom("handle", Vector(3, 1, 0), 0);
 
-    double rEq = 1.0;
+    double r0 = 1.0;
     for (int i=0; i<n; i++) {
         for (int j=0; j<n; j++) {
             if (i<n-1) {
-                bond->createBond(&state->atoms[(i+1)*n+j], &state->atoms[i*n+j], 1, rEq);
+                bond->createBond(&state->atoms[(i+1)*n+j], &state->atoms[i*n+j], 1, r0);
             }
             if (j<n-1) {
-                bond->createBond(&state->atoms[i*n+j+1], &state->atoms[i*n+j], 1, rEq);
+                bond->createBond(&state->atoms[i*n+j+1], &state->atoms[i*n+j], 1, r0);
             }
         }
     }
@@ -511,7 +502,6 @@ void hoomdBench() {
     state->bounds = Bounds(state, Vector(0, 0, 0), Vector(boxLen, boxLen, boxLen));
     state->rCut = 3.0;
     state->padding = 0.6;
-    state->grid = AtomGrid(state.get(), 3.6, 3.6, 3.6);
     state->atomParams.addSpecies("handle", 1);
     InitializeAtoms::populateRand(state, state->bounds, "handle", 6000, 0.6);
 
@@ -573,7 +563,6 @@ void testLJ() {
     state->bounds = Bounds(state, Vector(0, 0, 0), Vector(mult*baseLen, mult*baseLen, mult*baseLen));
     state->rCut = 2.5;
     state->padding = 0.5;
-    state->grid = AtomGrid(state.get(), 3.5, 3.5, 3);
     state->atomParams.addSpecies("handle", 2);
     vector<double> intervals = {0, 1};
     vector<double> temps = {1.2, 1.2};
@@ -709,7 +698,6 @@ int main(int argc, char **argv) {
     //SORTING NOT WORKING FOR IS2d = true
     state->bounds = Bounds(state, Vector(0, 0, 0), Vector(mult*baseLen, mult*baseLen, 10));
     state->rCut = 2.9;
-    state->grid = AtomGrid(state.get(), 3, 3, 3);
     state->atomParams.addSpecies("handle", 2);
     SHARED(FixLJCut) nonbond = SHARED(FixLJCut) (new FixLJCut(state, "nb"));
     SHARED(Fix2d) f2d = SHARED(Fix2d) (new Fix2d(state, "2d", 30));
@@ -722,18 +710,6 @@ int main(int argc, char **argv) {
   //  state->addAtom("handle", Vector(4, 2.7, 0));
   //  state->atoms[0].vel = Vector(2, 0, 0);
 
-    for (int i=0; i<baseLen; i++) {
-        for (int j=0; j<baseLen; j++) {
-            state->atoms.push_back(Atom(Vector(mult*j, mult*i, 0), 0, i*baseLen+j, 2, 0));
-            state->atoms.push_back(Atom(Vector(mult*j, mult*i, 3), 0, i*baseLen+j, 2, 0));
-            state->atoms.push_back(Atom(Vector(mult*j, mult*i, 6), 0, i*baseLen+j, 2, 0));
-            state->atoms.push_back(Atom(Vector(mult*(j+0.5), mult*(i+0.5), 1.5), 0, i*baseLen+j, 2, 0));
-            state->atoms.push_back(Atom(Vector(mult*(j+0.5), mult*(i+0.5), 4.5), 0, i*baseLen+j, 2, 0));
-            state->atoms.push_back(Atom(Vector(mult*(j+0.5), mult*(i+0.5), 7.5), 0, i*baseLen+j, 2, 0));
-            //state->addAtom("handle", Vector(mult*i, mult*j, 0)); //SLOW
-        }
-    }
-    InitializeAtoms::initTemp(state, "all", 0.1);
     //SHARED(WriteConfig) write = SHARED(WriteConfig) (new WriteConfig(state, "test", "handley", "xml", 5));
     //state->activateWriteConfig(write);
     int n = 8000;
@@ -755,4 +731,98 @@ int main(int argc, char **argv) {
     //MPI_Finalize();
 
 }
-
+//for benchmarking sums
+    /*
+    int n = 100000;
+    float *dst;
+#define XXX float4
+    XXX *xs;
+    cudaMalloc(&dst, sizeof(float));
+    cudaMalloc(&xs, n*sizeof(XXX));
+    std::vector<XXX> src(n);
+    for (int i=0; i<n; i++) {
+        src[i] = make_float4(i+1, 2*i+1, i+1, 2*i+1);
+        //src[i] = i;
+    }
+    cudaMemcpy(xs, src.data(), n*sizeof(XXX), cudaMemcpyHostToDevice);
+    cudaDeviceSynchronize();
+  //  sumSingle<float, float, 1> <<<NBLOCK(n), PERBLOCK, 1*sizeof(float)*PERBLOCK>>>(dst, xs, n, 32);
+    int warpsize = state->devManager.prop.warpSize;
+    auto t1 = Clock::now();
+    for (int j = 0; j<100000; j++) {
+        cudaMemset(dst, 0, sizeof(float));
+        cudaDeviceSynchronize();
+        //printf("NBLOCK IS %d PERBLOCK IS %d\n", NBLOCK(n), PERBLOCK);
+        accumulate_gpu<float, float4, KEKE, 4> <<<NBLOCK(n / (double) 4), PERBLOCK, 4*sizeof(float)*PERBLOCK>>>(dst, xs, n, warpsize, KEKE());
+        float res;
+        cudaMemcpy(&res, dst, sizeof(float), cudaMemcpyDeviceToHost);
+        cudaDeviceSynchronize();
+        float cpures = 0;//make_float4(0, 0, 0, 0);
+      //  for (XXX v : src) {
+      //      cpures += v.x+v.z + v.y/v.z;
+      //  }
+        //printf("%f %f\n", res, cpures);
+        //if (res != cpures ) {
+            //std::cout << "uh oh " << n << " " << (res - cpures) << std::endl;
+       //     printf("res is %f\n", res);
+       //     printf("cpu is %f\n", cpures);
+            //printf("res is %f %f %f %f \n", res.x, res.y, res.z, res.w);
+            //printf("cpu is %f %f %f %f \n", cpures.x, cpures.y, cpures.z, cpures.w);
+          //  n-=1;
+        //}
+    }
+    auto t2 = Clock::now();
+    std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(t2-t1).count() << std::endl;
+    cudaFree(dst);
+    cudaFree(xs);
+    */
+    /*
+    for (int n=9000000; n<10000000; n+=10000) {
+        //int n = 100000;
+#define LE_SRC float
+#define LE_DEST float
+        LE_DEST *dst;
+        LE_SRC *xs;
+        cudaMalloc(&dst, sizeof(LE_DEST));
+        cudaMalloc(&xs, n*sizeof(LE_SRC));
+        std::vector<LE_SRC> src(n);
+        for (int i=0; i<n; i++) {
+            src[i] = rand() / (double) RAND_MAX;// make_float4(i, 2*i, i, 2*i);
+           // src[i] = i;
+        }
+        cudaMemcpy(xs, src.data(), n*sizeof(LE_SRC), cudaMemcpyHostToDevice);
+        cudaDeviceSynchronize();
+      //  sumSingle<float, float, 1> <<<NBLOCK(n), PERBLOCK, 1*sizeof(float)*PERBLOCK>>>(dst, xs, n, 32);
+        int warpsize = state->devManager.prop.warpSize;
+        auto t1 = Clock::now();
+        for (int j = 0; j<1; j++) {
+            cudaMemset(dst, 0, sizeof(LE_DEST));
+            cudaDeviceSynchronize();
+            //printf("NBLOCK IS %d PERBLOCK IS %d\n", NBLOCK(n), PERBLOCK);
+            accumulate_gpu <<<NBLOCK(n), PERBLOCK, sizeof(LE_DEST)*PERBLOCK>>>(dst, xs, n, warpsize, KEKE());
+            float res;
+            cudaMemcpy(&res, dst, sizeof(LE_DEST), cudaMemcpyDeviceToHost);
+            cudaDeviceSynchronize();
+            double cpures = 0;//make_float4(0, 0, 0, 0);
+            float cpuresF = 0;
+            for (LE_SRC x : src) {
+                cpures += (double) x;
+                cpuresF += (float) x;
+            }
+            //printf("%f %f\n", res, cpures);
+            //if (res != cpures ) {
+                //std::cout << "uh oh " << n << " " << (res - cpures) << std::endl;
+                printf("gpu %f cpu %f, cpuF %f\n", res, cpures, cpuresF);
+                //printf("cpu is %f\n", cpures);
+                //printf("res is %f %f %f %f \n", res.x, res.y, res.z, res.w);
+                //printf("cpu is %f %f %f %f \n", cpures.x, cpures.y, cpures.z, cpures.w);
+              //  n-=1;
+            //}
+        }
+        auto t2 = Clock::now();
+    //    std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(t2-t1).count() << std::endl;
+        cudaFree(dst);
+        cudaFree(xs);
+    }
+    exit(0);
+    */

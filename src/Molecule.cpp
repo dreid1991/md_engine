@@ -1,11 +1,10 @@
 #include "Molecule.h"
 #include "boost_for_export.h"
 namespace py = boost::python;
-using namespace std;
 
 #include "State.h"
 
-Molecule::Molecule(State *state_, vector<int> &ids_) {
+Molecule::Molecule(State *state_, std::vector<int> &ids_) {
     state = state_;
     ids = ids_;
 }

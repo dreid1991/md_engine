@@ -12,7 +12,6 @@ state.rCut = 3.0
 state.padding = 0.6
 state.periodicInterval = 7
 state.shoutEvery = 1000
-state.grid = AtomGrid(state, 3.6, 3.6, 3.6)
 
 state.dt = 0.0005
 
@@ -87,7 +86,7 @@ for i in range(5):
     state.duplicateMolecule(state.molecules[-1])
     print state.molecules
     state.molecules[-1].translate(Vector(0, 0, 8))
-integVerlet.run(15000)
+integVerlet.run(150000)
 print [x / len(state.atoms) for x in temp.vals]
 
 #integVerlet = IntegraterVerlet(state)

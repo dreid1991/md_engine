@@ -13,7 +13,7 @@ Fix::Fix(boost::shared_ptr<State> state_, std::string handle_, std::string group
          int orderPreference_)
     : state(state_.get()), handle(handle_), groupHandle(groupHandle_),
       type(type_), forceSingle(forceSingle_), requiresVirials(requiresVirials_),
-      requiresCharges(requiresCharges_), applyEvery(applyEvery_),
+      requiresCharges(requiresCharges_), applyEvery(applyEvery_), isThermostat(false),
       orderPreference(orderPreference_), restartHandle(type + "_" + handle)
 {
     updateGroupTag();

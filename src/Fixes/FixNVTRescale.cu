@@ -9,9 +9,9 @@ namespace py=boost::python;
 using namespace std;
 
 const std::string NVTRescaleType = "NVTRescale";
-
+/*
 __global__ void sumKeInBounds (float *dest, float4 *src, int n, unsigned int groupTag, float4 *fs, BoundsGPU bounds, int warpSize) {
-    extern __shared__ float tmp[]; /*should have length of # threads in a block (PERBLOCK) PLUS ONE for counting shared*/
+    extern __shared__ float tmp[]; 
     int potentialIdx = blockDim.x*blockIdx.x + threadIdx.x;
     if (potentialIdx < n) {
         unsigned int atomGroup = * (unsigned int *) &(fs[potentialIdx].w);
@@ -33,7 +33,7 @@ __global__ void sumKeInBounds (float *dest, float4 *src, int n, unsigned int gro
         atomicAdd(dest, tmp[0]);
     }
 }
-
+*/
 
 FixNVTRescale::FixNVTRescale(SHARED(State) state_, string handle_, string groupHandle_, py::list intervals_, py::list temps_, int applyEvery_, SHARED(Bounds) thermoBounds_)
     : FixThermostatBase(intervals_, temps_), Fix(state_, handle_, groupHandle_, NVTRescaleType, false, false, false, applyEvery_),
@@ -173,11 +173,27 @@ void FixNVTRescale::compute(bool computeVirials) {
     int warpSize = state->devManager.prop.warpSize;
     if (usingBounds) {
         //should optimize this one in name #data per thread way
-        sumKeInBounds<<<NBLOCK(nAtoms), PERBLOCK, PERBLOCK*sizeof(float)>>>(tempGPU.data(), gpd.vs(activeIdx), nAtoms, groupTag, gpd.fs(activeIdx), boundsGPU, warpSize);
+        accumulate_gpu_if<float, float4, SumVectorSqr3DOverWIf_Bounds, 4> <<<NBLOCK(nAtoms / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*PERBLOCK*sizeof(float)>>>
+            (
+             tempGPU.data(), 
+             gpd.vs(activeIdx), 
+             nAtoms, 
+             warpSize,
+             SumVectorSqr3DOverWIf_Bounds(gpd.fs(activeIdx), groupTag, boundsGPU)
+            );
+        //sumKeInBounds<<<NBLOCK(nAtoms), PERBLOCK, PERBLOCK*sizeof(float)>>>(tempGPU.data(), gpd.vs(activeIdx), nAtoms, groupTag, gpd.fs(activeIdx), boundsGPU, warpSize);
         rescaleInBounds<<<NBLOCK(nAtoms), PERBLOCK>>>(nAtoms, groupTag, gpd.xs(activeIdx), gpd.vs(activeIdx), gpd.fs(activeIdx), temp, tempGPU.data(), boundsGPU);
     } else {
         //SUMTESTS<float, float4> <<<NBLOCK(nAtoms), PERBLOCK, PERBLOCK*sizeof(float)>>>(tempGPU.data(), gpd.vs(activeIdx), nAtoms, groupTag, gpd.fs(activeIdx), warpSize);
-        sumVectorSqr3DTagsOverW<float, float4, N_DATA_PER_THREAD> <<<NBLOCK(nAtoms / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*PERBLOCK*sizeof(float)>>>(tempGPU.data(), gpd.vs(activeIdx), nAtoms, groupTag, gpd.fs(activeIdx), warpSize);
+        accumulate_gpu_if<float, float4, SumVectorSqr3DOverWIf, 4> <<<NBLOCK(nAtoms / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*PERBLOCK*sizeof(float)>>>
+            (
+             tempGPU.data(), 
+             gpd.vs(activeIdx), 
+             nAtoms, 
+             warpSize,
+             SumVectorSqr3DOverWIf(gpd.fs(activeIdx), groupTag)
+            );
+        //sumVectorSqr3DTagsOverW<float, float4, N_DATA_PER_THREAD> <<<NBLOCK(nAtoms / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*PERBLOCK*sizeof(float)>>>(tempGPU.data(), gpd.vs(activeIdx), nAtoms, groupTag, gpd.fs(activeIdx), warpSize);
         //SAFECALL(sumVectorSqr3DTagsOverW<float, float4> <<<NBLOCK(nAtoms), PERBLOCK, PERBLOCK*sizeof(float)>>>(tempGPU.data(), gpd.vs(activeIdx), nAtoms, groupTag, gpd.fs(activeIdx)));
         rescale<<<NBLOCK(nAtoms), PERBLOCK>>>(nAtoms, groupTag, gpd.vs(activeIdx), gpd.fs(activeIdx), temp, tempGPU.data());
         //SAFECALL(rescale<<<NBLOCK(nAtoms), PERBLOCK>>>(nAtoms, groupTag, gpd.vs(activeIdx), gpd.fs(activeIdx), temp, tempGPU.data()));

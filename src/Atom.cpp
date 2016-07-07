@@ -1,38 +1,57 @@
 
 #include "Atom.h"
 #include "boost_for_export.h"
-using namespace boost::python;
+namespace py = boost::python;
 
 
-void Atom::setPos(Vector pos_) {
+void Atom::setPos(Vector &x) {
     isChanged = true;
-    pos = pos_;
+    pos = x;
 }
 Vector Atom::getPos() {
     return pos;
 }
+
+
+void Atom::setVel(Vector &x) {
+    isChanged = true;
+    vel = x;
+}
+Vector Atom::getVel() {
+    return vel;
+}
+
+
+void Atom::setForce(Vector &x) {
+    isChanged = true;
+    force = x;
+}
+Vector Atom::getForce() {
+    return force;
+}
+
+
+std::string Atom::getType() {
+    return handles->at(type);
+}
+
+
+
+
 void export_Atom () { 
-    class_<Atom>("Atom", init<int, int>())
-        .def(init<Vector, int, int>())
+    py::class_<Atom>("Atom", py::no_init)
         .def_readonly("id", &Atom::id)
         .add_property("pos", &Atom::getPos, &Atom::setPos)
-        //.def_readwrite("pos", &Atom::pos)
-        .def_readwrite("vel", &Atom::vel)
-        .def_readwrite("force", &Atom::force)
+        .add_property("vel", &Atom::getVel, &Atom::setVel)
+        .add_property("force", &Atom::getForce, &Atom::setForce)
         .def_readwrite("groupTag", &Atom::groupTag)
-        .def_readonly("neighbors", &Atom::neighbors)
         .def_readwrite("mass", &Atom::mass)
         .def_readwrite("q", &Atom::q)
-        .def_readwrite("type", &Atom::type)
+        .add_property("type", &Atom::getType)
         .def("kinetic", &Atom::kinetic)
         .def_readwrite("isChanged", &Atom::isChanged)
         ;
 
 }
 
-void export_Neighbor() {
-    class_<Neighbor>("Neighbor", init<>())
-        .def_readwrite("obj", &Neighbor::obj)
-        .def_readwrite("offset", &Neighbor::offset)
-        ;
-}
+

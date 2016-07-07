@@ -16,10 +16,12 @@ __global__ void compute_cu(int nAtoms, float4 *vs, float4 *fs, curandState_t *ra
         //curandState_t localState;
         //curand_init(timestep, idx, seed, &localState);
         curandState_t *randState = randStates + idx;
+        curandState_t localState=*randState;
         float3 Wiener;
-        Wiener.x=curand_uniform(randState)*2.0f-1.0f;
-        Wiener.y=curand_uniform(randState)*2.0f-1.0f;
-        Wiener.z=curand_uniform(randState)*2.0f-1.0f;
+        Wiener.x=curand_uniform(&localState)*2.0f-1.0f;
+        Wiener.y=curand_uniform(&localState)*2.0f-1.0f;
+        Wiener.z=curand_uniform(&localState)*2.0f-1.0f;
+        *randState=localState;
         //if (idx==0 || idx == 1) {
         //    printf("%d %f %f %f\n", idx, Wiener.x, Wiener.y, Wiener.z);
        // }
@@ -59,9 +61,9 @@ FixLangevin::FixLangevin(boost::shared_ptr<State> state_, std::string handle_, s
     setDefaults();
 }
 
-void __global__ initRandStates(int nAtoms, curandState_t *states, int seed) {
+void __global__ initRandStates(int nAtoms, curandState_t *states, int seed,int turn) {
     int idx = GETIDX();
-    curand_init(seed, idx, 0, states + idx);
+    curand_init(seed, idx, turn, states + idx);
 
 }
 
@@ -70,7 +72,7 @@ bool FixLangevin::prepareForRun() {
     turnBeginRun = state->runInit;
     turnFinishRun = state->runInit + state->runningFor;
     randStates = GPUArrayDeviceGlobal<curandState_t>(state->atoms.size());
-    initRandStates<<<NBLOCK(state->atoms.size()), PERBLOCK>>>(state->atoms.size(), randStates.data(), seed);
+    initRandStates<<<NBLOCK(state->atoms.size()), PERBLOCK>>>(state->atoms.size(), randStates.data(), seed,state->turn);
     return true;
 }
 

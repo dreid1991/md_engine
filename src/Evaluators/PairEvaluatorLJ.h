@@ -14,7 +14,6 @@ class EvaluatorLJ {
             float r2inv = 1/lenSqr;
             float r6inv = r2inv*r2inv*r2inv;
             float forceScalar = r6inv * r2inv * (p1 * r6inv - p2) * multiplier;
-
             return dr * forceScalar;
         }
         inline __device__ float energy(float params[3], float lenSqr, float multiplier) {

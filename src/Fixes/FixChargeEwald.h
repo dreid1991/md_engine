@@ -28,14 +28,27 @@ private:
     GPUArrayGlobal<float> Green_function;  // Green function in k space
 
     int3 sz;
+
     float alpha;
     float r_cut;
     bool first_run;
+    
+    void find_optimal_parameters();
+    
+    float total_Q;
+    float total_Q2;
 
     void calc_Green_function();
     void calc_potential(cufftComplex *phi_buf);
 
     int interpolation_order;
+//! RMS variables
+    double DeltaF_k(double t_alpha);
+    double DeltaF_real(double t_alpha);
+    float3 h;
+    float3 L;
+    int nAtoms;
+        
 
 public:
     FixChargeEwald(boost::shared_ptr<State> state_,
@@ -47,8 +60,19 @@ public:
         setParameters(sz_, sz_, sz_, rcut_, interpolation_order_);
     }
 
+    //! Compute forces
     void compute(bool);
 
+    //! Compute single point energy
+    void singlePointEng(float *);
+
+    
+    //! Return list of cutoff values.
+    std::vector<float> getRCuts() {
+        std::vector<float> res;
+        res.push_back(r_cut);
+        return res;
+    }    
 };
 
 #endif

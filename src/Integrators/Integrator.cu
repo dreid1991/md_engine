@@ -11,6 +11,11 @@
 
 using namespace std;
 
+
+
+
+
+
 void Integrator::stepInit(bool computeVirials)
 {
     if (computeVirials) {
@@ -199,10 +204,6 @@ void Integrator::basicPreRunChecks() {
         cout << "Device compute capability must be >= 3.0. Quitting" << endl;
         assert(state->devManager.prop.major >= 3);
     }
-    if (not state->grid.isSet) {
-        cout << "Atom grid is not set!" << endl;
-        assert(state->grid.isSet);
-    }
     if (state->rCut == RCUT_INIT) {
         cout << "rcut is not set" << endl;
         assert(state->rCut != RCUT_INIT);
@@ -211,17 +212,14 @@ void Integrator::basicPreRunChecks() {
         cout << "2d system cannot be periodic is z dimension" << endl;
         assert(not (state->is2d and state->periodic[2]));
     }
-    for (int i=0; i<3; i++) {
-        if (i<2 or (i==2 and state->periodic[2])) {
-            if (state->grid.ds[i] < state->rCut + state->padding) {
-                cout << "Grid dimension " << i
-                     << "has discretization smaller than rCut + padding"
-                     << endl;
-                assert(state->grid.ds[i] >= state->rCut + state->padding);
-            }
-        }
+    mdAssert(state->bounds.isInitialized(), "Bounds must be initialized");
+    /*
+    if (not state->bounds.isInitialized()) {
+        cout << "Bounds not initialized" << endl;
+        assert(state->bounds.isInitialized());
     }
-    state->grid.adjustForChangedBounds();
+    */
+
 }
 
 
@@ -301,9 +299,19 @@ double Integrator::singlePointEngPythonAvg(string groupHandle) {
     cudaDeviceSynchronize();
     uint32_t groupTag = state->groupTagFromHandle(groupHandle);
     int warpSize = state->devManager.prop.warpSize;
+    accumulate_gpu_if<float, float, SumSingleIf, N_DATA_PER_THREAD> <<<NBLOCK(state->atoms.size() / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*sizeof(float)*PERBLOCK>>>
+        (
+         eng.getDevData(), 
+         state->gpd.perParticleEng.getDevData(),
+         state->atoms.size(),
+         warpSize,
+         SumSingleIf(state->gpd.fs.getDevData(), groupTag)
+        );
+    /*
     sumPlain<float, float, N_DATA_PER_THREAD><<<NBLOCK(state->atoms.size() / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*sizeof(float)*PERBLOCK>>>(
             eng.getDevData(), state->gpd.perParticleEng.getDevData(),
             state->atoms.size(), groupTag, state->gpd.fs.getDevData(), warpSize);
+            */
     eng.dataToHost();
     cudaDeviceSynchronize();
     CUT_CHECK_ERROR("Calculation of single point average energy failed");

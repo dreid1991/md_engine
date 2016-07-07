@@ -29,12 +29,6 @@ void export_stls() {
     py::class_<std::vector<Atom> >("vecAtom")
         .def(py::vector_indexing_suite<std::vector<Atom> >() )
         ;
-    py::class_<std::vector<Atom *> >("vecAtomPtr")
-        .def(py::vector_indexing_suite<std::vector<Atom *> >() )
-        ;
-    py::class_<std::vector<Neighbor> >("vecNeighbor")
-        .def(py::vector_indexing_suite<std::vector<Neighbor> >() )
-        ;
     py::class_<std::vector<SHARED(WriteConfig) > >("vecWriteConfig")
         .def(py::vector_indexing_suite<std::vector<SHARED(WriteConfig) > >() )
         ;

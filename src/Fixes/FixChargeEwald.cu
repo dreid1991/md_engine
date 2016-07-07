@@ -300,6 +300,22 @@ __global__ void Ewald_long_range_forces_order_3_cu(int nAtoms, float4 *xs, float
 }
 
 
+__global__ void Energy_cu(int3 sz,float *Green_function,
+                                    cufftComplex *FFT_qs, cufftComplex *E_grid){
+      int3 id = make_int3( blockIdx.x*blockDim.x + threadIdx.x,
+                          blockIdx.y*blockDim.y + threadIdx.y,
+                          blockIdx.z*blockDim.z + threadIdx.z);
+
+      if ((id.x<sz.x)&&(id.x<sz.y)&&(id.x<sz.z)){
+        cufftComplex qi=FFT_qs[id.x*sz.y*sz.z+id.y*sz.z+id.z];
+        E_grid[id.x*sz.y*sz.z+id.y*sz.z+id.z]
+            =make_cuComplex((qi.x*qi.x+qi.y*qi.y)*Green_function[id.x*sz.y*sz.z+id.y*sz.z+id.z],0.0);
+//TODO after Inverse FFT divide by volume
+      }
+}
+
+
+
 __global__ void compute_short_range_forces_cu(int nAtoms, float4 *xs, float4 *fs, uint16_t *neighborCounts, uint *neighborlist, uint32_t *cumulSumMaxPerBlock, float *qs, float alpha, float rCut, BoundsGPU bounds, int warpSize, float onetwoStr, float onethreeStr, float onefourStr) {
 
     float multipliers[4] = {1, onetwoStr, onethreeStr, onefourStr};
@@ -347,7 +363,50 @@ __global__ void compute_short_range_forces_cu(int nAtoms, float4 *xs, float4 *fs
 
 }
 
+__global__ void compute_short_range_energies_cu(int nAtoms, float4 *xs, uint16_t *neighborCounts, uint *neighborlist, uint32_t *cumulSumMaxPerBlock, float *qs, float alpha, float rCut, BoundsGPU bounds, int warpSize, float onetwoStr, float onethreeStr, float onefourStr,float *perParticleEng, float field_energy_per_particle) {
 
+    float multipliers[4] = {1, onetwoStr, onethreeStr, onefourStr};
+    int idx = GETIDX();
+    if (idx < nAtoms) {
+        float4 posWhole = xs[idx];
+        float3 pos = make_float3(posWhole);
+
+        float EngSum = 0.0f;
+        float qi = qs[idx];
+
+        int baseIdx = baseNeighlistIdx(cumulSumMaxPerBlock, warpSize);
+        int numNeigh = neighborCounts[idx];
+        for (int i=0; i<numNeigh; i++) {
+            int nlistIdx = baseIdx + warpSize * i;
+            uint otherIdxRaw = neighborlist[nlistIdx];
+            uint neighDist = otherIdxRaw >> 30;
+            uint otherIdx = otherIdxRaw & EXCL_MASK;
+            float3 otherPos = make_float3(xs[otherIdx]);
+            //then wrap and compute forces!
+            float3 dr = bounds.minImage(pos - otherPos);
+            float lenSqr = lengthSqr(dr);
+            //   printf("dist is %f %f %f\n", dr.x, dr.y, dr.z);
+            if (lenSqr < rCut*rCut) {
+                float multiplier = multipliers[neighDist];
+                if (multiplier) {
+                    float len=sqrtf(lenSqr);
+                    float qj = qs[otherIdx];
+
+//                     float r2inv = 1.0f/lenSqr;
+                    float rinv = 1.0f/len;                 
+                    float eng = 0.5*qi*qj*(erfcf((alpha*len))*rinv)*multiplier;
+                    
+                    EngSum += eng;
+   
+                }
+            }
+
+        }   
+        perParticleEng[idx] += EngSum+field_energy_per_particle; 
+
+    }
+
+}
 FixChargeEwald::FixChargeEwald(SHARED(State) state_, string handle_, string groupHandle_): FixCharge(state_, handle_, groupHandle_, chargeEwaldType, true),first_run(true){
   cufftCreate(&plan);
 }
@@ -361,6 +420,123 @@ FixChargeEwald::~FixChargeEwald(){
   cudaFree(FFT_Ez);
 }
 
+
+//Root mean square force error estimation
+const double amp_table[][7] = {
+        {2.0/3.0,           0,                 0,                    0,                        0,                         0,                                0},
+        {1.0/50.0,          5.0/294.0,         0,                    0,                        0,                         0,                                0},
+        {1.0/588.0,         7.0/1440.0,        21.0/3872.0,          0,                        0,                         0,                                0},
+        {1.0/4320.0,        3.0/1936.0,        7601.0/2271360.0,     143.0/28800.0,            0,                         0,                                0},
+        {1.0/23232.0,       7601.0/12628160.0, 143.0/69120.0,        517231.0/106536960.0,     106640677.0/11737571328.0, 0,                                0},
+        {691.0/68140800.0,  13.0/57600.0,      47021.0/35512320.0,   9694607.0/2095994880.0,   733191589.0/59609088000.0, 326190917.0/11700633600.0,        0},
+        {1.0/345600.0,      3617.0/35512320.0, 745739.0/838397952.0, 56399353.0/12773376000.0, 25091609.0/1560084480.0,   1755948832039.0/36229939200000.0, 48887769399.0/37838389248.0}
+}; 
+
+
+double FixChargeEwald :: DeltaF_k(double t_alpha){
+   
+   double sumx=0.0,sumy=0.0,sumz=0.0;
+   for( int m=0;m<interpolation_order;m++){
+       double amp=amp_table[interpolation_order-1][m];
+       sumx+=amp*pow(h.x*t_alpha,2*m);
+       sumy+=amp*pow(h.y*t_alpha,2*m);
+       sumz+=amp*pow(h.z*t_alpha,2*m);
+   }
+   return total_Q2/3.0*(1.0/(L.x*L.x)*pow(t_alpha*h.x,interpolation_order)*sqrt(t_alpha*L.x/nAtoms*sqrt(2.0*M_PI)*sumx)+
+                        1.0/(L.y*L.y)*pow(t_alpha*h.y,interpolation_order)*sqrt(t_alpha*L.y/nAtoms*sqrt(2.0*M_PI)*sumy)+
+                        1.0/(L.z*L.z)*pow(t_alpha*h.z,interpolation_order)*sqrt(t_alpha*L.z/nAtoms*sqrt(2.0*M_PI)*sumz));
+ }
+ 
+double  FixChargeEwald :: DeltaF_real(double t_alpha){  
+   return 2*total_Q2/sqrt(nAtoms*r_cut*L.x*L.y*L.z)*exp(-t_alpha*t_alpha*r_cut*r_cut);
+ } 
+ 
+ 
+
+void FixChargeEwald::find_optimal_parameters(){
+
+    nAtoms = state->atoms.size();    
+    GPUArrayGlobal<float>tmp(1);
+    tmp.memsetByVal(0.0);
+
+
+    /*
+    sumSqr<float,float, N_DATA_PER_THREAD> <<<NBLOCK(nAtoms/(double)N_DATA_PER_THREAD),PERBLOCK,N_DATA_PER_THREAD*sizeof(float)*PERBLOCK>>>(
+                                            tmp.getDevData(),
+                                            state->gpd.qs(state->gpd.activeIdx()),
+                                            nAtoms,
+                                            state->devManager.prop.warpSize);
+     */
+    accumulate_gpu<float,float, SumSqr, N_DATA_PER_THREAD> <<<NBLOCK(nAtoms/(double)N_DATA_PER_THREAD),PERBLOCK,N_DATA_PER_THREAD*sizeof(float)*PERBLOCK>>>
+        (
+         tmp.getDevData(),
+         state->gpd.qs(state->gpd.activeIdx()),
+         nAtoms,
+         state->devManager.prop.warpSize,
+         SumSqr());
+    tmp.dataToHost();   
+    total_Q2=tmp.h_data[0];
+
+    tmp.memsetByVal(0.0);
+    /*
+       sumSingle<float,float, N_DATA_PER_THREAD> <<<NBLOCK(nAtoms/(double)N_DATA_PER_THREAD),PERBLOCK,N_DATA_PER_THREAD*sizeof(float)*PERBLOCK>>>(
+       tmp.getDevData(),
+       state->gpd.qs(state->gpd.activeIdx()),
+       nAtoms,
+       state->devManager.prop.warpSize);
+     */
+    accumulate_gpu<float,float, SumSingle, N_DATA_PER_THREAD> <<<NBLOCK(nAtoms/(double)N_DATA_PER_THREAD),PERBLOCK,N_DATA_PER_THREAD*sizeof(float)*PERBLOCK>>>
+        (
+         tmp.getDevData(),
+         state->gpd.qs(state->gpd.activeIdx()),
+         nAtoms,
+         state->devManager.prop.warpSize,
+         SumSingle());
+
+    tmp.dataToHost();   
+    total_Q=tmp.h_data[0];    
+    cout<<"total_Q "<<total_Q<<'\n';
+    cout<<"total_Q2 "<<total_Q2<<'\n';
+
+    L=state->boundsGPU.trace();
+    h=make_float3(L.x/sz.x,L.y/sz.y,L.z/sz.z);
+//     cout<<"Lx "<<L.x<<'\n';
+//     cout<<"hx "<<h.x<<'\n';
+//     cout<<"nA "<<nAtoms<<'\n';
+
+//now root solver 
+//solving DeltaF_k=DeltaF_real
+//        Log(DeltaF_k)=Log(DeltaF_real)
+//        Log(DeltaF_k)-Log(DeltaF_real)=0
+
+//lets try secant
+    //two initial points
+    double x_a=0.0;
+    double x_b=4.79853/r_cut;
+    
+    double y_a=DeltaF_k(x_a)-DeltaF_real(x_a);
+    double y_b=DeltaF_k(x_b)-DeltaF_real(x_b);
+//           cout<<x_a<<' '<<y_a<<'\n';
+//           cout<<x_b<<' '<<y_b<<' '<<DeltaF_real(x_b)<<'\n';
+
+    double tol=1E-5;
+    int n_iter=0,max_iter=100;
+    while((fabs(y_b)/DeltaF_real(x_b)>tol)&&(n_iter<max_iter)){
+      double kinv=(x_b-x_a)/(y_b-y_a);
+      y_a=y_b;
+      x_a=x_b;
+      x_b=x_a-y_a*kinv;
+      y_b=DeltaF_k(x_b)-DeltaF_real(x_b);
+//       cout<<x_b<<' '<<y_b<<'\n';
+      n_iter++;
+    }
+    if (n_iter==max_iter) cout<<"Ewald RMS Root finder failed, max_iter "<<max_iter<<" reached\n";
+    alpha=x_b;
+    cout<<"Ewald alpha="<<alpha<<'\n';
+    cout<<"Ewald RMS error is  "<<DeltaF_k(alpha)+DeltaF_real(alpha)<<'\n';
+    
+    
+}
 
 void FixChargeEwald::setParameters(int szx_,int szy_,int szz_,float rcut_,int interpolation_order_)
 {
@@ -394,15 +570,8 @@ void FixChargeEwald::setParameters(int szx_,int szy_,int szz_,float rcut_,int in
     
 
     interpolation_order=interpolation_order_;
-    //in order to find alpha we have to solve
-    //Fshort(r_cut,alpha)==10^-10
-    //where Fshort(r,alpha)= erfc(alpha*r)/r^2+2alpha/sqrt(pi)*exp(-alpha^2*r^2)/r
-    
-    //first we solve with only the  leading term exp(-alpha^2*r_cut^2)====10^-10
-    //which gives us  alpha=4.79853/r_cut
-    alpha=4.79853/r_cut;
-    //second TODO couple of iterations of Newton root finder
-    cout<<"Ewald alpha="<<alpha<<'\n';
+
+
 }
 
 
@@ -435,7 +604,7 @@ void FixChargeEwald::calc_Green_function(){
 
 void FixChargeEwald::calc_potential(cufftComplex *phi_buf){
      Bounds b=state->bounds;
-    float volume=b.trace[0]*b.trace[1]*b.trace[2];
+    float volume=b.rectComponents[0]*b.rectComponents[1]*b.rectComponents[2];
     
     dim3 dimBlock(8,8,8);
     dim3 dimGrid((sz.x + dimBlock.x - 1) / dimBlock.x,(sz.y + dimBlock.y - 1) / dimBlock.y,(sz.z + dimBlock.z - 1) / dimBlock.z);    
@@ -447,22 +616,22 @@ void FixChargeEwald::calc_potential(cufftComplex *phi_buf){
     cudaDeviceSynchronize();
     CUT_CHECK_ERROR("cufftExecC2C execution failed");
 
-    //test area
-    float *buf=new float[sz.x*sz.y*sz.z*2];
-    cudaMemcpy((void *)buf,phi_buf,sizeof(cufftComplex)*sz.x*sz.y*sz.z,cudaMemcpyDeviceToHost );
-    ofstream ofs;
-    ofs.open("test_phi.dat",ios::out );
-    for(int i=0;i<sz.x;i++)
-            for(int j=0;j<sz.y;j++){
-                for(int k=0;k<sz.z;k++){
-                    cout<<buf[i*sz.y*sz.z*2+j*sz.z*2+k*2]/volume<<'\t';
-                     ofs<<buf[i*sz.y*sz.z*2+j*sz.z*2+k*2]/volume<<'\t';
-                }
-                ofs<<'\n';
-                cout<<'\n';
-            }
-    ofs.close();
-    delete []buf;
+//     //test area
+//     float *buf=new float[sz.x*sz.y*sz.z*2];
+//     cudaMemcpy((void *)buf,phi_buf,sizeof(cufftComplex)*sz.x*sz.y*sz.z,cudaMemcpyDeviceToHost );
+//     ofstream ofs;
+//     ofs.open("test_phi.dat",ios::out );
+//     for(int i=0;i<sz.x;i++)
+//             for(int j=0;j<sz.y;j++){
+//                 for(int k=0;k<sz.z;k++){
+//                     cout<<buf[i*sz.y*sz.z*2+j*sz.z*2+k*2]/volume<<'\t';
+//                      ofs<<buf[i*sz.y*sz.z*2+j*sz.z*2+k*2]/volume<<'\t';
+//                 }
+//                 ofs<<'\n';
+//                 cout<<'\n';
+//             }
+//     ofs.close();
+//     delete []buf;
 }
 
 
@@ -479,6 +648,7 @@ void FixChargeEwald::compute(bool computeVirials) {
     
     if (first_run){
         first_run=false;
+        find_optimal_parameters();
         calc_Green_function();
     }
     
@@ -590,6 +760,8 @@ void FixChargeEwald::compute(bool computeVirials) {
             }
     ofs.close();    
     delete []buf;   */ 
+
+   
     
     
     //calc forces
@@ -630,6 +802,106 @@ void FixChargeEwald::compute(bool computeVirials) {
     
 }
 
+
+void FixChargeEwald::singlePointEng(float * perParticleEng) {
+    CUT_CHECK_ERROR("before FixChargeEwald kernel execution failed");
+
+//     cout<<"FixChargeEwald::compute..\n";
+    int nAtoms = state->atoms.size();
+    GPUData &gpd = state->gpd;
+    GridGPU &grid = state->gridGPU;
+    int activeIdx = gpd.activeIdx();
+    uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
+    
+    if (first_run){
+        first_run=false;
+        find_optimal_parameters();
+        calc_Green_function();
+    }
+    
+     
+
+
+    //first update grid from atoms positions
+    //set qs to 0
+    dim3 dimBlock(8,8,8);
+    dim3 dimGrid((sz.x + dimBlock.x - 1) / dimBlock.x,(sz.y + dimBlock.y - 1) / dimBlock.y,(sz.z + dimBlock.z - 1) / dimBlock.z);    
+    map_charge_set_to_zero_cu<<<dimGrid, dimBlock>>>(sz,FFT_Qs);
+    CUT_CHECK_ERROR("map_charge_set_to_zero_cu kernel execution failed");
+
+      switch (interpolation_order){
+      case 1:{map_charge_to_grid_order_1_cu
+              <<<NBLOCK(nAtoms), PERBLOCK>>>( nAtoms,
+                                              gpd.xs(activeIdx),                                                      
+                                              gpd.qs(activeIdx),
+                                              state->boundsGPU,
+                                              sz,
+                                              (float *)FFT_Qs);
+              break;}
+      case 3:{map_charge_to_grid_order_3_cu
+              <<<NBLOCK(nAtoms), PERBLOCK>>>( nAtoms,
+                                              gpd.xs(activeIdx),                                                      
+                                              gpd.qs(activeIdx),
+                                              state->boundsGPU,
+                                              sz,
+                                              (float *)FFT_Qs);
+              break;}
+    }    
+    CUT_CHECK_ERROR("map_charge_to_grid_cu kernel execution failed");
+
+    cufftExecC2C(plan, FFT_Qs, FFT_Qs, CUFFT_FORWARD);
+    cudaDeviceSynchronize();
+    CUT_CHECK_ERROR("cufftExecC2C Qs execution failed");
+
+    
+
+    //calc field energy 
+    BoundsGPU &b=state->boundsGPU;
+    float volume=b.volume();
+    
+    Energy_cu<<<dimGrid, dimBlock>>>(sz,Green_function.getDevData(), FFT_Qs,FFT_Ex);//use Ex as buffer
+    CUT_CHECK_ERROR("Energy_cu kernel execution failed");    
+  
+    GPUArrayGlobal<float>field_E(1);
+    field_E.memsetByVal(0.0);
+    int warpSize = state->devManager.prop.warpSize;
+    accumulate_gpu<float,float, SumSingle, N_DATA_PER_THREAD> <<<NBLOCK(2*sz.x*sz.y*sz.z/(double)N_DATA_PER_THREAD),PERBLOCK,N_DATA_PER_THREAD*sizeof(float)*PERBLOCK>>>
+        (
+         field_E.getDevData(),
+         (float *)FFT_Ex,
+         2*sz.x*sz.y*sz.z,
+         warpSize,
+         SumSingle()
+         );   
+/*
+    sumSingle<float,float, N_DATA_PER_THREAD> <<<NBLOCK(2*sz.x*sz.y*sz.z/(double)N_DATA_PER_THREAD),PERBLOCK,N_DATA_PER_THREAD*sizeof(float)*PERBLOCK>>>(
+                                            field_E.getDevData(),
+                                            (float *)FFT_Ex,
+                                            2*sz.x*sz.y*sz.z,
+                                            warpSize);   
+                                            */
+    field_E.dataToHost();
+    float field_energy_per_particle=0.5*field_E.h_data[0]/volume/nAtoms;
+//         cout<<"field_E "<<field_E.h_data[0]<<'\n';
+
+    field_energy_per_particle-=alpha/sqrt(M_PI)*total_Q2/nAtoms;
+//      cout<<"self correction "<<alpha/sqrt(M_PI)*total_Q2<<'\n';
+
+    //pair energies
+    float *neighborCoefs = state->specialNeighborCoefs;
+    compute_short_range_energies_cu<<<NBLOCK(nAtoms), PERBLOCK>>>( nAtoms,
+                                              gpd.xs(activeIdx),                                                      
+                                              neighborCounts,
+                                              grid.neighborlist.data(),
+                                              grid.perBlockArray.d_data.data(),
+                                              gpd.qs(activeIdx),
+                                              alpha,
+                                              r_cut,
+                                              state->boundsGPU,
+                                              state->devManager.prop.warpSize, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2],perParticleEng,field_energy_per_particle);
+    CUT_CHECK_ERROR("Ewald_short_range_forces_cu  execution failed");
+    
+}
 
 void (FixChargeEwald::*setParameters_xyz)(int ,int ,int ,float ,int) = &FixChargeEwald::setParameters;
 void (FixChargeEwald::*setParameters_xxx)(int ,float ,int) = &FixChargeEwald::setParameters;

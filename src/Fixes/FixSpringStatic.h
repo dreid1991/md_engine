@@ -6,6 +6,7 @@
 
 #include "Fix.h"
 #include "GPUArrayGlobal.h"
+#include <boost/python.hpp>
 
 /*
  * Okay, here's some ambiguity.  You initialize spring static for group a, and
@@ -34,7 +35,7 @@ class FixSpringStatic : public Fix {
 public:
     GPUArrayGlobal<float4> tethers;
     double k;
-    PyObject *tetherFunc;
+    boost::python::object tetherFunc;
     Vector multiplier;
 
     void compute(bool);
@@ -42,7 +43,7 @@ public:
     bool dataToDevice();
     bool prepareForRun();
     FixSpringStatic(boost::shared_ptr<State>, std::string handle_, std::string groupHandle_,
-                    double k_, PyObject *tetherFunc_, Vector multiplier = Vector(1, 1, 1));
+                    double k_, boost::python::object tetherFunc_ = boost::python::object(), Vector multiplier = Vector(1, 1, 1));
 
 };
 

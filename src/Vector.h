@@ -437,8 +437,8 @@ public:
 
 typedef VectorGeneric<double> Vector;
 typedef VectorGeneric<int> VectorInt;
-
-const Vector VectorEps(0.00001,0.00001,0.00001);
+#define EPSILON 0.00001f
+const Vector VectorEps(EPSILON, EPSILON, EPSILON);
 
 std::ostream &operator<<(std::ostream &os, const Vector &v);
 std::ostream &operator<<(std::ostream &os, const float4 &v);
