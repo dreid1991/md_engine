@@ -12,7 +12,6 @@ state.rCut = 3.0
 state.padding = 0.6
 state.periodicInterval = 7
 state.shoutEvery = 1000
-state.grid = AtomGrid(state, 3.6, 3.6, 3.6)
 
 state.dt = 0.0005
 

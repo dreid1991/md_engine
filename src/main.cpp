@@ -731,4 +731,98 @@ int main(int argc, char **argv) {
     //MPI_Finalize();
 
 }
-
+//for benchmarking sums
+    /*
+    int n = 100000;
+    float *dst;
+#define XXX float4
+    XXX *xs;
+    cudaMalloc(&dst, sizeof(float));
+    cudaMalloc(&xs, n*sizeof(XXX));
+    std::vector<XXX> src(n);
+    for (int i=0; i<n; i++) {
+        src[i] = make_float4(i+1, 2*i+1, i+1, 2*i+1);
+        //src[i] = i;
+    }
+    cudaMemcpy(xs, src.data(), n*sizeof(XXX), cudaMemcpyHostToDevice);
+    cudaDeviceSynchronize();
+  //  sumSingle<float, float, 1> <<<NBLOCK(n), PERBLOCK, 1*sizeof(float)*PERBLOCK>>>(dst, xs, n, 32);
+    int warpsize = state->devManager.prop.warpSize;
+    auto t1 = Clock::now();
+    for (int j = 0; j<100000; j++) {
+        cudaMemset(dst, 0, sizeof(float));
+        cudaDeviceSynchronize();
+        //printf("NBLOCK IS %d PERBLOCK IS %d\n", NBLOCK(n), PERBLOCK);
+        accumulate_gpu<float, float4, KEKE, 4> <<<NBLOCK(n / (double) 4), PERBLOCK, 4*sizeof(float)*PERBLOCK>>>(dst, xs, n, warpsize, KEKE());
+        float res;
+        cudaMemcpy(&res, dst, sizeof(float), cudaMemcpyDeviceToHost);
+        cudaDeviceSynchronize();
+        float cpures = 0;//make_float4(0, 0, 0, 0);
+      //  for (XXX v : src) {
+      //      cpures += v.x+v.z + v.y/v.z;
+      //  }
+        //printf("%f %f\n", res, cpures);
+        //if (res != cpures ) {
+            //std::cout << "uh oh " << n << " " << (res - cpures) << std::endl;
+       //     printf("res is %f\n", res);
+       //     printf("cpu is %f\n", cpures);
+            //printf("res is %f %f %f %f \n", res.x, res.y, res.z, res.w);
+            //printf("cpu is %f %f %f %f \n", cpures.x, cpures.y, cpures.z, cpures.w);
+          //  n-=1;
+        //}
+    }
+    auto t2 = Clock::now();
+    std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(t2-t1).count() << std::endl;
+    cudaFree(dst);
+    cudaFree(xs);
+    */
+    /*
+    for (int n=9000000; n<10000000; n+=10000) {
+        //int n = 100000;
+#define LE_SRC float
+#define LE_DEST float
+        LE_DEST *dst;
+        LE_SRC *xs;
+        cudaMalloc(&dst, sizeof(LE_DEST));
+        cudaMalloc(&xs, n*sizeof(LE_SRC));
+        std::vector<LE_SRC> src(n);
+        for (int i=0; i<n; i++) {
+            src[i] = rand() / (double) RAND_MAX;// make_float4(i, 2*i, i, 2*i);
+           // src[i] = i;
+        }
+        cudaMemcpy(xs, src.data(), n*sizeof(LE_SRC), cudaMemcpyHostToDevice);
+        cudaDeviceSynchronize();
+      //  sumSingle<float, float, 1> <<<NBLOCK(n), PERBLOCK, 1*sizeof(float)*PERBLOCK>>>(dst, xs, n, 32);
+        int warpsize = state->devManager.prop.warpSize;
+        auto t1 = Clock::now();
+        for (int j = 0; j<1; j++) {
+            cudaMemset(dst, 0, sizeof(LE_DEST));
+            cudaDeviceSynchronize();
+            //printf("NBLOCK IS %d PERBLOCK IS %d\n", NBLOCK(n), PERBLOCK);
+            accumulate_gpu <<<NBLOCK(n), PERBLOCK, sizeof(LE_DEST)*PERBLOCK>>>(dst, xs, n, warpsize, KEKE());
+            float res;
+            cudaMemcpy(&res, dst, sizeof(LE_DEST), cudaMemcpyDeviceToHost);
+            cudaDeviceSynchronize();
+            double cpures = 0;//make_float4(0, 0, 0, 0);
+            float cpuresF = 0;
+            for (LE_SRC x : src) {
+                cpures += (double) x;
+                cpuresF += (float) x;
+            }
+            //printf("%f %f\n", res, cpures);
+            //if (res != cpures ) {
+                //std::cout << "uh oh " << n << " " << (res - cpures) << std::endl;
+                printf("gpu %f cpu %f, cpuF %f\n", res, cpures, cpuresF);
+                //printf("cpu is %f\n", cpures);
+                //printf("res is %f %f %f %f \n", res.x, res.y, res.z, res.w);
+                //printf("cpu is %f %f %f %f \n", cpures.x, cpures.y, cpures.z, cpures.w);
+              //  n-=1;
+            //}
+        }
+        auto t2 = Clock::now();
+    //    std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(t2-t1).count() << std::endl;
+        cudaFree(dst);
+        cudaFree(xs);
+    }
+    exit(0);
+    */

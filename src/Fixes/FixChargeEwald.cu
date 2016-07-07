@@ -499,20 +499,39 @@ void FixChargeEwald::find_optimal_parameters(){
     tmp.memsetByVal(0.0);
 
 
+    /*
     sumSqr<float,float, N_DATA_PER_THREAD> <<<NBLOCK(nAtoms/(double)N_DATA_PER_THREAD),PERBLOCK,N_DATA_PER_THREAD*sizeof(float)*PERBLOCK>>>(
                                             tmp.getDevData(),
                                             state->gpd.qs(state->gpd.activeIdx()),
                                             nAtoms,
                                             state->devManager.prop.warpSize);
+     */
+    accumulate_gpu<float,float, SumSqr, N_DATA_PER_THREAD> <<<NBLOCK(nAtoms/(double)N_DATA_PER_THREAD),PERBLOCK,N_DATA_PER_THREAD*sizeof(float)*PERBLOCK>>>
+        (
+         tmp.getDevData(),
+         state->gpd.qs(state->gpd.activeIdx()),
+         nAtoms,
+         state->devManager.prop.warpSize,
+         SumSqr());
     tmp.dataToHost();   
     total_Q2=tmp.h_data[0];
-    
+
     tmp.memsetByVal(0.0);
-    sumSingle<float,float, N_DATA_PER_THREAD> <<<NBLOCK(nAtoms/(double)N_DATA_PER_THREAD),PERBLOCK,N_DATA_PER_THREAD*sizeof(float)*PERBLOCK>>>(
-                                            tmp.getDevData(),
-                                            state->gpd.qs(state->gpd.activeIdx()),
-                                            nAtoms,
-                                            state->devManager.prop.warpSize);
+    /*
+       sumSingle<float,float, N_DATA_PER_THREAD> <<<NBLOCK(nAtoms/(double)N_DATA_PER_THREAD),PERBLOCK,N_DATA_PER_THREAD*sizeof(float)*PERBLOCK>>>(
+       tmp.getDevData(),
+       state->gpd.qs(state->gpd.activeIdx()),
+       nAtoms,
+       state->devManager.prop.warpSize);
+     */
+    accumulate_gpu<float,float, SumSingle, N_DATA_PER_THREAD> <<<NBLOCK(nAtoms/(double)N_DATA_PER_THREAD),PERBLOCK,N_DATA_PER_THREAD*sizeof(float)*PERBLOCK>>>
+        (
+         tmp.getDevData(),
+         state->gpd.qs(state->gpd.activeIdx()),
+         nAtoms,
+         state->devManager.prop.warpSize,
+         SumSingle());
+
     tmp.dataToHost();   
     total_Q=tmp.h_data[0];    
     cout<<"total_Q "<<total_Q<<'\n';
@@ -782,12 +801,21 @@ void FixChargeEwald::singlePointEng(float * perParticleEng) {
     GPUArrayGlobal<float>field_E(1);
     field_E.memsetByVal(0.0);
     int warpSize = state->devManager.prop.warpSize;
-
+    accumulate_gpu<float,float, SumSingle, N_DATA_PER_THREAD> <<<NBLOCK(2*sz.x*sz.y*sz.z/(double)N_DATA_PER_THREAD),PERBLOCK,N_DATA_PER_THREAD*sizeof(float)*PERBLOCK>>>
+        (
+         field_E.getDevData(),
+         (float *)FFT_Ex,
+         2*sz.x*sz.y*sz.z,
+         warpSize,
+         SumSingle()
+         );   
+/*
     sumSingle<float,float, N_DATA_PER_THREAD> <<<NBLOCK(2*sz.x*sz.y*sz.z/(double)N_DATA_PER_THREAD),PERBLOCK,N_DATA_PER_THREAD*sizeof(float)*PERBLOCK>>>(
                                             field_E.getDevData(),
                                             (float *)FFT_Ex,
                                             2*sz.x*sz.y*sz.z,
                                             warpSize);   
+                                            */
     field_E.dataToHost();
     float field_energy_per_particle=0.5*field_E.h_data[0]/volume/nAtoms;
 //         cout<<"field_E "<<field_E.h_data[0]<<'\n';
