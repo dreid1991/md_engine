@@ -61,7 +61,27 @@ void FixPair::prepareParameters(std::string handle,
     SquareVector::populate<float>(postProc, desiredSize, fillFunction);
 }
 
+void FixPair::prepareParameters_from_other(std::string handle,
+                                std::function<float (int,int)> fillFunction,
+                                std::function<float (float)> processFunction,
+                                bool fillDiag,
+                                std::function<int ()> fillDiagFunction)
+{
+    std::vector<float> &preProc = *paramMap[handle];
+    std::vector<float> *postProc = &paramMapProcessed[handle];
+    int desiredSize = state->atomParams.numTypes;
 
+    *postProc = preProc;
+    ensureParamSize(*postProc);
+    if (fillDiag) {
+        SquareVector::populateDiagonal<float>(postProc, desiredSize, fillDiagFunction);
+    }
+    SquareVector::populate<float>(postProc, desiredSize, fillFunction);
+    SquareVector::process<float>(postProc, desiredSize, processFunction);
+    
+    //okay, now ready to go to device!
+
+}
 
 void FixPair::ensureParamSize(std::vector<float> &array)
 {
