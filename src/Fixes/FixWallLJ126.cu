@@ -44,8 +44,8 @@ void FixWallLJ126::singlePointEng(float *perParticleEng) {
 
 bool FixWallLJ126::prepareForRun() {
     // instantiate this fix's evaulator with the appropriate parameters
+    evaluator = EvaluatorWallLJ126(sigma, epsilon, dist);
 
-    evaluator.setParameters(sigma,epsilon,dist);
     return true;
 };
 
