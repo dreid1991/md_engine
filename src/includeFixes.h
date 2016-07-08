@@ -21,5 +21,6 @@
 #include "FixCharge.h"
 #include "FixChargePairDSF.h"
 #include "FixChargeEwald.h"
+#include "FixWCA.h"
 
 #endif

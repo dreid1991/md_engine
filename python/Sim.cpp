@@ -71,6 +71,7 @@ BOOST_PYTHON_MODULE(Sim) {
     export_FixLJCut(); //make there be a pair base class in boost!
     export_FixLJCutFS();
     export_FixTICG();
+    export_FixWCA();
     
     export_FixCharge();
     export_FixChargePairDSF();

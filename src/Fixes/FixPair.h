@@ -257,6 +257,11 @@ protected:
                            std::function<float (float)> processFunction,
                            bool fillDiag,
                            std::function<float ()> fillDiagFunction= std::function<float ()> ());
+    void prepareParameters_from_other(std::string handle,
+                           std::function<float (int, int)> fillFunction,
+                           std::function<float (float)> processFunction,
+                           bool fillDiag,
+                           std::function<int ()> fillDiagFunction= std::function<int  ()> ());    
     void prepareParameters(std::string handle,
                            std::function<float (int, int)> fillFunction);
     void prepareParameters(std::string handle,
