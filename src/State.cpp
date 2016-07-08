@@ -125,6 +125,10 @@ Atom &State::idToAtom(int id) {
     return atoms[idToIdx[id]];
 }
 
+int State::idToIdxPy(int id) {
+    return idToIdx[id];
+}
+
 //constructor should be same
 /*
 bool State::addBond(Atom *a, Atom *b, double k, double rEq) {
@@ -677,7 +681,7 @@ BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(State_seedRNG_overloads,State::seedRNG,0,
                 .def("selectGroup", &State::selectGroup)
                 .def("copyAtoms", &State::copyAtoms)
                 .def("setAtoms", &State::setAtoms)
-
+                .def("idToIdx", &State::idToIdxPy)
                 .def("setSpecialNeighborCoefs", &State::setSpecialNeighborCoefs)
 
                 .def("activateFix", &State::activateFix)

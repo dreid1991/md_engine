@@ -52,6 +52,7 @@ void __global__ compute_cu(int nTethers, float4 *tethers, float4 *xs, float4 *fs
         float3 tetherPos = make_float3(tether);
         int id = * (int *) &tether.w;
         int atomIdx = tex2D<int>(idToIdxs, XIDX(id, sizeof(int)), YIDX(id, sizeof(int)));
+        //printf("id for tether is %d idx is %d\n", id, idx);//, curPos.x, curPos.y, curPos.z);
         float3 curPos = make_float3(xs[atomIdx]);
         //printf("cur is %f %f, tether is %f %f, mult is %f %f %f, k is %f \n", curPos.x, curPos.y, tetherPos.x, tetherPos.y, multiplier.x, multiplier.y, multiplier.z, k);
         float3 force = multiplier * harmonicForce(bounds, curPos, tetherPos, k, 0);
@@ -59,14 +60,13 @@ void __global__ compute_cu(int nTethers, float4 *tethers, float4 *xs, float4 *fs
         fs[atomIdx] += force;
     }
 }
-
 void FixSpringStatic::compute(bool computeVirials) {
     GPUData &gpd = state->gpd;
     int activeIdx = state->gpd.activeIdx();
-    compute_cu<<<NBLOCK(tethers.h_data.size()), PERBLOCK>>>(
+    SAFECALL((compute_cu<<<NBLOCK(tethers.h_data.size()), PERBLOCK>>>(
                     tethers.h_data.size(), tethers.getDevData(),
                     gpd.xs(activeIdx), gpd.fs(activeIdx), gpd.idToIdxs.getTex(),
-                    k, state->boundsGPU, multiplier.asFloat3());
+                    k, state->boundsGPU, multiplier.asFloat3())));
 }
 
 
