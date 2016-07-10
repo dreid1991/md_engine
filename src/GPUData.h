@@ -7,7 +7,6 @@
 #include "GPUArrayGlobal.h"
 #include "GPUArrayPair.h"
 #include "GPUArrayDeviceGlobal.h"
-#include "GPUArrayTex.h"
 #include "Virial.h"
 
 class GPUData {
@@ -22,7 +21,7 @@ public:
     GPUArrayPair<float4> fs;
     GPUArrayPair<uint> ids;
     GPUArrayPair<float> qs;
-    GPUArrayTex<int> idToIdxs;
+    GPUArrayGlobal<int> idToIdxs
     GPUArrayGlobal<Virial> virials;
 
     GPUArrayGlobal<float4> xsBuffer;
@@ -47,9 +46,7 @@ public:
 
     // OMG REMEMBER TO ADD EACH NEW ARRAY TO THE ACTIVE DATA LIST IN INTEGRATOR OR PAIN AWAITS
 
-    GPUData()
-      : idToIdxs(cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindSigned))
-    {   }
+    GPUData() {   }
 
     unsigned int activeIdx() {
         return xs.activeIdx;

@@ -4,6 +4,7 @@ sys.path.append('../util_py')
 import matplotlib.pyplot as plt
 from LAMMPS_Reader import LAMMPS_Reader
 from Sim import *
+import argparse
 from math import *
 state = State()
 state.deviceManager.setDevice(0)
@@ -86,7 +87,7 @@ for i in range(5):
     state.duplicateMolecule(state.molecules[-1])
     print state.molecules
     state.molecules[-1].translate(Vector(0, 0, 8))
-integVerlet.run(150000)
+integVerlet.run(5000)
 print [x / len(state.atoms) for x in temp.vals]
 
 #integVerlet = IntegraterVerlet(state)

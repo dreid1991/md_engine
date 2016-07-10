@@ -3,6 +3,10 @@ import matplotlib.pyplot as plt
 sys.path = sys.path + ['../build/python/build/lib.linux-x86_64-2.7']
 #from Sim import *
 from Sim import *
+import argparse
+import re
+import sys
+import matplotlib
 state = State()
 state.deviceManager.setDevice(0)
 state.bounds = Bounds(state, lo = Vector(0, 0, 0), hi = Vector(55.12934875488, 55.12934875488, 55.12934875488))
@@ -36,7 +40,7 @@ integVerlet = IntegratorVerlet(state)
 
 #tempData = state.dataManager.recordTemperature('all', 10)
 #boundsData = state.dataManager.recordBounds(100)
-#engData = state.dataManager.recordEnergy('all', 10)
+engData = state.dataManager.recordEnergy('all', 100)
 
 #writeconfig = WriteConfig(state, fn='test_out', writeEvery=1, format='xyz', handle='writer')
 #state.activateWriteConfig(writeconfig)
@@ -46,8 +50,8 @@ sumV = 0.
 for a in state.atoms:
     sumV += a.vel.lenSqr()
 print sumV / len(state.atoms)/3.0
-#plt.plot([x/len(ids) for x in engData.vals])
-#plt.show()
+plt.plot([x for x in engData.vals])
+plt.show()
 #print sum(tempData.vals) / len(tempData.vals)
 #print boundsData.vals[0].getSide(1)
 #print engData.turns[-1]
