@@ -17,8 +17,10 @@
 #include "FixNVTRescale.h"
 #include "FixSpringStatic.h"
 #include "FixWallHarmonic.h"
+#include "FixWallLJ126.h"
 #include "FixCharge.h"
 #include "FixChargePairDSF.h"
 #include "FixChargeEwald.h"
+#include "FixWCA.h"
 
 #endif

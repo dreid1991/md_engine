@@ -421,80 +421,41 @@ FixChargeEwald::~FixChargeEwald(){
 }
 
 
-void FixChargeEwald::setParameters(int szx_,int szy_,int szz_,float rcut_,int interpolation_order_)
-{
-    //for now support for only 2^N sizes
-    //TODO generalize for non cubic boxes
-    if ((szx_!=32)&&(szx_!=64)&&(szx_!=128)&&(szx_!=256)&&(szx_!=512)&&(szx_!=1024)){
-        cout << szx_ << " is not supported, sorry. Only 2^N grid size works for charge Ewald\n";
-        exit(2);
-    }
-    if ((szy_!=32)&&(szy_!=64)&&(szy_!=128)&&(szy_!=256)&&(szy_!=512)&&(szy_!=1024)){
-        cout << szy_ << " is not supported, sorry. Only 2^N grid size works for charge Ewald\n";
-        exit(2);
-    }
-    if ((szz_!=32)&&(szz_!=64)&&(szz_!=128)&&(szz_!=256)&&(szz_!=512)&&(szz_!=1024)){
-        cout << szz_ << " is not supported, sorry. Only 2^N grid size works for charge Ewald\n";
-        exit(2);
-    }
-    sz=make_int3(szx_,szy_,szz_);
-    r_cut=rcut_;
-    cudaMalloc((void**)&FFT_Qs, sizeof(cufftComplex)*sz.x*sz.y*sz.z);
-
-    cufftPlan3d(&plan, sz.x,sz.y, sz.z, CUFFT_C2C);
-
-    
-    cudaMalloc((void**)&FFT_Ex, sizeof(cufftComplex)*sz.x*sz.y*sz.z);
-    cudaMalloc((void**)&FFT_Ey, sizeof(cufftComplex)*sz.x*sz.y*sz.z);
-    cudaMalloc((void**)&FFT_Ez, sizeof(cufftComplex)*sz.x*sz.y*sz.z);
-    
-    Green_function=GPUArrayGlobal<float>(sz.x*sz.y*sz.z);
-    CUT_CHECK_ERROR("setParameters execution failed");
-    
-
-    interpolation_order=interpolation_order_;
-    //in order to find alpha we have to solve
-    //Fshort(r_cut,alpha)==10^-10
-    //where Fshort(r,alpha)= erfc(alpha*r)/r^2+2alpha/sqrt(pi)*exp(-alpha^2*r^2)/r
-    
-    //first we solve with only the  leading term exp(-alpha^2*r_cut^2)====10^-10
-    //which gives us  alpha=4.79853/r_cut
-    alpha=4.79853/r_cut;
-    //second TODO couple of iterations of Newton root finder
-    cout<<"Ewald alpha="<<alpha<<'\n';
-}
+//Root mean square force error estimation
+const double amp_table[][7] = {
+        {2.0/3.0,           0,                 0,                    0,                        0,                         0,                                0},
+        {1.0/50.0,          5.0/294.0,         0,                    0,                        0,                         0,                                0},
+        {1.0/588.0,         7.0/1440.0,        21.0/3872.0,          0,                        0,                         0,                                0},
+        {1.0/4320.0,        3.0/1936.0,        7601.0/2271360.0,     143.0/28800.0,            0,                         0,                                0},
+        {1.0/23232.0,       7601.0/12628160.0, 143.0/69120.0,        517231.0/106536960.0,     106640677.0/11737571328.0, 0,                                0},
+        {691.0/68140800.0,  13.0/57600.0,      47021.0/35512320.0,   9694607.0/2095994880.0,   733191589.0/59609088000.0, 326190917.0/11700633600.0,        0},
+        {1.0/345600.0,      3617.0/35512320.0, 745739.0/838397952.0, 56399353.0/12773376000.0, 25091609.0/1560084480.0,   1755948832039.0/36229939200000.0, 48887769399.0/37838389248.0}
+}; 
 
 
-void FixChargeEwald::calc_Green_function(){
-
-    
-    dim3 dimBlock(8,8,8);
-    dim3 dimGrid((sz.x + dimBlock.x - 1) / dimBlock.x,(sz.y + dimBlock.y - 1) / dimBlock.y,(sz.z + dimBlock.z - 1) / dimBlock.z);    
-    Green_function_cu<<<dimGrid, dimBlock>>>(state->boundsGPU, sz,Green_function.getDevData(),alpha,
-                                             10,interpolation_order);//TODO parameters unknown
-    CUT_CHECK_ERROR("Green_function_cu kernel execution failed");
-    
-        //test area
-//     Green_function.dataToHost();
-//     ofstream ofs;
-//     ofs.open("test_Green_function.dat",ios::out );
-//     for(int i=0;i<sz.x;i++)
-//             for(int j=0;j<sz.y;j++){
-//                 for(int k=0;k<sz.z;k++){
-//                     cout<<Green_function.h_data[i*sz.y*sz.z+j*sz.z+k]<<'\t';
-//                     ofs<<Green_function.h_data[i*sz.y*sz.z+j*sz.z+k]<<'\t';
-//                 }
-//                 ofs<<'\n';
-//                 cout<<'\n';
-//             }
-//     ofs.close();
-
-}
-
+double FixChargeEwald :: DeltaF_k(double t_alpha){
+   
+   double sumx=0.0,sumy=0.0,sumz=0.0;
+   for( int m=0;m<interpolation_order;m++){
+       double amp=amp_table[interpolation_order-1][m];
+       sumx+=amp*pow(h.x*t_alpha,2*m);
+       sumy+=amp*pow(h.y*t_alpha,2*m);
+       sumz+=amp*pow(h.z*t_alpha,2*m);
+   }
+   return total_Q2/3.0*(1.0/(L.x*L.x)*pow(t_alpha*h.x,interpolation_order)*sqrt(t_alpha*L.x/nAtoms*sqrt(2.0*M_PI)*sumx)+
+                        1.0/(L.y*L.y)*pow(t_alpha*h.y,interpolation_order)*sqrt(t_alpha*L.y/nAtoms*sqrt(2.0*M_PI)*sumy)+
+                        1.0/(L.z*L.z)*pow(t_alpha*h.z,interpolation_order)*sqrt(t_alpha*L.z/nAtoms*sqrt(2.0*M_PI)*sumz));
+ }
+ 
+double  FixChargeEwald :: DeltaF_real(double t_alpha){  
+   return 2*total_Q2/sqrt(nAtoms*r_cut*L.x*L.y*L.z)*exp(-t_alpha*t_alpha*r_cut*r_cut);
+ } 
+ 
+ 
 
 void FixChargeEwald::find_optimal_parameters(){
 
-    int nAtoms = state->atoms.size();    
+    nAtoms = state->atoms.size();    
     GPUArrayGlobal<float>tmp(1);
     tmp.memsetByVal(0.0);
 
@@ -536,7 +497,110 @@ void FixChargeEwald::find_optimal_parameters(){
     total_Q=tmp.h_data[0];    
     cout<<"total_Q "<<total_Q<<'\n';
     cout<<"total_Q2 "<<total_Q2<<'\n';
+
+    L=state->boundsGPU.trace();
+    h=make_float3(L.x/sz.x,L.y/sz.y,L.z/sz.z);
+//     cout<<"Lx "<<L.x<<'\n';
+//     cout<<"hx "<<h.x<<'\n';
+//     cout<<"nA "<<nAtoms<<'\n';
+
+//now root solver 
+//solving DeltaF_k=DeltaF_real
+//        Log(DeltaF_k)=Log(DeltaF_real)
+//        Log(DeltaF_k)-Log(DeltaF_real)=0
+
+//lets try secant
+    //two initial points
+    double x_a=0.0;
+    double x_b=4.79853/r_cut;
+    
+    double y_a=DeltaF_k(x_a)-DeltaF_real(x_a);
+    double y_b=DeltaF_k(x_b)-DeltaF_real(x_b);
+//           cout<<x_a<<' '<<y_a<<'\n';
+//           cout<<x_b<<' '<<y_b<<' '<<DeltaF_real(x_b)<<'\n';
+
+    double tol=1E-5;
+    int n_iter=0,max_iter=100;
+    while((fabs(y_b)/DeltaF_real(x_b)>tol)&&(n_iter<max_iter)){
+      double kinv=(x_b-x_a)/(y_b-y_a);
+      y_a=y_b;
+      x_a=x_b;
+      x_b=x_a-y_a*kinv;
+      y_b=DeltaF_k(x_b)-DeltaF_real(x_b);
+//       cout<<x_b<<' '<<y_b<<'\n';
+      n_iter++;
+    }
+    if (n_iter==max_iter) cout<<"Ewald RMS Root finder failed, max_iter "<<max_iter<<" reached\n";
+    alpha=x_b;
+    cout<<"Ewald alpha="<<alpha<<'\n';
+    cout<<"Ewald RMS error is  "<<DeltaF_k(alpha)+DeltaF_real(alpha)<<'\n';
+    
+    
 }
+
+void FixChargeEwald::setParameters(int szx_,int szy_,int szz_,float rcut_,int interpolation_order_)
+{
+    //for now support for only 2^N sizes
+    //TODO generalize for non cubic boxes
+    if ((szx_!=32)&&(szx_!=64)&&(szx_!=128)&&(szx_!=256)&&(szx_!=512)&&(szx_!=1024)){
+        cout << szx_ << " is not supported, sorry. Only 2^N grid size works for charge Ewald\n";
+        exit(2);
+    }
+    if ((szy_!=32)&&(szy_!=64)&&(szy_!=128)&&(szy_!=256)&&(szy_!=512)&&(szy_!=1024)){
+        cout << szy_ << " is not supported, sorry. Only 2^N grid size works for charge Ewald\n";
+        exit(2);
+    }
+    if ((szz_!=32)&&(szz_!=64)&&(szz_!=128)&&(szz_!=256)&&(szz_!=512)&&(szz_!=1024)){
+        cout << szz_ << " is not supported, sorry. Only 2^N grid size works for charge Ewald\n";
+        exit(2);
+    }
+    sz=make_int3(szx_,szy_,szz_);
+    r_cut=rcut_;
+    cudaMalloc((void**)&FFT_Qs, sizeof(cufftComplex)*sz.x*sz.y*sz.z);
+
+    cufftPlan3d(&plan, sz.x,sz.y, sz.z, CUFFT_C2C);
+
+    
+    cudaMalloc((void**)&FFT_Ex, sizeof(cufftComplex)*sz.x*sz.y*sz.z);
+    cudaMalloc((void**)&FFT_Ey, sizeof(cufftComplex)*sz.x*sz.y*sz.z);
+    cudaMalloc((void**)&FFT_Ez, sizeof(cufftComplex)*sz.x*sz.y*sz.z);
+    
+    Green_function=GPUArrayGlobal<float>(sz.x*sz.y*sz.z);
+    CUT_CHECK_ERROR("setParameters execution failed");
+    
+
+    interpolation_order=interpolation_order_;
+
+
+}
+
+
+void FixChargeEwald::calc_Green_function(){
+
+    
+    dim3 dimBlock(8,8,8);
+    dim3 dimGrid((sz.x + dimBlock.x - 1) / dimBlock.x,(sz.y + dimBlock.y - 1) / dimBlock.y,(sz.z + dimBlock.z - 1) / dimBlock.z);    
+    Green_function_cu<<<dimGrid, dimBlock>>>(state->boundsGPU, sz,Green_function.getDevData(),alpha,
+                                             10,interpolation_order);//TODO parameters unknown
+    CUT_CHECK_ERROR("Green_function_cu kernel execution failed");
+    
+        //test area
+//     Green_function.dataToHost();
+//     ofstream ofs;
+//     ofs.open("test_Green_function.dat",ios::out );
+//     for(int i=0;i<sz.x;i++)
+//             for(int j=0;j<sz.y;j++){
+//                 for(int k=0;k<sz.z;k++){
+//                     cout<<Green_function.h_data[i*sz.y*sz.z+j*sz.z+k]<<'\t';
+//                     ofs<<Green_function.h_data[i*sz.y*sz.z+j*sz.z+k]<<'\t';
+//                 }
+//                 ofs<<'\n';
+//                 cout<<'\n';
+//             }
+//     ofs.close();
+
+}
+
 
 void FixChargeEwald::calc_potential(cufftComplex *phi_buf){
      Bounds b=state->bounds;

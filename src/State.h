@@ -459,6 +459,7 @@ public:
     // these two are for managing atom ids such that they are densely packed
     // and it's quick at add atoms in large systems
     std::vector<int> idToIdx; //!< Cache for easier Atom index lookup.
+    int idToIdxPy(int id); 
 
     Atom &idToAtom(int id);
     //! Maximum Atom Id for all existing Atoms
