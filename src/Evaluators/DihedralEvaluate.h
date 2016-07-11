@@ -1,5 +1,5 @@
 template <class DIHEDRALTYPE, class EVALUATOR> //don't need DihedralGPU, are all DihedralGPU.  Worry about later 
-__global__ void compute_force_dihedral(int nAtoms, float4 *xs, float4 *forces, cudaTextureObject_t idToIdxs, DihedralGPU *dihedrals, int *startstops, BoundsGPU bounds, DIHEDRALTYPE *parameters, int nParameters, EVALUATOR evaluator) {
+__global__ void compute_force_dihedral(int nAtoms, float4 *xs, float4 *forces, int *idToIdxs, DihedralGPU *dihedrals, int *startstops, BoundsGPU bounds, DIHEDRALTYPE *parameters, int nParameters, EVALUATOR evaluator) {
 
 
     int idx = GETIDX();
@@ -23,8 +23,7 @@ __global__ void compute_force_dihedral(int nAtoms, float4 *xs, float4 *forces, c
         if (n) {
             int myIdxInDihedral = dihedrals_shr[shr_idx].type >> 29;
             int idSelf = dihedrals_shr[shr_idx].ids[myIdxInDihedral];
-            
-            int idxSelf = tex2D<int>(idToIdxs, XIDX(idSelf, sizeof(int)), YIDX(idSelf, sizeof(int)));
+            int idxSelf = idToIdxs[idSelf]; 
         
             float3 pos = make_float3(xs[idxSelf]);
            // printf("I am idx %d and I am evaluating atom with pos %f %f %f\n", idx, pos.x, pos.y, pos.z);
@@ -60,7 +59,8 @@ __global__ void compute_force_dihedral(int nAtoms, float4 *xs, float4 *forces, c
 
 
                 for (int i=0; i<3; i++) {
-                    positions[toGet[i]] = make_float3(perAtomFromId(idToIdxs, xs, dihedral.ids[toGet[i]]));
+                    int idxOther = idToIdxs[dihedral.ids[toGet[i]]];
+                    positions[toGet[i]] = make_float3(xs[idxOther]);
                 }
                 for (int i=1; i<3; i++) {
                     positions[i] = positions[0] + bounds.minImage(positions[i]-positions[0]);
@@ -151,7 +151,7 @@ __global__ void compute_force_dihedral(int nAtoms, float4 *xs, float4 *forces, c
 
 
 template <class DIHEDRALTYPE, class EVALUATOR>
-__global__ void compute_energy_dihedral(int nAtoms, float4 *xs, float *perParticleEng, cudaTextureObject_t idToIdxs, DihedralGPU *dihedrals, int *startstops, BoundsGPU bounds, DIHEDRALTYPE *parameters, int nParameters, EVALUATOR evaluator) {
+__global__ void compute_energy_dihedral(int nAtoms, float4 *xs, float *perParticleEng, int *idToIdxs, DihedralGPU *dihedrals, int *startstops, BoundsGPU bounds, DIHEDRALTYPE *parameters, int nParameters, EVALUATOR evaluator) {
 
 
     int idx = GETIDX();
@@ -176,7 +176,7 @@ __global__ void compute_energy_dihedral(int nAtoms, float4 *xs, float *perPartic
             int myIdxInDihedral = dihedrals_shr[shr_idx].type >> 29;
             int idSelf = dihedrals_shr[shr_idx].ids[myIdxInDihedral];
             
-            int idxSelf = tex2D<int>(idToIdxs, XIDX(idSelf, sizeof(int)), YIDX(idSelf, sizeof(int)));
+            int idxSelf = idToIdxs[idSelf]; 
         
             float3 pos = make_float3(xs[idxSelf]);
            // printf("I am idx %d and I am evaluating atom with pos %f %f %f\n", idx, pos.x, pos.y, pos.z);
@@ -212,7 +212,8 @@ __global__ void compute_energy_dihedral(int nAtoms, float4 *xs, float *perPartic
 
 
                 for (int i=0; i<3; i++) {
-                    positions[toGet[i]] = make_float3(perAtomFromId(idToIdxs, xs, dihedral.ids[toGet[i]]));
+                    int idxOther = idToIdxs[dihedral.ids[toGet[i]]];
+                    positions[toGet[i]] = make_float3(xs[idxOther]);
                 }
                 for (int i=1; i<3; i++) {
                     positions[i] = positions[0] + bounds.minImage(positions[i]-positions[0]);

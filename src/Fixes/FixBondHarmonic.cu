@@ -43,14 +43,14 @@ void FixBondHarmonic::compute(bool computeVirials) {
     int nAtoms = state->atoms.size();
     int activeIdx = state->gpd.activeIdx();
     //cout << "Max bonds per block is " << maxBondsPerBlock << endl;
-    compute_force_bond<<<NBLOCK(nAtoms), PERBLOCK, sizeof(BondGPU) * maxBondsPerBlock + sizeof(BondHarmonicType) * parameters.size()>>>(nAtoms, state->gpd.xs(activeIdx), state->gpd.fs(activeIdx), state->gpd.idToIdxs.getTex(), bondsGPU.data(), bondIdxs.data(), parameters.data(), parameters.size(), state->boundsGPU, evaluator);
+    compute_force_bond<<<NBLOCK(nAtoms), PERBLOCK, sizeof(BondGPU) * maxBondsPerBlock + sizeof(BondHarmonicType) * parameters.size()>>>(nAtoms, state->gpd.xs(activeIdx), state->gpd.fs(activeIdx), state->gpd.idToIdxs.d_data.data(), bondsGPU.data(), bondIdxs.data(), parameters.data(), parameters.size(), state->boundsGPU, evaluator);
 }
 
 void FixBondHarmonic::singlePointEng(float *perParticleEng) {
     int nAtoms = state->atoms.size();
     int activeIdx = state->gpd.activeIdx();
     //cout << "Max bonds per block is " << maxBondsPerBlock << endl;
-    compute_energy_bond<<<NBLOCK(nAtoms), PERBLOCK, sizeof(BondGPU) * maxBondsPerBlock + sizeof(BondHarmonicType) * parameters.size()>>>(nAtoms, state->gpd.xs(activeIdx), perParticleEng, state->gpd.idToIdxs.getTex(), bondsGPU.data(), bondIdxs.data(), parameters.data(), parameters.size(), state->boundsGPU, evaluator);
+    compute_energy_bond<<<NBLOCK(nAtoms), PERBLOCK, sizeof(BondGPU) * maxBondsPerBlock + sizeof(BondHarmonicType) * parameters.size()>>>(nAtoms, state->gpd.xs(activeIdx), perParticleEng, state->gpd.idToIdxs.d_data.data(), bondsGPU.data(), bondIdxs.data(), parameters.data(), parameters.size(), state->boundsGPU, evaluator);
 }
 
 string FixBondHarmonic::restartChunk(string format) {

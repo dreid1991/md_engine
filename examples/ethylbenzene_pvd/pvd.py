@@ -1,9 +1,10 @@
 import sys
 sys.path = sys.path + [ '../../build/python/build/lib.linux-x86_64-2.7', '../../util_py' ]
-from LAMMPS_Reader import LAMMPS_Reader
 from math import *
 from random import random
+from LAMMPS_Reader import LAMMPS_Reader
 from Sim import *
+#import argparse
 
 state = State()
 #state.deviceManager.setDevice(0)
@@ -13,9 +14,8 @@ state.rCut = 3.0
 state.padding = 0.6
 state.seedRNG()
 
-#state.deviceManager.setDevice(0)
 state.bounds = Bounds(state, lo=Vector(0, 0, 0),
-                             hi=Vector(30, 30.0, 60))
+                             hi=Vector(30, 30.0, 100))
 state.atomParams.addSpecies(handle='substrate', mass=1)
 
 
@@ -24,7 +24,7 @@ ljcut = FixLJCut(state, handle='ljcut')
 
 
 #deposited atom iteraction parameters
-ljcut.setParameter(param='eps', handleA='substrate', handleB='substrate', val=1)
+ljcut.setParameter(param='eps', handleA='substrate', handleB='substrate', val=5)
 ljcut.setParameter(param='sig', handleA='substrate', handleB='substrate', val=.6)
 
 bondHarm = FixBondHarmonic(state, 'bondharm')
@@ -64,17 +64,21 @@ def springFunc(id, pos):
 def springFuncEquiled(id, pos):
     return pos
 
-fixSpring = FixSpringStatic(state, handle='substrateSpring', groupHandle='sub', k=10, tetherFunc=springFunc, multiplier=Vector(0.05, 0.05, 1))
+fixSpring = FixSpringStatic(state, handle='substrateSpring', groupHandle='sub', k=100, tetherFunc=springFunc, multiplier=Vector(0.05, 0.05, 1))
 state.activateFix(fixSpring)
 
 fixNVT = FixNoseHoover(state, handle='nvt', groupHandle='sub', temp=subTemp, timeConstant=0.1)
 state.activateFix(fixNVT)
 
 
+#writer = WriteConfig(state, handle='writer', fn='pvd_test', format='xyz', writeEvery=100)
+#writer.unitLen = 1/unitLen
+#state.activateWriteConfig(writer)
 
+state.dt = 0.0001
 integratorRelax = IntegratorRelax(state)
 integratorRelax.set_params(dtMax_mult=1);
-integratorRelax.run(15000, 1e-5)
+integratorRelax.run(150000, 1e-5)
 print 'FINISHED FIRST RUN'
 state.dt = 0.0005
 
@@ -91,8 +95,8 @@ integrator = IntegratorVerlet(state)
 
 #REMEMBER CHARGES
 ewald = FixChargeEwald(state, "chargeFix", "all")
-ewald.setParameters(32, 1.0, 3)
-state.activateFix(ewald)
+ewald.setParameters(64, 1.0, 3)
+#state.activateFix(ewald)
 
 reader = LAMMPS_Reader(state=state, unitLen = unitLen, unitMass = unitMass, unitEng = unitEng, bondFix = bondHarm, nonbondFix = ljcut,  angleFix = angleHarm, dihedralFix = dihedralOPLS, atomTypePrefix = 'EBZ_', setBounds=False)
 reader.read(dataFn = 'ebz.data')
@@ -107,8 +111,8 @@ print("Average per particle energy: {}".format(integratorRelax.energyAverage()))
 
 # Start deposition
 toDeposit = [(7, 3), (6, 4)]
-wallDist = 10
-topWall = FixWallHarmonic(state, handle='wall', groupHandle='all', origin=Vector(0, 0, state.bounds.hi[2]), forceDir=Vector(0, 0, -1), dist=wallDist, k=100)
+wallDist = 20
+topWall = FixWallHarmonic(state, handle='wall', groupHandle='all', origin=Vector(0, 0, state.bounds.hi[2]), forceDir=Vector(0, 0, -1), dist=wallDist, k=10)
 
 state.activateFix(topWall)
 
@@ -118,8 +122,8 @@ newMolecIds = list(newMolecs[0].ids)
 newMolecPoses = [newMolecs[0].COM()]
 firstRunDone = False
 
-depositionRuns = 3
-nMolecsPerDep = 15
+depositionRuns = 6
+nMolecsPerDep = 5
 for i in range(depositionRuns):
 
     while len(newMolecs) < nMolecsPerDep:
@@ -130,6 +134,7 @@ for i in range(depositionRuns):
     #print [a.pos[2] for a in state.atoms]
     assert(maxZ < state.bounds.hi[2] - 2*wallDist)
     newZ = maxZ + 2.25
+    print 'NEW z is %f' % newZ
     for newMolec in newMolecs:
         COM = newMolec.COM()
         def tooClose():

@@ -1,6 +1,6 @@
 #define SMALL 0.0001f
 template <class ANGLETYPE, class EVALUATOR>
-__global__ void compute_force_angle(int nAtoms, float4 *xs, float4 *forces, cudaTextureObject_t idToIdxs, AngleGPU *angles, int *startstops, BoundsGPU bounds, ANGLETYPE *parameters, int nTypes, EVALUATOR evaluator) {
+__global__ void compute_force_angle(int nAtoms, float4 *xs, float4 *forces, int *idToIdxs, AngleGPU *angles, int *startstops, BoundsGPU bounds, ANGLETYPE *parameters, int nTypes, EVALUATOR evaluator) {
     int idx = GETIDX();
     extern __shared__ int all_shr[];
     int idxBeginCopy = startstops[blockDim.x*blockIdx.x];
@@ -22,7 +22,7 @@ __global__ void compute_force_angle(int nAtoms, float4 *xs, float4 *forces, cuda
             int myIdxInAngle = angles_shr[shr_idx].type >> 29;
             int idSelf = angles_shr[shr_idx].ids[myIdxInAngle];
 
-            int idxSelf = tex2D<int>(idToIdxs, XIDX(idSelf, sizeof(int)), YIDX(idSelf, sizeof(int)));
+            int idxSelf = idToIdxs[idSelf];
             float3 pos = make_float3(xs[idxSelf]);
             //float3 pos = make_float3(float4FromIndex(xs, idxSelf));
             float3 forceSum = make_float3(0, 0, 0);
@@ -47,7 +47,8 @@ __global__ void compute_force_angle(int nAtoms, float4 *xs, float4 *forces, cuda
                     toGet[1] = 1;
                 }
                 for (int i=0; i<2; i++) {
-                    positions[toGet[i]] = make_float3(perAtomFromId(idToIdxs, xs, angle.ids[toGet[i]]));
+                    int idxOther = idToIdxs[angle.ids[toGet[i]]];
+                    positions[toGet[i]] = make_float3(xs[idxOther]);
                 }
                 for (int i=1; i<3; i++) {
                     positions[i] = positions[0] + bounds.minImage(positions[i]-positions[0]);
@@ -96,7 +97,7 @@ __global__ void compute_force_angle(int nAtoms, float4 *xs, float4 *forces, cuda
 
 
 template <class ANGLETYPE, class EVALUATOR>
-__global__ void compute_energy_angle(int nAtoms, float4 *xs, float *perParticleEng, cudaTextureObject_t idToIdxs, AngleGPU *angles, int *startstops, BoundsGPU bounds, ANGLETYPE *parameters, int nTypes, EVALUATOR evaluator) {
+__global__ void compute_energy_angle(int nAtoms, float4 *xs, float *perParticleEng, int *idToIdxs, AngleGPU *angles, int *startstops, BoundsGPU bounds, ANGLETYPE *parameters, int nTypes, EVALUATOR evaluator) {
     int idx = GETIDX();
     extern __shared__ int all_shr[];
     int idxBeginCopy = startstops[blockDim.x*blockIdx.x];
@@ -118,7 +119,7 @@ __global__ void compute_energy_angle(int nAtoms, float4 *xs, float *perParticleE
             int myIdxInAngle = angles_shr[shr_idx].type >> 29;
             int idSelf = angles_shr[shr_idx].ids[myIdxInAngle];
 
-            int idxSelf = tex2D<int>(idToIdxs, XIDX(idSelf, sizeof(int)), YIDX(idSelf, sizeof(int)));
+            int idxSelf = idToIdxs[idSelf];
             float3 pos = make_float3(xs[idxSelf]);
             //float3 pos = make_float3(float4FromIndex(xs, idxSelf));
             float engSum = 0;
@@ -143,7 +144,8 @@ __global__ void compute_energy_angle(int nAtoms, float4 *xs, float *perParticleE
                     toGet[1] = 1;
                 }
                 for (int i=0; i<2; i++) {
-                    positions[toGet[i]] = make_float3(perAtomFromId(idToIdxs, xs, angle.ids[toGet[i]]));
+                    int idxOther = idToIdxs[angle.ids[toGet[i]]];
+                    positions[toGet[i]] = make_float3(xs[idxOther]);
                 }
                 for (int i=1; i<3; i++) {
                     positions[i] = positions[0] + bounds.minImage(positions[i]-positions[0]);

@@ -1,5 +1,5 @@
 template <class IMPROPERTYPE, class EVALUATOR> 
-__global__ void compute_force_improper(int nAtoms, float4 *xs, float4 *forces, cudaTextureObject_t idToIdxs, ImproperGPU *impropers, int *startstops, BoundsGPU bounds, IMPROPERTYPE *parameters, int nParameters, EVALUATOR T) {
+__global__ void compute_force_improper(int nAtoms, float4 *xs, float4 *forces, int *idToIdxs, ImproperGPU *impropers, int *startstops, BoundsGPU bounds, IMPROPERTYPE *parameters, int nParameters, EVALUATOR T) {
 
 
     int idx = GETIDX();
@@ -25,7 +25,7 @@ __global__ void compute_force_improper(int nAtoms, float4 *xs, float4 *forces, c
             int myIdxInImproper = impropers_shr[shr_idx].type >> 29;
             int idSelf = impropers_shr[shr_idx].ids[myIdxInImproper];
             
-            int idxSelf = tex2D<int>(idToIdxs, XIDX(idSelf, sizeof(int)), YIDX(idSelf, sizeof(int)));
+            int idxSelf = idToIdxs[idSelf]; 
         
             float3 pos = make_float3(xs[idxSelf]);
            // printf("I am idx %d and I am evaluating atom with pos %f %f %f\n", idx, pos.x, pos.y, pos.z);
@@ -57,7 +57,8 @@ __global__ void compute_force_improper(int nAtoms, float4 *xs, float4 *forces, c
                     toGet[2] = 2;
                 }
                 for (int i=0; i<3; i++) {
-                    positions[toGet[i]] = make_float3(perAtomFromId(idToIdxs, xs, improper.ids[toGet[i]]));
+                    int idxOther = idToIdxs[improper.ids[toGet[i]]];
+                    positions[toGet[i]] = make_float3(xs[idxOther]);
                 }
                 for (int i=1; i<3; i++) {
                     positions[i] = positions[0] + bounds.minImage(positions[i]-positions[0]);
@@ -121,7 +122,7 @@ __global__ void compute_force_improper(int nAtoms, float4 *xs, float4 *forces, c
 
 
 template <class IMPROPERTYPE, class EVALUATOR> 
-__global__ void compute_energy_improper(int nAtoms, float4 *xs, float *perParticleEng, cudaTextureObject_t idToIdxs, ImproperGPU *impropers, int *startstops, BoundsGPU bounds, IMPROPERTYPE *parameters, int nParameters, EVALUATOR T) {
+__global__ void compute_energy_improper(int nAtoms, float4 *xs, float *perParticleEng, int *idToIdxs, ImproperGPU *impropers, int *startstops, BoundsGPU bounds, IMPROPERTYPE *parameters, int nParameters, EVALUATOR T) {
 
 
     int idx = GETIDX();
@@ -147,7 +148,7 @@ __global__ void compute_energy_improper(int nAtoms, float4 *xs, float *perPartic
             int myIdxInImproper = impropers_shr[shr_idx].type >> 29;
             int idSelf = impropers_shr[shr_idx].ids[myIdxInImproper];
             
-            int idxSelf = tex2D<int>(idToIdxs, XIDX(idSelf, sizeof(int)), YIDX(idSelf, sizeof(int)));
+            int idxSelf = idToIdxs[idSelf]; 
         
             float3 pos = make_float3(xs[idxSelf]);
            // printf("I am idx %d and I am evaluating atom with pos %f %f %f\n", idx, pos.x, pos.y, pos.z);
@@ -179,7 +180,8 @@ __global__ void compute_energy_improper(int nAtoms, float4 *xs, float *perPartic
                     toGet[2] = 2;
                 }
                 for (int i=0; i<3; i++) {
-                    positions[toGet[i]] = make_float3(perAtomFromId(idToIdxs, xs, improper.ids[toGet[i]]));
+                    int idxOther = idToIdxs[improper.ids[toGet[i]]];
+                    positions[toGet[i]] = make_float3(xs[idxOther]);
                 }
                 for (int i=1; i<3; i++) {
                     positions[i] = positions[0] + bounds.minImage(positions[i]-positions[0]);

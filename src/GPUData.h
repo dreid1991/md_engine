@@ -21,7 +21,7 @@ public:
     GPUArrayPair<float4> fs;
     GPUArrayPair<uint> ids;
     GPUArrayPair<float> qs;
-    GPUArrayGlobal<int> idToIdxs
+    GPUArrayGlobal<int> idToIdxs;
     GPUArrayGlobal<Virial> virials;
 
     GPUArrayGlobal<float4> xsBuffer;

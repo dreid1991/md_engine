@@ -3,10 +3,6 @@ import matplotlib.pyplot as plt
 sys.path = sys.path + ['../build/python/build/lib.linux-x86_64-2.7']
 #from Sim import *
 from Sim import *
-import argparse
-import re
-import sys
-import matplotlib
 state = State()
 state.deviceManager.setDevice(0)
 state.bounds = Bounds(state, lo = Vector(0, 0, 0), hi = Vector(55.12934875488, 55.12934875488, 55.12934875488))
@@ -50,8 +46,8 @@ sumV = 0.
 for a in state.atoms:
     sumV += a.vel.lenSqr()
 print sumV / len(state.atoms)/3.0
-plt.plot([x for x in engData.vals])
-plt.show()
+#plt.plot([x for x in engData.vals])
+#plt.show()
 #print sum(tempData.vals) / len(tempData.vals)
 #print boundsData.vals[0].getSide(1)
 #print engData.turns[-1]
