@@ -286,12 +286,13 @@ void FixNoseHoover::calculateKineticEnergy()
     size_t nAtoms = state->atoms.size();
     kineticEnergy.d_data.memset(0);
     if (groupTag == 1) { //if is all atoms
-       sumVectorSqr3DOverW<float, float4, 2>
-            <<<NBLOCK(nAtoms / (double) 2), PERBLOCK, 2*PERBLOCK*sizeof(float)>>>(
-                    kineticEnergy.d_data.data(),
-                    state->gpd.vs.getDevData(),
-                    nAtoms,
-                    state->devManager.prop.warpSize
+        accumulate_gpu<float, float4, SumVectorSqr3DOverW, N_DATA_PER_THREAD> <<<NBLOCK(nAtoms / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*PERBLOCK*sizeof(float)>>>
+            (
+             kineticEnergy.d_data.data(),
+             state->gpd.vs.getDevData(),
+             nAtoms,
+             state->devManager.prop.warpSize,
+             SumVectorSqr3DOverW()
             );
        //std::cout << " calling tag-less sum " << std::endl;
        kineticEnergy.dataToHost();
@@ -299,6 +300,15 @@ void FixNoseHoover::calculateKineticEnergy()
        ndf = state->atoms.size();
 
     } else {
+        accumulate_gpu_if<float, float4, SumVectorSqr3DOverWIf, N_DATA_PER_THREAD> <<<NBLOCK(nAtoms / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*PERBLOCK*sizeof(float)>>>
+            (
+             kineticEnergy.d_data.data(),
+             state->gpd.vs.getDevData(),
+             nAtoms,
+             state->devManager.prop.warpSize,
+             SumVectorSqr3DOverWIf(state->gpd.fs.getDevData(), groupTag)
+            );
+        /*
         sumVectorSqr3DTagsOverW<float, float4, 2>
             <<<NBLOCK(nAtoms / (double) 2), PERBLOCK, 2*PERBLOCK*sizeof(float)>>>(
                     kineticEnergy.d_data.data(),
@@ -308,6 +318,7 @@ void FixNoseHoover::calculateKineticEnergy()
                     state->gpd.fs.getDevData(),
                     state->devManager.prop.warpSize
             );
+            */
         kineticEnergy.dataToHost();
         cudaDeviceSynchronize();
         ndf = *((int *) (kineticEnergy.h_data.data()+1));

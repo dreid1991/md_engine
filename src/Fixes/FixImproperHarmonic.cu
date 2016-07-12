@@ -192,13 +192,13 @@ FixImproperHarmonic::FixImproperHarmonic(SHARED(State) state_, string handle)
 void FixImproperHarmonic::compute(bool computeVirials) {
     int nAtoms = state->atoms.size();
     int activeIdx = state->gpd.activeIdx();
-    compute_force_improper<<<NBLOCK(nAtoms), PERBLOCK, sizeof(ImproperGPU) * maxForcersPerBlock + forcers.size() * sizeof(ImproperHarmonicType)>>>(nAtoms, state->gpd.xs(activeIdx), state->gpd.fs(activeIdx), state->gpd.idToIdxs.getTex(), forcersGPU.data(), forcerIdxs.data(), state->boundsGPU, parameters.data(), parameters.size(), evaluator);
+    compute_force_improper<<<NBLOCK(nAtoms), PERBLOCK, sizeof(ImproperGPU) * maxForcersPerBlock + forcers.size() * sizeof(ImproperHarmonicType)>>>(nAtoms, state->gpd.xs(activeIdx), state->gpd.fs(activeIdx), state->gpd.idToIdxs.d_data.data(), forcersGPU.data(), forcerIdxs.data(), state->boundsGPU, parameters.data(), parameters.size(), evaluator);
 
 }
 void FixImproperHarmonic::singlePointEng(float *perParticleEng) {
     int nAtoms = state->atoms.size();
     int activeIdx = state->gpd.activeIdx();
-    compute_energy_improper<<<NBLOCK(nAtoms), PERBLOCK, sizeof(ImproperGPU) * maxForcersPerBlock + forcers.size() * sizeof(ImproperHarmonicType)>>>(nAtoms, state->gpd.xs(activeIdx), perParticleEng, state->gpd.idToIdxs.getTex(), forcersGPU.data(), forcerIdxs.data(), state->boundsGPU, parameters.data(), parameters.size(), evaluator);
+    compute_energy_improper<<<NBLOCK(nAtoms), PERBLOCK, sizeof(ImproperGPU) * maxForcersPerBlock + forcers.size() * sizeof(ImproperHarmonicType)>>>(nAtoms, state->gpd.xs(activeIdx), perParticleEng, state->gpd.idToIdxs.d_data.data(), forcersGPU.data(), forcerIdxs.data(), state->boundsGPU, parameters.data(), parameters.size(), evaluator);
 
 }
 

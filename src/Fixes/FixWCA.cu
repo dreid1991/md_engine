@@ -1,4 +1,4 @@
-#include "FixLJCutFS.h"
+#include "FixWCA.h"
 
 #include "BoundsGPU.h"
 #include "GridGPU.h"
@@ -7,18 +7,17 @@
 #include "State.h"
 #include "cutils_func.h"
 
-const std::string LJCutType = "LJCutFS";
+const std::string LJCutType = "LJCutWCA";
 
-FixLJCutFS::FixLJCutFS(SHARED(State) state_, std::string handle_)
+FixWCA::FixWCA(SHARED(State) state_, std::string handle_)
     : FixPair(state_, handle_, "all", LJCutType, true, false, 1),
       epsHandle("eps"), sigHandle("sig"), rCutHandle("rCut") {
     initializeParameters(epsHandle, epsilons);
     initializeParameters(sigHandle, sigmas);
     initializeParameters(rCutHandle, rCuts);
-    initializeParameters("FCutHandle", FCuts);
-    paramOrder = {rCutHandle, epsHandle, sigHandle, "FCutHandle"};
+    paramOrder = {rCutHandle, epsHandle, sigHandle};
 }
-void FixLJCutFS::compute(bool computeVirials) {
+void FixWCA::compute(bool computeVirials) {
     int nAtoms = state->atoms.size();
     int numTypes = state->atomParams.numTypes;
     GPUData &gpd = state->gpd;
@@ -28,11 +27,11 @@ void FixLJCutFS::compute(bool computeVirials) {
     float *neighborCoefs = state->specialNeighborCoefs;
 
     if (computeVirials) {
-        compute_force_iso<EvaluatorLJFS, 4, true>  <<<NBLOCK(nAtoms), PERBLOCK, 4*numTypes*numTypes*sizeof(float)>>>(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx), 
+        compute_force_iso<EvaluatorWCA, 3, true>  <<<NBLOCK(nAtoms), PERBLOCK, 3*numTypes*numTypes*sizeof(float)>>>(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx), 
                 neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU, 
                 neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.virials.d_data.data(), evaluator);
     } else {
-        compute_force_iso<EvaluatorLJFS, 4, false>  <<<NBLOCK(nAtoms), PERBLOCK, 4*numTypes*numTypes*sizeof(float)>>>(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx), 
+        compute_force_iso<EvaluatorWCA, 3, false>  <<<NBLOCK(nAtoms), PERBLOCK, 3*numTypes*numTypes*sizeof(float)>>>(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx), 
                 neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU, 
                 neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.virials.d_data.data(), evaluator);
     }
@@ -41,7 +40,7 @@ void FixLJCutFS::compute(bool computeVirials) {
 
 }
 
-void FixLJCutFS::singlePointEng(float *perParticleEng) {
+void FixWCA::singlePointEng(float *perParticleEng) {
     int nAtoms = state->atoms.size();
     int numTypes = state->atomParams.numTypes;
     GPUData &gpd = state->gpd;
@@ -50,7 +49,7 @@ void FixLJCutFS::singlePointEng(float *perParticleEng) {
     uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
     float *neighborCoefs = state->specialNeighborCoefs;
 
-    compute_energy_iso<EvaluatorLJFS, 4><<<NBLOCK(nAtoms), PERBLOCK, 4*numTypes*numTypes*sizeof(float)>>>(nAtoms, gpd.xs(activeIdx), perParticleEng, neighbor\
+    compute_energy_iso<EvaluatorWCA, 3><<<NBLOCK(nAtoms), PERBLOCK, 3*numTypes*numTypes*sizeof(float)>>>(nAtoms, gpd.xs(activeIdx), perParticleEng, neighbor\
 Counts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU, ne\
 ighborCoefs[0], neighborCoefs[1], neighborCoefs[2], evaluator);
 
@@ -58,7 +57,7 @@ ighborCoefs[0], neighborCoefs[1], neighborCoefs[2], evaluator);
 
 }
 
-bool FixLJCutFS::prepareForRun() {
+bool FixWCA::prepareForRun() {
     //loop through all params and fill with appropriate lambda function, then send all to device
     auto fillEps = [] (float a, float b) {
         return sqrt(a*b);
@@ -67,13 +66,13 @@ bool FixLJCutFS::prepareForRun() {
     auto fillSig = [] (float a, float b) {
         return (a+b) / 2.0;
     };
-    auto fillRCut = [this] (float a, float b) {
-        return (float) std::fmax(a, b);
-    };
+//     auto fillRCut = [this] (float a, float b) {
+//         return (float) std::fmax(a, b);
+//     };
     auto none = [] (float a){};
 
     auto fillRCutDiag = [this] () {
-        return (float) state->rCut;//WHY??
+        return (float) state->rCut;
     };
 
     auto processEps = [] (float a) {
@@ -85,35 +84,29 @@ bool FixLJCutFS::prepareForRun() {
     auto processRCut = [] (float a) {
         return a*a;
     };
-    
-    auto fillFCut = [this] (int a, int b) {
-        int numTypes = state->atomParams.numTypes;
-        float epstimes24=24*squareVectorRef<float>(paramMap[epsHandle]->data(),numTypes,a,b);
-        float rCutSqr = pow(squareVectorRef<float>(paramMap[rCutHandle]->data(),numTypes,a,b),2);
-        float sig6 = pow(squareVectorRef<float>(paramMap[sigHandle]->data(),numTypes,a,b),6);
-        float p1 = epstimes24*2*sig6*sig6;
-        float p2 = epstimes24*sig6;
-        float r2inv = 1/rCutSqr;
-        float r6inv = r2inv*r2inv*r2inv;
-        float forceScalar = r6inv * r2inv * (p1 * r6inv - p2)*sqrt(rCutSqr);
 
-        return forceScalar;
-    };
+    auto fillRCut = [this] (int a, int b) {
+        int numTypes = state->atomParams.numTypes;
+        float sig = squareVectorRef<float>(paramMap[sigHandle]->data(),numTypes,a,b);
+        
+        return sig*pow(2.0,1.0/6.0);
+    };    
     prepareParameters(epsHandle, fillEps, processEps, false);
     prepareParameters(sigHandle, fillSig, processSig, false);
-    prepareParameters(rCutHandle, fillRCut, processRCut, true, fillRCutDiag);
-    prepareParameters("FCutHandle", fillFCut);
+    prepareParameters_from_other(rCutHandle, fillRCut, processRCut, false);
+
+//     prepareParameters(rCutHandle, fillRCut, processRCut, true, fillRCutDiag);
     sendAllToDevice();
     return true;
 }
 
-std::string FixLJCutFS::restartChunk(std::string format) {
+std::string FixWCA::restartChunk(std::string format) {
     std::stringstream ss;
     ss << restartChunkPairParams(format);
     return ss.str();
 }
 
-bool FixLJCutFS::readFromRestart(pugi::xml_node restData) {
+bool FixWCA::readFromRestart(pugi::xml_node restData) {
     std::cout << "Reading form restart" << std::endl;
     auto curr_param = restData.first_child();
     while (curr_param) {
@@ -133,20 +126,19 @@ bool FixLJCutFS::readFromRestart(pugi::xml_node restData) {
     return true;
 }
 
-bool FixLJCutFS::postRun() {
+bool FixWCA::postRun() {
 
     return true;
 }
 
-void FixLJCutFS::addSpecies(std::string handle) {
+void FixWCA::addSpecies(std::string handle) {
     initializeParameters(epsHandle, epsilons);
     initializeParameters(sigHandle, sigmas);
     initializeParameters(rCutHandle, rCuts);
-    initializeParameters(rCutHandle, FCuts);
 
 }
 
-std::vector<float> FixLJCutFS::getRCuts() {
+std::vector<float> FixWCA::getRCuts() {
     std::vector<float> res;
     std::vector<float> &src = *(paramMap[rCutHandle]);
     for (float x : src) {
@@ -160,11 +152,11 @@ std::vector<float> FixLJCutFS::getRCuts() {
     return res;
 }
 
-void export_FixLJCutFS() {
-    boost::python::class_<FixLJCutFS,
-                          SHARED(FixLJCutFS),
+void export_FixWCA() {
+    boost::python::class_<FixWCA,
+                          SHARED(FixWCA),
                           boost::python::bases<FixPair>, boost::noncopyable > (
-        "FixLJCutFS",
+        "FixWCA",
         boost::python::init<SHARED(State), std::string> (
             boost::python::args("state", "handle"))
     );

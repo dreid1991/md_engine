@@ -23,14 +23,14 @@ namespace py = boost::python;
 void FixAngleHarmonic::compute(bool computeVirials) {
     int nAtoms = state->atoms.size();
     int activeIdx = state->gpd.activeIdx();
-    compute_force_angle<<<NBLOCK(nAtoms), PERBLOCK, sizeof(AngleGPU) * maxForcersPerBlock + parameters.size() * sizeof(AngleHarmonicType)>>>(nAtoms, state->gpd.xs(activeIdx), state->gpd.fs(activeIdx), state->gpd.idToIdxs.getTex(), forcersGPU.data(), forcerIdxs.data(), state->boundsGPU, parameters.data(), parameters.size(), evaluator);
+    compute_force_angle<<<NBLOCK(nAtoms), PERBLOCK, sizeof(AngleGPU) * maxForcersPerBlock + parameters.size() * sizeof(AngleHarmonicType)>>>(nAtoms, state->gpd.xs(activeIdx), state->gpd.fs(activeIdx), state->gpd.idToIdxs.d_data.data(), forcersGPU.data(), forcerIdxs.data(), state->boundsGPU, parameters.data(), parameters.size(), evaluator);
 
 }
 
 void FixAngleHarmonic::singlePointEng(float *perParticleEng) {
     int nAtoms = state->atoms.size();
     int activeIdx = state->gpd.activeIdx();
-    compute_energy_angle<<<NBLOCK(nAtoms), PERBLOCK, sizeof(AngleGPU) * maxForcersPerBlock + parameters.size() * sizeof(AngleHarmonicType)>>>(nAtoms, state->gpd.xs(activeIdx), perParticleEng, state->gpd.idToIdxs.getTex(), forcersGPU.data(), forcerIdxs.data(), state->boundsGPU, parameters.data(), parameters.size(), evaluator);
+    compute_energy_angle<<<NBLOCK(nAtoms), PERBLOCK, sizeof(AngleGPU) * maxForcersPerBlock + parameters.size() * sizeof(AngleHarmonicType)>>>(nAtoms, state->gpd.xs(activeIdx), perParticleEng, state->gpd.idToIdxs.d_data.data(), forcersGPU.data(), forcerIdxs.data(), state->boundsGPU, parameters.data(), parameters.size(), evaluator);
 }
 //void cumulativeSum(int *data, int n);
 // okay, so the net result of this function is that two arrays (items, idxs of

@@ -125,6 +125,10 @@ Atom &State::idToAtom(int id) {
     return atoms[idToIdx[id]];
 }
 
+int State::idToIdxPy(int id) {
+    return idToIdx[id];
+}
+
 //constructor should be same
 /*
 bool State::addBond(Atom *a, Atom *b, double k, double rEq) {
@@ -498,7 +502,7 @@ bool State::downloadFromRun() {
 
 
 bool State::addToGroupPy(std::string handle, py::list toAdd) {//list of atom ids
-    int tagBit = groupTagFromHandle(handle);  //if I remove asserts from this, could return things other than true, like if handle already exists
+    uint32_t tagBit = groupTagFromHandle(handle);  //if I remove asserts from this, could return things other than true, like if handle already exists
     int len = py::len(toAdd);
     for (int i=0; i<len; i++) {
         py::extract<int> idPy(toAdd[i]);
@@ -537,7 +541,7 @@ bool State::destroyGroup(std::string handle) {
 }
 
 bool State::createGroup(std::string handle, py::list forGrp) {
-    uint res = addGroupTag(handle);
+    uint32_t res = addGroupTag(handle);
     if (!res) {
         std::cout << "Tried to create group " << handle
                   << " << that already exists" << std::endl;
@@ -677,7 +681,7 @@ BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(State_seedRNG_overloads,State::seedRNG,0,
                 .def("selectGroup", &State::selectGroup)
                 .def("copyAtoms", &State::copyAtoms)
                 .def("setAtoms", &State::setAtoms)
-
+                .def("idToIdx", &State::idToIdxPy)
                 .def("setSpecialNeighborCoefs", &State::setSpecialNeighborCoefs)
 
                 .def("activateFix", &State::activateFix)

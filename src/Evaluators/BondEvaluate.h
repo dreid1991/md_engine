@@ -1,6 +1,6 @@
 #define SMALL 0.0001f
 template <class BONDTYPE, class EVALUATOR>
-__global__ void compute_force_bond(int nAtoms, float4 *xs, float4 *forces, cudaTextureObject_t idToIdxs, BondGPU *bonds, int *startstops, BONDTYPE *parameters, int nTypes, BoundsGPU bounds, EVALUATOR T) {
+__global__ void compute_force_bond(int nAtoms, float4 *xs, float4 *forces, int *idToIdxs, BondGPU *bonds, int *startstops, BONDTYPE *parameters, int nTypes, BoundsGPU bounds, EVALUATOR T) {
     int idx = GETIDX();
     extern __shared__ int all_shr[];
     int idxBeginCopy = startstops[blockDim.x*blockIdx.x];
@@ -21,7 +21,7 @@ __global__ void compute_force_bond(int nAtoms, float4 *xs, float4 *forces, cudaT
         if (n>0) { //if you have atoms w/ zero bonds at the end, they will read one off the end of the bond list
             int myId = bonds_shr[shr_idx].myId;
 
-            int myIdx = tex2D<int>(idToIdxs, XIDX(myId, sizeof(int)), YIDX(myId, sizeof(int)));
+            int myIdx = idToIdxs[myId];
 
 
             float3 pos = make_float3(xs[myIdx]);
@@ -32,7 +32,7 @@ __global__ void compute_force_bond(int nAtoms, float4 *xs, float4 *forces, cudaT
                 BONDTYPE bondType = parameters_shr[type];
 
                 int otherId = b.otherId;
-                int otherIdx = tex2D<int>(idToIdxs, XIDX(otherId, sizeof(int)), YIDX(otherId, sizeof(int)));
+                int otherIdx = idToIdxs[otherId];
 
                 float3 posOther = make_float3(xs[otherIdx]);
                 // printf("atom %d bond %d gets force %f\n", idx, i, harmonicForce(bounds, pos, posOther, b.k, b.rEq));
@@ -49,7 +49,7 @@ __global__ void compute_force_bond(int nAtoms, float4 *xs, float4 *forces, cudaT
 
 
 template <class BONDTYPE, class EVALUATOR>
-__global__ void compute_energy_bond(int nAtoms, float4 *xs, float *perParticleEng, cudaTextureObject_t idToIdxs, BondGPU *bonds, int *startstops, BONDTYPE *parameters, int nTypes, BoundsGPU bounds, EVALUATOR T) {
+__global__ void compute_energy_bond(int nAtoms, float4 *xs, float *perParticleEng, int *idToIdxs, BondGPU *bonds, int *startstops, BONDTYPE *parameters, int nTypes, BoundsGPU bounds, EVALUATOR T) {
     int idx = GETIDX();
     extern __shared__ int all_shr[];
     int idxBeginCopy = startstops[blockDim.x*blockIdx.x];
@@ -69,8 +69,8 @@ __global__ void compute_energy_bond(int nAtoms, float4 *xs, float *perParticleEn
         int n = endIdx - startIdx;
         if (n>0) { //if you have atoms w/ zero bonds at the end, they will read one off the end of the bond list
             int myId = bonds_shr[shr_idx].myId;
-
-            int myIdx = tex2D<int>(idToIdxs, XIDX(myId, sizeof(int)), YIDX(myId, sizeof(int)));
+            
+            int myIdx = idToIdxs[myId];
 
 
             float3 pos = make_float3(xs[myIdx]);
@@ -81,7 +81,7 @@ __global__ void compute_energy_bond(int nAtoms, float4 *xs, float *perParticleEn
                 BONDTYPE bondType = parameters_shr[type];
 
                 int otherId = b.otherId;
-                int otherIdx = tex2D<int>(idToIdxs, XIDX(otherId, sizeof(int)), YIDX(otherId, sizeof(int)));
+                int otherIdx = idToIdxs[otherId];
 
                 float3 posOther = make_float3(xs[otherIdx]);
                 // printf("atom %d bond %d gets force %f\n", idx, i, harmonicForce(bounds, pos, posOther, b.k, b.rEq));

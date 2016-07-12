@@ -112,7 +112,10 @@ __global__ void compute_energy_iso(int nAtoms, float4 *xs, float *perParticleEng
                 for (int pIdx=0; pIdx<N; pIdx++) {
                     params_pair[pIdx] = params_shr[pIdx][sqrIdx];
                 }
-                evaluator.energy(params_pair, lenSqr, multiplier);
+                float rCutSqr = params_pair[0];
+                if (lenSqr < rCutSqr) {                
+                    sumEng += evaluator.energy(params_pair, lenSqr, multiplier);
+                }
 
             }
 

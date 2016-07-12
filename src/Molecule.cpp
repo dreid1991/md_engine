@@ -20,12 +20,22 @@ void Molecule::rotate(Vector &around, Vector &axis, double theta) {
 }
 
 Vector Molecule::COM() {
-    //and this
+    Vector weightedPos(0, 0, 0);
+    double sumMass = 0;
+    //DEAL WITH PBCs HERE PLEASE
+    for (int id : ids) {
+        Atom &a = state->idToAtom(id);
+        double mass = a.mass;
+        weightedPos += a.pos * mass;
+        sumMass += mass;
+    }
+    return weightedPos / sumMass;
 }
 
 void export_Molecule() {
     py::class_<Molecule> ("Molecule", py::no_init)
     .def_readonly("ids", &Molecule::ids)
     .def("translate", &Molecule::translate)
+    .def("COM", &Molecule::COM)
     ;
 }

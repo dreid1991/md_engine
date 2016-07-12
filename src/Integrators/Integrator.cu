@@ -11,6 +11,11 @@
 
 using namespace std;
 
+
+
+
+
+
 void Integrator::stepInit(bool computeVirials)
 {
     if (computeVirials) {
@@ -294,9 +299,19 @@ double Integrator::singlePointEngPythonAvg(string groupHandle) {
     cudaDeviceSynchronize();
     uint32_t groupTag = state->groupTagFromHandle(groupHandle);
     int warpSize = state->devManager.prop.warpSize;
+    accumulate_gpu_if<float, float, SumSingleIf, N_DATA_PER_THREAD> <<<NBLOCK(state->atoms.size() / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*sizeof(float)*PERBLOCK>>>
+        (
+         eng.getDevData(), 
+         state->gpd.perParticleEng.getDevData(),
+         state->atoms.size(),
+         warpSize,
+         SumSingleIf(state->gpd.fs.getDevData(), groupTag)
+        );
+    /*
     sumPlain<float, float, N_DATA_PER_THREAD><<<NBLOCK(state->atoms.size() / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*sizeof(float)*PERBLOCK>>>(
             eng.getDevData(), state->gpd.perParticleEng.getDevData(),
             state->atoms.size(), groupTag, state->gpd.fs.getDevData(), warpSize);
+            */
     eng.dataToHost();
     cudaDeviceSynchronize();
     CUT_CHECK_ERROR("Calculation of single point average energy failed");

@@ -53,58 +53,15 @@ __global__ void postForce_cu(int nAtoms, float4 *vs, float4 *fs, float dt)
     }
 }
 
-IntegratorVerlet::IntegratorVerlet(State *statePtr)
-    : Integrator(statePtr)
+IntegratorVerlet::IntegratorVerlet(State *state_)
+    : Integrator(state_)
 {
 
 }
-//so now each thread is responsibe for NPERTHREAD pieces of data
-/*
-template <class K, class T, int NPERTHREAD>
-__global__ void NAME (K *dest, T *src, int n, int warpSize) {
-    extern __shared__ K tmp[]; 
-    const int copyBaseIdx = blockDim.x*blockIdx.x * NPERTHREAD + threadIdx.x;
-    //printf("idx %d gets base %d\n", GETIDX(), copyBaseIdx);
-    const int copyIncrement = blockDim.x;
-    for (int i=0; i<NPERTHREAD; i++) {
-        int step = i * copyIncrement;
-
-        if (copyBaseIdx + step < n) {
-            tmp[threadIdx.x + step] = length(src[copyBaseIdx + step]);
-           // printf("copyBase getting idx %d got %f\n", copyBaseIdx, tmp[step + threadIdx.x]);
-        } else {
-            tmp[threadIdx.x + step] = 0;
-        }
-    }
-    int curLookahead = NPERTHREAD;
-    int numLookaheadSteps = log2f(blockDim.x-1);
-    const int sumBaseIdx = threadIdx.x * NPERTHREAD;
-    __syncthreads();
-    for (int i=sumBaseIdx+1; i<sumBaseIdx + NPERTHREAD; i++) {
-        tmp[sumBaseIdx] += tmp[i];
-
-    }
-  //  printf("idx %d summed to %f lookahead is %d sumBase is %d\n", GETIDX(), tmp[sumBaseIdx], curLookahead, sumBaseIdx);
-    for (int i=0; i<=numLookaheadSteps; i++) {
-        if (! (sumBaseIdx % (curLookahead*2))) {
-     //       printf("thread base %d fetching from %d lookahead %d\n", sumBaseIdx, sumBaseIdx + curLookahead, curLookahead);
-            tmp[sumBaseIdx] += tmp[sumBaseIdx + curLookahead];
-        }
-        if (curLookahead >= (NPERTHREAD * warpSize)) {
-            __syncthreads();
-        }
-        curLookahead *= 2;
-    }
-    if (threadIdx.x == 0) {
-        atomicAdd(dest, tmp[0]);
-    }
-}
-*/
 void IntegratorVerlet::run(int numTurns)
 {
-    basicPreRunChecks();
 
-    //! \todo Call basicPreRunChecks() in basicPrepare()
+    basicPreRunChecks();
     basicPrepare(numTurns);
 
     int periodicInterval = state->periodicInterval;
