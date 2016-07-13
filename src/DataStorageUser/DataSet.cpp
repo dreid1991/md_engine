@@ -1,6 +1,5 @@
 #include "DataSet.h"
 #include "State.h"
-using namespace std;
 namespace py = boost::python;
 void DataSet::setCollectMode() {
     PyObject *func = collectGenerator.ptr();
@@ -41,7 +40,8 @@ void export_DataSet() {
         boost::python::no_init
     )
     .def_readonly("turns", &DataSet::turnsPy)
-    .def_readonly("vals", &DataSet::valsPy)
+    .def_readonly("vals", &DataSet::scalarsPy)
+    .def_readonly("vectors", &DataSet::vectorsPy)
     .def_readwrite("nextCollectTurn", &DataSet::nextCollectTurn)
  //   .def("getDataSet", &DataManager::getDataSet)
     ;

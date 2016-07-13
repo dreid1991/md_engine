@@ -17,9 +17,25 @@ class DataSet {
         //can't store data in here b/c is of different types, wouldn't be able to store all base pointers in a vector.  Maybe pass data with void pointers?
 		uint32_t groupTag;
         bool requiresVirials;
-        bool requiresKineticEng;
         bool requiresEng;
+        
+        //if not already computed for turn requested, will compute value.
+        virtual void computeScalar(int64_t turn, bool transferToCPU);
+        virtual void computeVector(int64_t turn, bool transferToCPU);
 
+        bool lastScalarOnCPU;
+        bool lastVectorOnCPU;
+
+        int64_t turnScalarComputed;
+        int64_t turnVectorComputed;
+        
+        //each data set will implement its own stored scalar and vector to be stored and appended to py list if asked by integrator
+
+        bool computingScalar;
+        bool computingVector;
+
+
+        //external function to be called by integrator
 		virtual void collect(int64_t turn, BoundsGPU &, int nAtoms, float4 *xs, float4 *vs, float4 *fs, float *engs, Virial *, cudaDeviceProp &) = 0;
         virtual void appendValues() = 0;
         int64_t nextCollectTurn;
@@ -35,6 +51,8 @@ class DataSet {
             requiresVirials = false;
             requiresEng = false;
             collectEvery = -1;
+            turnScalarComputed = -1;
+            turnVectorComputed = -1;
         };
         int64_t getNextCollectTurn(int64_t turn);
         void setNextCollectTurn(int64_t turn);
@@ -44,7 +62,8 @@ class DataSet {
         }
         void takeCollectValues(int collectEvery_, boost::python::object collectGenerator_);
         boost::python::list turnsPy;
-        boost::python::list valsPy;
+        boost::python::list scalarsPy;
+        boost::python::list vectorsPy;
 };
 
 

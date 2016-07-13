@@ -10,7 +10,31 @@ DataSetTemperature::DataSetTemperature(uint32_t groupTag_) : DataSet(groupTag_) 
 
 
 
+void DataSetTemperature::computeScalar(int64_t turn, bool transferToCPU) {
+    if (turn != turnScalarComputed) {
+        tempGPU.d_data.memset(0);
+        accumulate_gpu_if<float, float4, SumVectorSqr3DOverWIf, N_DATA_PER_THREAD> <<<NBLOCK(nAtoms / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*PERBLOCK*sizeof(float)>>>
+        (tempGPU.getDevData(), vs, nAtoms, prop.warpSize, SumVectorSqr3DOverWIf(fs, groupTag));
+        turnScalarComputed = turn;
+    } 
+    if (transferToCPU and not lastScalarOnCPU) {
+        //does NOT sync
+        tempGPU.dataToHose();
+        lastScalarOnCPU = true;
+    }
+}
+void DataSetTemperature::computeVector(int64_t turn, bool transferToCPU) {
+
+}
+
+//func to be called by integrator
 void DataSetTemperature::collect(int64_t turn, BoundsGPU &, int nAtoms, float4 *xs, float4 *vs, float4 *fs, float *engs, Virial *virials, cudaDeviceProp &prop) {
+    if (computingScalar) {
+        computeScalar(turn, true);
+    }
+    if (computingVector) {
+        computeVector(turn, true);
+    }
     tempGPU.d_data.memset(0);
     accumulate_gpu_if<float, float4, SumVectorSqr3DOverWIf, N_DATA_PER_THREAD> <<<NBLOCK(nAtoms / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*PERBLOCK*sizeof(float)>>>
         (tempGPU.getDevData(), vs, nAtoms, prop.warpSize, SumVectorSqr3DOverWIf(fs, groupTag));
@@ -24,6 +48,7 @@ void DataSetTemperature::appendValues() {
     double tempCur = (double) tempGPU.h_data[0] / n / 3.0; 
     vals.push_back(tempCur);
     valsPy.append(tempCur);
+    //reset lastScalar... bools
     
 }
 
