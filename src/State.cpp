@@ -46,13 +46,15 @@ State::State() {
     verbose = true;
     readConfig = SHARED(ReadConfig) (new ReadConfig(this));
     atomParams = AtomParams(this);
-    computeVirials = false; //will be set to true if a fix needs it (like barostat).  Is max of fixes computesVirials bool
+    dataManager.computeVirials = false; //will be set to true if a fix needs it (like barostat).  Is max of fixes computesVirials bool
     requiresCharges = false; //will be set to true if a fix needs it (like ewald sum).  Is max of fixes requiresCharges bool
     dataManager = DataManager(this);
+    integUtil = IntegratorUtil(this);
     specialNeighborCoefs[0] = 0;
     specialNeighborCoefs[1] = 0;
     specialNeighborCoefs[2] = 0.5;
     rng_is_seeded = false;
+    turnLastSynced = turn-1;
 
 
 }
@@ -364,10 +366,16 @@ bool State::prepareForRun() {
         requiresCharges = *max_element(requireCharges.begin(), requireCharges.end());
     }
 
-    computeVirials = false;
-    vector<bool> requireVirials = LISTMAP(Fix *, bool, fix, fixes, fix->requiresVirials);
-    if (!requireVirials.empty()) {
-        computeVirials = *max_element(requireVirials.begin(), requireVirials.end());
+    state->dataManager.generateSingleDataSetList();
+    dataManager.computeVirialsInForce = false;
+    vector<bool> requireVirialsFixes = LISTMAP(Fix *, bool, fix, fixes, fix->requiresVirials);
+    vector<bool> requireVirialsDataSets = LISTMAP(DataSet *, bool, ds, dataManager.dataSets, ds->requiresVirials);
+    //okay, so current behavior is if any data set or fix requires virials, they are recorded every timestep. 
+    //Data set may not require them that often, so could lead to sub-optimal performance.  
+    //In future, could be tricky about if I actually set require virials or just let data set ask data manager to compute virials in the rare event that they are needed
+    requireVirialsFixes.insert(requireVirialsFixes.end(), requireVirialsDataSets.begin(), requireVirialsDataSets.end());
+    if (!requireVirialsFixes.empty()) {
+        dataManager.computeVirialsInForce = *max_element(requireVirialsFixes.begin(), requireVirialsFixes.end());
     }
 
 
@@ -390,6 +398,8 @@ bool State::prepareForRun() {
         ids.push_back(a.id);
         qs.push_back(a.q);
     }
+    //just setting host-side vectors
+    //transfer happs in integrator->basicPrepare
     gpd.xs.set(xs_vec);
     gpd.vs.set(vs_vec);
     gpd.fs.set(fs_vec);
@@ -397,11 +407,10 @@ bool State::prepareForRun() {
     if (requiresCharges) {
         gpd.qs.set(qs);
     }
-    if (computeVirials) {
-        vector<Virial> virials(atoms.size(), Virial());
-        gpd.virials.set(virials);
-    }
-
+    vector<Virial> virials(atoms.size(), Virial(0, 0, 0, 0, 0, 0));
+    gpd.virials = GPUArrayGlobal<Virial>(nAtoms);
+    gpd.virials.set(virials);
+    gpd.perParticleEng = GPUArrayGlobal<float>(nAtoms);
     // so... wanna keep ids tightly packed.  That's managed by program, not user
     std::vector<int> id_vec = LISTMAPREF(Atom, int, a, atoms, a.id);
     std::vector<int> idToIdxs_vec;
@@ -425,7 +434,6 @@ bool State::prepareForRun() {
     gpd.vsBuffer = GPUArrayGlobal<float4>(nAtoms);
     gpd.fsBuffer = GPUArrayGlobal<float4>(nAtoms);
     gpd.idsBuffer = GPUArrayGlobal<uint>(nAtoms);
-    gpd.perParticleEng = GPUArrayGlobal<float>(nAtoms);
 
     return true;
 }
@@ -648,10 +656,14 @@ Vector generateVector(State &s) {
     return Vector();
 }
 
-
-int main() {
-    State s = State();
+bool State::isSynced() {
+    return turn == turnLastSynced;
 }
+void State::sync() {
+    turnLastSynced = turn;
+    cudaDeviceSynchronize();
+}
+
 
 BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(State_seedRNG_overloads,State::seedRNG,0,1)
 

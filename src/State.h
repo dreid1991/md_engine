@@ -36,6 +36,8 @@
 
 #include "boost_for_export.h"
 #include "DeviceManager.h"
+//basic integrator functions state may need access to (computing engs, for examples)
+#include "IntegratorUtil.h"
 
 
 void export_State();
@@ -90,6 +92,7 @@ public:
     GPUData gpd; //!< All GPU data
     DeviceManager devManager; //!< GPU device manager
 
+    IntegtatorUtil integUtil;
     Bounds bounds; //!< Bounds on the CPU
     std::vector<Fix *> fixes; //!< List of all fixes
     std::vector<boost::shared_ptr<Fix> > fixesShr; //!< List of shared pointers to fixes
@@ -111,7 +114,6 @@ public:
     int dangerousRebuilds; //!< Unused
     int periodicInterval; //!< Periodicity to wrap atoms and rebuild neighbor
                           //!< list
-    bool computeVirials; //!< Fixes should compute virials
     bool requiresCharges; //!< Charges will be stored 
 
     //! Cutoff parameter for pair interactions
@@ -497,6 +499,7 @@ public:
      * seed is 0, the RNG is initialized with a random seed.
      */
     void seedRNG(unsigned int seed = 0);
+
 private:
     std::mt19937 randomNumberGenerator; //!< Random number generator
     bool rng_is_seeded; //!< True if seedRNG has been called

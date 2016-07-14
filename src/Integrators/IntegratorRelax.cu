@@ -118,7 +118,7 @@ double IntegratorRelax::run(int numTurns, num fTol) {
 
     //neighborlist build
     state->gridGPU.periodicBoundaryConditions(-1, true);
-
+    bool computeVirialsInForce = state->dataManager.computeVirialsInForce;
     for (int i=0; i<numTurns; i++) {
         //init to 0 on cpu and gpu
         VDotV.memsetByVal(0.0);
@@ -218,7 +218,7 @@ double IntegratorRelax::run(int numTurns, num fTol) {
                             dt);
         CUT_CHECK_ERROR("FIRE_preForce_cu kernel execution failed");
 
-        Integrator::forceSingle(state->computeVirials);
+        Integrator::forceSingle(computeVirialsInForce);
 
         if (fTol > 0 and i > delay and not (i%delay)) { //only check every so often
             //total force calc

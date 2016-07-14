@@ -4,16 +4,24 @@
 
 #include "DataSet.h"
 #include "GPUArrayGlobal.h"
+#include "Virial.h"
+class State;
 
 void export_DataSetTemperature();
 class DataSetTemperature : public DataSet {
     public:
-		void collect(int64_t turn, BoundsGPU &, int nAtoms, float4 *xs, float4 *vs, float4 *fs, float *engs, Virial *, cudaDeviceProp &);
+		void collect();
         void appendValues();
-        DataSetTemperature(uint32_t);
+        void computeScalar();
+        void computeVector();
+        DataSetTemperature(State *, uint32_t, bool, bool);
         std::vector<double> vals;
         void prepareForRun();
         GPUArrayGlobal<float> tempGPU;
+        GPUArrayGlobal<Virial> tempGPUVec;
+
+        double getScalar();
+        std::vector<Virial> getVector();
 
 };
 

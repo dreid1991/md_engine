@@ -1,6 +1,7 @@
 #pragma once
 #ifndef VIRIAL_H
 #define VIRIAL_H
+#include "Logging.h"
 //as xx, yy, zz, xy, xz, yz
 class Virial {
     public:
@@ -19,6 +20,14 @@ class Virial {
         inline __host__ __device__ void operator += (Virial &other) {
             for (int i=0; i<6; i++) {
                 vals[i] += other[i];
+            }
+        }
+        float operator[] (int n) { //for python interface
+            if (n > 0 and n < 6) {
+                return vals[n];
+            } else {
+                mdAssert(n>0 and n<6);
+                return 0;
             }
         }
 };
