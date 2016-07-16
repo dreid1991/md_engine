@@ -135,29 +135,29 @@ SHARED(DataSet) DataManager::getDataSet(string handle) {
 
 */
 void export_DataManager() {
-    boost::python::class_<DataManager>(
+    py::class_<DataManager>(
         "DataManager",
-        boost::python::no_init
+        py::no_init
     )
     .def("recordTemperature", &DataManager::recordTemperature,
-            (boost::python::arg("handle") = "all",
-             boost::python::arg("collectEvery") = 0,
-             boost::python::arg("collectGenerator") = boost::python::object())
+            (py::arg("handle") = "all",
+             py::arg("collectEvery") = 0,
+             py::arg("collectGenerator") = py::object())
         )
     .def("stopRecordTemperature", &DataManager::stopRecordTemperature,
-            (boost::python::arg("handle") = "all")
+            (py::arg("handle") = "all")
         )
     .def("recordEnergy", &DataManager::recordEnergy,
-            (boost::python::arg("handle") = "all",
-             boost::python::arg("collectEvery") = 0,
-             boost::python::arg("collectGenerator") = boost::python::object())
+            (py::arg("handle") = "all",
+             py::arg("collectEvery") = 0,
+             py::arg("collectGenerator") = py::object())
         )
     .def("stopRecordEnergy", &DataManager::stopRecordEnergy,
-            (boost::python::arg("handle") = "all")
+            (py::arg("handle") = "all")
         )
     .def("recordBounds", &DataManager::recordBounds,
-            (boost::python::arg("collectEvery") = 0,
-             boost::python::arg("collectGenerator") = boost::python::object())
+            (py::arg("collectEvery") = 0,
+             py::arg("collectGenerator") = py::object())
         )
     .def("stopRecordBounds", &DataManager::stopRecordBounds)
  //   .def("getDataSet", &DataManager::getDataSet)
