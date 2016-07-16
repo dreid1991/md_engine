@@ -9,12 +9,13 @@ DataManager::DataManager(State * state_) : state(state_) {
     turnLastEngs = state->turn-1;
 }
 
-DataManager::computeVirials() {
+void DataManager::computeEngs() {
     if (turnLastEngs != state->turn) {
         state->integUtil.singlePointEng();
         turnLastEngs = state->turn;
     }
 }
+
 
 template <class T>
 SHARED(T) recordGeneric(State *state, string groupHandle, vector<SHARED(T)> &dataSets, int collectEvery, py::object collectGenerator) {
