@@ -1,15 +1,16 @@
 #include "DataManager.h"
 #include "State.h"
-#include "DataSetTemperature.h"
-#include "DataSetEnergy.h"
-#include "DataSetBounds.h"
-using namespace std;
+#include "DataComputer.h"
+#include "DataComputerTemperature.h"
+#include "DataSetUser.h"
+using namespace MD_ENGINE;
 namespace py = boost::python;
 DataManager::DataManager(State * state_) : state(state_) {
     turnLastEngs = state->turn-1;
 }
 
-void DataManager::computeEngs() {
+//okay - assumption: energies are computed rarely.  I can get away with not computing them in force kernels and just computing them when a data set needs them
+void DataManager::computeEnergy() {
     if (turnLastEngs != state->turn) {
         state->integUtil.singlePointEng();
         turnLastEngs = state->turn;
@@ -17,8 +18,8 @@ void DataManager::computeEngs() {
 }
 
 
-template <class T>
-SHARED(T) recordGeneric(State *state, string groupHandle, vector<SHARED(T)> &dataSets, int collectEvery, py::object collectGenerator) {
+/*template <class T>
+SHARED(T) recordGeneric(State *state, string groupHandle, vector<SHARED(T)> &dataSets, int interval, py::object collectGenerator) {
     uint32_t groupTag = state->groupTagFromHandle(groupHandle);
     bool setExists = false;
     SHARED(T) dataSet;
@@ -32,7 +33,7 @@ SHARED(T) recordGeneric(State *state, string groupHandle, vector<SHARED(T)> &dat
         dataSet = SHARED(T) (new T(groupTag));
         dataSets.push_back(dataSet);
     }
-    dataSet->takeCollectValues(collectEvery, collectGenerator);
+    dataSet->takeCollectValues(interval, collectGenerator);
     dataSet->setNextCollectTurn(state->turn);
     return dataSet;
 }
@@ -51,42 +52,44 @@ void stopRecordGeneric(State *state, string dataType, string groupHandle, vector
     assert(false);
 
 }
+*/
 
-SHARED(DataSetTemperature) DataManager::recordTemperature(string groupHandle, int collectEvery, py::object collectGenerator) {
-    return recordGeneric(state, groupHandle, dataSetsTemperature, collectEvery, collectGenerator);
-
-}
-void DataManager::stopRecordTemperature(string groupHandle) {
-    stopRecordGeneric(state, "temperature", groupHandle, dataSetsTemperature);
-}
-SHARED(DataSetEnergy) DataManager::recordEnergy(string groupHandle, int collectEvery, py::object collectGenerator) {
-    return recordGeneric(state, groupHandle, dataSetsEnergy, collectEvery, collectGenerator);
-
-}
-void DataManager::stopRecordEnergy(string groupHandle) {
-    stopRecordGeneric(state, "energy", groupHandle, dataSetsEnergy);
-}
-SHARED(DataSetBounds) DataManager::recordBounds(int collectEvery, py::object collectGenerator) {
-    return recordGeneric(state, "all", dataSetsBounds, collectEvery, collectGenerator);
-
-}
-void DataManager::stopRecordBounds() {
-    stopRecordGeneric(state, "bounds", "all", dataSetsBounds);
-}
-
-void DataManager::generateSingleDataSetList() {
-    //template this out or something
-    dataSets = vector<DataSet *>();
-    for (SHARED(DataSetTemperature) dst : dataSetsTemperature) {
-        dataSets.push_back(dst.get());
+boost::shared_ptr<DataSetUser> DataManager::createDataSet(boost:shared_ptr<DataComputer> comp, uint32_t, groupTag, int dataMode, int dataType, int interval, boost::python::object turnGenerator);
+    if (interval == 0) {
+        return DataSetUser(state, comp, groupTag, dataMode, dataType, turnGenerator);
+    } else {
+        return DataSetUser(state, comp, groupTag, dataMode, dataType, interval);
     }
-    for (SHARED(DataSetEnergy) dst : dataSetsEnergy) {
-        dataSets.push_back(dst.get());
-    }
-    for (SHARED(DataSetBounds) dst : dataSetsBounds) {
-        dataSets.push_back(dst.get());
+
+}
+
+boost::shared_ptr<DataSetUser> DataManager::recordTemperature(string groupHandle, int interval, py::object collectGenerator) { //add tensor, etc, later
+    int dataType = DATATYPE::TEMPERATURE;
+    boost::shared_ptr<DataComputer> comp = boost::shared_ptr<DataComputer> ( (DataComputer *) new DataComputerTemperature(state, true, false) );
+    dataSets.push_back(comp);
+    return createDataSet(state, groupHandle, dataSets, interval, collectGenerator);
+
+}
+void DataManager::stopRecord(boost::shared_ptr<DataSetUser> dataSet) {
+    for (int i=0; i<dataSets.size(); i++) {
+        boost::shared_ptr<DataSetUser> ds = dataSets[i];
+        if (ds == dataSet) {
+            dataSets.erase(dataSets.begin()+i);
+            break;
+        }
     }
 }
+/*
+SHARED(DataSetEnergy) DataManager::recordEnergy(string groupHandle, int interval, py::object collectGenerator) {
+    return recordGeneric(state, groupHandle, dataSetsEnergy, interval, collectGenerator);
+
+}
+}
+SHARED(DataSetBounds) DataManager::recordBounds(int interval, py::object collectGenerator) {
+    return recordGeneric(state, "all", dataSetsBounds, interval, collectGenerator);
+
+}
+*/
 /*
 
 bool DataManager::recordEng(string groupHandle) {
@@ -141,25 +144,27 @@ void export_DataManager() {
     )
     .def("recordTemperature", &DataManager::recordTemperature,
             (py::arg("handle") = "all",
-             py::arg("collectEvery") = 0,
-             py::arg("collectGenerator") = py::object())
+             py::arg("interval") = 0,
+             py::arg("turnGenerator") = py::object())
         )
+    /*
     .def("stopRecordTemperature", &DataManager::stopRecordTemperature,
             (py::arg("handle") = "all")
         )
     .def("recordEnergy", &DataManager::recordEnergy,
             (py::arg("handle") = "all",
-             py::arg("collectEvery") = 0,
+             py::arg("interval") = 0,
              py::arg("collectGenerator") = py::object())
         )
     .def("stopRecordEnergy", &DataManager::stopRecordEnergy,
             (py::arg("handle") = "all")
         )
     .def("recordBounds", &DataManager::recordBounds,
-            (py::arg("collectEvery") = 0,
+            (py::arg("interval") = 0,
              py::arg("collectGenerator") = py::object())
         )
     .def("stopRecordBounds", &DataManager::stopRecordBounds)
+    */
  //   .def("getDataSet", &DataManager::getDataSet)
     ;
 }

@@ -92,7 +92,7 @@ public:
     GPUData gpd; //!< All GPU data
     DeviceManager devManager; //!< GPU device manager
 
-    IntegtatorUtil integUtil;
+    IntegratorUtil integUtil;
     Bounds bounds; //!< Bounds on the CPU
     std::vector<Fix *> fixes; //!< List of all fixes
     std::vector<boost::shared_ptr<Fix> > fixesShr; //!< List of shared pointers to fixes

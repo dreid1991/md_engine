@@ -46,7 +46,7 @@ State::State() {
     verbose = true;
     readConfig = SHARED(ReadConfig) (new ReadConfig(this));
     atomParams = AtomParams(this);
-    dataManager.computeVirials = false; //will be set to true if a fix needs it (like barostat).  Is max of fixes computesVirials bool
+    dataManager.computeVirialsInForce = false; //will be set to true if a fix needs it (like barostat).  Is max of fixes computesVirials bool
     requiresCharges = false; //will be set to true if a fix needs it (like ewald sum).  Is max of fixes requiresCharges bool
     dataManager = DataManager(this);
     integUtil = IntegratorUtil(this);

@@ -84,12 +84,13 @@ void IntegratorVerlet::run(int numTurns)
         // Recalculate forces
         force(computeVirialsInForce);
         asyncOperations();
-        doDataCollection();
+        doDataComputation();
 
         // Perform second half of velocity-Verlet step
         postForce();
 
         stepFinal();
+        doDataAppending();
 
         //! \todo The following parts could also be moved into stepFinal
         state->turn++;

@@ -9,6 +9,7 @@ class Virial {
         float &__host__ __device__ operator[] (int idx) {
             return vals[idx];
         }
+        __host__ Virial() {};
         __host__ __device__ Virial(float xx, float yy, float zz, float xy, float xz, float yz) {
             vals[0] = xx;
             vals[1] = yy;
@@ -22,6 +23,12 @@ class Virial {
                 vals[i] += other[i];
             }
         }
+        inline __host__ void operator /= (double n) {
+            for (int i=0; i<6; i++) {
+                vals[i] /= n;
+            }
+        }
+        /*
         float operator[] (int n) { //for python interface
             if (n > 0 and n < 6) {
                 return vals[n];
@@ -30,6 +37,7 @@ class Virial {
                 return 0;
             }
         }
+        */
 };
 
 #endif

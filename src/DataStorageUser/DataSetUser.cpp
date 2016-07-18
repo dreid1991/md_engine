@@ -1,18 +1,61 @@
 #include "DataSetUser.h"
 #include "Logging.h"
+#include "State.h"
 
 using namespace MD_ENGINE;
 
-DataSetUser::DataSetUser(int64_t currentTurn, int dataScalarVector_, int dataType_, boost::python::object pyFunc_) : computeMode(COMPUTEMODE::PYTHON), dataScalarVector(dataScalarVector_), dataType(dataType_), pyFunc(pyFunc_), pyFuncRaw(pyFunc_.ptr()) {
+DataSetUser::DataSetUser(State *state_, boost::shared_ptr<DataComputer> computer_, uint32_t groupTag_, int dataMode_, int dataType_, boost::python::object pyFunc_) : state(state_), computeMode(COMPUTEMODE::PYTHON), dataMode(dataMode_), dataType(dataType_), groupTag(groupTag_), pyFunc(pyFunc_), pyFuncRaw(pyFunc_.ptr()) {
     mdAssert(PyCallable_Check(pyFuncRaw));
-    setNextTurn(currentTurn);
+    setNextTurn(state->turn);
+    setRequiresFlags();
 }
 
-DataSetUser::DataSetUser(int64_t currentTurn, int dataScalarVector_, int dataType_, int interval_) : computeMode(COMPUTEMODE::INTERVAL), dataScalarVector(dataScalarVector_), dataType(dataType_), interval(interval_) {
-    nextCompute = currentTurn;
+DataSetUser::DataSetUser(State *state, boost::shared_ptr<DataComputer> computer_, uint32_t groupTag_, int dataMode_, int dataType_, int interval_) : state(state_), computeMode(COMPUTEMODE::INTERVAL), dataMode(dataMode_), dataType(dataType_), groupTag(groupTag_), interval(interval_) {
+    nextCompute = state->turn;
+    setRequiresFlags();
 
 }
+void DataSetUser::prepareForRun() {
+    compute->computingScalar = false;
+    compute->computingVector = false;
+    if (dataMode == DATAMODE::SCALAR) {
+        compute->computingScalar = true;
+    } else if (dataMode == DATAMODE::TENSOR) {
+        compute->computingTensor = true;
+    }
+    compute->prepareForRun();
+    
+}
+void DataSetUser::computeData() {
+    if (dataMode == DATAMODE::SCALAR) {
+        compute->computeScalar_GPU(true, groupTag);
+    } else if (dataMode == DATAMODE::TENSOR) {
+        compute->computeTensor_GPU(true, groupTag);
+    }
+    turns.append(state->turn);
+}
 
+void DataSetUser::appendData() {
+    if (dataMode == DATAMODE::SCALAR) {
+        compute->computeScalar_CPU();
+        compute->appendScalar(vals);
+    } else if (dataMode == DATAMODE::TENSOR) {
+        compute->computeTensor_CPU();
+        compute->appendTensor(vals);
+    }
+}
+
+void DataSetUser::setRequiresFlags() {
+    requiresVirials = false;
+    requiresEnergy = false;
+    if (dataType == DATATYPE::PRESSURE) {
+        requiresVirials = true;
+    }
+    if (dataType == DATATYPE::ENERGY) {
+        requiresEnergy = true;
+    }
+}
+        
 DataSetUser::setNextTurn(int64_t currentTurn) {
     if (computeMode == COMPUTEMODE::INTERVAL) {
         nextCompute = currentTurn + interval;

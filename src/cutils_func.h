@@ -4,6 +4,7 @@
 
 #include "globalDefs.h"
 #include "cutils_math.h"
+#include "Virial.h"
 #define N_DATA_PER_THREAD 4 //must be power of 2, 4 found to be fastest for a floats and float4s
 //tests show that N_DATA_PER_THREAD = 4 is fastest
 
@@ -90,14 +91,16 @@ public:\
         return ( ZERO );\
     }\
 };
-
+  //          vir.vals[3] = vel.x * vel.y;
+   //         vir.vals[4] = vel.x * vel.z;
+    //        vir.vals[5] = vel.y * vel.z;
 
 ACCUMULATION_CLASS(SumSingle, float, float, x, x, 0);
 ACCUMULATION_CLASS(SumSqr, float, float, x, x*x, 0);
 ACCUMULATION_CLASS(SumVectorSqr3D, float, float4, v, lengthSqr(make_float3(v)), 0);
 ACCUMULATION_CLASS(SumVectorSqr3DOverW, float, float4, v, lengthSqrOverW(v), 0); //for temperature
 ACCUMULATION_CLASS(SumVectorXYZOverW, float4, float4, v, xyzOverW(v), make_float4(0, 0, 0, 0)); //for linear momentum
-
+ACCUMULATION_CLASS(SumVectorToVirial, Virial, float4, v, Virial(v.x*v.x, v.y*v.y, v.z*v.z, v.x*v.y, v.x*v.z, v.y*v.z), Virial(0, 0, 0, 0, 0, 0)); 
 
 template <class K, class T, class C, int NPERTHREAD>
 __global__ void accumulate_gpu(K *dest, T *src, int n, int warpSize, C instance) {
@@ -160,6 +163,7 @@ ACCUMULATION_CLASS_IF(SumSqrIf, float, float, x, x*x, 0);
 ACCUMULATION_CLASS_IF(SumVectorSqr3DIf, float, float4, v, lengthSqr(make_float3(v)), 0);
 ACCUMULATION_CLASS_IF(SumVectorSqr3DOverWIf, float, float4, v, lengthSqrOverW(v), 0); //for temperature
 ACCUMULATION_CLASS_IF(SumVectorXYZOverWIf, float4, float4, v, xyzOverW(v), make_float4(0, 0, 0, 0)); //for linear momentum
+ACCUMULATION_CLASS_IF(SumVectorToVirialIf, Virial, float4, v, Virial(v.x*v.x, v.y*v.y, v.z*v.z, v.x*v.y, v.x*v.z, v.y*v.z), Virial(0, 0, 0, 0, 0, 0)); 
 
 
 

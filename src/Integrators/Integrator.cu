@@ -3,7 +3,7 @@
 #include "boost_for_export.h"
 #include "globalDefs.h"
 #include "cutils_func.h"
-#include "DataSet.h"
+#include "DataSetUser.h"
 #include "Fix.h"
 #include "GPUArray.h"
 #include "PythonOperation.h"
@@ -152,9 +152,8 @@ void Integrator::basicPrepare(int numTurns) {
         f->prepareForRun();
     }
     state->gridGPU.periodicBoundaryConditions(-1, true);
-    for (DataSet *ds : state->dataManager.dataSets) {
-        ds->setCollectMode();
-        ds->prepareForRun();
+    for (boost::shared_ptr<DataSetUser> ds : state->dataManager.dataSets) {
+        ds->prepareForRun(); //will also prepare those data sets' computers
     }
 }
 
@@ -184,9 +183,9 @@ void Integrator::setActiveData() {
     if (state->requiresCharges) {
         activeData.push_back((GPUArray *) &state->gpd.qs);
     }
-    if (state->computeVirials) {
-        activeData.push_back((GPUArray *) &state->gpd.virials);
-    }
+
+    activeData.push_back((GPUArray *) &state->gpd.virials);
+    activeData.push_back((GPUArray *) &state->gpd.perParticleEng);
 }
 
 

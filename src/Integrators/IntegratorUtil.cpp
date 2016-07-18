@@ -35,17 +35,34 @@ void IntegratorUtil::forceSingle(bool computeVirials) {
 }
 
 
-void IntegratorUtil::doDataCollection() {
+void IntegratorUtil::doDataComputation() {
     DataManager &dm = state->dataManager;
     int64_t turn = state->turn;
-    for (DataSet *ds : dm.dataSets) {
+    bool computedAny = false;
+    for (boost::shared_ptr<DataSetUser> ds : dm.dataSets) {
         if (ds->nextCollectTurn == turn) {
-            ds->collect();
-            ds->setNextCollectTurn(turn);
+            if (ds->requiresEnergy) {
+                dm.computeEnergy();
+            }
+            ds->computeData();
+            ds->setNextTurn(turn);
+            computedAny = true;
         }
     }
-    cudaDeviceSynchronize();
-    for (DataSet *ds : dm.dataSets) {
-        ds->appendValues();
+    if (computedAny) {
+        cudaDeviceSynchronize();
+    }
+    //append is after post_force, final step to keep to gpu busy while we do slow python list appending
+}
+
+void IntegratorUtil::doDataAppending() {
+    DataManager &dm = state->dataManager;
+    for (boost::shared_ptr<DataSetUser> ds : dm.dataSets) {
+        if (ds->nextCollectTurn == turn) {
+            ds->appendData();
+        }
     }
 }
+
+
+

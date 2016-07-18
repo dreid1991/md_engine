@@ -19,7 +19,8 @@ class IntegratorUtil {
     void force(bool computeVirials);
 
     //! Collect data for all DataSets
-    void doDataCollection();
+    void doDataComputation();
+    void doDataAppending();
 
     //! Calculate single point energy for all fixes
     /*!
@@ -33,6 +34,6 @@ class IntegratorUtil {
      *
      */
     void forceSingle(bool computeVirials);
-}
+};
 
 #endif
