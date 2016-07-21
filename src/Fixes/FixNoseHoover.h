@@ -10,7 +10,6 @@
 #include <boost/shared_ptr.hpp>
 
 #include "FixThermostatBase.h"
-#include "DataComputerTemperature.h"
 
 //! Make FixNoseHoover available to the python interface
 void export_FixNoseHoover();
@@ -95,8 +94,8 @@ private:
      * simulation. The temperature depends on the timestep and is updated in
      * this function.
      */
+    bool updateTemperature();
 
-    void calculateKineticEnergy();
     //! This function updates the thermostat masses
     /*!
      * The masses of the thermostat depend on the desired temperature. Thus,
@@ -106,6 +105,12 @@ private:
      * calculated and are up to date.
      */
     void updateMasses();
+
+    //! Get the total kinetic energy
+    /*!
+     * Calculate the total kinetic energy of the atoms in the Fix group
+     */
+    void calculateKineticEnergy();
 
     //! Rescale particle velocities
     /*!
@@ -133,7 +138,6 @@ private:
     std::vector<double> thermMass; //!< Masses of the Nose-Hoover thermostats
 
     float scale; //!< Factor by which the velocities are rescaled
-    MD_ENGINE::DataComputerTemperature tempComputer;
 };
 
 #endif

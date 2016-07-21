@@ -58,7 +58,7 @@ void DataComputerTemperature::computeScalar_CPU() {
     if (state->is2d) {
         ndf = 2*n;
     } else {
-        ndf = 2*n;
+        ndf = 3*n;
     }
     totalKEScalar = total;
     tempScalar = total / ndf; 
