@@ -23,10 +23,7 @@ using namespace std;
 #include "boost_stls.h"
 #include "PythonOperation.h"
 //#include "DataManager.h"
-#include "DataSet.h"
-#include "DataSetTemperature.h"
-#include "DataSetEnergy.h"
-#include "DataSetBounds.h"
+#include "DataSetUser.h"
 #include "ReadConfig.h"
 #include "TypedItemHolder.h"
 #include "Angle.h"
@@ -92,9 +89,6 @@ BOOST_PYTHON_MODULE(Sim) {
 
     export_State(); 	
     export_DeviceManager();
-    export_DataSet();
-    export_DataSetTemperature();
-    export_DataSetEnergy();
-    export_DataSetBounds();
+    export_DataSetUser();
 
 }

@@ -6,45 +6,39 @@
 #include "boost_for_export.h"
 #include <vector>
 #include <string>
-class DataSetTemperature;
-class DataSetEnergy;
-class DataSetBounds;
-//#include "DataSet.h"
-class DataSet;
 class State;
 void export_DataManager();
+namespace MD_ENGINE {
+class DataSetUser;
+class DataComputer;
+
 class DataManager {
     State *state;
 	public:
 		DataManager(){};
 		DataManager(State *); 
-        void generateSingleDataSetList();
-/*! \brief Record temperature 
- *
- * behavior: if you call record for something that is already being recorded, it will change collect / collect generator of the existing object and continue append to the existing object's data */
-        SHARED(DataSetTemperature) recordTemperature(std::string groupHandle, int collectEvery, boost::python::object collectGenerator); 
-        void stopRecordTemperature(std::string groupHandle);
-        std::vector<SHARED(DataSetTemperature)> dataSetsTemperature;
+        boost::shared_ptr<DataSetUser> createDataSet(boost::shared_ptr<DataComputer> comp, uint32_t groupTag, int dataMode, int dataType, int interval, boost::python::object collectGenerator);
 
-        SHARED(DataSetEnergy) recordEnergy(std::string groupHandle, int collectEvery, boost::python::object collectGenerator); 
-        void stopRecordEnergy(std::string groupHandle);
-        std::vector<SHARED(DataSetEnergy)> dataSetsEnergy;
+        boost::shared_ptr<MD_ENGINE::DataSetUser> recordTemperature(std::string groupHandle, int interval, boost::python::object collectGenerator); 
+        boost::shared_ptr<MD_ENGINE::DataSetUser> recordEnergy(std::string groupHandle, int collectEvery, boost::python::object collectGenerator); 
+        boost::shared_ptr<MD_ENGINE::DataSetUser> recordPressure(std::string groupHandle, int collectEvery, boost::python::object collectGenerator); 
 
-        SHARED(DataSetBounds) recordBounds(int collectEvery, boost::python::object collectGenerator); 
-        void stopRecordBounds();
-        std::vector<SHARED(DataSetBounds)> dataSetsBounds;//no reason there should ever be more than one of these
-        /* 
-        void stopRecordTemp(string GroupHandle); // will fail if does not exist
-
-        bool stopRecordEng(string groupHandle);
-        */
-        std::vector<DataSet *> dataSets; //to be generated each time run is called
+        void stopRecord(boost::shared_ptr<MD_ENGINE::DataSetUser>);
 
 
-        bool computingVirialsInForce; //so this is true if any fix or data set needs virials.  Those are all the things that could possibly need virials, so should never need to specifically ask to compute them
+        //SHARED(DataSetBounds) recordBounds(int collectEvery, boost::python::object collectGenerator); 
+        //std::vector<SHARED(DataSetBounds)> dataSetsBounds;//no reason there should ever be more than one of these
+
+        std::vector<boost::shared_ptr<DataSetUser> > dataSets;  //to be continually maintained
+
+
         int64_t turnLastEngs;
 
-        void computeEngs();
+        void computeEnergy();
+//!flag for if fixes compute virials in the forst kernels or not.  Is true if any data or fixes need them
+
+        bool computeVirialsInForce; //is set in prepareForRun
 };
 
+}
 #endif

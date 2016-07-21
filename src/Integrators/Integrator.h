@@ -5,6 +5,7 @@
 #include <boost/python/list.hpp>
 #include <string>
 #include <vector>
+#include "IntegratorUtil.h"
 
 class GPUArray;
 class State;
