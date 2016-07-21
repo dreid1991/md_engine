@@ -9,12 +9,10 @@ using namespace MD_ENGINE;
 DataSetUser::DataSetUser(State *state_, boost::shared_ptr<DataComputer> computer_, uint32_t groupTag_, int dataMode_, int dataType_, boost::python::object pyFunc_) : state(state_), computeMode(COMPUTEMODE::PYTHON), dataMode(dataMode_), dataType(dataType_), groupTag(groupTag_), computer(computer_), pyFunc(pyFunc_), pyFuncRaw(pyFunc_.ptr()) {
     mdAssert(PyCallable_Check(pyFuncRaw), "Non-function passed to data set");
     setNextTurn(state->turn);
-    setRequiresFlags();
 }
 
 DataSetUser::DataSetUser(State *state_, boost::shared_ptr<DataComputer> computer_, uint32_t groupTag_, int dataMode_, int dataType_, int interval_) : state(state_), computeMode(COMPUTEMODE::INTERVAL), dataMode(dataMode_), dataType(dataType_), groupTag(groupTag_), computer(computer_), interval(interval_) {
     nextCompute = state->turn;
-    setRequiresFlags();
 
 }
 void DataSetUser::prepareForRun() {
@@ -47,16 +45,6 @@ void DataSetUser::appendData() {
     }
 }
 
-void DataSetUser::setRequiresFlags() {
-    requiresVirials = false;
-    requiresEnergy = false;
-    if (dataType == DATATYPE::PRESSURE) {
-        requiresVirials = true;
-    }
-    if (dataType == DATATYPE::ENERGY) {
-        requiresEnergy = true;
-    }
-}
         
 void DataSetUser::setNextTurn(int64_t currentTurn) {
     if (computeMode == COMPUTEMODE::INTERVAL) {
@@ -74,6 +62,13 @@ void DataSetUser::setPyFunc(boost::python::object func_) {
     pyFunc = func_;
     pyFuncRaw = pyFunc.ptr();
     mdAssert(PyCallable_Check(pyFuncRaw), "Non-function passed to data set");
+}
+
+bool DataSetUser::requiresVirials() {
+    return computer->requiresVirials;
+}
+bool DataSetUser::requiresEnergy() {
+    return computer->requiresEnergy;
 }
 
 void export_DataSetUser() {

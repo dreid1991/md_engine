@@ -39,9 +39,11 @@ namespace MD_ENGINE {
 
         bool computingScalar; //will determine what memory is allocated.  fixes need to tell their computers what they need in prepareforrun
         bool computingTensor;
+        bool requiresEnergy;
+        bool requiresVirials;
         virtual void prepareForRun(){};
         DataComputer(){};
-        DataComputer(State *, bool, bool);
+        DataComputer(State *, bool, bool, bool requiresEnergy_, bool requiresVirials_);
     };
 
 }

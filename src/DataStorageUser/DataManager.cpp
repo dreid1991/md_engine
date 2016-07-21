@@ -2,6 +2,7 @@
 #include "State.h"
 #include "DataComputer.h"
 #include "DataComputerTemperature.h"
+#include "DataComputerEnergy.h"
 #include "DataSetUser.h"
 using namespace MD_ENGINE;
 namespace py = boost::python;
@@ -64,7 +65,6 @@ boost::shared_ptr<DataSetUser> DataManager::createDataSet(boost::shared_ptr<Data
 }
 
 boost::shared_ptr<DataSetUser> DataManager::recordTemperature(std::string groupHandle, int interval, py::object collectGenerator) { //add tensor, etc, later
-    int dataType = DATATYPE::TEMPERATURE;
     boost::shared_ptr<DataComputer> comp = boost::shared_ptr<DataComputer> ( (DataComputer *) new DataComputerTemperature(state, true, false) );
     uint32_t groupTag = state->groupTagFromHandle(groupHandle);
     boost::shared_ptr<DataSetUser> dataSet = createDataSet(comp, groupTag, DATAMODE::SCALAR, DATATYPE::TEMPERATURE, interval, collectGenerator);
@@ -81,12 +81,17 @@ void DataManager::stopRecord(boost::shared_ptr<DataSetUser> dataSet) {
         }
     }
 }
-/*
-SHARED(DataSetEnergy) DataManager::recordEnergy(string groupHandle, int interval, py::object collectGenerator) {
-    return recordGeneric(state, groupHandle, dataSetsEnergy, interval, collectGenerator);
+boost::shared_ptr<DataSetUser> DataManager::recordEnergy(std::string groupHandle, int interval, py::object collectGenerator) {
+    int dataType = DATATYPE::TEMPERATURE;
+    boost::shared_ptr<DataComputer> comp = boost::shared_ptr<DataComputer> ( (DataComputer *) new DataComputerEnergy(state) );
+    uint32_t groupTag = state->groupTagFromHandle(groupHandle);
+    boost::shared_ptr<DataSetUser> dataSet = createDataSet(comp, groupTag, DATAMODE::SCALAR, DATATYPE::ENERGY, interval, collectGenerator);
+    dataSets.push_back(dataSet);
+    return dataSet;
+
 
 }
-}
+/*
 SHARED(DataSetBounds) DataManager::recordBounds(int interval, py::object collectGenerator) {
     return recordGeneric(state, "all", dataSetsBounds, interval, collectGenerator);
 
@@ -144,23 +149,19 @@ void export_DataManager() {
         "DataManager",
         py::no_init
     )
+    .def("stopRecord", &DataManager::stopRecord)
+
     .def("recordTemperature", &DataManager::recordTemperature,
             (py::arg("handle") = "all",
              py::arg("interval") = 0,
              py::arg("turnGenerator") = py::object())
-        )
-    /*
-    .def("stopRecordTemperature", &DataManager::stopRecordTemperature,
-            (py::arg("handle") = "all")
         )
     .def("recordEnergy", &DataManager::recordEnergy,
             (py::arg("handle") = "all",
              py::arg("interval") = 0,
              py::arg("collectGenerator") = py::object())
         )
-    .def("stopRecordEnergy", &DataManager::stopRecordEnergy,
-            (py::arg("handle") = "all")
-        )
+   /* 
     .def("recordBounds", &DataManager::recordBounds,
             (py::arg("interval") = 0,
              py::arg("collectGenerator") = py::object())

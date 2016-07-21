@@ -45,7 +45,7 @@ void IntegratorUtil::doDataComputation() {
     bool computedAny = false;
     for (boost::shared_ptr<DataSetUser> ds : dm.dataSets) {
         if (ds->nextCompute == turn) {
-            if (ds->requiresEnergy) {
+            if (ds->requiresEnergy()) {
                 dm.computeEnergy();
             }
             ds->computeData();

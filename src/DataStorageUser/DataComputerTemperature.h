@@ -9,8 +9,6 @@
 namespace MD_ENGINE {
     class DataComputerTemperature : public DataComputer {
         public:
-            void appendScalar(boost::python::list);
-            void appendTensor(boost::python::list);
 
             void computeScalar_GPU(bool, uint32_t);
             void computeTensor_GPU(bool, uint32_t);
@@ -19,7 +17,9 @@ namespace MD_ENGINE {
             void computeTensor_CPU();
 
             DataComputerTemperature(State *, bool, bool);
+            int ndf;
             void prepareForRun();
+            double totalKEScalar;
             double tempScalar;
             Virial tempTensor;
             //so these are just length 2 arrays.  First value is used for the result of the sum.  Second value is bit-cast to an int and used to cound how many values are present.

@@ -18,22 +18,17 @@ class DataManager {
 		DataManager(){};
 		DataManager(State *); 
         boost::shared_ptr<DataSetUser> createDataSet(boost::shared_ptr<DataComputer> comp, uint32_t groupTag, int dataMode, int dataType, int interval, boost::python::object collectGenerator);
-        boost::shared_ptr<MD_ENGINE::DataSetUser> recordTemperature(std::string groupHandle, int interval, boost::python::object collectGenerator); 
-        void stopRecord(boost::shared_ptr<MD_ENGINE::DataSetUser>);
-        //std::vector<SHARED(DataSetTemperature)> dataSetsTemperature;
 
-        //SHARED(DataSetEnergy) recordEnergy(std::string groupHandle, int collectEvery, boost::python::object collectGenerator); 
-        //void stopRecordEnergy(std::string groupHandle);
-        //std::vector<SHARED(DataSetEnergy)> dataSetsEnergy;
+        boost::shared_ptr<MD_ENGINE::DataSetUser> recordTemperature(std::string groupHandle, int interval, boost::python::object collectGenerator); 
+        boost::shared_ptr<MD_ENGINE::DataSetUser> recordEnergy(std::string groupHandle, int collectEvery, boost::python::object collectGenerator); 
+        boost::shared_ptr<MD_ENGINE::DataSetUser> recordPressure(std::string groupHandle, int collectEvery, boost::python::object collectGenerator); 
+
+        void stopRecord(boost::shared_ptr<MD_ENGINE::DataSetUser>);
+
 
         //SHARED(DataSetBounds) recordBounds(int collectEvery, boost::python::object collectGenerator); 
-        //void stopRecordBounds();
         //std::vector<SHARED(DataSetBounds)> dataSetsBounds;//no reason there should ever be more than one of these
-        /* 
-        void stopRecordTemp(string GroupHandle); // will fail if does not exist
 
-        bool stopRecordEng(string groupHandle);
-        */
         std::vector<boost::shared_ptr<DataSetUser> > dataSets;  //to be continually maintained
 
 
@@ -42,7 +37,7 @@ class DataManager {
         void computeEnergy();
 //!flag for if fixes compute virials in the forst kernels or not.  Is true if any data or fixes need them
 
-        bool computeVirialsInForce; 
+        bool computeVirialsInForce; //is set in prepareForRun
 };
 
 }

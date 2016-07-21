@@ -368,7 +368,7 @@ bool State::prepareForRun() {
 
     dataManager.computeVirialsInForce = false;
     std::vector<bool> requireVirialsFixes = LISTMAP(Fix *, bool, fix, fixes, fix->requiresVirials);
-    std::vector<bool> requireVirialsDataSets = LISTMAP(boost::shared_ptr<DataSetUser>, bool, ds, dataManager.dataSets, ds->requiresVirials);
+    std::vector<bool> requireVirialsDataSets = LISTMAP(boost::shared_ptr<DataSetUser>, bool, ds, dataManager.dataSets, ds->requiresVirials());
     //okay, so current behavior is if any data set or fix requires virials, they are recorded every timestep. 
     //Data set may not require them that often, so could lead to sub-optimal performance.  
     //In future, could be tricky about if I actually set require virials or just let data set ask data manager to compute virials in the rare event that they are needed

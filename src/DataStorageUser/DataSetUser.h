@@ -16,7 +16,6 @@ enum DATATYPE {TEMPERATURE, PRESSURE, ENERGY, BOUNDS};
 class DataSetUser {
 private:
     State *state;
-    void setRequiresFlags();
 public:
     DataSetUser(State *, boost::shared_ptr<DataComputer> computer_, uint32_t groupTag_, int, int, int);
     DataSetUser(State *, boost::shared_ptr<DataComputer> computer_, uint32_t groupTag_, int, int, boost::python::object);
@@ -30,8 +29,8 @@ public:
     int computeMode;
     int64_t nextCompute;
 
-    bool requiresVirials;
-    bool requiresEnergy;
+    bool requiresVirials();
+    bool requiresEnergy();
 
     void prepareForRun();
     void computeData();

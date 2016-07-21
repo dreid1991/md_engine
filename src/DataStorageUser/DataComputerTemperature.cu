@@ -5,34 +5,10 @@
 namespace py = boost::python;
 using namespace MD_ENGINE;
 
-DataComputerTemperature::DataComputerTemperature(State *state_, bool computeScalar_, bool computeVector_) : DataComputer(state_, computeScalar_, computeVector_) {
+DataComputerTemperature::DataComputerTemperature(State *state_, bool computeScalar_, bool computeTensor_) : DataComputer(state_, computeScalar_, computeTensor_, false, false) {
 }
 
 
-/*
-
-__global__ void ke_tensor(Virial *virials, float4 *vs, int nAtoms, float4 *fs, uint32_t groupTag) {
-    int idx = GETIDX();
-    if (idx < nAtoms) {
-        uint32_t atomTag = *(uint32_t *) &(fs[idx].w);
-        if (atomTag & groupTag) {
-            float3 vel = make_float3(vs[idx]);
-            Virial vir;
-            vir.vals[0] = vel.x * vel.x;
-            vir.vals[1] = vel.y * vel.y;
-            vir.vals[2] = vel.z * vel.z;
-            vir.vals[3] = vel.x * vel.y;
-            vir.vals[4] = vel.x * vel.z;
-            vir.vals[5] = vel.y * vel.z;
-            virials[idx] = vir;
-
-        } else {
-            virials[idx] = Virial(0, 0, 0, 0, 0, 0);
-        }
-    }
-}
-
-*/
 void DataComputerTemperature::computeScalar_GPU(bool transferToCPU, uint32_t groupTag) {
     GPUData &gpd = state->gpd;
     tempGPUScalar.d_data.memset(0);
@@ -79,14 +55,20 @@ void DataComputerTemperature::computeScalar_CPU() {
     } else {
         n = * (int *) &tempGPUScalar.h_data[1];
     }
-    tempScalar = total / (3*n); //deal with dimensionality, also fix DOF
+    if (state->is2d) {
+        ndf = 2*n;
+    } else {
+        ndf = 2*n;
+    }
+    totalKEScalar = total;
+    tempScalar = total / ndf; 
 }
 
 void DataComputerTemperature::computeTensor_CPU() {
     int n;
     Virial total = tempGPUTensor.h_data[0];
     if (lastGroupTag == 1) {
-        n = state->atoms.size();//* (int *) &tempGPUScalar.h_data[1];
+        n = state->atoms.size();
     } else {
         n = * (int *) &tempGPUTensor.h_data[1];
     }
@@ -100,33 +82,7 @@ void DataComputerTemperature::appendScalar(boost::python::list &vals) {
 void DataComputerTemperature::appendTensor(boost::python::list &vals) {
     vals.append(tempTensor);
 }
-/*
-void DataComputerTemperature::collect() {
-    if (computingScalar) {
-        computeScalar(true);
-    }
-    if (computingVector) {
-        computeVector(true);
-    }
-    turns.push_back(turn);
-    turnsPy.append(turn);
-}
-void DataComputerTemperature::appendValues() {
-    if (computeScalar) {
-        double tempCur = getScalar();
-        vals.push_back(tempCur);
-        valsPy.append(tempCur);
-    } 
-    if (computeVector) {
-        //store in std::vector too?
-        std::vector<Virial> &virials = getVector();
-        vectorsPy.append(virials);
 
-    }
-    //reset lastScalar... bools
-    
-}
-*/
 void DataComputerTemperature::prepareForRun() {
     if (computingScalar) {
         tempGPUScalar = GPUArrayGlobal<float>(2);
