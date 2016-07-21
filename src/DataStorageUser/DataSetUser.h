@@ -14,16 +14,19 @@ enum COMPUTEMODE {INTERVAL, PYTHON};
 enum DATAMODE {SCALAR, TENSOR};
 enum DATATYPE {TEMPERATURE, PRESSURE, ENERGY, BOUNDS};
 class DataSetUser {
+private:
     State *state;
     void setRequiresFlags();
 public:
+    DataSetUser(State *, boost::shared_ptr<DataComputer> computer_, uint32_t groupTag_, int, int, int);
+    DataSetUser(State *, boost::shared_ptr<DataComputer> computer_, uint32_t groupTag_, int, int, boost::python::object);
+
     boost::python::list turns;
     boost::python::list vals;
     int dataMode; 
     int dataType;
     uint32_t groupTag;
-    DataSetUser(State *, boost::shared_ptr<DataComputer> computer_, uint32_t groupTag_, int, int, int);
-    DataSetUser(State *, boost::shared_ptr<DataComputer> computer_, uint32_t groupTag_, int, int, boost::python::object);
+    boost::shared_ptr<DataComputer> computer;
     int computeMode;
     int64_t nextCompute;
 
@@ -40,7 +43,6 @@ public:
     PyObject *pyFuncRaw;
     int interval;
     void setNextTurn(int64_t currentTurn); //called externally 
-    boost::shared_ptr<DataComputer> computer;
 };
 
 }

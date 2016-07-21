@@ -6,13 +6,13 @@
 namespace py = boost::python;
 using namespace MD_ENGINE;
 
-DataSetUser::DataSetUser(State *state_, boost::shared_ptr<DataComputer> computer_, uint32_t groupTag_, int dataMode_, int dataType_, boost::python::object pyFunc_) : state(state_), computeMode(COMPUTEMODE::PYTHON), dataMode(dataMode_), dataType(dataType_), groupTag(groupTag_), pyFunc(pyFunc_), pyFuncRaw(pyFunc_.ptr()) {
+DataSetUser::DataSetUser(State *state_, boost::shared_ptr<DataComputer> computer_, uint32_t groupTag_, int dataMode_, int dataType_, boost::python::object pyFunc_) : state(state_), computeMode(COMPUTEMODE::PYTHON), dataMode(dataMode_), dataType(dataType_), groupTag(groupTag_), computer(computer_), pyFunc(pyFunc_), pyFuncRaw(pyFunc_.ptr()) {
     mdAssert(PyCallable_Check(pyFuncRaw), "Non-function passed to data set");
     setNextTurn(state->turn);
     setRequiresFlags();
 }
 
-DataSetUser::DataSetUser(State *state_, boost::shared_ptr<DataComputer> computer_, uint32_t groupTag_, int dataMode_, int dataType_, int interval_) : state(state_), computeMode(COMPUTEMODE::INTERVAL), dataMode(dataMode_), dataType(dataType_), groupTag(groupTag_), interval(interval_) {
+DataSetUser::DataSetUser(State *state_, boost::shared_ptr<DataComputer> computer_, uint32_t groupTag_, int dataMode_, int dataType_, int interval_) : state(state_), computeMode(COMPUTEMODE::INTERVAL), dataMode(dataMode_), dataType(dataType_), groupTag(groupTag_), computer(computer_), interval(interval_) {
     nextCompute = state->turn;
     setRequiresFlags();
 
@@ -77,7 +77,7 @@ void DataSetUser::setPyFunc(boost::python::object func_) {
 }
 
 void export_DataSetUser() {
-    boost::python::class_<DataSetUser, boost::noncopyable>("DataSet", boost::python::no_init)
+    boost::python::class_<DataSetUser, boost::shared_ptr<DataSetUser>, boost::noncopyable>("DataSetUser", boost::python::no_init)
     .def_readonly("turns", &DataSetUser::turns)
     .def_readonly("vals", &DataSetUser::vals)
     .def_readwrite("interval", &DataSetUser::interval)
