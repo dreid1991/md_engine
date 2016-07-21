@@ -42,7 +42,6 @@ __global__ void compute_COM(int4 *waterIds, float4 *xs, float4 *vs, int *idToIdx
       pos[i] = pos[0] + delta;
     }
     com[idx] = make_float4(positionsToCOM(pos, mass));
-    //com[idx] = (mass[0]*pos[0] + mass[1]*pos[1] + mass[2]*pos[2])/(mass[0] + mass[1] + mass[2]);
   }
 }
 
@@ -102,36 +101,15 @@ __device__ void settle_xs(float timestep, float3 com, float3 com1, float3 *xs_0,
   float3 cp1 = c1 - com1;
   printf("com1=%f %f %f\n",com1.x,com1.y,com1.z);
 
-  /*
-  float3 a1_flat = make_float3(ap1.x,ap1.y,0);
-  float3 a0_flat = make_float3(ap0.x,ap0.y,0); 
-  float cos_rotz = dot(a1_flat,a0_flat) / (length(a1_flat)*length(a0_flat));
-  float sin_rotz = sqrtf(1-powf(cos_rotz,2));
-  float3 rotz[3] = {make_float3(cos_rotz,sin_rotz,0),make_float3(-sin_rotz,cos_rotz,0),make_float3(0,0,1)};
-  ap0 = rotateCoords(ap0,rotz);
-  bp0 = rotateCoords(bp0,rotz);
-  cp0 = rotateCoords(cp0,rotz);
-  */
-  // get unit vectors for alternate coordinate system
-  //float3 w = cross(b1-a1,b1-c1);
-  //w /= length(w);
-  //float3 v = make_float3(0,1,0);
-  //float3 u = make_float3(1,0,0);
-  //rotz = {make_float3(cos_rotz,sin_rotz,0),make_float3(-sin_rotz,cos_rotz,0),make_float3(0,0,1)};
-  // float3 v = make_float3(ap1.x,ap1.y,0);
-  //v /= length(v);
-  //float3 u = v;
-  // u = rotateCoords(u,[make_float3(0,1,0),make_float3(-1,0,0), make_float3(0,0,0)]);
-  //u /= length(u);
-  //printf("w: %f %f %f  v: %f %f %f u: %f %f %f\n",w.x,w.y,w.z,v.x,v.y,v.z,u.x,u.y,u.z);
-
   float3 a_unit = make_float3(ap1.x,ap1.y,0);
   a_unit /= length(a_unit);
   float3 y_axis = make_float3(0,1,0);
   float cos_rotz = dot(a_unit,y_axis) / (length(a_unit)*length(y_axis));
-  float sin_rotz = sqrtf(1.0 - cos_rotz*cos_rotz);
+  float sin_rotz = 0;
   if (cos_rotz > -1.000001 and cos_rotz < -0.999999) {
     sin_rotz = 0;
+  } else {
+    sin_rotz = sqrtf(1.0 - cos_rotz*cos_rotz);
   }
   //float cos_rotz = ap1.x/length(a_unit);
   //float sin_rotz = ap1.y/length(a_unit);
@@ -150,9 +128,19 @@ __device__ void settle_xs(float timestep, float3 com, float3 com1, float3 *xs_0,
   
 
   float sin_phi = (bp1.z + cp1.z)/(2*rb);
-  float cos_phi = sqrtf(1-(sin_phi*sin_phi));
+  float cos_phi = 0;
+  if (sin_phi > -1.00000 and sin_phi <= -0.999999) {
+    cos_phi = 0;
+  } else {
+    cos_phi = sqrtf(1-(sin_phi*sin_phi));
+  }
   float sin_psi = (bp1.z-cp1.z)/(2*rc*cos_phi);
-  float cos_psi = sqrtf(1-(sin_psi*sin_psi));
+  float cos_psi = 0;
+  if (sin_psi > -1.00000 and sin_psi <= -0.999999) {
+    cos_psi = 0;
+  } else {
+    cos_psi = sqrtf(1-(sin_psi*sin_psi));
+  }
   float3 a2 = make_float3(0,ra*cos_phi,ra*sin_phi);
   float3 b2 = make_float3(-rc*cos_psi,-rb*cos_phi-rc*sin_psi*sin_phi,-rb*sin_phi+rc*sin_psi*cos_phi);
   float3 c2 = make_float3(rc*cos_psi,-rb*cos_phi+rc*sin_psi*sin_phi,-rb*sin_phi-rc*sin_psi*cos_phi);
@@ -164,10 +152,19 @@ __device__ void settle_xs(float timestep, float3 com, float3 com1, float3 *xs_0,
   float gamma = (bp0.x - ap0.x)*bp1.y - bp1.x*(bp0.y - ap0.y) + (cp0.x - ap0.x)*cp1.y - cp1.x*(cp0.y - ap0.y);
   float sin_theta = (alpha*gamma - beta*sqrtf(alpha*alpha + beta*beta - gamma*gamma))/(alpha*alpha + beta*beta);
   printf("sin_theta = %f  alpha = %f  beta = %f  gamma = %f\n", sin_theta, alpha, beta, gamma);
-  float cos_theta = sqrtf(1 - sin_theta*sin_theta);
+  float cos_theta = 0;
+  if (sin_theta > -1.00000 and sin_theta <= -0.999999) {
+    cos_theta = 0;
+  } else {
+    cos_theta = sqrtf(1 - sin_theta*sin_theta);
+  }
   if(sin_theta*alpha + cos_theta*beta > gamma + 0.001 or sin_theta*alpha + cos_theta*beta < gamma - 0.001) {
     float sin_theta = (alpha*gamma + beta*sqrtf(alpha*alpha + beta*beta - gamma*gamma))/(alpha*alpha + beta*beta);
-    float cos_theta = sqrtf(1 - sin_theta*sin_theta);
+    if (sin_theta > -1.00000 and sin_theta <= -0.999999) {
+      cos_theta =0;
+    } else {
+      cos_theta = sqrtf(1 - sin_theta*sin_theta);
+    }
   }
   printf("psi=%f phi=%f theta=%f\n", asinf(sin_psi), asinf(sin_phi), asinf(sin_theta));
   float3 a3 = make_float3(a2.x*cos_theta-a2.y*sin_theta,a2.x*sin_theta+a2.y*cos_theta,a2.z);

@@ -15,6 +15,7 @@
 #include "Fix.h"
 #include "FixNoseHoover.h"
 #include "FixNVTRescale.h"
+#include "FixRigid.h"
 #include "FixSpringStatic.h"
 #include "FixWallHarmonic.h"
 #include "FixWallLJ126.h"
