@@ -1,14 +1,18 @@
 #include "IntegratorUtil.h"
 
 #include "State.h"
-
-IntegtatorUtil::IntegratorUtil(State *state_) {
+#include "DataSetUser.h"
+#include "DataManager.h"
+#include "Fix.h"
+#include <vector>
+using namespace MD_ENGINE;
+IntegratorUtil::IntegratorUtil(State *state_) {
     state = state_;
 }
 
-void Integrator::force(bool computeVirials) {
+void IntegratorUtil::force(bool computeVirials) {
     int simTurn = state->turn;
-    vector<Fix *> &fixes = state->fixes;
+    std::vector<Fix *> &fixes = state->fixes;
     for (Fix *f : fixes) {
         if (! (simTurn % f->applyEvery)) {
             f->compute(computeVirials);
@@ -40,12 +44,11 @@ void IntegratorUtil::doDataComputation() {
     int64_t turn = state->turn;
     bool computedAny = false;
     for (boost::shared_ptr<DataSetUser> ds : dm.dataSets) {
-        if (ds->nextCollectTurn == turn) {
+        if (ds->nextCompute == turn) {
             if (ds->requiresEnergy) {
                 dm.computeEnergy();
             }
             ds->computeData();
-            ds->setNextTurn(turn);
             computedAny = true;
         }
     }
@@ -57,9 +60,11 @@ void IntegratorUtil::doDataComputation() {
 
 void IntegratorUtil::doDataAppending() {
     DataManager &dm = state->dataManager;
+    int64_t turn = state->turn; 
     for (boost::shared_ptr<DataSetUser> ds : dm.dataSets) {
-        if (ds->nextCollectTurn == turn) {
+        if (ds->nextCompute == turn) {
             ds->appendData();
+            ds->setNextTurn(turn);
         }
     }
 }

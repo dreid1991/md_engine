@@ -152,7 +152,7 @@ void Integrator::basicPrepare(int numTurns) {
         f->prepareForRun();
     }
     state->gridGPU.periodicBoundaryConditions(-1, true);
-    for (boost::shared_ptr<DataSetUser> ds : state->dataManager.dataSets) {
+    for (boost::shared_ptr<MD_ENGINE::DataSetUser> ds : state->dataManager.dataSets) {
         ds->prepareForRun(); //will also prepare those data sets' computers
     }
 }
@@ -189,7 +189,7 @@ void Integrator::setActiveData() {
 }
 
 
-Integrator::Integrator(State *state_) : IntegratorBasics(state_) {
+Integrator::Integrator(State *state_) : IntegratorUtil(state_) {
 }
 
 

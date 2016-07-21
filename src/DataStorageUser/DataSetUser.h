@@ -8,36 +8,41 @@
 class State;
 void export_DataSetUser();
 namespace MD_ENGINE {
-    enum COMPUTEMODE {INTERVAL, PYTHON};
-    enum DATAMODE {SCALAR, TENSOR};
-    enum DATATYPE {TEMPERATURE, PRESSURE, ENERGY, BOUNDS};
-    class DataSetUser {
-        State *state;
-        void setRequiresFlags();
-    public:
-        boost::python::list turns;
-        boost::python::list vals;
-        int dataMode; 
-        int dataType;
-        uint32_t groupTag;
-        DataSetUser(State *, boost::shared_ptr<DataComputer> computer_, uint32_t groupTag_, int, int, int);
-        DataSetUser(State *, boost::shared_ptr<DataComputer> computer_, uint32_t groupTag_, int, int, boost::python::object);
-        int computeMode;
-        int64_t nextCompute;
 
-        bool requiresVirials;
-        bool requiresEnergy;
+class DataComputer;
+enum COMPUTEMODE {INTERVAL, PYTHON};
+enum DATAMODE {SCALAR, TENSOR};
+enum DATATYPE {TEMPERATURE, PRESSURE, ENERGY, BOUNDS};
+class DataSetUser {
+    State *state;
+    void setRequiresFlags();
+public:
+    boost::python::list turns;
+    boost::python::list vals;
+    int dataMode; 
+    int dataType;
+    uint32_t groupTag;
+    DataSetUser(State *, boost::shared_ptr<DataComputer> computer_, uint32_t groupTag_, int, int, int);
+    DataSetUser(State *, boost::shared_ptr<DataComputer> computer_, uint32_t groupTag_, int, int, boost::python::object);
+    int computeMode;
+    int64_t nextCompute;
 
-        void prepareForRun();
-        void computeData();
-        void appendData();
+    bool requiresVirials;
+    bool requiresEnergy;
 
-        boost::python::object pyFunc;
-        PyObject *pyFuncRaw;
-        int interval;
-        void setNextTurn(int64_t currentTurn); //called externally 
-        boost::shared_ptr<DataComputer> computer;
-    };
+    void prepareForRun();
+    void computeData();
+    void appendData();
+
+    void setPyFunc(boost::python::object func_);
+    boost::python::object getPyFunc();
+    boost::python::object pyFunc;
+    PyObject *pyFuncRaw;
+    int interval;
+    void setNextTurn(int64_t currentTurn); //called externally 
+    boost::shared_ptr<DataComputer> computer;
+};
+
 }
 
 

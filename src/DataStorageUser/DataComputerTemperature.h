@@ -5,9 +5,8 @@
 #include "DataComputer.h"
 #include "GPUArrayGlobal.h"
 #include "Virial.h"
-namespace MD_ENGINE {
-    class State;
 
+namespace MD_ENGINE {
     class DataComputerTemperature : public DataComputer {
         public:
             void appendScalar(boost::python::list);
@@ -34,6 +33,6 @@ namespace MD_ENGINE {
             Virial getTensor();
 
     };
-}
+};
 
 #endif

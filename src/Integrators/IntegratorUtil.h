@@ -6,7 +6,9 @@
 class State;
 
 class IntegratorUtil {
+public:
     IntegratorUtil(State *);
+    IntegratorUtil(){};
     State *state;
     //! Calculate force for all fixes
     /*!

@@ -1,47 +1,49 @@
 #include "DataSetUser.h"
 #include "Logging.h"
 #include "State.h"
+#include "DataComputer.h"
 
+namespace py = boost::python;
 using namespace MD_ENGINE;
 
 DataSetUser::DataSetUser(State *state_, boost::shared_ptr<DataComputer> computer_, uint32_t groupTag_, int dataMode_, int dataType_, boost::python::object pyFunc_) : state(state_), computeMode(COMPUTEMODE::PYTHON), dataMode(dataMode_), dataType(dataType_), groupTag(groupTag_), pyFunc(pyFunc_), pyFuncRaw(pyFunc_.ptr()) {
-    mdAssert(PyCallable_Check(pyFuncRaw));
+    mdAssert(PyCallable_Check(pyFuncRaw), "Non-function passed to data set");
     setNextTurn(state->turn);
     setRequiresFlags();
 }
 
-DataSetUser::DataSetUser(State *state, boost::shared_ptr<DataComputer> computer_, uint32_t groupTag_, int dataMode_, int dataType_, int interval_) : state(state_), computeMode(COMPUTEMODE::INTERVAL), dataMode(dataMode_), dataType(dataType_), groupTag(groupTag_), interval(interval_) {
+DataSetUser::DataSetUser(State *state_, boost::shared_ptr<DataComputer> computer_, uint32_t groupTag_, int dataMode_, int dataType_, int interval_) : state(state_), computeMode(COMPUTEMODE::INTERVAL), dataMode(dataMode_), dataType(dataType_), groupTag(groupTag_), interval(interval_) {
     nextCompute = state->turn;
     setRequiresFlags();
 
 }
 void DataSetUser::prepareForRun() {
-    compute->computingScalar = false;
-    compute->computingVector = false;
+    computer->computingScalar = false;
+    computer->computingTensor = false;
     if (dataMode == DATAMODE::SCALAR) {
-        compute->computingScalar = true;
+        computer->computingScalar = true;
     } else if (dataMode == DATAMODE::TENSOR) {
-        compute->computingTensor = true;
+        computer->computingTensor = true;
     }
-    compute->prepareForRun();
+    computer->prepareForRun();
     
 }
 void DataSetUser::computeData() {
     if (dataMode == DATAMODE::SCALAR) {
-        compute->computeScalar_GPU(true, groupTag);
+        computer->computeScalar_GPU(true, groupTag);
     } else if (dataMode == DATAMODE::TENSOR) {
-        compute->computeTensor_GPU(true, groupTag);
+        computer->computeTensor_GPU(true, groupTag);
     }
     turns.append(state->turn);
 }
 
 void DataSetUser::appendData() {
     if (dataMode == DATAMODE::SCALAR) {
-        compute->computeScalar_CPU();
-        compute->appendScalar(vals);
+        computer->computeScalar_CPU();
+        computer->appendScalar(vals);
     } else if (dataMode == DATAMODE::TENSOR) {
-        compute->computeTensor_CPU();
-        compute->appendTensor(vals);
+        computer->computeTensor_CPU();
+        computer->appendTensor(vals);
     }
 }
 
@@ -56,11 +58,11 @@ void DataSetUser::setRequiresFlags() {
     }
 }
         
-DataSetUser::setNextTurn(int64_t currentTurn) {
+void DataSetUser::setNextTurn(int64_t currentTurn) {
     if (computeMode == COMPUTEMODE::INTERVAL) {
         nextCompute = currentTurn + interval;
     } else {
-        nextCompute = py::call<int64_t>(currentTurn);
+        nextCompute = py::call<int64_t>(pyFuncRaw, currentTurn);
     }
 }
 
@@ -71,14 +73,14 @@ boost::python::object DataSetUser::getPyFunc() {
 void DataSetUser::setPyFunc(boost::python::object func_) {
     pyFunc = func_;
     pyFuncRaw = pyFunc.ptr();
-    mdAssert(PyCallable_Check(pyFuncRaw));
+    mdAssert(PyCallable_Check(pyFuncRaw), "Non-function passed to data set");
 }
 
 void export_DataSetUser() {
-    boost::python::class_<DataSeaUser, boost::noncopyable>("DataSet", boost::python::no_init)
+    boost::python::class_<DataSetUser, boost::noncopyable>("DataSet", boost::python::no_init)
     .def_readonly("turns", &DataSetUser::turns)
     .def_readonly("vals", &DataSetUser::vals)
-    .def_readwrite("interval", &DataSet::interval)
+    .def_readwrite("interval", &DataSetUser::interval)
     .add_property("pyFunc", &DataSetUser::getPyFunc, &DataSetUser::setPyFunc);
  //   .def("getDataSet", &DataManager::getDataSet)
     ;

@@ -13,7 +13,7 @@ __global__ void compute_force_iso(int nAtoms, const float4 *__restrict__ xs, flo
     }
     copyToShared<float>(parameters, paramsAll, N*sqrSize);
     __syncthreads();
-    Virial virialsSum = Virial();
+    Virial virialsSum = Virial(0, 0, 0, 0, 0, 0);
     int idx = GETIDX();
     if (idx < nAtoms) {
         int baseIdx = baseNeighlistIdx(cumulSumMaxPerBlock, warpSize);

@@ -1,10 +1,11 @@
 #include "DataComputer.h"
 #include "State.h"
 namespace py = boost::python;
-DataComputer::DataComputer(State *state_, bool computeScalar_, bool computeTensor_) {
+using namespace MD_ENGINE;
+DataComputer::DataComputer(State *state_, bool computingScalar_, bool computingTensor_) {
     state = state_;
-    computeScalar = computeScalar_;
-    computeTensor = computeTensor_;
+    computingScalar = computingScalar_;
+    computingTensor = computingTensor_;
     lastGroupTag = 0;
 };
 

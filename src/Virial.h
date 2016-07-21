@@ -1,7 +1,7 @@
 #pragma once
 #ifndef VIRIAL_H
 #define VIRIAL_H
-#include "Logging.h"
+//#include "Logging.h"
 //as xx, yy, zz, xy, xz, yz
 class Virial {
     public:

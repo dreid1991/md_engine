@@ -96,7 +96,7 @@ public:
     Bounds bounds; //!< Bounds on the CPU
     std::vector<Fix *> fixes; //!< List of all fixes
     std::vector<boost::shared_ptr<Fix> > fixesShr; //!< List of shared pointers to fixes
-    DataManager dataManager; //!< Data manager
+    MD_ENGINE::DataManager dataManager; //!< Data manager
     std::vector<boost::shared_ptr<WriteConfig> > writeConfigs; //!< List of output writers
     std::vector<boost::shared_ptr<PythonOperation> > pythonOperations; //!< List of Python
                                                             //!< operations

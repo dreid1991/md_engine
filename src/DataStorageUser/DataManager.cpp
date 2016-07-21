@@ -54,20 +54,22 @@ void stopRecordGeneric(State *state, string dataType, string groupHandle, vector
 }
 */
 
-boost::shared_ptr<DataSetUser> DataManager::createDataSet(boost:shared_ptr<DataComputer> comp, uint32_t, groupTag, int dataMode, int dataType, int interval, boost::python::object turnGenerator);
+boost::shared_ptr<DataSetUser> DataManager::createDataSet(boost::shared_ptr<DataComputer> comp, uint32_t groupTag, int dataMode, int dataType, int interval, py::object collectGenerator) {
     if (interval == 0) {
-        return DataSetUser(state, comp, groupTag, dataMode, dataType, turnGenerator);
+        return boost::shared_ptr<DataSetUser>(new DataSetUser(state, comp, groupTag, dataMode, dataType, collectGenerator));
     } else {
-        return DataSetUser(state, comp, groupTag, dataMode, dataType, interval);
+        return boost::shared_ptr<DataSetUser>(new DataSetUser(state, comp, groupTag, dataMode, dataType, interval));
     }
 
 }
 
-boost::shared_ptr<DataSetUser> DataManager::recordTemperature(string groupHandle, int interval, py::object collectGenerator) { //add tensor, etc, later
+boost::shared_ptr<DataSetUser> DataManager::recordTemperature(std::string groupHandle, int interval, py::object collectGenerator) { //add tensor, etc, later
     int dataType = DATATYPE::TEMPERATURE;
     boost::shared_ptr<DataComputer> comp = boost::shared_ptr<DataComputer> ( (DataComputer *) new DataComputerTemperature(state, true, false) );
-    dataSets.push_back(comp);
-    return createDataSet(state, groupHandle, dataSets, interval, collectGenerator);
+    uint32_t groupTag = state->groupTagFromHandle(groupHandle);
+    boost::shared_ptr<DataSetUser> dataSet = createDataSet(comp, groupTag, DATAMODE::SCALAR, DATATYPE::TEMPERATURE, interval, collectGenerator);
+    dataSets.push_back(dataSet);
+    return dataSet;
 
 }
 void DataManager::stopRecord(boost::shared_ptr<DataSetUser> dataSet) {

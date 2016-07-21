@@ -6,6 +6,8 @@
 #include "WriteConfig.h"
 #include "ReadConfig.h"
 #include "PythonOperation.h"
+#include "DataManager.h"
+#include "DataSetUser.h"
 
 /* State is where everything is sewn together. We set global options:
  *   - gpu cuda device data and options
@@ -20,7 +22,8 @@
 
 #include "State.h"
 
-using namespace std;
+using namespace MD_ENGINE;
+
 namespace py = boost::python;
 State::State() {
     groupTags["all"] = (unsigned int) 1;
@@ -54,7 +57,6 @@ State::State() {
     specialNeighborCoefs[1] = 0;
     specialNeighborCoefs[2] = 0.5;
     rng_is_seeded = false;
-    turnLastSynced = turn-1;
 
 
 }
@@ -178,7 +180,7 @@ bool State::removeAtom(Atom *a) {
     return true;
 }
 
-void State::createMolecule(vector<int> &ids) {
+void State::createMolecule(std::vector<int> &ids) {
     for (int id : ids) {
         mdAssert(idToIdx[id] != -1, "Invalid atom id given for molecule");
     }
@@ -187,7 +189,7 @@ void State::createMolecule(vector<int> &ids) {
 
 void State::createMoleculePy(py::list idsPy) {
     int len = py::len(idsPy);
-    vector<int> ids(len);
+    std::vector<int> ids(len);
     for (int i=0; i<len; i++) {
         py::extract<int> idPy(idsPy[i]);
         if (!idPy.check()) {
@@ -202,8 +204,8 @@ void State::createMoleculePy(py::list idsPy) {
 
 
 void State::duplicateMolecule(Molecule &molec) {
-    map<int, int> oldToNew;
-    vector<int> newIds;
+    std::map<int, int> oldToNew;
+    std::vector<int> newIds;
     for (int id : molec.ids) {
         Atom &a = atoms[idToIdx[id]];
         Atom &dup = duplicateAtom(a);
@@ -230,7 +232,7 @@ void State::duplicateMolecule(Molecule &molec) {
 
 //complete refresh of idToIdx map.  used to removing atoms
 void State::refreshIdToIdx() {
-    idToIdx = vector<int>(maxIdExisting+1, -1);
+    idToIdx = std::vector<int>(maxIdExisting+1, -1);
     for (int i=0; i<atoms.size(); i++) {
         idToIdx[atoms[i].id] = i;
     }
@@ -321,7 +323,6 @@ bool State::deactivatePythonOperation(SHARED(PythonOperation) other) {
 
 
 bool State::activateFix(SHARED(Fix) other) {
-    cout << "FIX" << endl;
     if (other->state != this) {
         std::cout << "Trying to add fix with handle " << other->handle
                   << ", but fix was initialized with a different State" << std::endl;
@@ -336,7 +337,7 @@ bool State::deactivateFix(SHARED(Fix) other) {
 float State::getMaxRCut() {
     float maxRCut = rCut;
     for (Fix *f : fixes) {
-        vector<float> rCuts = f->getRCuts();
+        std::vector<float> rCuts = f->getRCuts();
         for (float x : rCuts) {
             maxRCut = fmax(x, maxRCut);
         }
@@ -348,7 +349,6 @@ float State::getMaxRCut() {
 
 void State::initializeGrid() {
     double maxRCut = getMaxRCut();// ALSO PADDING PLS
-    cout << "cut is " << maxRCut << endl;
     double gridDim = maxRCut + padding;
     gridGPU = GridGPU(this, gridDim, gridDim, gridDim, gridDim);
 
@@ -361,21 +361,20 @@ bool State::prepareForRun() {
     std::vector<float> qs;
 
     requiresCharges = false;
-    vector<bool> requireCharges = LISTMAP(Fix *, bool, fix, fixes, fix->requiresCharges);
+    std::vector<bool> requireCharges = LISTMAP(Fix *, bool, fix, fixes, fix->requiresCharges);
     if (!requireCharges.empty()) {
-        requiresCharges = *max_element(requireCharges.begin(), requireCharges.end());
+        requiresCharges = *std::max_element(requireCharges.begin(), requireCharges.end());
     }
 
-    state->dataManager.generateSingleDataSetList();
     dataManager.computeVirialsInForce = false;
-    vector<bool> requireVirialsFixes = LISTMAP(Fix *, bool, fix, fixes, fix->requiresVirials);
-    vector<bool> requireVirialsDataSets = LISTMAP(DataSet *, bool, ds, dataManager.dataSets, ds->requiresVirials);
+    std::vector<bool> requireVirialsFixes = LISTMAP(Fix *, bool, fix, fixes, fix->requiresVirials);
+    std::vector<bool> requireVirialsDataSets = LISTMAP(boost::shared_ptr<DataSetUser>, bool, ds, dataManager.dataSets, ds->requiresVirials);
     //okay, so current behavior is if any data set or fix requires virials, they are recorded every timestep. 
     //Data set may not require them that often, so could lead to sub-optimal performance.  
     //In future, could be tricky about if I actually set require virials or just let data set ask data manager to compute virials in the rare event that they are needed
     requireVirialsFixes.insert(requireVirialsFixes.end(), requireVirialsDataSets.begin(), requireVirialsDataSets.end());
     if (!requireVirialsFixes.empty()) {
-        dataManager.computeVirialsInForce = *max_element(requireVirialsFixes.begin(), requireVirialsFixes.end());
+        dataManager.computeVirialsInForce = *std::max_element(requireVirialsFixes.begin(), requireVirialsFixes.end());
     }
 
 
@@ -407,14 +406,14 @@ bool State::prepareForRun() {
     if (requiresCharges) {
         gpd.qs.set(qs);
     }
-    vector<Virial> virials(atoms.size(), Virial(0, 0, 0, 0, 0, 0));
+    std::vector<Virial> virials(atoms.size(), Virial(0, 0, 0, 0, 0, 0));
     gpd.virials = GPUArrayGlobal<Virial>(nAtoms);
     gpd.virials.set(virials);
     gpd.perParticleEng = GPUArrayGlobal<float>(nAtoms);
     // so... wanna keep ids tightly packed.  That's managed by program, not user
     std::vector<int> id_vec = LISTMAPREF(Atom, int, a, atoms, a.id);
     std::vector<int> idToIdxs_vec;
-    int size = *max_element(id_vec.begin(), id_vec.end()) + 1;
+    int size = *std::max_element(id_vec.begin(), id_vec.end()) + 1;
     idToIdxs_vec.reserve(size);
     for (int i=0; i<size; i++) {
         idToIdxs_vec.push_back(-1);
@@ -478,7 +477,7 @@ bool State::asyncHostOperation(std::function<void (int64_t )> cb) {
     cudaDeviceSynchronize();
     //cout << "ASYNC IS NOT ASYNC" << endl;
     //copyAsyncWithInstruc(this, cb, turn);
-    asyncData = SHARED(thread) ( new thread(copyAsyncWithInstruc, this, cb, turn));
+    asyncData = SHARED(std::thread) ( new std::thread(copyAsyncWithInstruc, this, cb, turn));
     // okay, now launch a thread to start async copying, then wait for it to
     // finish, and set the cb on state (and maybe a flag if you can't set the
     // function lambda equal to null
@@ -643,7 +642,7 @@ std::mt19937 &State::getRNG() {
 
 void State::seedRNG(unsigned int seed) {
     if (seed == 0) {
-        random_device randDev;
+        std::random_device randDev;
         randomNumberGenerator.seed(randDev());
     } else {
         randomNumberGenerator.seed(seed);
@@ -656,13 +655,6 @@ Vector generateVector(State &s) {
     return Vector();
 }
 
-bool State::isSynced() {
-    return turn == turnLastSynced;
-}
-void State::sync() {
-    turnLastSynced = turn;
-    cudaDeviceSynchronize();
-}
 
 
 BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(State_seedRNG_overloads,State::seedRNG,0,1)

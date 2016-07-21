@@ -5,6 +5,7 @@
 #include "globalDefs.h"
 #include "cutils_math.h"
 #include "Virial.h"
+#include "SharedMem.h"
 #define N_DATA_PER_THREAD 4 //must be power of 2, 4 found to be fastest for a floats and float4s
 //tests show that N_DATA_PER_THREAD = 4 is fastest
 
@@ -104,8 +105,9 @@ ACCUMULATION_CLASS(SumVectorToVirial, Virial, float4, v, Virial(v.x*v.x, v.y*v.y
 
 template <class K, class T, class C, int NPERTHREAD>
 __global__ void accumulate_gpu(K *dest, T *src, int n, int warpSize, C instance) {
-
-    extern __shared__ K tmp[]; 
+    SharedMemory<K> sharedMem;
+    K *tmp = sharedMem.getPointer();
+    
     const int copyBaseIdx = blockDim.x*blockIdx.x * NPERTHREAD + threadIdx.x;
     const int copyIncrement = blockDim.x;
     for (int i=0; i<NPERTHREAD; i++) {
@@ -170,8 +172,9 @@ ACCUMULATION_CLASS_IF(SumVectorToVirialIf, Virial, float4, v, Virial(v.x*v.x, v.
 
 template <class K, class T, class C, int NPERTHREAD>
 __global__ void accumulate_gpu_if(K *dest, T *src, int n, int warpSize, C instance) {
+    SharedMemory<K> sharedMem;
+    K *tmp = sharedMem.getPointer();
 
-    extern __shared__ K tmp[]; 
     int numAdded = 0;
     const int copyBaseIdx = blockDim.x*blockIdx.x * NPERTHREAD + threadIdx.x;
     const int copyIncrement = blockDim.x;

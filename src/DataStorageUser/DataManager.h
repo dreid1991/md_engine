@@ -6,18 +6,20 @@
 #include "boost_for_export.h"
 #include <vector>
 #include <string>
-class DataSetUser;
-class DataComputer;
 class State;
 void export_DataManager();
+namespace MD_ENGINE {
+class DataSetUser;
+class DataComputer;
+
 class DataManager {
     State *state;
 	public:
 		DataManager(){};
 		DataManager(State *); 
         boost::shared_ptr<DataSetUser> createDataSet(boost::shared_ptr<DataComputer> comp, uint32_t groupTag, int dataMode, int dataType, int interval, boost::python::object collectGenerator);
-        boost::shared_ptr<DataSetUser> recordTemperature(std::string groupHandle, int interval, boost::python::object collectGenerator); 
-        void stopRecord(boost::shared_ptr<DataSetUser>);
+        boost::shared_ptr<MD_ENGINE::DataSetUser> recordTemperature(std::string groupHandle, int interval, boost::python::object collectGenerator); 
+        void stopRecord(boost::shared_ptr<MD_ENGINE::DataSetUser>);
         //std::vector<SHARED(DataSetTemperature)> dataSetsTemperature;
 
         //SHARED(DataSetEnergy) recordEnergy(std::string groupHandle, int collectEvery, boost::python::object collectGenerator); 
@@ -38,6 +40,10 @@ class DataManager {
         int64_t turnLastEngs;
 
         void computeEnergy();
+//!flag for if fixes compute virials in the forst kernels or not.  Is true if any data or fixes need them
+
+        bool computeVirialsInForce; 
 };
 
+}
 #endif
