@@ -2,13 +2,16 @@
 #ifndef FIXRIGID_H
 #define FIXRIGID_H
 
+#include "Python.h"
 #include "Fix.h"
 #include <boost/python.hpp>
 #include <boost/python/list.hpp>
 #include "GPUArrayDeviceGlobal.h"
 
-float4 settle_xs(float timestep, float4 com, float4 *xs_0, float4 *xs);
+float4 settle_xs(float timestep, float4 com, float4 com1, float4 *xs_0, float4 *xs);
 float4 settle_vs(float timestep, float4 *vs_0, float4 *vs);
+
+void export_FixRigid();
 
 class FixRigid : public Fix {
  private:
