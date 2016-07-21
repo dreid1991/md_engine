@@ -17,22 +17,13 @@ void export_Integrator();
  * aspects common to all integrators such as doing basic checks, data transfer
  * from and to the GPU, etc.
  */
-class Integrator {
+class Integrator : public IntegratorUtil {
 
 protected:
     //! Call fixes just before a step
     void stepInit(bool computeVirials);
 
-    //! Calculate force for all fixes
-    /*!
-     * \param computeVirials Compute virials for all forces if True
-     *
-     * This function iterates over all fixes and if the Fix should be applied
-     * its force (and virials) is computed.
-     *
-     * \todo Use state->computeVirials instead of parameter
-     */
-    void force(bool computeVirials);
+
     
     //! Call fixes just after the timestepping
     void stepFinal();
@@ -78,15 +69,8 @@ protected:
     //! Collect all pointers to the relevant data into activeData
     void setActiveData();
 
-    //! Collect data for all DataSets
-    void doDataCollection();
 
-    //! Calculate single point energy for all fixes
-    /*!
-     * A single point energy excludes energy/forces from thermostat fixes and
-     * the likes.
-     */
-    void singlePointEng(); //! \todo make a python-wrapped version
+
 
 public:
     //! Calculate and return single point energy
@@ -98,6 +82,7 @@ public:
      * This function calculates and returns the average per particle energy for
      * the particles in the group specified via the groupHandle.
      */
+    //SHOULD THIS BE HERE OR IN STATE?
     double singlePointEngPythonAvg(std::string groupHandle);
 
     //! Create list of per-particle energies
@@ -108,7 +93,6 @@ public:
      * containing one value per atom in the simulation.
      */
     boost::python::list singlePointEngPythonPerParticle();
-    State *state; //!< Pointer to the simulation state
 
     //! Default constructor
     /*!
@@ -125,16 +109,7 @@ public:
      */
     explicit Integrator(State *state_);
 
-    //! Calculate single point force
-    /*!
-     * \param computeVirials Virials are computed if this parameter is True
-     *
-     * Calculate single point energy, i.e. calculate energy only for \link Fix
-     * Fixes \endlink with Fix::forceSingle == True.
-     *
-     * \todo Use state->computeVirials instead of parameter
-     */
-    void forceSingle(bool computeVirials);
+
 
     //! Write output for all \link WriteConfig WriteConfigs \endlink
     void writeOutput();

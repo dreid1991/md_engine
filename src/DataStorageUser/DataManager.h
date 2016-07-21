@@ -39,6 +39,12 @@ class DataManager {
         bool stopRecordEng(string groupHandle);
         */
         std::vector<DataSet *> dataSets; //to be generated each time run is called
+
+
+        bool computingVirialsInForce; //so this is true if any fix or data set needs virials.  Those are all the things that could possibly need virials, so should never need to specifically ask to compute them
+        int64_t turnLastEngs;
+
+        void computeEngs();
 };
 
 #endif

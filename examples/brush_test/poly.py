@@ -23,13 +23,19 @@ state.activateFix(ljcut)
 state.activateFix(bondFENE)
 state.activateFix(angleHarm)
 
-state.bounds = Bounds(state, Vector(-10, -10, -10), Vector(20, 24, 24))
+#state.bounds = Bounds(state, Vector(-9, -10, -10), Vector(20, 24, 24))
 
 writeconfig = WriteConfig(state, fn='poly_out', writeEvery=10, format='xyz', handle='writer')
-#temp = state.dataManager.recordEnergy('all', collectEvery = 50)
-#reader = LAMMPS_Reader(state=state, unitLen = unitLen, unitMass = 12, unitEng = 0.066, bondFix = bondHarm, angleFix = angleHarm, nonbondFix = ljcut, dihedralFix = dihedralOPLS, improperFix=improperHarm, atomTypePrefix = 'PTB7_', setBounds=False)
-reader = LAMMPS_Reader(state=state, unitLen = 1, unitMass = 1, unitEng = 1, bondFix = bondFENE, nonbondFix = ljcut, angleFix = angleHarm, atomTypePrefix = 'POLY_', setBounds=False)
+temp = state.dataManager.recordEnergy('all', collectEvery = 50)
+reader = LAMMPS_Reader(state=state, unitLen = 1, unitMass = 1, unitEng = 1, bondFix = bondFENE, nonbondFix = ljcut, angleFix = angleHarm, atomTypePrefix = 'POLY_', setBounds=True)
+
+
+#state.bounds.lo = state.bounds.lo - Vector(0, 0, 3)
+#state.bounds.hi = state.bounds.hi + Vector(0, 0, 3)
+
 reader.read(dataFn = 'brush.data', inputFns = ['brush.in', 'brush.init', 'brush.settings'])
+print state.bounds.lo
+print state.bounds.hi
 InitializeAtoms.initTemp(state, 'all', 0.1)
 
 state.atomParams.setValues('POLY_0', atomicNum=6)
@@ -38,7 +44,7 @@ state.atomParams.setValues('POLY_2', atomicNum=1)
 state.activateWriteConfig(writeconfig)
 
 ewald = FixChargeEwald(state, "chargeFix", "all")
-ewald.setParameters(64, 1.0, 3)
+ewald.setParameters(32, 3.0, 3)
 state.activateFix(ewald)
 
 substrateIds = [a.id for a in state.atoms if a.type == 'POLY_0']
@@ -62,7 +68,8 @@ bottomWall = FixWallHarmonic(state, handle='wall', groupHandle='all', origin=Vec
 
 
 integVerlet = IntegratorVerlet(state)
-integVerlet.run(15000)
+integVerlet.run(150)
+print temp.vals
 
 
 

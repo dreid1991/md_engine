@@ -14,7 +14,13 @@ using namespace std;
 
 
 
-
+__global__ void zeroVectorPreserveW(float4 *xs, int n) {
+    int idx = GETIDX();
+    if (idx < n) {
+        float w = xs[idx].w;
+        xs[idx] = make_float4(0, 0, 0, w);
+    }
+}
 
 void Integrator::stepInit(bool computeVirials)
 {
@@ -31,16 +37,6 @@ void Integrator::stepInit(bool computeVirials)
     }
 }
 
-void Integrator::force(bool computeVirials) {
-    int simTurn = state->turn;
-    vector<Fix *> &fixes = state->fixes;
-    for (Fix *f : fixes) {
-        if (! (simTurn % f->applyEvery)) {
-            f->compute(computeVirials);
-        }
-    }
-};
-
 void Integrator::stepFinal()
 {
     for (Fix *f : state->fixes) {
@@ -51,92 +47,10 @@ void Integrator::stepFinal()
 }
 
 
-void Integrator::forceSingle(bool computeVirials) {
-    for (Fix *f : state->fixes) {
-        if (f->forceSingle) {
-            f->compute(computeVirials);
-        }
-    }
-}
 
 
-void Integrator::singlePointEng() {
-    GPUArrayGlobal<float> &perParticleEng = state->gpd.perParticleEng;
-    perParticleEng.d_data.memset(0);
-    for (Fix *f : state->fixes) {
-        f->singlePointEng(perParticleEng.getDevData());
-    }
-
-}
 
 
-void Integrator::doDataCollection() {
-    DataManager &dm = state->dataManager;
-    bool doingCollection = false;
-    int64_t turn = state->turn;
-    for (DataSet *ds : dm.dataSets) {
-        if (ds->nextCollectTurn == turn) {
-            doingCollection = true;
-            break;
-        }
-    }
-    if (doingCollection) {
-        // this will need some thought, b/c can't compute it without going through all
-        // the fixes.  Maybe have like state flag for computing virials.  If true, just
-        // grab current virials, if false, zero forces vector and recompute it setting
-        // virials flag to true, then grab virials vector
-        bool computeVirials = false;
-        bool computeEng = false;
-
-        bool needToCopyForcesBack = false;
-        for (DataSet *ds : dm.dataSets) {
-            computeEng = fmax(computeEng, ds->requiresEng);
-            computeVirials = fmax(computeVirials, ds->requiresVirials);
-        }
-        if (computeEng) {
-            singlePointEng();
-        }
-        if (computeVirials) {
-
-            if (not state->computeVirials) {
-                GPUArrayPair<float4> &fs = state->gpd.fs;
-                fs.copyBetweenArrays(!fs.activeIdx, fs.activeIdx);
-                forceSingle(true);
-                needToCopyForcesBack = true;
-                //okay, now virials are computed
-            }
-        }
-        //okay, now go through all and give them their data
-        GPUData &gpd = state->gpd;
-        float4 *xs = gpd.xs.getDevData();
-        float4 *vs = gpd.vs.getDevData();
-        float4 *fs = gpd.fs.getDevData();
-        BoundsGPU &bounds = state->boundsGPU;
-        int nAtoms = state->atoms.size();
-        int64_t turn = state->turn;
-        //void collect(int64_t turn, BoundsGPU &, int nAtoms,
-        //             float4 *xs, float4 *vs, float4 *fs,
-        //             float *engs, Virial *);
-        cudaDeviceProp &prop = state->devManager.prop;
-        for (DataSet *ds : dm.dataSets) {
-            if (ds->nextCollectTurn == turn) {
-                ds->collect(turn, bounds, nAtoms, xs, vs, fs,
-                            gpd.perParticleEng.getDevData(),
-                            gpd.virials.getDevData(),
-                            prop);
-                ds->setNextCollectTurn(turn);
-            }
-        }
-        cudaDeviceSynchronize();
-        for (DataSet *ds : dm.dataSets) {
-            ds->appendValues();
-        }
-        if (needToCopyForcesBack) {
-            GPUArrayPair<float4> &fs = state->gpd.fs;
-            fs.copyBetweenArrays(fs.activeIdx, !fs.activeIdx);
-        }
-    }
-}
 
 
 void Integrator::asyncOperations() {
@@ -238,7 +152,6 @@ void Integrator::basicPrepare(int numTurns) {
         f->prepareForRun();
     }
     state->gridGPU.periodicBoundaryConditions(-1, true);
-    state->dataManager.generateSingleDataSetList();
     for (DataSet *ds : state->dataManager.dataSets) {
         ds->setCollectMode();
         ds->prepareForRun();
@@ -277,7 +190,7 @@ void Integrator::setActiveData() {
 }
 
 
-Integrator::Integrator(State *state_) : state(state_) {
+Integrator::Integrator(State *state_) : IntegratorBasics(state_) {
 }
 
 

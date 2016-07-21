@@ -1,6 +1,5 @@
 #include "DataSet.h"
 #include "State.h"
-using namespace std;
 namespace py = boost::python;
 void DataSet::setCollectMode() {
     PyObject *func = collectGenerator.ptr();
@@ -34,6 +33,20 @@ int64_t DataSet::getNextCollectTurn(int64_t turn) {
 void DataSet::setNextCollectTurn(int64_t turn) {
     nextCollectTurn = getNextCollectTurn(turn);
 }
+DataSet::DataSet(State *state_, uint32_t groupTag_, bool computingScalar_, bool computingVector_){
+    state = state_;
+    groupTag = groupTag_;
+    requiresVirials = false;
+    requiresEng = false;
+    collectEvery = -1;
+    turnScalarComputed = -1;
+    turnVectorComputed = -1;
+    lastScalarOnCPU = false;
+    lastVectorOnCPU = false;
+    computingScalar = computingScalar_;
+    computingVector = computingVector_;
+
+};
 void export_DataSet() {
     boost::python::class_<DataSet,
                           boost::noncopyable>(
@@ -41,7 +54,8 @@ void export_DataSet() {
         boost::python::no_init
     )
     .def_readonly("turns", &DataSet::turnsPy)
-    .def_readonly("vals", &DataSet::valsPy)
+    .def_readonly("vals", &DataSet::scalarsPy)
+    .def_readonly("vectors", &DataSet::vectorsPy)
     .def_readwrite("nextCollectTurn", &DataSet::nextCollectTurn)
  //   .def("getDataSet", &DataManager::getDataSet)
     ;

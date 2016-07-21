@@ -163,6 +163,7 @@ ACCUMULATION_CLASS_IF(SumVectorXYZOverWIf, float4, float4, v, xyzOverW(v), make_
 
 
 
+
 template <class K, class T, class C, int NPERTHREAD>
 __global__ void accumulate_gpu_if(K *dest, T *src, int n, int warpSize, C instance) {
 

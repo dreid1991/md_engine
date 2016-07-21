@@ -3,16 +3,22 @@
 #define DATASETBOUNDS_H
 
 #include "DataSet.h"
-#include "GPUArrayGlobal.h"
+#include "BoundsGPU.h"
 class Bounds;
+class State;
 void export_DataSetBounds();
 class DataSetBounds : public DataSet {
     public:
-		void collect(int64_t turn, BoundsGPU &, int nAtoms, float4 *xs, float4 *vs, float4 *fs, float *engs, Virial *, cudaDeviceProp &);
+		void collect();
         void appendValues();
-        DataSetBounds(uint32_t);
+        void computeScalar();
+        void computeVector() {};
+        DataSetBounds(State *, uint32_t);
         std::vector<Bounds> vals;
+        void prepareForRun();
+
         BoundsGPU stored;
+
 
 };
 
