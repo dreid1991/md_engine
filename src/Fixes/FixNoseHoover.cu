@@ -62,7 +62,8 @@ FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state_, std::string handle
                 thermVel(std::vector<double>(chainLength,0.0)),
                 thermForce(std::vector<double>(chainLength,0.0)),
                 thermMass(std::vector<double>(chainLength,0.0)),
-                scale(1.0f)
+                scale(1.0f),
+                tempComputer(state, true, false)
 {
 }
 
@@ -86,7 +87,8 @@ FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state_, std::string handle
                 thermVel(std::vector<double>(chainLength,0.0)),
                 thermForce(std::vector<double>(chainLength,0.0)),
                 thermMass(std::vector<double>(chainLength,0.0)),
-                scale(1.0f)
+                scale(1.0f),
+                tempComputer(state, true, false)
 {
 }
 
@@ -111,7 +113,8 @@ FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state_, std::string handle
                 thermVel(std::vector<double>(chainLength,0.0)),
                 thermForce(std::vector<double>(chainLength,0.0)),
                 thermMass(std::vector<double>(chainLength,0.0)),
-                scale(1.0f)
+                scale(1.0f),
+                tempComputer(state, true, false)
 {
 }
 
@@ -121,6 +124,7 @@ bool FixNoseHoover::prepareForRun()
     // Calculate current kinetic energy
     turnBeginRun = state->runInit;
     turnFinishRun = state->runInit + state->runningFor;
+    tempComputer.prepareForRun();
 
     calculateKineticEnergy();
     computeCurrentTemp(state->runInit);
@@ -283,55 +287,11 @@ void FixNoseHoover::updateMasses()
 
 void FixNoseHoover::calculateKineticEnergy()
 {
-    size_t nAtoms = state->atoms.size();
-    kineticEnergy.d_data.memset(0);
-    if (groupTag == 1) { //if is all atoms
-        accumulate_gpu<float, float4, SumVectorSqr3DOverW, N_DATA_PER_THREAD> <<<NBLOCK(nAtoms / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*PERBLOCK*sizeof(float)>>>
-            (
-             kineticEnergy.d_data.data(),
-             state->gpd.vs.getDevData(),
-             nAtoms,
-             state->devManager.prop.warpSize,
-             SumVectorSqr3DOverW()
-            );
-       //std::cout << " calling tag-less sum " << std::endl;
-       kineticEnergy.dataToHost();
-       cudaDeviceSynchronize();
-       ndf = state->atoms.size();
-
-    } else {
-        accumulate_gpu_if<float, float4, SumVectorSqr3DOverWIf, N_DATA_PER_THREAD> <<<NBLOCK(nAtoms / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*PERBLOCK*sizeof(float)>>>
-            (
-             kineticEnergy.d_data.data(),
-             state->gpd.vs.getDevData(),
-             nAtoms,
-             state->devManager.prop.warpSize,
-             SumVectorSqr3DOverWIf(state->gpd.fs.getDevData(), groupTag)
-            );
-        /*
-        sumVectorSqr3DTagsOverW<float, float4, 2>
-            <<<NBLOCK(nAtoms / (double) 2), PERBLOCK, 2*PERBLOCK*sizeof(float)>>>(
-                    kineticEnergy.d_data.data(),
-                    state->gpd.vs.getDevData(),
-                    nAtoms,
-                    groupTag,
-                    state->gpd.fs.getDevData(),
-                    state->devManager.prop.warpSize
-            );
-            */
-        kineticEnergy.dataToHost();
-        cudaDeviceSynchronize();
-        ndf = *((int *) (kineticEnergy.h_data.data()+1));
-    }
-
-    ke_current = kineticEnergy.h_data[0];
-  //  std::cout << "current " << ke_current << std::endl;
-    if (state->is2d) {
-        ndf *= 2;
-    } else {
-        ndf *= 3;
-    }
-//    std::cout << "temp is " << ke_current / ndf << std::endl;
+    tempComputer.computeScalar_GPU(true, groupTag);
+    cudaDeviceSynchronize();
+    tempComputer.computeScalar_CPU();
+    ndf = tempComputer.ndf;
+    ke_current = tempComputer.totalKEScalar;
 }
 
 void FixNoseHoover::rescale()
