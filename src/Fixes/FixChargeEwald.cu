@@ -7,7 +7,8 @@
 #include <cufft.h>
 #include "globalDefs.h"
 #include <fstream>
-
+#include "Virial.h"
+#include "helpers.h"
 // #include <cmath>
 using namespace std;
 
@@ -315,10 +316,111 @@ __global__ void Energy_cu(int3 sz,float *Green_function,
 }
 
 
+__global__ void virials_cu(BoundsGPU bounds,int3 sz,Virial *dest,float alpha, float *Green_function,cufftComplex *FFT_qs,int warpSize){
+      int3 id = make_int3( blockIdx.x*blockDim.x + threadIdx.x,
+                          blockIdx.y*blockDim.y + threadIdx.y,
+                          blockIdx.z*blockDim.z + threadIdx.z);
 
-__global__ void compute_short_range_forces_cu(int nAtoms, float4 *xs, float4 *fs, uint16_t *neighborCounts, uint *neighborlist, uint32_t *cumulSumMaxPerBlock, float *qs, float alpha, float rCut, BoundsGPU bounds, int warpSize, float onetwoStr, float onethreeStr, float onefourStr) {
+      if ((id.x<sz.x)&&(id.x<sz.y)&&(id.x<sz.z)){
+          float3 k= 6.28318530717958647693f*make_float3(id)/bounds.trace();
+          if (id.x>sz.x/2) k.x= 6.28318530717958647693f*(id.x-sz.x)/bounds.trace().x;
+          if (id.y>sz.y/2) k.y= 6.28318530717958647693f*(id.y-sz.y)/bounds.trace().y;
+          if (id.z>sz.z/2) k.z= 6.28318530717958647693f*(id.z-sz.z)/bounds.trace().z;        
+          float klen=lengthSqr(k);
+          cufftComplex qi=FFT_qs[id.x*sz.y*sz.z+id.y*sz.z+id.z];
+          float E=(qi.x*qi.x+qi.y*qi.y)*Green_function[id.x*sz.y*sz.z+id.y*sz.z+id.z];
+          
+          float differential=-2.0*(1.0/klen+0.25/(alpha*alpha));
+          if (klen==0.0) {differential=0.0;E=0.0;}
+          
+          Virial virialstmp = Virial();   
+          virialstmp[0]=(1.0+differential*k.x*k.x)*E; //xx
+          virialstmp[2]=(1.0+differential*k.y*k.y)*E; //yy
+          virialstmp[5]=(1.0+differential*k.z*k.z)*E; //zz
+          virialstmp[1]=(differential*k.x*k.y)*E; //xy
+          virialstmp[3]=(differential*k.x*k.z)*E; //xz
+          virialstmp[4]=(differential*k.x*k.z)*E; //yz
+
+//           virials[id.x*sz.y*sz.z+id.y*sz.z+id.z]=virialstmp;
+//           __syncthreads();
+          extern __shared__ Virial tmpV[]; 
+//           const int copyBaseIdx = blockDim.x*blockIdx.x * N_DATA_PER_THREAD + threadIdx.x;
+//           const int copyIncrement = blockDim.x;
+          tmpV[threadIdx.x*blockDim.y*blockDim.z+threadIdx.y*blockDim.z+threadIdx.z]=virialstmp;
+          int curLookahead=1;
+          int numLookaheadSteps = log2f(blockDim.x*blockDim.y*blockDim.z-1);
+          const int sumBaseIdx = threadIdx.x*blockDim.y*blockDim.z+threadIdx.y*blockDim.z+threadIdx.z;
+          __syncthreads();
+          for (int i=0; i<=numLookaheadSteps; i++) {
+              if (! (sumBaseIdx % (curLookahead*2))) {
+                  tmpV[sumBaseIdx] += tmpV[sumBaseIdx + curLookahead];
+              }
+              curLookahead *= 2;
+//               if (curLookahead >= (warpSize)) {//Doesn't work in 3D case 
+                  __syncthreads();
+//               }
+          } 
+
+          if (sumBaseIdx  == 0) {
+            
+              atomicAdd(&(dest[0].vals[0]), tmpV[0][0]);
+              atomicAdd(&(dest[0].vals[1]), tmpV[0][1]);
+              atomicAdd(&(dest[0].vals[2]), tmpV[0][2]);
+              atomicAdd(&(dest[0].vals[3]), tmpV[0][3]);
+              atomicAdd(&(dest[0].vals[4]), tmpV[0][4]);
+              atomicAdd(&(dest[0].vals[5]), tmpV[0][5]);
+          }          
+      }
+      
+}
+
+
+#define N_DATA_PER_THREAD 4 //just taken from cutils_func.h 
+__global__ void sum_virials_cu(Virial *dest, Virial *src, int n, int warpSize){
+      extern __shared__ Virial tmpV[]; 
+    const int copyBaseIdx = blockDim.x*blockIdx.x * N_DATA_PER_THREAD + threadIdx.x;
+    const int copyIncrement = blockDim.x;
+    for (int i=0; i<N_DATA_PER_THREAD; i++) {
+        int step = i * copyIncrement;
+        if (copyBaseIdx + step < n) {
+            tmpV[threadIdx.x + step] = src[copyBaseIdx + step];
+            
+        } else {
+            tmpV[threadIdx.x + step] =Virial();
+        }
+    }
+    int curLookahead = N_DATA_PER_THREAD;
+    int numLookaheadSteps = log2f(blockDim.x-1);
+    const int sumBaseIdx = threadIdx.x * N_DATA_PER_THREAD;
+    __syncthreads();
+    for (int i=sumBaseIdx+1; i<sumBaseIdx + N_DATA_PER_THREAD; i++) {
+        tmpV[sumBaseIdx] += tmpV[i];
+    }
+    for (int i=0; i<=numLookaheadSteps; i++) {
+        if (! (sumBaseIdx % (curLookahead*2))) {
+            tmpV[sumBaseIdx] += tmpV[sumBaseIdx + curLookahead];
+        }
+        curLookahead *= 2;
+        if (curLookahead >= (N_DATA_PER_THREAD * warpSize)) {
+            __syncthreads();
+        }
+    }
+    if (threadIdx.x  == 0) {
+        atomicAdd(&(dest[0].vals[0]), tmpV[0][0]);
+        atomicAdd(&(dest[0].vals[1]), tmpV[0][1]);
+        atomicAdd(&(dest[0].vals[2]), tmpV[0][2]);
+        atomicAdd(&(dest[0].vals[3]), tmpV[0][3]);
+        atomicAdd(&(dest[0].vals[4]), tmpV[0][4]);
+        atomicAdd(&(dest[0].vals[5]), tmpV[0][5]);
+    }
+}
+
+template < bool COMPUTE_VIRIALS>
+__global__ void compute_short_range_forces_cu(int nAtoms, float4 *xs, float4 *fs, uint16_t *neighborCounts, uint *neighborlist, uint32_t *cumulSumMaxPerBlock, float *qs, float alpha, float rCut, BoundsGPU bounds, int warpSize, float onetwoStr, float onethreeStr, float onefourStr, Virial *__restrict__ virials,Virial  virial_per_particle) {
 
     float multipliers[4] = {1, onetwoStr, onethreeStr, onefourStr};
+
+    Virial virialsSum = Virial();   
     int idx = GETIDX();
     if (idx < nAtoms) {
         float4 posWhole = xs[idx];
@@ -352,13 +454,20 @@ __global__ void compute_short_range_forces_cu(int nAtoms, float4 *xs, float4 *fs
                     
                     float3 forceVec = dr * forceScalar;
                     forceSum += forceVec;
-//                     if ((::isnan(forceScalar)) or (abs(forceScalar)>1E6))  printf("short ewald nan %f ,%d ,%d %f \n", forceScalar,idx, otherIdx,pos.x);   
+//                     if ((::isnan(forceScalar)) or (abs(forceScalar)>1E6))  printf("short ewald nan %f ,%d ,%d %f \n", forceScalar,idx, otherIdx,pos.x);  
+                    if (COMPUTE_VIRIALS) {
+                        computeVirial(virialsSum, forceVec, dr);
+                    
+                    }
                 }
             }
 
         }   
         fs[idx] += forceSum; //operator for float4 + float3
-
+        if (COMPUTE_VIRIALS) {
+            virialsSum+=virial_per_particle;
+            virials[idx] += virialsSum;
+        }
     }
 
 }
@@ -784,10 +893,34 @@ void FixChargeEwald::compute(bool computeVirials) {
                break;}
     }
     CUT_CHECK_ERROR("Ewald_long_range_forces_cu  execution failed");
-    
-    
+
+
     float *neighborCoefs = state->specialNeighborCoefs;
-    compute_short_range_forces_cu<<<NBLOCK(nAtoms), PERBLOCK>>>( nAtoms,
+    
+     if (computeVirials) {
+           GPUArrayGlobal<Virial>virial(1);
+          int warpSize = state->devManager.prop.warpSize;
+          virial.d_data.memset(0);
+          
+          virials_cu<<<dimGrid, dimBlock,sizeof(Virial)*dimBlock.x*dimBlock.y*dimBlock.z>>>(state->boundsGPU,sz,virial.getDevData(),alpha,Green_function.getDevData(), FFT_Qs, warpSize); 
+          CUT_CHECK_ERROR("virials_cu kernel execution failed");    
+          
+
+
+ /*         sum_virials_cu <<<NBLOCK(sz.x*sz.y*sz.z/(double)N_DATA_PER_THREAD),PERBLOCK,N_DATA_PER_THREAD*sizeof(Virial)*PERBLOCK>>>
+                  (virial.getDevData(),virials.getDevData(),sz.x*sz.y*sz.z, warpSize); */  
+          virial.dataToHost();
+
+          cout<<"field_virial "<<virial.h_data[0][0]<<' '<<virial.h_data[0][1]<<' '<<virial.h_data[0][2]<<' '<<virial.h_data[0][3]<<' '<<virial.h_data[0][4]<<' '<<virial.h_data[0][5]<<' '<<'\n';
+
+          BoundsGPU &b=state->boundsGPU;
+          float volume=b.volume();          
+          Virial virial_per_particle = Virial();  
+          for (int i=0; i<6; i++) {
+              virial_per_particle.vals[i] = virial.h_data[0][i]/volume/nAtoms;
+          }
+      
+          compute_short_range_forces_cu<true><<<NBLOCK(nAtoms), PERBLOCK>>>( nAtoms,
                                               gpd.xs(activeIdx),                                                      
                                               gpd.fs(activeIdx),
                                               neighborCounts,
@@ -797,9 +930,26 @@ void FixChargeEwald::compute(bool computeVirials) {
                                               alpha,
                                               r_cut,
                                               state->boundsGPU,
-                                              state->devManager.prop.warpSize, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2]);
+                                              state->devManager.prop.warpSize, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2],
+                                              gpd.virials.d_data.data(),virial_per_particle);
+          gpd.virials.dataToHost();
+          cout<<"total_virial "<<gpd.virials.h_data[0].vals[0]<<' '<<gpd.virials.h_data[0].vals[1]<<' '<<gpd.virials.h_data[0].vals[2]<<' '<<gpd.virials.h_data[0].vals[3]<<' '<<gpd.virials.h_data[0].vals[4]<<' '<<gpd.virials.h_data[0].vals[5]<<' '<<'\n';
+    }else{
+          compute_short_range_forces_cu<false><<<NBLOCK(nAtoms), PERBLOCK>>>( nAtoms,
+                                              gpd.xs(activeIdx),                                                      
+                                              gpd.fs(activeIdx),
+                                              neighborCounts,
+                                              grid.neighborlist.data(),
+                                              grid.perBlockArray.d_data.data(),
+                                              gpd.qs(activeIdx),
+                                              alpha,
+                                              r_cut,
+                                              state->boundsGPU,
+                                              state->devManager.prop.warpSize, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2],
+                                              gpd.virials.d_data.data(),Virial());
+    }
     CUT_CHECK_ERROR("Ewald_short_range_forces_cu  execution failed");
-    
+
 }
 
 

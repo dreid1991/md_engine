@@ -6,6 +6,7 @@
 //#include "AtomParams.h"
 #include "FixCharge.h"
 #include "GPUArrayGlobal.h"
+#include "Virial.h"
 
 class State;
 
@@ -24,8 +25,9 @@ private:
     cufftHandle plan;
     cufftComplex *FFT_Qs;  // change to GPU arrays?
     cufftComplex *FFT_Ex, *FFT_Ey, *FFT_Ez;
-
+    
     GPUArrayGlobal<float> Green_function;  // Green function in k space
+
 
     int3 sz;
 
