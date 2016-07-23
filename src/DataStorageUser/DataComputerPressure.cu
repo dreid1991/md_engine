@@ -18,11 +18,11 @@ void DataComputerPressure::computeScalar_GPU(bool transferToCPU, uint32_t groupT
     int nAtoms = state->atoms.size();
     if (groupTag == 1) {
          accumulate_gpu<float, Virial, SumVirialToScalar, N_DATA_PER_THREAD> <<<NBLOCK(nAtoms / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*PERBLOCK*sizeof(float)>>>
-            (pressureGPUScalar.getDevData(), state->gpd.virials.getDevData(), nAtoms, state->devManager.prop.warpSize, SumVirialToScalar());
+            (pressureGPUScalar.getDevData(), gpd.virials.getDevData(), nAtoms, state->devManager.prop.warpSize, SumVirialToScalar());
     } else {
         accumulate_gpu_if<float, Virial, SumVirialToScalarIf, N_DATA_PER_THREAD> <<<NBLOCK(nAtoms / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*PERBLOCK*sizeof(float)>>>
             (pressureGPUScalar.getDevData(), 
-             gpd.vs.getDevData(), 
+             gpd.virials.getDevData(), 
              nAtoms, 
              state->devManager.prop.warpSize, 
              SumVirialToScalarIf(gpd.fs.getDevData(), groupTag));
@@ -43,11 +43,11 @@ void DataComputerPressure::computeTensor_GPU(bool transferToCPU, uint32_t groupT
     lastGroupTag = groupTag;
     int nAtoms = state->atoms.size();
     if (groupTag == 1) {
-        accumulate_gpu<Virial, Virial, SumVectorToVirial, N_DATA_PER_THREAD>  <<<NBLOCK(nAtoms / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*PERBLOCK*sizeof(Virial)>>>
-            (pressureGPUTensor.getDevData(), gpd.vs.getDevData(), nAtoms, state->devManager.prop.warpSize, SumVectorToVirial());    
+        accumulate_gpu<Virial, Virial, SumVirial, N_DATA_PER_THREAD>  <<<NBLOCK(nAtoms / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*PERBLOCK*sizeof(Virial)>>>
+            (pressureGPUTensor.getDevData(), gpd.virials.getDevData(), nAtoms, state->devManager.prop.warpSize, SumVirial());    
     } else {
-        accumulate_gpu_if<Virial, Virial, SumVectorToVirialIf, N_DATA_PER_THREAD> <<<NBLOCK(nAtoms / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*PERBLOCK*sizeof(Virial)>>>
-            (pressureGPUTensor.getDevData(), gpd.vs.getDevData(), nAtoms, state->devManager.prop.warpSize, SumVectorToVirialIf(gpd.fs.getDevData(), groupTag));
+        accumulate_gpu_if<Virial, Virial, SumVirialIf, N_DATA_PER_THREAD> <<<NBLOCK(nAtoms / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*PERBLOCK*sizeof(Virial)>>>
+            (pressureGPUTensor.getDevData(), gpd.virials.getDevData(), nAtoms, state->devManager.prop.warpSize, SumVirialIf(gpd.fs.getDevData(), groupTag));
     } 
     if (transferToCPU) {
         //does NOT sync
@@ -58,9 +58,7 @@ void DataComputerPressure::computeTensor_GPU(bool transferToCPU, uint32_t groupT
 void DataComputerPressure::computeScalar_CPU() {
     //we are assuming that z component of virial is zero if sim is 2D
     tempComputer.computeScalar_CPU();
-    int n;
     double sumVirial = pressureGPUScalar.h_data[0];
-    n = state->atoms.size();//* (int *) &pressureGPUScalar.h_data[1];
     double dim = state->is2d ? 2 : 3;
     double volume = state->boundsGPU.volume();
     pressureScalar = (tempComputer.totalKEScalar + sumVirial) / (dim * volume);
@@ -69,11 +67,8 @@ void DataComputerPressure::computeScalar_CPU() {
 void DataComputerPressure::computeTensor_CPU() {
     tempComputer.computeTensor_CPU();
     Virial tempTensor = tempComputer.tempTensor;
-    int n;
     pressureTensor = Virial(0, 0, 0, 0, 0, 0);
     Virial sumVirial = pressureGPUTensor.h_data[0];
-    n = state->atoms.size();
-    double dim = state->is2d ? 2 : 3;
     double volume = state->boundsGPU.volume();
     for (int i=0; i<6; i++) {
         pressureTensor[i] = (tempTensor[i] + sumVirial[i]) / volume;
@@ -93,7 +88,7 @@ void DataComputerPressure::appendTensor(boost::python::list &vals) {
 }
 
 void DataComputerPressure::prepareForRun() {
-    tempComputer = DataComputerTemperature(state, computeScalar, computeTensor);
+    tempComputer = DataComputerTemperature(state, computingScalar, computingTensor);
     tempComputer.prepareForRun();
     if (computingScalar) {
         pressureGPUScalar = GPUArrayGlobal<float>(2);
