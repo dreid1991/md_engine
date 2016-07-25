@@ -37,10 +37,6 @@ private:
      */
     void preForce();
     
-    // BPK
-    //void printConfig();
-    // BPK END
-    //
     //! Run second half-integration step
     /*!
      * \param index Active index of GPUArrayPairs

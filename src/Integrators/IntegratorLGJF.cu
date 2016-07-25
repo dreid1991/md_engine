@@ -10,39 +10,43 @@
 
 namespace py = boost::python;
 
-// TODO: add alpha to preForce_cu call; add alpha as parameter within constructor / state etc.
+// todo: add alpha to preForce_cu call; add alpha as parameter within constructor 
 __global__ void preForce_cu(int nAtoms, float4 *xs, float4 *vs, float4 *fs,
-                            float alpha, float dt)
+                            curandState_t *randStates, float alpha,  float dt)
 {
     int idx = GETIDX();
     if (idx < nAtoms) {
        
         float4 vel = vs[idx];
         float invmass = vel.w;
-        // TODO: examine this algorithm for numerical stability; optimize for floating point
+        // todo: examine this algorithm for numerical stability; optimize for floating point
         // operations with disparate magnitudes
 
         // friction coefficient alpha, used to calculate b param for a given atom/molecule
-        // TODO: allow friction coefficient to be a function(x,y,z,v.x,v.y,v.z) etc.?
-        // if so, incorporate as inline function called from here, possibly an evaluator class
-        // or just an object of the state.  Allow alpha to be a function or a scalar constant.
-        // actually, this method is only correct if alpha is a constant and NOT a function of position
-        // as that introduces ambiguity.  Or does it? Idk, need more literature.
         float denominator_val = 1.0f + ( 0.5f *  ( alpha * dt * invmass) );
         float b_param = 1.0f / (denominator_val);
+        
+        curandState_t *randState = randStates + idx;
+        curandState_t localState=*randState;
 
-        // TODO: Un-pseudocode this
-        // also, make it type float3, as that is how it will be used!
-        float3 beta = CALL_GAUSSIAN_RNG();
+        // beta, a normally distributed random number used to move the step forward.
+        // applied to both x position and velocity for a given particle.
+        float3 beta ;
+        beta.x = curand_normal(&localState);
+        beta.y = curand_normal(&localState);
+        beta.z = curand_normal(&localState);
         // end pseudocode
+        
+        printf("values of beta (x, y, z): %d  %d  %d\n", beta.x, beta.y, beta.z);
 
+        *randState = localState;
         float4 force = fs[idx];
         float4 pos = xs[idx];
 
         // we now have or vel, pos, and forces extracted from vs, xs, and fs, respectively
 
         // first, update dx with current velocity & force information
-        float3 dx = (b_param * dt * vel);
+        float3 dx = (b_param * dt * make_float3(vel));
         dx += (0.5f * b_param * dt * dt * invmass * make_float3(force));
         dx += (0.5f * b_param * dt * invmass * beta);
 
@@ -65,8 +69,8 @@ __global__ void preForce_cu(int nAtoms, float4 *xs, float4 *vs, float4 *fs,
 
     }
 }
-// TODO: double check pre- and postForce_cu to verify this algorithm matches the literature
-__global__ void postForce_cu(int nAtoms, float4 *vs, float4 *fs, float alpha, float dt)
+// todo: double check pre- and postForce_cu to verify this algorithm matches the literature
+__global__ void postForce_cu(int nAtoms, float4 *xs, float4 *vs, float4 *fs, float alpha, float dt)
 {
     int idx = GETIDX();
     if (idx < nAtoms) {
@@ -84,14 +88,19 @@ __global__ void postForce_cu(int nAtoms, float4 *vs, float4 *fs, float alpha, fl
         // ok; done. vs, xs, fs now in sync
     }
 }
-
-
-// 
-IntegratorLGJF::IntegratorLGJF(State *state_)
-    : Integrator(state_)
+IntegratorLGJF::IntegratorLGJF(State *state_, double alpha_, int seed_) : 
+        Integrator(state_) , alpha(alpha_), seed(seed_)
 {
+ // assert statement here if you can think of one that is applicable
+}
+
+void __global__ initRandStatesLGJF(int nAtoms, curandState_t *states, int seed,int turn) {
+    int idx = GETIDX();
+    curand_init(seed, idx, turn, states + idx);
 
 }
+
+// 
 void IntegratorLGJF::run(int numTurns)
 {
 
@@ -102,6 +111,14 @@ void IntegratorLGJF::run(int numTurns)
 
     auto start = std::chrono::high_resolution_clock::now();
     bool computeVirials = state->computeVirials;
+
+    // initialize the RNG; note that this is now incompatible with DPD
+    // DPD requires pairwise symmetric random numbers, which is only possible
+    // in a multi-threaded environment via ordered seeds (see Saru RNG)
+    // but this will suffice for Langevin integration
+    randStates = GPUArrayDeviceGlobal<curandState_t>(state->atoms.size());
+    initRandStatesLGJF<<<NBLOCK(state->atoms.size()), PERBLOCK>>>(state->atoms.size(), randStates.data(), seed,state->turn);
+
     for (int i=0; i<numTurns; ++i) {
         if (state->turn % periodicInterval == 0) {
             state->gridGPU.periodicBoundaryConditions();
@@ -150,7 +167,8 @@ void IntegratorLGJF::preForce()
             state->gpd.xs.getDevData(),
             state->gpd.vs.getDevData(),
             state->gpd.fs.getDevData(),
-            state->alpha,
+            randStates.data(),
+            alpha,
             state->dt);
 }
 
@@ -159,22 +177,28 @@ void IntegratorLGJF::postForce()
     uint activeIdx = state->gpd.activeIdx();
     postForce_cu<<<NBLOCK(state->atoms.size()), PERBLOCK>>>(
             state->atoms.size(),
+            state->gpd.xs.getDevData(),
             state->gpd.vs.getDevData(),
             state->gpd.fs.getDevData(),
-            state->alpha,
+            alpha,
             state->dt);
 }
 
 void export_IntegratorLGJF()
 {
-    py::class_<IntegratorLGJF,
-               boost::shared_ptr<IntegratorLGJF>,
-               py::bases<Integrator>,
-               boost::noncopyable>
+    py::class_<IntegratorLGJF, boost::shared_ptr<IntegratorLGJF>,
+               py::bases<Integrator>, boost::noncopyable>
     (
         "IntegratorLGJF",
-        py::init<State *>()
+        py::init<State *, double, int >(
+            py::args("state", "alpha", "seed")
+        )
     )
+
     .def("run", &IntegratorLGJF::run)
+    /*
+    .def_readwrite("alpha", &IntegratorLGJF::alpha)
+    .def_readwrite("seed", &IntegratorLGJF::seed)
+    */
     ;
 }

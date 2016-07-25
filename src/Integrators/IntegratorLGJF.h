@@ -3,7 +3,10 @@
 #define INTEGRATORLGJF_H
 
 #include "Integrator.h"
+#include "globalDefs.h"
+#include "GPUArrayDeviceGlobal.h"
 
+#include <curand_kernel.h>
 //! Make the Integrator accessible to the Python interface
 void export_IntegratorLGJF();
 
@@ -17,18 +20,27 @@ void export_IntegratorLGJF();
 class IntegratorLGJF : public Integrator
 {
 public:
+    double alpha;
+    int seed;
+    GPUArrayDeviceGlobal<curandState_t> randStates;
     //! Constructor
     /*!
      * \param statePtr Pointer to the simulation state
+     * friction coefficient alpha, and integer seed for 
+     * the random number generator
      */
-    IntegratorLGJF(State *statePtr);
+    IntegratorLGJF(State *statePtr, double alpha_, int seed_) ; 
 
+        // initialize the RNG here?
+        // idk, think about it
+    
     //! Run the Integrator
     /*!
      * \param numTurns Number of steps to run
      */
     virtual void run(int numTurns);
 
+    
 private:
     //! Run first half-integration
     /*!
@@ -50,6 +62,7 @@ private:
      * update the velocities to also be at step n+1
      */
     void postForce();
+
 };
 
 #endif
