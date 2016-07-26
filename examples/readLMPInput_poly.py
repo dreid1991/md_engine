@@ -31,9 +31,9 @@ state.activateFix(dihedralOPLS)
 state.activateFix(improperHarm)
 
 unitLen = 3.5
-writeconfig = WriteConfig(state, fn='poly_out', writeEvery=10000, format='xyz', handle='writer')
+writeconfig = WriteConfig(state, fn='poly_out', writeEvery=1000, format='xyz', handle='writer')
 writeconfig.unitLen = 1/unitLen
-temp = state.dataManager.recordEnergy('all', collectEvery = 50)
+temp = state.dataManager.recordEnergy('all', 50)
 #reader = LAMMPS_Reader(state=state, unitLen = unitLen, unitMass = 12, unitEng = 0.066, bondFix = bondHarm, angleFix = angleHarm, nonbondFix = ljcut, dihedralFix = dihedralOPLS, improperFix=improperHarm, atomTypePrefix = 'PTB7_', setBounds=False)
 reader = LAMMPS_Reader(state=state, unitLen = unitLen, unitMass = 12, unitEng = 0.066, bondFix = bondHarm, nonbondFix = ljcut,  angleFix = angleHarm, dihedralFix = dihedralOPLS,improperFix=improperHarm,atomTypePrefix = 'PTB7_', setBounds=False)
 reader.read(dataFn = 'poly_min.data')
@@ -88,8 +88,8 @@ for i in range(10):
     state.duplicateMolecule(state.molecules[-1])
     print state.molecules
     state.molecules[-1].translate(Vector(0, 0, 8))
-integVerlet.run(50000000)
-print [x / len(state.atoms) for x in temp.vals]
+integVerlet.run(2000)
+print temp.vals
 
 #integVerlet = IntegraterVerlet(state)
 #integVerlet.run(100000)

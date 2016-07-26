@@ -2,7 +2,7 @@
 #include "cutils_func.h"
 #include "Virial.h"
 #include "helpers.h"
-template <class T, int N, bool COMPUTE_VIRIALS>
+template <class T, int N, bool COMPUTEVIRIALS>
 __global__ void compute_force_iso(int nAtoms, const float4 *__restrict__ xs, float4 *__restrict__ fs, const uint16_t *__restrict__ neighborCounts, const uint *__restrict__ neighborlist, const uint32_t * __restrict__ cumulSumMaxPerBlock, int warpSize, const float *__restrict__ parameters, int numTypes,  BoundsGPU bounds, float onetwoStr, float onethreeStr, float onefourStr, Virial *__restrict__ virials, T eval) {
     float multipliers[4] = {1, onetwoStr, onethreeStr, onefourStr};
     extern __shared__ float paramsAll[];
@@ -13,9 +13,9 @@ __global__ void compute_force_iso(int nAtoms, const float4 *__restrict__ xs, flo
     }
     copyToShared<float>(parameters, paramsAll, N*sqrSize);
     __syncthreads();
-    Virial virialsSum = Virial();
     int idx = GETIDX();
     if (idx < nAtoms) {
+        Virial virialsSum = Virial(0, 0, 0, 0, 0, 0);
         int baseIdx = baseNeighlistIdx(cumulSumMaxPerBlock, warpSize);
         float4 posWhole = xs[idx];
         int type = __float_as_int(posWhole.w);
@@ -47,7 +47,7 @@ __global__ void compute_force_iso(int nAtoms, const float4 *__restrict__ xs, flo
                 if (lenSqr < rCutSqr) {
                     float3 force = eval.force(dr, params_pair, lenSqr, multiplier);
                     forceSum += force;
-                    if (COMPUTE_VIRIALS) {
+                    if (COMPUTEVIRIALS) {
                         computeVirial(virialsSum, force, dr);
                     }
                 }
@@ -58,7 +58,8 @@ __global__ void compute_force_iso(int nAtoms, const float4 *__restrict__ xs, flo
         float4 forceCur = fs[idx];
         forceCur += forceSum;
         fs[idx] = forceCur;
-        if (COMPUTE_VIRIALS) {
+        if (COMPUTEVIRIALS) {
+            virialsSum *= 0.5f;
             virials[idx] += virialsSum;
         }
     

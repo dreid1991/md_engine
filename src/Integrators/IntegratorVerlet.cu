@@ -67,7 +67,7 @@ void IntegratorVerlet::run(int numTurns)
     int periodicInterval = state->periodicInterval;
 
     auto start = std::chrono::high_resolution_clock::now();
-    bool computeVirials = state->computeVirials;
+    bool computeVirialsInForce = state->dataManager.computeVirialsInForce;
     for (int i=0; i<numTurns; ++i) {
         if (state->turn % periodicInterval == 0) {
             state->gridGPU.periodicBoundaryConditions();
@@ -75,21 +75,22 @@ void IntegratorVerlet::run(int numTurns)
         // Prepare for timestep
         //! \todo Should asyncOperations() and doDataCollection() go into
         //!       Integrator::stepInit()? Same for periodicBoundayConditions()
-        asyncOperations();
-        doDataCollection();
 
-        stepInit(computeVirials);
+        stepInit(computeVirialsInForce);
 
         // Perform first half of velocity-Verlet step
         preForce();
 
         // Recalculate forces
-        force(computeVirials);
+        force(computeVirialsInForce);
+        asyncOperations();
+        doDataComputation();
 
         // Perform second half of velocity-Verlet step
         postForce();
 
         stepFinal();
+        doDataAppending();
 
         //! \todo The following parts could also be moved into stepFinal
         state->turn++;

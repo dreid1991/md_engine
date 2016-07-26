@@ -1,6 +1,6 @@
 #define SMALL 0.0001f
-template <class BONDTYPE, class EVALUATOR>
-__global__ void compute_force_bond(int nAtoms, float4 *xs, float4 *forces, int *idToIdxs, BondGPU *bonds, int *startstops, BONDTYPE *parameters, int nTypes, BoundsGPU bounds, EVALUATOR T) {
+template <class BONDTYPE, class EVALUATOR, bool COMPUTEVIRIALS>
+__global__ void compute_force_bond(int nAtoms, float4 *xs, float4 *forces, int *idToIdxs, BondGPU *bonds, int *startstops, BONDTYPE *parameters, int nTypes, BoundsGPU bounds, Virial *__restrict__ virials, EVALUATOR T) {
     int idx = GETIDX();
     extern __shared__ int all_shr[];
     int idxBeginCopy = startstops[blockDim.x*blockIdx.x];
@@ -11,6 +11,7 @@ __global__ void compute_force_bond(int nAtoms, float4 *xs, float4 *forces, int *
     copyToShared<BONDTYPE>(parameters, parameters_shr, nTypes);
     __syncthreads();
     if (idx < nAtoms) {
+        Virial virialsSum = Virial(0, 0, 0, 0, 0, 0);
   //      printf("going to compute %d\n", idx);
         int startIdx = startstops[idx]; 
         int endIdx = startstops[idx+1];
@@ -39,9 +40,19 @@ __global__ void compute_force_bond(int nAtoms, float4 *xs, float4 *forces, int *
                 // printf("xs %f %f\n", pos.x, posOther.x);
                 float3 bondVec  = bounds.minImage(pos - posOther);
                 float rSqr = lengthSqr(bondVec);
-                forceSum += T.force(bondVec, rSqr, bondType);
+                float3 force = T.force(bondVec, rSqr, bondType);
+
+                forceSum += force;
+                if (COMPUTEVIRIALS) {
+                    computeVirial(virialsSum, force, bondVec);
+                }
             }
             forces[myIdx] += forceSum;
+
+            if (COMPUTEVIRIALS) {
+                virialsSum *= 0.5f;
+                virials[idx] += virialsSum;
+            }
         }
     }
 }

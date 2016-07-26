@@ -49,15 +49,15 @@ void FixLangevin::setDefaults() {
     gamma = 1.0;
 }
 
-FixLangevin::FixLangevin(boost::shared_ptr<State> state_, std::string handle_, std::string groupHandle_, double temp_) : FixThermostatBase(temp_), Fix(state_, handle_, groupHandle_, LangevinType, false, false, false, 1) {
+FixLangevin::FixLangevin(boost::shared_ptr<State> state_, std::string handle_, std::string groupHandle_, double temp_) : Interpolator(temp_), Fix(state_, handle_, groupHandle_, LangevinType, false, false, false, 1) {
     setDefaults();
 }
 
-FixLangevin::FixLangevin(boost::shared_ptr<State> state_, std::string handle_, std::string groupHandle_, py::list intervals_, py::list temps_) : FixThermostatBase(intervals_, temps_), Fix(state_, handle_, groupHandle_, LangevinType, false, false, false, 1) {
+FixLangevin::FixLangevin(boost::shared_ptr<State> state_, std::string handle_, std::string groupHandle_, py::list intervals_, py::list temps_) : Interpolator(intervals_, temps_), Fix(state_, handle_, groupHandle_, LangevinType, false, false, false, 1) {
     setDefaults();
 }
 
-FixLangevin::FixLangevin(boost::shared_ptr<State> state_, std::string handle_, std::string groupHandle_, py::object tempFunc_) : FixThermostatBase(tempFunc_), Fix(state_, handle_, groupHandle_, LangevinType, false, false, false, 1) {
+FixLangevin::FixLangevin(boost::shared_ptr<State> state_, std::string handle_, std::string groupHandle_, py::object tempFunc_) : Interpolator(tempFunc_), Fix(state_, handle_, groupHandle_, LangevinType, false, false, false, 1) {
     setDefaults();
 }
 
@@ -90,8 +90,8 @@ void FixLangevin::setParams(double seed_, double gamma_) {
     }
 }
 void FixLangevin::compute(bool computeVirials) {
-    computeCurrentTemp(state->turn);
-    double temp = getCurrentTemp();
+    computeCurrentVal(state->turn);
+    double temp = getCurrentVal();
     compute_cu<<<NBLOCK(state->atoms.size()), PERBLOCK>>>(state->atoms.size(), state->gpd.vs.getDevData(), state->gpd.fs.getDevData(), randStates.data(), state->dt, temp, gamma);
     
 }

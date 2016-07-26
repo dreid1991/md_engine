@@ -16,7 +16,6 @@ state.seedRNG()
 # z bounds taken care of automatically in 2d simulation
 state.bounds = Bounds(state, lo=Vector(0, 0, 0),
                              hi=Vector(35,35,35))
-state.grid = AtomGrid(state, dx=3.5, dy=3.5, dz=3.5) #as is dz
 state.atomParams.addSpecies(handle='type1', mass=1)
 
 

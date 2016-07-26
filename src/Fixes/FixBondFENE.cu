@@ -43,8 +43,13 @@ void FixBondFENE::setBondTypeCoefs(int type, double k, double r0, double eps, do
 void FixBondFENE::compute(bool computeVirials) {
     int nAtoms = state->atoms.size();
     int activeIdx = state->gpd.activeIdx();
+    GPUData &gpd = state->gpd;
     //cout << "Max bonds per block is " << maxBondsPerBlock << endl;
-    compute_force_bond<<<NBLOCK(nAtoms), PERBLOCK, sizeof(BondGPU) * maxBondsPerBlock + sizeof(BondFENEType) * parameters.size()>>>(nAtoms, state->gpd.xs(activeIdx), state->gpd.fs(activeIdx), state->gpd.idToIdxs.d_data.data(), bondsGPU.data(), bondIdxs.data(), parameters.data(), parameters.size(), state->boundsGPU, evaluator);
+    if (computeVirials) {
+        compute_force_bond<BondFENEType, BondEvaluatorFENE, true> <<<NBLOCK(nAtoms), PERBLOCK, sizeof(BondGPU) * maxBondsPerBlock + sizeof(BondFENEType) * parameters.size()>>>(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx), gpd.idToIdxs.d_data.data(), bondsGPU.data(), bondIdxs.data(), parameters.data(), parameters.size(), state->boundsGPU, gpd.virials.d_data.data(), evaluator);
+    } else {
+        compute_force_bond<BondFENEType, BondEvaluatorFENE, false> <<<NBLOCK(nAtoms), PERBLOCK, sizeof(BondGPU) * maxBondsPerBlock + sizeof(BondFENEType) * parameters.size()>>>(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx), gpd.idToIdxs.d_data.data(), bondsGPU.data(), bondIdxs.data(), parameters.data(), parameters.size(), state->boundsGPU, gpd.virials.d_data.data(), evaluator);
+    }
 }
 
 void FixBondFENE::singlePointEng(float *perParticleEng) {

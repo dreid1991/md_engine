@@ -110,14 +110,14 @@ rebuild_cache/fast: rebuild_cache
 
 # The main all target
 all: cmake_check_build_system
-	cd /home/daniel/Documents/md_engine/core && $(CMAKE_COMMAND) -E cmake_progress_start /home/daniel/Documents/md_engine/core/CMakeFiles /home/daniel/Documents/md_engine/core/python/CMakeFiles/progress.marks
-	cd /home/daniel/Documents/md_engine/core && $(MAKE) -f CMakeFiles/Makefile2 python/all
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/daniel/Documents/md_engine/core/CMakeFiles /home/daniel/Documents/md_engine/core/CMakeFiles/progress.marks
+	$(MAKE) -f CMakeFiles/Makefile2 all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/daniel/Documents/md_engine/core/CMakeFiles 0
 .PHONY : all
 
 # The main clean target
 clean:
-	cd /home/daniel/Documents/md_engine/core && $(MAKE) -f CMakeFiles/Makefile2 python/clean
+	$(MAKE) -f CMakeFiles/Makefile2 clean
 .PHONY : clean
 
 # The main clean target
@@ -126,56 +126,57 @@ clean/fast: clean
 
 # Prepare targets for installation.
 preinstall: all
-	cd /home/daniel/Documents/md_engine/core && $(MAKE) -f CMakeFiles/Makefile2 python/preinstall
+	$(MAKE) -f CMakeFiles/Makefile2 preinstall
 .PHONY : preinstall
 
 # Prepare targets for installation.
 preinstall/fast:
-	cd /home/daniel/Documents/md_engine/core && $(MAKE) -f CMakeFiles/Makefile2 python/preinstall
+	$(MAKE) -f CMakeFiles/Makefile2 preinstall
 .PHONY : preinstall/fast
 
 # clear depends
 depend:
-	cd /home/daniel/Documents/md_engine/core && $(CMAKE_COMMAND) -H$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR) --check-build-system CMakeFiles/Makefile.cmake 1
+	$(CMAKE_COMMAND) -H$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR) --check-build-system CMakeFiles/Makefile.cmake 1
 .PHONY : depend
 
-# Convenience name for target.
-python/CMakeFiles/PythonLib.dir/rule:
-	cd /home/daniel/Documents/md_engine/core && $(MAKE) -f CMakeFiles/Makefile2 python/CMakeFiles/PythonLib.dir/rule
-.PHONY : python/CMakeFiles/PythonLib.dir/rule
+#=============================================================================
+# Target rules for targets named Sim
 
-# Convenience name for target.
-PythonLib: python/CMakeFiles/PythonLib.dir/rule
+# Build rule for target.
+Sim: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 Sim
+.PHONY : Sim
+
+# fast build rule for target.
+Sim/fast:
+	$(MAKE) -f src/CMakeFiles/Sim.dir/build.make src/CMakeFiles/Sim.dir/build
+.PHONY : Sim/fast
+
+#=============================================================================
+# Target rules for targets named testing
+
+# Build rule for target.
+testing: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 testing
+.PHONY : testing
+
+# fast build rule for target.
+testing/fast:
+	$(MAKE) -f src/CMakeFiles/testing.dir/build.make src/CMakeFiles/testing.dir/build
+.PHONY : testing/fast
+
+#=============================================================================
+# Target rules for targets named PythonLib
+
+# Build rule for target.
+PythonLib: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 PythonLib
 .PHONY : PythonLib
 
 # fast build rule for target.
 PythonLib/fast:
-	cd /home/daniel/Documents/md_engine/core && $(MAKE) -f python/CMakeFiles/PythonLib.dir/build.make python/CMakeFiles/PythonLib.dir/build
+	$(MAKE) -f python/CMakeFiles/PythonLib.dir/build.make python/CMakeFiles/PythonLib.dir/build
 .PHONY : PythonLib/fast
-
-Sim.o: Sim.cpp.o
-.PHONY : Sim.o
-
-# target to build an object file
-Sim.cpp.o:
-	cd /home/daniel/Documents/md_engine/core && $(MAKE) -f python/CMakeFiles/PythonLib.dir/build.make python/CMakeFiles/PythonLib.dir/Sim.cpp.o
-.PHONY : Sim.cpp.o
-
-Sim.i: Sim.cpp.i
-.PHONY : Sim.i
-
-# target to preprocess a source file
-Sim.cpp.i:
-	cd /home/daniel/Documents/md_engine/core && $(MAKE) -f python/CMakeFiles/PythonLib.dir/build.make python/CMakeFiles/PythonLib.dir/Sim.cpp.i
-.PHONY : Sim.cpp.i
-
-Sim.s: Sim.cpp.s
-.PHONY : Sim.s
-
-# target to generate assembly for a file
-Sim.cpp.s:
-	cd /home/daniel/Documents/md_engine/core && $(MAKE) -f python/CMakeFiles/PythonLib.dir/build.make python/CMakeFiles/PythonLib.dir/Sim.cpp.s
-.PHONY : Sim.cpp.s
 
 # Help Target
 help:
@@ -183,16 +184,15 @@ help:
 	@echo "... all (the default if no target is provided)"
 	@echo "... clean"
 	@echo "... depend"
-	@echo "... PythonLib"
 	@echo "... edit_cache"
 	@echo "... install"
 	@echo "... install/local"
 	@echo "... install/strip"
 	@echo "... list_install_components"
 	@echo "... rebuild_cache"
-	@echo "... Sim.o"
-	@echo "... Sim.i"
-	@echo "... Sim.s"
+	@echo "... Sim"
+	@echo "... testing"
+	@echo "... PythonLib"
 .PHONY : help
 
 
@@ -204,6 +204,6 @@ help:
 # No rule that depends on this can have commands that come from listfiles
 # because they might be regenerated.
 cmake_check_build_system:
-	cd /home/daniel/Documents/md_engine/core && $(CMAKE_COMMAND) -H$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR) --check-build-system CMakeFiles/Makefile.cmake 0
+	$(CMAKE_COMMAND) -H$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR) --check-build-system CMakeFiles/Makefile.cmake 0
 .PHONY : cmake_check_build_system
 

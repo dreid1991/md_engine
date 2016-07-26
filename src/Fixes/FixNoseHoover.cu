@@ -44,7 +44,7 @@ __global__ void rescale_no_tags_cu(int nAtoms, float4 *vs, float scale)
 
 FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state_, std::string handle_,
                              std::string groupHandle_, double temp_, double timeConstant_)
-        : FixThermostatBase(temp_),
+        : Interpolator(temp_),
           Fix(state_,
               handle_,           // Fix handle
               groupHandle_,      // Group handle
@@ -62,13 +62,14 @@ FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state_, std::string handle
                 thermVel(std::vector<double>(chainLength,0.0)),
                 thermForce(std::vector<double>(chainLength,0.0)),
                 thermMass(std::vector<double>(chainLength,0.0)),
-                scale(1.0f)
+                scale(1.0f),
+                tempComputer(state, true, false)
 {
 }
 
 FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state_, std::string handle_,
                              std::string groupHandle_, py::object tempFunc_, double timeConstant_)
-        : FixThermostatBase(tempFunc_),
+        : Interpolator(tempFunc_),
           Fix(state_,
               handle_,           // Fix handle
               groupHandle_,      // Group handle
@@ -86,14 +87,15 @@ FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state_, std::string handle
                 thermVel(std::vector<double>(chainLength,0.0)),
                 thermForce(std::vector<double>(chainLength,0.0)),
                 thermMass(std::vector<double>(chainLength,0.0)),
-                scale(1.0f)
+                scale(1.0f),
+                tempComputer(state, true, false)
 {
 }
 
 
 FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state_, std::string handle_,
                              std::string groupHandle_, py::list intervals_, py::list temps_, double timeConstant_)
-        : FixThermostatBase(intervals_, temps_),
+        : Interpolator(intervals_, temps_),
           Fix(state_,
               handle_,           // Fix handle
               groupHandle_,      // Group handle
@@ -111,7 +113,8 @@ FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state_, std::string handle
                 thermVel(std::vector<double>(chainLength,0.0)),
                 thermForce(std::vector<double>(chainLength,0.0)),
                 thermMass(std::vector<double>(chainLength,0.0)),
-                scale(1.0f)
+                scale(1.0f),
+                tempComputer(state, true, false)
 {
 }
 
@@ -121,14 +124,15 @@ bool FixNoseHoover::prepareForRun()
     // Calculate current kinetic energy
     turnBeginRun = state->runInit;
     turnFinishRun = state->runInit + state->runningFor;
+    tempComputer.prepareForRun();
 
     calculateKineticEnergy();
-    computeCurrentTemp(state->runInit);
+    computeCurrentVal(state->runInit);
     updateMasses();
 
     // Update thermostat forces
     double boltz = 1.0;
-    double temp = getCurrentTemp();
+    double temp = getCurrentVal();
     thermForce.at(0) = (ke_current - ndf * boltz * temp) / thermMass.at(0);
     for (size_t k = 1; k < chainLength; ++k) {
         thermForce.at(k) = (
@@ -174,9 +178,9 @@ bool FixNoseHoover::halfStep(bool firstHalfStep)
     // Update the desired temperature
     double temp;
     if (firstHalfStep) {
-        double currentTemp = getCurrentTemp();
-        computeCurrentTemp(state->turn);
-        temp = getCurrentTemp();
+        double currentTemp = getCurrentVal();
+        computeCurrentVal(state->turn);
+        temp = getCurrentVal();
         if (currentTemp != temp) {
             updateMasses();
         }
@@ -187,7 +191,7 @@ bool FixNoseHoover::halfStep(bool firstHalfStep)
         //! \todo This optimization assumes that the velocities are not changed
         //!       between stepFinal() and stepInit(). Can we add a check to make
         //!       sure this is indeed the case?
-        temp = getCurrentTemp();
+        temp = getCurrentVal();
         calculateKineticEnergy();
     }
     // Equipartition at desired temperature
@@ -273,7 +277,7 @@ bool FixNoseHoover::halfStep(bool firstHalfStep)
 void FixNoseHoover::updateMasses()
 {
     double boltz = 1.0;
-    double temp = getCurrentTemp();
+    double temp = getCurrentVal();
     thermMass.at(0) = ndf * boltz * temp / (frequency*frequency);
     for (size_t i = 1; i < chainLength; ++i) {
         thermMass.at(i) = boltz*temp / (frequency*frequency);
@@ -283,55 +287,11 @@ void FixNoseHoover::updateMasses()
 
 void FixNoseHoover::calculateKineticEnergy()
 {
-    size_t nAtoms = state->atoms.size();
-    kineticEnergy.d_data.memset(0);
-    if (groupTag == 1) { //if is all atoms
-        accumulate_gpu<float, float4, SumVectorSqr3DOverW, N_DATA_PER_THREAD> <<<NBLOCK(nAtoms / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*PERBLOCK*sizeof(float)>>>
-            (
-             kineticEnergy.d_data.data(),
-             state->gpd.vs.getDevData(),
-             nAtoms,
-             state->devManager.prop.warpSize,
-             SumVectorSqr3DOverW()
-            );
-       //std::cout << " calling tag-less sum " << std::endl;
-       kineticEnergy.dataToHost();
-       cudaDeviceSynchronize();
-       ndf = state->atoms.size();
-
-    } else {
-        accumulate_gpu_if<float, float4, SumVectorSqr3DOverWIf, N_DATA_PER_THREAD> <<<NBLOCK(nAtoms / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*PERBLOCK*sizeof(float)>>>
-            (
-             kineticEnergy.d_data.data(),
-             state->gpd.vs.getDevData(),
-             nAtoms,
-             state->devManager.prop.warpSize,
-             SumVectorSqr3DOverWIf(state->gpd.fs.getDevData(), groupTag)
-            );
-        /*
-        sumVectorSqr3DTagsOverW<float, float4, 2>
-            <<<NBLOCK(nAtoms / (double) 2), PERBLOCK, 2*PERBLOCK*sizeof(float)>>>(
-                    kineticEnergy.d_data.data(),
-                    state->gpd.vs.getDevData(),
-                    nAtoms,
-                    groupTag,
-                    state->gpd.fs.getDevData(),
-                    state->devManager.prop.warpSize
-            );
-            */
-        kineticEnergy.dataToHost();
-        cudaDeviceSynchronize();
-        ndf = *((int *) (kineticEnergy.h_data.data()+1));
-    }
-
-    ke_current = kineticEnergy.h_data[0];
-  //  std::cout << "current " << ke_current << std::endl;
-    if (state->is2d) {
-        ndf *= 2;
-    } else {
-        ndf *= 3;
-    }
-//    std::cout << "temp is " << ke_current / ndf << std::endl;
+    tempComputer.computeScalar_GPU(true, groupTag);
+    cudaDeviceSynchronize();
+    tempComputer.computeScalar_CPU();
+    ndf = tempComputer.ndf;
+    ke_current = tempComputer.totalKEScalar;
 }
 
 void FixNoseHoover::rescale()
