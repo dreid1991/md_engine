@@ -78,6 +78,8 @@ BOOST_PYTHON_MODULE(Sim) {
     export_FixNVTRescale();
     export_FixLangevin();
 
+    export_FixPressureBerendsen();
+
     export_AtomParams();
     export_DataManager();
     export_ReadConfig();

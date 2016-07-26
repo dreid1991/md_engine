@@ -71,6 +71,26 @@ __global__ void Mod::skewAtomsFromZero(float4 *xs, int nAtoms, float3 xFinal, fl
     }
 }
 
+__global__ void Mod::scaleSystem_cu(float4 *xs, int nAtoms, float3 lo, float3 rectLen, float scaleBy) {
+    int idx = GETIDX();
+    if (idx < nAtoms) {
+        float4 posWhole = xs[idx];
+        float3 pos = make_float3(posWhole);
+        float3 center = lo + rectLen * 0.5f;
+        float3 newRel = (pos - center) * scaleBy;
+        pos = center + newRel;
+        posWhole.x = pos.x;
+        posWhole.y = pos.y;
+        posWhole.z = pos.z;
+        xs[idx] = posWhole;
+
+    }
+}
+void Mod::scaleSystem(State *state, double scaleBy) {
+    scaleSystem_cu<<<NBLOCK(state->atoms.size()), PERBLOCK>>>(state->gpd.xs.getDevData(), state->atoms.size(), state->boundsGPU.lo, state->boundsGPU.rectComponents, scaleBy);
+    state->boundsGPU.scale(scaleBy);
+
+}
 // CPU versions
 /*
 void Mod::scaleAtomCoords(SHARED(State) state, string groupHandle, Vector around, Vector scaleBy) {

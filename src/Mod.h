@@ -38,6 +38,8 @@ namespace Mod {
     // HEY JUST COPY FROM MAIN FOLDER
     __global__ void unskewAtoms(float4 *xs, int nAtoms, float3 xOrig, float3 yOrig, float3 lo);
     __global__ void skewAtomsFromZero(float4 *xs, int nAtoms, float3 xFinal, float3 yFinal, float3 lo);
+    __global__ void scaleSystem_cu(float4 *xs, int nAtoms, float3 lo, float3 rectLen, float scaleBy);
+    void scaleSystem(State *, double scaleBy);
     //__global__ void skewAtomsFromZero(cudaSurfaceObject_t xs, float4 xFinal, float4 yFinal);
     //__global__ void skewAtoms(cudaSurfaceObject_t xs, float4 xOrig, float4 xFinal, float4 yOrig, float4 yFinal);
     //__global__ void skew(SHARED(State), Vector);
