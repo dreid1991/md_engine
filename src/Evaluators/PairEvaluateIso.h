@@ -59,6 +59,7 @@ __global__ void compute_force_iso(int nAtoms, const float4 *__restrict__ xs, flo
         forceCur += forceSum;
         fs[idx] = forceCur;
         if (COMPUTE_VIRIALS) {
+            virialsSum *= 0.5f;
             virials[idx] += virialsSum;
         }
     

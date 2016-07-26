@@ -22,14 +22,21 @@ void cumulativeSum(T *data, K n) {
     }
     data[n-1] = currentVal; //okay, so now nth place has grid's starting Idx, n+1th place has ending
 }
-
+/*
+            vals[0] = xx;
+            vals[1] = yy;
+            vals[2] = zz;
+            vals[3] = xy;
+            vals[4] = xz;
+            vals[5] = yz;
+            */
 inline __device__ void computeVirial(Virial &v, float3 force, float3 dr) {
     v[0] += force.x * dr.x;
-    v[1] += force.y * dr.x;
-    v[2] += force.y * dr.y;
-    v[3] += force.z * dr.x;
-    v[4] += force.z * dr.y;
-    v[5] += force.z * dr.z;
+    v[1] += force.y * dr.y;
+    v[2] += force.z * dr.z;
+    v[3] += force.x * dr.y;
+    v[4] += force.x * dr.z;
+    v[5] += force.y * dr.z;
 }
 
 

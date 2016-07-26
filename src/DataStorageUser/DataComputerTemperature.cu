@@ -56,9 +56,9 @@ void DataComputerTemperature::computeScalar_CPU() {
         n = * (int *) &tempGPUScalar.h_data[1];
     }
     if (state->is2d) {
-        ndf = 2*n;
+        ndf = 2*(n-1); //-1 is analagous to extra_dof in lammps
     } else {
-        ndf = 3*n;
+        ndf = 3*(n-1);
     }
     totalKEScalar = total;
     tempScalar = total / ndf; 

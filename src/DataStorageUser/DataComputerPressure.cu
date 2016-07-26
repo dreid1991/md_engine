@@ -61,7 +61,7 @@ void DataComputerPressure::computeScalar_CPU() {
     double sumVirial = pressureGPUScalar.h_data[0];
     double dim = state->is2d ? 2 : 3;
     double volume = state->boundsGPU.volume();
-    pressureScalar = (tempComputer.totalKEScalar + sumVirial) / (dim * volume);
+    pressureScalar = (tempComputer.tempScalar * tempComputer.ndf + sumVirial) / (dim * volume);
 }
 
 void DataComputerPressure::computeTensor_CPU() {

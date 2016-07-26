@@ -9,7 +9,7 @@ class Virial {
         float &__host__ __device__ operator[] (int idx) {
             return vals[idx];
         }
-        __host__ Virial() {};
+        __host__ __device__ Virial() {};
         __host__ __device__ Virial(float xx, float yy, float zz, float xy, float xz, float yz) {
             vals[0] = xx;
             vals[1] = yy;
@@ -21,6 +21,11 @@ class Virial {
         inline __host__ __device__ void operator += (Virial &other) {
             for (int i=0; i<6; i++) {
                 vals[i] += other[i];
+            }
+        }
+        inline __host__ __device__ void operator *=(float x) {
+            for (int i=0; i<6; i++) {
+                vals[i] *= x;
             }
         }
         inline __host__ void operator /= (double n) {

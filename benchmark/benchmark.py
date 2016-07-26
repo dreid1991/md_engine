@@ -27,28 +27,29 @@ for i in range(len(f)):
 InitializeAtoms.initTemp(state, 'all', 1.2)
 
 #fixNVT = FixLangevin(state, 'temp', 'all', 1.2)
-fixNVT = FixNoseHoover(state, 'temp', 'all', [0, 1], [1.2, 1.2], 0.1)
+fixNVT = FixNoseHoover(state, 'temp', 'all', 1.2, 0.1)
 #fixNVT = FixNVTRescale(state, 'temp', 'all', 1.2)
 
 state.activateFix(fixNVT)
 
 integVerlet = IntegratorVerlet(state)
 
-tempData = state.dataManager.recordTemperature('all', 10)
+#tempData = state.dataManager.recordTemperature('all', 100)
+#pressureData = state.dataManager.recordPressure('all', 100)
 #boundsData = state.dataManager.recordBounds(100)
 #engData = state.dataManager.recordEnergy('all', 100)
 
 #writeconfig = WriteConfig(state, fn='test_out', writeEvery=1, format='xyz', handle='writer')
 #state.activateWriteConfig(writeconfig)
-integVerlet.run(5000)
-#integVerlet.run(10000)
+integVerlet.run(10000)
 sumV = 0.
 for a in state.atoms:
     sumV += a.vel.lenSqr()
 print sumV / len(state.atoms)/3.0
 print len(tempData.vals)
-plt.plot(tempData.turns, tempData.vals)
-plt.show()
+#plt.plot(pressureData.turns, pressureData.vals)
+#plt.plot(engData.turns, engData.vals)
+#plt.show()
 #state.dataManager.stopRecord(tempData)
 #integVerlet.run(10000)
 #print len(tempData.vals)

@@ -22,3 +22,14 @@ doc/html/
 doc/latex/
 # Build directory:
 build/
+
+CMakeCache.txt
+CMakeFiles/
+Config.h
+Makefile
+cmake_install.cmake
+src/CMakeFiles/
+src/Makefile
+src/cmake_install.cmake
+src/testing
+
