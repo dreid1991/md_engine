@@ -1,5 +1,5 @@
-template <class DIHEDRALTYPE, class EVALUATOR> //don't need DihedralGPU, are all DihedralGPU.  Worry about later 
-__global__ void compute_force_dihedral(int nAtoms, float4 *xs, float4 *forces, int *idToIdxs, DihedralGPU *dihedrals, int *startstops, BoundsGPU bounds, DIHEDRALTYPE *parameters, int nParameters, EVALUATOR evaluator) {
+template <class DIHEDRALTYPE, class EVALUATOR, bool COMPUTEVIRIALS> //don't need DihedralGPU, are all DihedralGPU.  Worry about later 
+__global__ void compute_force_dihedral(int nAtoms, float4 *xs, float4 *forces, int *idToIdxs, DihedralGPU *dihedrals, int *startstops, BoundsGPU bounds, DIHEDRALTYPE *parameters, int nParameters, Virial *virials, EVALUATOR evaluator) {
 
 
     int idx = GETIDX();
@@ -21,6 +21,7 @@ __global__ void compute_force_dihedral(int nAtoms, float4 *xs, float4 *forces, i
         int shr_idx = startIdx - idxBeginCopy;
         int n = endIdx - startIdx;
         if (n) {
+            Virial sumVirials(0, 0, 0, 0, 0, 0);
             int myIdxInDihedral = dihedrals_shr[shr_idx].type >> 29;
             int idSelf = dihedrals_shr[shr_idx].ids[myIdxInDihedral];
             int idxSelf = idToIdxs[idSelf]; 
@@ -138,13 +139,26 @@ __global__ void compute_force_dihedral(int nAtoms, float4 *xs, float4 *forces, i
                // printf("phi is %f\n", phi);
 
                 //printf("no force\n");
-                float3 myForce = evaluator.force(dihedralType, phi, scValues, invLenSqrs, c12Mags, c0, c, invMagProds, c12Mags, invLens, directors, myIdxInDihedral);
+                if (COMPUTEVIRIALS) {
+                    float3 allForces[4];
+                    evaluator.forcesAll(dihedralType, phi, scValues, invLenSqrs, c12Mags, c0, c, invMagProds, c12Mags, invLens, directors, allForces);
+                    computeVirial(sumVirials, allForces[0], directors[0]);
+                    computeVirial(sumVirials, allForces[2], directors[1]);
+                    computeVirial(sumVirials, allForces[3], directors[1] + directors[2]);
+                    forceSum += allForces[myIdxInDihedral];
+                    
+                } else {
+                    float3 myForce = evaluator.force(dihedralType, phi, scValues, invLenSqrs, c12Mags, c0, c, invMagProds, c12Mags, invLens, directors, myIdxInDihedral);
+                    forceSum += myForce;
+                }
                 
-                forceSum += myForce;
 
 
             }
             forces[idxSelf] += forceSum;
+            if (COMPUTEVIRIALS) {
+                virials[idx] += sumVirials;
+            }
         }
     }
 }

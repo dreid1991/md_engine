@@ -1,6 +1,6 @@
 #define SMALL 0.0001f
-template <class ANGLETYPE, class EVALUATOR>
-__global__ void compute_force_angle(int nAtoms, float4 *xs, float4 *forces, int *idToIdxs, AngleGPU *angles, int *startstops, BoundsGPU bounds, ANGLETYPE *parameters, int nTypes, EVALUATOR evaluator) {
+template <class ANGLETYPE, class EVALUATOR, bool COMPUTEVIRIALS>
+__global__ void compute_force_angle(int nAtoms, float4 *xs, float4 *forces, int *idToIdxs, AngleGPU *angles, int *startstops, BoundsGPU bounds, ANGLETYPE *parameters, int nTypes, Virial *__restrict__ virials, EVALUATOR evaluator) {
     int idx = GETIDX();
     extern __shared__ int all_shr[];
     int idxBeginCopy = startstops[blockDim.x*blockIdx.x];
@@ -19,6 +19,7 @@ __global__ void compute_force_angle(int nAtoms, float4 *xs, float4 *forces, int 
         int shr_idx = startIdx - idxBeginCopy;
         int n = endIdx - startIdx;
         if (n>0) {
+            Virial virialSum(0, 0, 0, 0, 0, 0);
             int myIdxInAngle = angles_shr[shr_idx].type >> 29;
             int idSelf = angles_shr[shr_idx].ids[myIdxInAngle];
 
@@ -81,12 +82,25 @@ __global__ void compute_force_angle(int nAtoms, float4 *xs, float4 *forces, int 
                 }
                 s = 1.0f / s;
                 float theta = acosf(c);
-                forceSum += evaluator.force(angleType, theta, s, c, distSqrs, directors, invDistProd, myIdxInAngle);
+                if (COMPUTEVIRIALS) {
+                    float3 allForces[3];
+                    evaluator.forcesAll(angleType, theta, s, c, distSqrs, directors, invDistProd, allForces);
+                    computeVirial(virialSum, allForces[0], directors[0]);
+                    computeVirial(virialSum, allForces[2], directors[1]);
+                    forceSum += allForces[myIdxInAngle];
+                } else {
+                    forceSum += evaluator.force(angleType, theta, s, c, distSqrs, directors, invDistProd, myIdxInAngle);
+                }
+
 
             }
             float4 curForce = forces[idxSelf];
             curForce += forceSum;
             forces[idxSelf] = curForce;
+            if (COMPUTEVIRIALS) {
+                virialSum *= 1.0f / 3.0f;
+                virials[idx] += virialSum;
+            }
         }
     }
 }

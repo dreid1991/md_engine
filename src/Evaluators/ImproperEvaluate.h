@@ -1,5 +1,5 @@
-template <class IMPROPERTYPE, class EVALUATOR> 
-__global__ void compute_force_improper(int nAtoms, float4 *xs, float4 *forces, int *idToIdxs, ImproperGPU *impropers, int *startstops, BoundsGPU bounds, IMPROPERTYPE *parameters, int nParameters, EVALUATOR T) {
+template <class IMPROPERTYPE, class EVALUATOR, bool COMPUTEVIRIALS> 
+__global__ void compute_force_improper(int nAtoms, float4 *xs, float4 *forces, int *idToIdxs, ImproperGPU *impropers, int *startstops, BoundsGPU bounds, IMPROPERTYPE *parameters, int nParameters, Virial *virials, EVALUATOR evaluator) {
 
 
     int idx = GETIDX();
@@ -22,6 +22,7 @@ __global__ void compute_force_improper(int nAtoms, float4 *xs, float4 *forces, i
         int shr_idx = startIdx - idxBeginCopy;
         int n = endIdx - startIdx;
         if (n) {
+            Virial sumVirials (0, 0, 0, 0, 0, 0);
             int myIdxInImproper = impropers_shr[shr_idx].type >> 29;
             int idSelf = impropers_shr[shr_idx].ids[myIdxInImproper];
             
@@ -106,13 +107,26 @@ __global__ void compute_force_improper(int nAtoms, float4 *xs, float4 *forces, i
                     s = SMALL;
                 }
                 float theta = acosf(c);
-                float3 force = T.force(improperType, theta, scValues, invLenSqrs, invLens, angleBits, s, c, directors, myIdxInImproper);
+                if (COMPUTEVIRIALS) {
+                    float3 allForces[4];
+                    evaluator.forcesAll(improperType, theta, scValues, invLenSqrs, invLens, angleBits, s, c, directors, allForces);
+                    computeVirial(sumVirials, allForces[0], directors[0]);
+                    computeVirial(sumVirials, allForces[2], directors[1]);
+                    computeVirial(sumVirials, allForces[3], directors[1] + directors[2]);
+                    forceSum += allForces[myIdxInImproper];
+                    
+                } else {
+                    float3 force = evaluator.force(improperType, theta, scValues, invLenSqrs, invLens, angleBits, s, c, directors, myIdxInImproper);
+                    forceSum += force;
+                }
 
-                forceSum += force;
 
 
             }
             forces[idxSelf] += forceSum;
+            if (COMPUTEVIRIALS) {
+                virials[idx] += sumVirials;
+            }
         }
     }
 }
