@@ -44,7 +44,7 @@ __global__ void rescale_no_tags_cu(int nAtoms, float4 *vs, float scale)
 
 FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state_, std::string handle_,
                              std::string groupHandle_, double temp_, double timeConstant_)
-        : FixThermostatBase(temp_),
+        : Interpolator(temp_),
           Fix(state_,
               handle_,           // Fix handle
               groupHandle_,      // Group handle
@@ -69,7 +69,7 @@ FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state_, std::string handle
 
 FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state_, std::string handle_,
                              std::string groupHandle_, py::object tempFunc_, double timeConstant_)
-        : FixThermostatBase(tempFunc_),
+        : Interpolator(tempFunc_),
           Fix(state_,
               handle_,           // Fix handle
               groupHandle_,      // Group handle
@@ -95,7 +95,7 @@ FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state_, std::string handle
 
 FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state_, std::string handle_,
                              std::string groupHandle_, py::list intervals_, py::list temps_, double timeConstant_)
-        : FixThermostatBase(intervals_, temps_),
+        : Interpolator(intervals_, temps_),
           Fix(state_,
               handle_,           // Fix handle
               groupHandle_,      // Group handle
@@ -127,12 +127,12 @@ bool FixNoseHoover::prepareForRun()
     tempComputer.prepareForRun();
 
     calculateKineticEnergy();
-    computeCurrentTemp(state->runInit);
+    computeCurrentVal(state->runInit);
     updateMasses();
 
     // Update thermostat forces
     double boltz = 1.0;
-    double temp = getCurrentTemp();
+    double temp = getCurrentVal();
     thermForce.at(0) = (ke_current - ndf * boltz * temp) / thermMass.at(0);
     for (size_t k = 1; k < chainLength; ++k) {
         thermForce.at(k) = (
@@ -178,9 +178,9 @@ bool FixNoseHoover::halfStep(bool firstHalfStep)
     // Update the desired temperature
     double temp;
     if (firstHalfStep) {
-        double currentTemp = getCurrentTemp();
-        computeCurrentTemp(state->turn);
-        temp = getCurrentTemp();
+        double currentTemp = getCurrentVal();
+        computeCurrentVal(state->turn);
+        temp = getCurrentVal();
         if (currentTemp != temp) {
             updateMasses();
         }
@@ -191,7 +191,7 @@ bool FixNoseHoover::halfStep(bool firstHalfStep)
         //! \todo This optimization assumes that the velocities are not changed
         //!       between stepFinal() and stepInit(). Can we add a check to make
         //!       sure this is indeed the case?
-        temp = getCurrentTemp();
+        temp = getCurrentVal();
         calculateKineticEnergy();
     }
     // Equipartition at desired temperature
@@ -277,7 +277,7 @@ bool FixNoseHoover::halfStep(bool firstHalfStep)
 void FixNoseHoover::updateMasses()
 {
     double boltz = 1.0;
-    double temp = getCurrentTemp();
+    double temp = getCurrentVal();
     thermMass.at(0) = ndf * boltz * temp / (frequency*frequency);
     for (size_t i = 1; i < chainLength; ++i) {
         thermMass.at(i) = boltz*temp / (frequency*frequency);

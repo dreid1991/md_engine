@@ -9,7 +9,7 @@
 
 #include <boost/shared_ptr.hpp>
 
-#include "FixThermostatBase.h"
+#include "Interpolator.h"
 #include "DataComputerTemperature.h"
 
 //! Make FixNoseHoover available to the python interface
@@ -32,7 +32,7 @@ void export_FixNoseHoover();
  *
  * \todo Implement barostat.
  */
-class FixNoseHoover : public FixThermostatBase, public Fix {
+class FixNoseHoover : public Interpolator , public Fix {
 public:
     //! Delete default constructor
     FixNoseHoover() = delete;
