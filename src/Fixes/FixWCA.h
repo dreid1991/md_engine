@@ -72,6 +72,13 @@ class FixWCA : public FixPair {
         std::vector<float> getRCuts();
 
     public:
+   
+        bool setParameter(std::string param,
+                          std::string handleA,
+                          std::string handleB,
+                          double val);
+
+      
         const std::string epsHandle; //!< Handle for parameter epsilon
         const std::string sigHandle; //!< Handle for parameter sigma
         const std::string rCutHandle; //!< Handle for parameter rCut

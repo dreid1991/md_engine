@@ -88,7 +88,6 @@ bool FixWCA::prepareForRun() {
     auto fillRCut = [this] (int a, int b) {
         int numTypes = state->atomParams.numTypes;
         float sig = squareVectorRef<float>(paramMap[sigHandle]->data(),numTypes,a,b);
-        
         return sig*pow(2.0,1.0/6.0);
     };    
     prepareParameters(epsHandle, fillEps, processEps, false);
@@ -152,13 +151,28 @@ std::vector<float> FixWCA::getRCuts() {
     return res;
 }
 
+bool FixWCA::setParameter(std::string param,
+                           std::string handleA,
+                           std::string handleB,
+                           double val)
+{
+      if (param==sigHandle) FixPair::setParameter(rCutHandle, handleA,handleB,val*pow(2.0,1.0/6.0));
+      return FixPair::setParameter(param, handleA,handleB,val);
+      
+}
 void export_FixWCA() {
     boost::python::class_<FixWCA,
                           SHARED(FixWCA),
                           boost::python::bases<FixPair>, boost::noncopyable > (
         "FixWCA",
         boost::python::init<SHARED(State), std::string> (
-            boost::python::args("state", "handle"))
-    );
+            boost::python::args("state", "handle")))
+        .def("setParameter", &FixWCA::setParameter,
+                ( boost::python::arg("param"),
+                  boost::python::arg("handleA"),
+                  boost::python::arg("handleB"),
+                  boost::python::arg("val"))
+            )
+        ;
 
 }
