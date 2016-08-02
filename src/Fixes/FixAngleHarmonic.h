@@ -24,7 +24,7 @@ public:
     void createAngle(Atom *, Atom *, Atom *, double, double, int type_);
     void setAngleTypeCoefs(int, double, double);
 
-    bool readFromRestart(pugi::xml_node restData);
+    bool readFromRestart();
 
 };
 

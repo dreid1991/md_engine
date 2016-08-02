@@ -63,18 +63,21 @@ bool xml_assign(pugi::xml_node &config, std::string tag, std::function<void (int
     }
     return true;
 }
-
+template <typename T>
+std::vector<T> xml_readNums(pugi::xml_node &node) {
+    std::vector<T> res;
+    std::istringstream ss(node.first_child().value());
+    std::string s;
+    while (ss >> s) {
+        res.push_back(atof(s.c_str()));
+    }
+    return res;
+}
 template <typename T>
 std::vector<T> xml_readNums(pugi::xml_node &parent, std::string tag) {
     auto child = parent.child(tag.c_str());
     if (child) {
-        std::vector<T> res;
-        std::istringstream ss(child.first_child().value());
-        std::string s;
-        while (ss >> s) {
-            res.push_back(atof(s.c_str()));
-        }
-        return res;
+        return xml_readNums<T>(child);
     }
     return std::vector<T>();
 }

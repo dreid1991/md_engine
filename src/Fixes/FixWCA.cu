@@ -16,6 +16,7 @@ FixWCA::FixWCA(SHARED(State) state_, std::string handle_)
     initializeParameters(sigHandle, sigmas);
     initializeParameters(rCutHandle, rCuts);
     paramOrder = {rCutHandle, epsHandle, sigHandle};
+    readFromRestart();
 }
 void FixWCA::compute(bool computeVirials) {
     int nAtoms = state->atoms.size();
@@ -105,25 +106,6 @@ std::string FixWCA::restartChunk(std::string format) {
     return ss.str();
 }
 
-bool FixWCA::readFromRestart(pugi::xml_node restData) {
-    std::cout << "Reading form restart" << std::endl;
-    auto curr_param = restData.first_child();
-    while (curr_param) {
-        if (curr_param.name() == "parameter") {
-           std::vector<float> val;
-           std::string paramHandle = curr_param.attribute("handle").value();
-           std::string s;
-           std::istringstream ss(curr_param.value());
-           while (ss >> s) {
-               val.push_back(atof(s.c_str()));
-           }
-           initializeParameters(paramHandle, val);
-        }
-        curr_param = curr_param.next_sibling();
-    }
-    std::cout << "Reading LJ parameters from restart\n";
-    return true;
-}
 
 bool FixWCA::postRun() {
 

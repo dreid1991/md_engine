@@ -3,7 +3,7 @@
 #include "xml_func.h"
 #include "includeFixes.h"
 #include <boost/lexical_cast.hpp> //for case string to int64 (turn)
-
+#include "Logging.h"
 using namespace std;
 
 vector<vector<num> > mapTo2d(vector<num> &xs, const int dim) {
@@ -36,6 +36,7 @@ void loadAtomParams(pugi::xml_node &config, State *state) {
 	vector<string> handle = xml_readStrings(params_xml, "handle");
 	assert((int) handle.size() == numTypes);
 	params.handles = handle;
+    params.atomicNums = std::vector<int>(numTypes, 6);//add this at some point
 /*
 	vector<num> sigma = readNums(params_xml, "sigma");
 	assert((int) sigma.size() == numTypes * numTypes);
@@ -112,6 +113,31 @@ void loadBounds(pugi::xml_node &config, State *state) {
 	}
 
 }
+
+void loadGroupInfo(pugi::xml_node &config, State *state) {
+    std::vector<std::string> handles;
+    std::vector<uint32_t> bits;
+    auto grp_xml = config.child("groupInfo");
+    if (grp_xml) {
+        auto handles_xml = grp_xml.child("groupHandles");
+        std::istringstream ss(handles_xml.first_child().value());
+        std::string s;
+        while (ss >> s) {
+            handles.push_back(s.c_str());
+        }
+        auto bits_xml = grp_xml.child("groupBits");
+        std::istringstream ss_bits(bits_xml.first_child().value());
+        while (ss_bits >> s) {
+            bits.push_back(atoll(s.c_str()));
+        }
+        mdAssert(bits.size()==handles.size(), "bad group tag restart data");
+        for (int i=0; i<bits.size(); i++) {
+            state->groupTags[handles[i]] = bits[i];
+        }
+    } else {
+        cout << "Failed to load groups from file " << endl;
+    }
+}
 /*
 vector<Bond> buildBonds(pugi::xml_node &config, State *state, string tag, int numBonds) {
 	vector<Bond> bonds;
@@ -135,6 +161,23 @@ vector<Bond> buildBonds(pugi::xml_node &config, State *state, string tag, int nu
 	return bonds;
 }
 */
+pugi::xml_node ReadConfig::readFix(string type, string handle) {
+    if (config) {
+        auto node = config->child("fixes").first_child();
+        while (node) {
+            string t = node.attribute("type").value();
+            string h = node.attribute("handle").value();
+            if (t == type && h == handle) {
+                std::cout << "Reading restart data from fix " << h << " of type " << t << std::endl;
+                return node;
+            }
+            node = node.next_sibling();
+        }
+    }
+    return pugi::xml_node();
+}
+
+
 
 bool ReadConfig::read() {
     cout << "READING A CONFIG" << endl;
@@ -143,6 +186,9 @@ bool ReadConfig::read() {
 	vector<Atom> readAtoms;
 	int64_t readTurn = boost::lexical_cast<int64_t>(config->attribute("turn").value());
 	int numAtoms = boost::lexical_cast<int>(config->attribute("numAtoms").value());
+    double rCut = boost::lexical_cast<double>(config->attribute("rCut").value());
+    double padding = boost::lexical_cast<double>(config->attribute("padding").value());
+    double dt = boost::lexical_cast<double>(config->attribute("dt").value());
 	bool readIs2d = !strcmp(config->attribute("dimension").value(), "2");
 	const char *periodic = config->attribute("periodic").value();
     cout << "periodic is " << periodic << endl;
@@ -153,6 +199,9 @@ bool ReadConfig::read() {
 	}
 	state->turn = readTurn;
 	state->is2d = readIs2d;
+    state->rCut = rCut;
+    state->padding = padding;
+    state->dt = dt;
 	readAtoms.reserve(numAtoms);
 	for (int i=0; i<numAtoms; i++) {
 		readAtoms.push_back(Atom(&state->atomParams.handles));
@@ -197,6 +246,7 @@ bool ReadConfig::read() {
 
 	loadAtomParams(*config, state);
 	loadBounds(*config, state);
+    loadGroupInfo(*config, state);
 	for (Atom &a : readAtoms) {
 		state->addAtomDirect(a);
 	}
@@ -279,21 +329,6 @@ void ReadConfig::loadFile(string fn_) {
     fileOpen = true;
 }
 
-pugi::xml_node ReadConfig::readFix(string type, string handle) {
-  if (config) {
-    cout << "config exists" << endl;
-    auto node = config->child("fixes").first_child();
-    while (node) {
-      string t = node.attribute("type").value();
-      string h = node.attribute("handle").value();
-      if (t == type && h == handle) {
-        return node;
-      }
-      node = node.next_sibling();
-    }
-  }
-  return pugi::xml_node();
-}
 
 pugi::xml_node ReadConfig::readNode(string nodeTag) {
     if (config) {

@@ -39,6 +39,7 @@ public:
     void finish();
 
     void write(int64_t turn);
+    void writePy();
     std::string getCurrentFn(int64_t turn);
 
 };

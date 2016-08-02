@@ -125,8 +125,8 @@ __global__ void compute_force_improper(int nAtoms, float4 *xs, float4 *forces, i
             }
             forces[idxSelf] += forceSum;
             if (COMPUTEVIRIALS) {
-                sumVirials = sumVirials * 0.25f;
-                virials[idx] += sumVirials
+                sumVirials *= 0.25f;
+                virials[idx] += sumVirials;
             }
         }
     }

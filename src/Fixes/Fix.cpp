@@ -17,6 +17,8 @@ Fix::Fix(boost::shared_ptr<State> state_, std::string handle_, std::string group
       orderPreference(orderPreference_), restartHandle(type + "_" + handle)
 {
     updateGroupTag();
+    /*
+     * implemented per-fix.  May need to initialize junk first
     if (state->readConfig->fileOpen) {
         auto restData = state->readConfig->readNode(restartHandle);
         if (restData) {
@@ -24,12 +26,21 @@ Fix::Fix(boost::shared_ptr<State> state_, std::string handle_, std::string group
             readFromRestart(restData);
         }
     }
+    */
 }
 
 bool Fix::isEqual(Fix &f) {
     return f.handle == handle;
 }
 
+pugi::xml_node Fix::getRestartNode() {
+    if (state->readConfig->fileOpen) {
+        auto restData = state->readConfig->readFix(type, handle);
+        return restData;
+    }
+    return pugi::xml_node();
+
+}
 void Fix::updateGroupTag() {
     std::map<std::string, unsigned int> &groupTags = state->groupTags;
     if (groupHandle == "None") {
