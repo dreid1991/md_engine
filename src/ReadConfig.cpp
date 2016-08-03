@@ -36,7 +36,7 @@ void loadAtomParams(pugi::xml_node &config, State *state) {
 	vector<string> handle = xml_readStrings(params_xml, "handle");
 	assert((int) handle.size() == numTypes);
 	params.handles = handle;
-    params.atomicNums = std::vector<int>(numTypes, 6);//add this at some point
+    params.atomicNums = std::vector<int>(numTypes, -1);//add this at some point
 /*
 	vector<num> sigma = readNums(params_xml, "sigma");
 	assert((int) sigma.size() == numTypes * numTypes);

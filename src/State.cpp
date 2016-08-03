@@ -207,8 +207,10 @@ void State::duplicateMolecule(Molecule &molec) {
     std::vector<int> newIds;
     for (int id : molec.ids) {
         Atom &a = atoms[idToIdx[id]];
+
         Atom &dup = duplicateAtom(a);
-        oldToNew[a.id] = dup.id;
+        //NOTE THAT REFERENCE TO A MAY BE INVALIDATE AFTER DUPLICATION B/C VECTOR COULD REALLOCATE
+        oldToNew[id] = dup.id;
         newIds.push_back(dup.id);
     }
     for (Fix *fix : fixes) {
