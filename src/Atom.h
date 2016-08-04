@@ -28,7 +28,7 @@ public:
     std::vector<std::string> *handles;
 
     Atom (std::vector<std::string> *handles_) 
-        : handles(handles_), mass(0), type(-1), id(-1)
+        : mass(0), type(-1), id(-1), handles(handles_)
     {};
     Atom(Vector pos_, int type_, int id_, double mass_, double q_, std::vector<std::string> *handles_)
         : pos(pos_), mass(mass_), q(q_), type(type_), id(id_), groupTag(1), handles(handles_)
