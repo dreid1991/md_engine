@@ -40,6 +40,7 @@ __global__ void compute_force_bond(int nAtoms, float4 *xs, float4 *forces, int *
                 // printf("xs %f %f\n", pos.x, posOther.x);
                 float3 bondVec  = bounds.minImage(pos - posOther);
                 float rSqr = lengthSqr(bondVec);
+                //printf("my pos %f %f %f rsqr %f\n", pos.x, pos.y, pos.y, rSqr);
                 float3 force = T.force(bondVec, rSqr, bondType);
 
                 forceSum += force;

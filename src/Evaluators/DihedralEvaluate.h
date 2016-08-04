@@ -63,7 +63,7 @@ __global__ void compute_force_dihedral(int nAtoms, float4 *xs, float4 *forces, i
                     int idxOther = idToIdxs[dihedral.ids[toGet[i]]];
                     positions[toGet[i]] = make_float3(xs[idxOther]);
                 }
-                for (int i=1; i<3; i++) {
+                for (int i=1; i<4; i++) {
                     positions[i] = positions[0] + bounds.minImage(positions[i]-positions[0]);
                 }
                 //for (int i=0; i<4; i++) {
