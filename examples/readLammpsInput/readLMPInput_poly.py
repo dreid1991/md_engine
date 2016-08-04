@@ -1,6 +1,6 @@
 import sys
-sys.path = sys.path + ['../build/python/build/lib.linux-x86_64-2.7' ]
-sys.path.append('../util_py')
+sys.path = sys.path + ['../../build/python/build/lib.linux-x86_64-2.7' ]
+sys.path.append('../../util_py')
 from Sim import *
 from LAMMPS_Reader import LAMMPS_Reader
 import argparse
@@ -9,13 +9,19 @@ import matplotlib.pyplot as plt
 from math import *
 state = State()
 state.deviceManager.setDevice(0)
-state.bounds = Bounds(state, lo = Vector(-30, -30, -30), hi = Vector(360, 360, 360))
+dx = 20
+dy = 20
+dz = 8
+ndim = 3
+state.bounds = Bounds(state, lo = Vector(0, -20, -20), hi = Vector(dx*ndim+20, dy*ndim+20, dz*ndim+20))
+#state.bounds = Bounds(state, lo = Vector(0, -20, -20), hi = Vector(40, 40, 40))#Vector(dx*ndim+20, dy*ndim+20, dz*ndim+20))
 state.rCut = 3.0
 state.padding = 0.6
 state.periodicInterval = 7
-state.shoutEvery = 1000
+state.shoutEvery = 100
 
-state.dt = 0.0005
+#state.dt = 0.0005
+state.dt = 0.0001
 
 ljcut = FixLJCut(state, 'ljcut')
 bondHarm = FixBondHarmonic(state, 'bondharm')
@@ -30,14 +36,21 @@ state.activateFix(angleHarm)
 state.activateFix(dihedralOPLS)
 state.activateFix(improperHarm)
 
+unitEng = 0.066
 unitLen = 3.5
 writeconfig = WriteConfig(state, fn='poly_out', writeEvery=1000, format='xyz', handle='writer')
 writeconfig.unitLen = 1/unitLen
-temp = state.dataManager.recordEnergy('all', 50)
+#temp = state.dataManager.recordEnergy('all', 50)
 #reader = LAMMPS_Reader(state=state, unitLen = unitLen, unitMass = 12, unitEng = 0.066, bondFix = bondHarm, angleFix = angleHarm, nonbondFix = ljcut, dihedralFix = dihedralOPLS, improperFix=improperHarm, atomTypePrefix = 'PTB7_', setBounds=False)
-reader = LAMMPS_Reader(state=state, unitLen = unitLen, unitMass = 12, unitEng = 0.066, bondFix = bondHarm, nonbondFix = ljcut,  angleFix = angleHarm, dihedralFix = dihedralOPLS,improperFix=improperHarm,atomTypePrefix = 'PTB7_', setBounds=False)
+reader = LAMMPS_Reader(state=state, unitLen = unitLen, unitMass = 12, unitEng = unitEng, nonbondFix = ljcut, atomTypePrefix = 'PTB7_', setBounds=False, bondFix = bondHarm,   angleFix = angleHarm, dihedralFix = dihedralOPLS,improperFix=improperHarm,)
 reader.read(dataFn = 'poly_min.data')
 
+#1 kelven = 1.38e-23 J/K  / (2760/6.022e23) = .00301 temp units
+#to tReal * conversion = LJ tempo
+#pressure = pReal * unitLen^3/unitEng = 3.5^3/.066
+#so to pressure / 649.62 = pReal
+tUnut = 0.00301
+pUnit = unitLen**3 / unitEng
 InitializeAtoms.initTemp(state, 'all', 0.1)
 
 '''
@@ -56,6 +69,9 @@ InitializeAtoms.initTemp(state, 'all', 0.1)
 13 1
 14 126.904
 '''
+
+
+
 state.atomParams.setValues('PTB7_0', atomicNum=6)
 state.atomParams.setValues('PTB7_1', atomicNum=16)
 state.atomParams.setValues('PTB7_2', atomicNum=6)
@@ -74,25 +90,39 @@ state.atomParams.setValues('PTB7_13', atomicNum=53)
 integRelax = IntegratorRelax(state)
 integRelax.writeOutput()
 #integRelax.run(11, 1e-9)
-InitializeAtoms.initTemp(state, 'all', 0.1)
-fixNVT = FixNVTRescale(state, 'temp', 'all', [0, 1], [0.1, 3.8], 100)
+InitializeAtoms.initTemp(state, 'all', 1)
+fixNVT = FixNoseHoover(state, 'temp', 'all', 1, 0.1)
 state.activateFix(fixNVT)
 
+pressureData = state.dataManager.recordPressure('all', 10)
 integVerlet = IntegratorVerlet(state)
-integVerlet.run(1500)
+#integVerlet.run(1500)
 
 state.activateWriteConfig(writeconfig)
 state.createMolecule([a.id for a in state.atoms])
 print len(state.atoms)
-for i in range(10):
-    state.duplicateMolecule(state.molecules[-1])
-    print state.molecules
-    state.molecules[-1].translate(Vector(0, 0, 8))
-integVerlet.run(2000)
-print temp.vals
+for x in range(ndim):
+    for y in range(ndim):
+        for z in range(ndim):
+            if not (x==0 and y==0 and z==0):
+                print x,y,z
+                state.duplicateMolecule(state.molecules[0])
+                state.molecules[-1].translate(Vector(x*dx, y*dy, z*dz))
+#integVerlet.run(2000)
+#print temp.vals
 
 #integVerlet = IntegraterVerlet(state)
-#integVerlet.run(100000)
+constPressure = FixPressureBerendsen(state, 'constp', 1, .5)
+state.activateFix(constPressure)
+ewald = FixChargeEwald(state, "chargeFix", "all")
+ewald.setParameters(32, 3.0, 3)
+state.activateFix(ewald)
+
+tempData = state.dataManager.recordTemperature('all', 1000)
+integVerlet.run(100)
+#print tempData.vals
+print [p/pUnit for p in pressureData.vals]
+print pressureData.vals
 #print state.atoms[0].pos.dist(state.atoms[1].pos)
 #print tempData.vals
 

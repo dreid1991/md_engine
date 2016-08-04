@@ -7,6 +7,7 @@
 #include "FixCharge.h"
 #include "GPUArrayGlobal.h"
 #include "Virial.h"
+#include "BoundsGPU.h"
 
 class State;
 
@@ -33,13 +34,12 @@ private:
 
     float alpha;
     float r_cut;
-    bool first_run;
     
-    void find_optimal_parameters();
+    void find_optimal_parameters(bool);
     
     float total_Q;
     float total_Q2;
-
+    void setTotalQ2();
     void calc_Green_function();
     void calc_potential(cufftComplex *phi_buf);
 
@@ -49,7 +49,9 @@ private:
     double DeltaF_real(double t_alpha);
     float3 h;
     float3 L;
-    int nAtoms;
+    GPUArrayDeviceGlobal<Virial> virialField;
+    BoundsGPU boundsLastOptimize;
+    void handleChangedBounds(bool);
         
 
 public:
@@ -68,6 +70,7 @@ public:
     //! Compute single point energy
     void singlePointEng(float *);
 
+    bool prepareForRun();
     
     //! Return list of cutoff values.
     std::vector<float> getRCuts() {

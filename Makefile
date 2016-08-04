@@ -165,19 +165,6 @@ testing/fast:
 	$(MAKE) -f src/CMakeFiles/testing.dir/build.make src/CMakeFiles/testing.dir/build
 .PHONY : testing/fast
 
-#=============================================================================
-# Target rules for targets named PythonLib
-
-# Build rule for target.
-PythonLib: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 PythonLib
-.PHONY : PythonLib
-
-# fast build rule for target.
-PythonLib/fast:
-	$(MAKE) -f python/CMakeFiles/PythonLib.dir/build.make python/CMakeFiles/PythonLib.dir/build
-.PHONY : PythonLib/fast
-
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -192,7 +179,6 @@ help:
 	@echo "... rebuild_cache"
 	@echo "... Sim"
 	@echo "... testing"
-	@echo "... PythonLib"
 .PHONY : help
 
 
