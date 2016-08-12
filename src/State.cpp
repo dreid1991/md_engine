@@ -505,6 +505,7 @@ bool State::downloadFromRun() {
         atoms[idxWriteTo].vel = vs[i];
         atoms[idxWriteTo].force = fs[i];
     }
+    bounds.set(boundsGPU);
     return true;
 }
 

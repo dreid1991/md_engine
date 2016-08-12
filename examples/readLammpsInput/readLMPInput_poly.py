@@ -12,7 +12,7 @@ state.deviceManager.setDevice(0)
 dx = 20
 dy = 20
 dz = 8
-ndim = 3
+ndim = 5
 state.bounds = Bounds(state, lo = Vector(0, -20, -20), hi = Vector(dx*ndim+20, dy*ndim+20, dz*ndim+20))
 #state.bounds = Bounds(state, lo = Vector(0, -20, -20), hi = Vector(40, 40, 40))#Vector(dx*ndim+20, dy*ndim+20, dz*ndim+20))
 state.rCut = 3.0
@@ -38,20 +38,20 @@ state.activateFix(improperHarm)
 
 unitEng = 0.066
 unitLen = 3.5
+unitMass = 12
 writeconfig = WriteConfig(state, fn='poly_out', writeEvery=1000, format='xyz', handle='writer')
 writeconfig.unitLen = 1/unitLen
 #temp = state.dataManager.recordEnergy('all', 50)
 #reader = LAMMPS_Reader(state=state, unitLen = unitLen, unitMass = 12, unitEng = 0.066, bondFix = bondHarm, angleFix = angleHarm, nonbondFix = ljcut, dihedralFix = dihedralOPLS, improperFix=improperHarm, atomTypePrefix = 'PTB7_', setBounds=False)
-reader = LAMMPS_Reader(state=state, unitLen = unitLen, unitMass = 12, unitEng = unitEng, nonbondFix = ljcut, atomTypePrefix = 'PTB7_', setBounds=False, bondFix = bondHarm,   angleFix = angleHarm, dihedralFix = dihedralOPLS,improperFix=improperHarm,)
+reader = LAMMPS_Reader(state=state, unitLen = unitLen, unitMass = unitMass, unitEng = unitEng, nonbondFix = ljcut, atomTypePrefix = 'PTB7_', setBounds=False, bondFix = bondHarm,   angleFix = angleHarm, dihedralFix = dihedralOPLS,improperFix=improperHarm,)
 reader.read(dataFn = 'poly_min.data')
 
 #1 kelven = 1.38e-23 J/K  / (2760/6.022e23) = .00301 temp units
 #to tReal * conversion = LJ tempo
 #pressure = pReal * unitLen^3/unitEng = 3.5^3/.066
 #so to pressure / 649.62 = pReal
-tUnut = 0.00301
+tUnit = 0.00301
 pUnit = unitLen**3 / unitEng
-InitializeAtoms.initTemp(state, 'all', 0.1)
 
 '''
 1 12
@@ -94,7 +94,7 @@ InitializeAtoms.initTemp(state, 'all', 1)
 fixNVT = FixNoseHoover(state, 'temp', 'all', 1, 0.1)
 state.activateFix(fixNVT)
 
-pressureData = state.dataManager.recordPressure('all', 10)
+#pressureData = state.dataManager.recordPressure('all', 10)
 integVerlet = IntegratorVerlet(state)
 #integVerlet.run(1500)
 
@@ -112,17 +112,31 @@ for x in range(ndim):
 #print temp.vals
 
 #integVerlet = IntegraterVerlet(state)
-constPressure = FixPressureBerendsen(state, 'constp', 1, .5)
+constPressure = FixPressureBerendsen(state, 'constp', 1*pUnit, .5)
 state.activateFix(constPressure)
-ewald = FixChargeEwald(state, "chargeFix", "all")
-ewald.setParameters(32, 3.0, 3)
-state.activateFix(ewald)
+#ewald = FixChargeEwald(state, "chargeFix", "all")
+#ewald.setParameters(32, 3.0, 3)
+#state.activateFix(ewald)
 
 tempData = state.dataManager.recordTemperature('all', 1000)
-integVerlet.run(100)
+integVerlet.run(100000)
+print state.bounds.hi
+print state.bounds.lo
+vol = 1.
+for i in range(3):
+    vol *= state.bounds.hi[i] - state.bounds.lo[i]
+print 'vol %f' % vol
+print vol*unitLen**3
+
+sumMass = sum([a.m for a in state.atoms])
+print 'mass %f' % sumMass
+print sumMass * unitMass
+
+
+
 #print tempData.vals
-print [p/pUnit for p in pressureData.vals]
-print pressureData.vals
+#print [p/pUnit for p in pressureData.vals]
+print tempData.vals
 #print state.atoms[0].pos.dist(state.atoms[1].pos)
 #print tempData.vals
 

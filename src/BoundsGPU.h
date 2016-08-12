@@ -101,7 +101,7 @@ public:
         float3 old = rectComponents;
         rectComponents *= scaleBy;
         float3 diff = rectComponents - old;
-        lo += diff / 2.0f;
+        lo -= diff / 2.0f;
         invRectComponents = 1 / rectComponents;
 
     }

@@ -35,12 +35,12 @@ state.activateFix(fixNVT)
 integVerlet = IntegratorVerlet(state)
 
 #tempData = state.dataManager.recordTemperature('all', 100)
-pressureData = state.dataManager.recordPressure('all', 100)
+#pressureData = state.dataManager.recordPressure('all', 100)
 #boundsData = state.dataManager.recordBounds(100)
 #engData = state.dataManager.recordEnergy('all', 100)
 
-pressure = FixPressureBerendsen(state, "constP", 0.2, 5);
-state.activateFix(pressure);
+#pressure = FixPressureBerendsen(state, "constP", 0.2, 5);
+#state.activateFix(pressure);
 
 #writeconfig = WriteConfig(state, fn='test_out', writeEvery=1, format='xyz', handle='writer')
 #state.activateWriteConfig(writeconfig)
@@ -48,9 +48,9 @@ integVerlet.run(100000)
 sumV = 0.
 for a in state.atoms:
     sumV += a.vel.lenSqr()
-print sumV / len(state.atoms)/3.0
-plt.plot(pressureData.turns, pressureData.vals)
-plt.show()
+#print sumV / len(state.atoms)/3.0
+#plt.plot(pressureData.turns, pressureData.vals)
+#plt.show()
 #plt.show()
 #state.dataManager.stopRecord(tempData)
 #integVerlet.run(10000)

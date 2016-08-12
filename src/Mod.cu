@@ -3,7 +3,7 @@
 
 #include "Bond.h"
 #include "Angle.h"
-
+#include "Vector.h"
 using namespace std;
 
 
@@ -89,7 +89,6 @@ __global__ void Mod::scaleSystem_cu(float4 *xs, int nAtoms, float3 lo, float3 re
 void Mod::scaleSystem(State *state, double scaleBy) {
     scaleSystem_cu<<<NBLOCK(state->atoms.size()), PERBLOCK>>>(state->gpd.xs.getDevData(), state->atoms.size(), state->boundsGPU.lo, state->boundsGPU.rectComponents, scaleBy);
     state->boundsGPU.scale(scaleBy);
-
 }
 // CPU versions
 /*
