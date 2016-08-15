@@ -20,20 +20,21 @@ void export_IntegratorLGJF();
 class IntegratorLGJF : public Integrator
 {
 public:
+    double temp;
     double alpha;
     int seed;
+    float scaleFactor;
+
     GPUArrayDeviceGlobal<curandState_t> randStates;
     //! Constructor
     /*!
      * \param statePtr Pointer to the simulation state
-     * friction coefficient alpha, and integer seed for 
-     * the random number generator
+     * temperature temp in units of (k_b)*T
+     * friction coefficient alpha, 
+     * integer seed for the random number generator
      */
-    IntegratorLGJF(State *statePtr, double alpha_, int seed_) ; 
+    IntegratorLGJF(State *statePtr,double temp_, double alpha_, int seed_) ; 
 
-        // initialize the RNG here?
-        // idk, think about it
-    
     //! Run the Integrator
     /*!
      * \param numTurns Number of steps to run
