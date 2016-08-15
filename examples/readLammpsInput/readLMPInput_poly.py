@@ -39,7 +39,7 @@ state.activateFix(improperHarm)
 unitEng = 0.066
 unitLen = 3.5
 unitMass = 12
-writeconfig = WriteConfig(state, fn='poly_out', writeEvery=1000, format='xyz', handle='writer')
+writeconfig = WriteConfig(state, fn='poly_out', writeEvery=100, format='xyz', handle='writer')
 writeconfig.unitLen = 1/unitLen
 #temp = state.dataManager.recordEnergy('all', 50)
 #reader = LAMMPS_Reader(state=state, unitLen = unitLen, unitMass = 12, unitEng = 0.066, bondFix = bondHarm, angleFix = angleHarm, nonbondFix = ljcut, dihedralFix = dihedralOPLS, improperFix=improperHarm, atomTypePrefix = 'PTB7_', setBounds=False)
@@ -119,7 +119,7 @@ state.activateFix(constPressure)
 #state.activateFix(ewald)
 
 tempData = state.dataManager.recordTemperature('all', 1000)
-integVerlet.run(100000)
+integVerlet.run(10000)
 print state.bounds.hi
 print state.bounds.lo
 vol = 1.
