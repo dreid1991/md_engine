@@ -21,7 +21,7 @@ class IntegratorLGJF : public Integrator
 {
 public:
     double temp;
-    double alpha;
+    double alpha = 0.0;
     int seed;
     float scaleFactor;
 
@@ -34,7 +34,7 @@ public:
      * integer seed for the random number generator
      */
     IntegratorLGJF(State *statePtr,double temp_, double alpha_, int seed_) ; 
-
+    IntegratorLGJF(State *statePtr,double temp_);
     //! Run the Integrator
     /*!
      * \param numTurns Number of steps to run

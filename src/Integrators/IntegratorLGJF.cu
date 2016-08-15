@@ -111,6 +111,22 @@ IntegratorLGJF::IntegratorLGJF(State *state_, double temp_, double alpha_, int s
 {
  // assert statement here if you can think of one that is applicable
 }
+
+IntegratorLGJF::IntegratorLGJF(State *state_, double temp_) : 
+        Integrator(state_), temp(temp_), alpha(0.0), seed(0)
+
+{
+    // this constructor assumes that a langevin fix is being used;
+    // as such, the alpha and seed variables are defaulted to zero
+    //
+    // todo: is there anything else to consider here?
+    // is this integrator implemented properly such that FixLangevin,
+    // FixDPD etc. can be used whether alpha, seed are zero or nonzero?
+    // assume the user will try to use both and may construct them with
+    // friction coeffs and seed - terminate if conflicting information,
+    // but allow to continue if the seed AND friction coefficients are the same
+    // anything else to consider?
+}
 // todo: various temperature constructors compatible with the interpolator
 void __global__ initRandStatesLGJF(int nAtoms, curandState_t *states, int seed,int turn) {
     int idx = GETIDX();
