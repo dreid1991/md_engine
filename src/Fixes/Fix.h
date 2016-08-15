@@ -147,7 +147,8 @@ public:
      *
      * Setup Fix from restart data.
      */
-    virtual bool readFromRestart(pugi::xml_node restData){return true;};
+    virtual bool readFromRestart(){return true;};//pugi::xml_node restData){return true;};
+    pugi::xml_node getRestartNode();
    //! Makes copies of appropriate data to handle duplicating molecules
     /*!
      * \param map of ids - original to copied

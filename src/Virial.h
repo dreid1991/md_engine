@@ -28,7 +28,7 @@ class Virial {
                 vals[i] *= x;
             }
         }
-        inline __host__ void operator /= (double n) {
+        inline __host__ __device__ void operator /= (double n) {
             for (int i=0; i<6; i++) {
                 vals[i] /= n;
             }

@@ -3,7 +3,7 @@
 #include "State.h"
 
 #include <cmath>
-
+#include "xml_func.h"
 namespace py = boost::python;
 
 void FixPair::prepareParameters(std::string handle,
@@ -152,17 +152,49 @@ void FixPair::initializeParameters(std::string paramHandle,
     paramMapProcessed[paramHandle] = std::vector<float>();
 }
 
+
+bool FixPair::readFromRestart() {
+    pugi::xml_node restData = getRestartNode();
+    //params must be already initialized at this point (in constructor)
+    if (restData) {
+        auto curr_param = restData.first_child();
+        while (curr_param) {
+            std::string tag = curr_param.name();
+            if (tag == "parameter") {
+                std::string paramHandle = curr_param.attribute("handle").value();
+                auto it = find(paramOrder.begin(), paramOrder.end(), paramHandle);
+                if (it == paramOrder.end()) {
+                    std::cout << "Tried to read bad restart data for fix " << handle << ".  Data type " << paramHandle << std::endl;
+                }
+                mdAssert(it != paramOrder.end(), "Invalid restart data for fix");
+                std::vector<float> *params = paramMap[paramHandle];
+                std::vector<float> src = xml_readNums<float>(curr_param);
+                assert(params->size() == src.size());
+                for (int i=0; i<src.size(); i++) {
+                    (*params)[i] = src[i];
+                }
+            }
+            curr_param = curr_param.next_sibling();
+        }
+
+    }
+    return true;
+    
+}
+
 std::string FixPair::restartChunkPairParams(std::string format) {
     std::stringstream ss;
-    char buffer[128];
+    //char buffer[128];
     //ignoring format for now
     for (auto it=paramMap.begin(); it!=paramMap.end(); it++) {
-        sprintf(buffer, "<parameter handle=\"%s\">", it->first.c_str());
-        ss << buffer << "\n";
+        //sprintf(buffer, "<parameter handle=\"%s\">", it->first.c_str());
+        ss << "<parameter handle=\"" << it->first.c_str() << "\">\n";
+        //ss << buffer << "\n";
         for (int i = 0; i < it->second->size(); i++) {
-            for (int j = 0; j < it->second[i].size(); j++) {
-	            ss << it->second[i][j] << "\n";
-            }
+            ss << it->second->at(i) << "\n";
+            //for (int j = 0; j < it->second[i].size(); j++) {
+	        //    ss << it->second[i][j] << "\n";
+           // }
         }
         /*
         for (float x : *(it->second)) {

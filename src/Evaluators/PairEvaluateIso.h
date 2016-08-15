@@ -38,6 +38,7 @@ __global__ void compute_force_iso(int nAtoms, const float4 *__restrict__ xs, flo
                 int sqrIdx = squareVectorIndex(numTypes, type, otherType);
                 float3 dr = bounds.minImage(pos - otherPos);
                 float lenSqr = lengthSqr(dr);
+                //printf("dr sqr pair is %f OMG UNCOMMENT IF MULT\n", lenSqr);
                 float params_pair[N];
                 for (int pIdx=0; pIdx<N; pIdx++) {
                     params_pair[pIdx] = params_shr[pIdx][sqrIdx];

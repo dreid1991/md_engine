@@ -16,6 +16,7 @@ FixTICG::FixTICG(boost::shared_ptr<State> state_, std::string handle_)
     initializeParameters(CHandle, Cs);
     initializeParameters(rCutHandle, rCuts);
     paramOrder = {rCutHandle, CHandle};
+    readFromRestart();
 }
 
 void FixTICG::compute(bool computeVirials) {
@@ -80,26 +81,6 @@ std::string FixTICG::restartChunk(std::string format) {
     std::stringstream ss;
     ss << restartChunkPairParams(format);
     return ss.str();
-}
-
-bool FixTICG::readFromRestart(pugi::xml_node restData) {
-    std::cout << "Reading form restart" << std::endl;
-    auto curr_param = restData.first_child();
-    while (curr_param) {
-        if (curr_param.name() == "parameter") {
-            std::vector<float> val;
-            std::string paramHandle = curr_param.attribute("handle").value();
-            std::string s;
-            std::istringstream ss(curr_param.value());
-            while (ss >> s) {
-                val.push_back(atof(s.c_str()));
-            }
-            initializeParameters(paramHandle, val);
-        }
-        curr_param = curr_param.next_sibling();
-    }
-    std::cout << "Reading TICG parameters from restart" << std::endl;
-    return true;
 }
 
 bool FixTICG::postRun() {

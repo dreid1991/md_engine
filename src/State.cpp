@@ -103,7 +103,6 @@ bool State::addAtomDirect(Atom a) {
         std::cout << "Bad atom type " << a.type << std::endl;
         return false;
     }
-
     if (a.mass == -1 or a.mass == 0) {
         a.mass = atomParams.masses[a.type];
     }
@@ -208,8 +207,10 @@ void State::duplicateMolecule(Molecule &molec) {
     std::vector<int> newIds;
     for (int id : molec.ids) {
         Atom &a = atoms[idToIdx[id]];
+
         Atom &dup = duplicateAtom(a);
-        oldToNew[a.id] = dup.id;
+        //NOTE THAT REFERENCE TO A MAY BE INVALIDATE AFTER DUPLICATION B/C VECTOR COULD REALLOCATE
+        oldToNew[id] = dup.id;
         newIds.push_back(dup.id);
     }
     for (Fix *fix : fixes) {
@@ -424,6 +425,7 @@ bool State::prepareForRun() {
 
     gpd.idToIdxsOnCopy = idToIdxs_vec;
     gpd.idToIdxs.set(idToIdxs_vec);
+    bounds.handle2d();
     boundsGPU = bounds.makeGPU();
     float maxRCut = getMaxRCut();
     initializeGrid();
@@ -503,6 +505,7 @@ bool State::downloadFromRun() {
         atoms[idxWriteTo].vel = vs[i];
         atoms[idxWriteTo].force = fs[i];
     }
+    bounds.set(boundsGPU);
     return true;
 }
 
@@ -513,7 +516,7 @@ bool State::addToGroupPy(std::string handle, py::list toAdd) {//list of atom ids
     int len = py::len(toAdd);
     for (int i=0; i<len; i++) {
         py::extract<int> idPy(toAdd[i]);
-        mdAssert(idPy.check(), "Invalid atom found when trying to add to group");
+        mdAssert(idPy.check(), "Tried to add atom to group, but numerical value (atom id) was not given");
         int id = idPy;
         mdAssert(id>=0 and id <= idToIdx.size(), "Invalid atom found when trying to add to group");
         int idx = idToIdx[id];

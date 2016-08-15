@@ -61,7 +61,7 @@ __global__ void compute_force_improper(int nAtoms, float4 *xs, float4 *forces, i
                     int idxOther = idToIdxs[improper.ids[toGet[i]]];
                     positions[toGet[i]] = make_float3(xs[idxOther]);
                 }
-                for (int i=1; i<3; i++) {
+                for (int i=1; i<4; i++) {
                     positions[i] = positions[0] + bounds.minImage(positions[i]-positions[0]);
                 }
                 float3 directors[3]; //vb_xyz in lammps
@@ -125,6 +125,7 @@ __global__ void compute_force_improper(int nAtoms, float4 *xs, float4 *forces, i
             }
             forces[idxSelf] += forceSum;
             if (COMPUTEVIRIALS) {
+                sumVirials *= 0.25f;
                 virials[idx] += sumVirials;
             }
         }

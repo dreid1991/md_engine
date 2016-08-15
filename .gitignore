@@ -22,3 +22,5 @@ doc/html/
 doc/latex/
 # Build directory:
 build/
+src/Makefile
+Makefile

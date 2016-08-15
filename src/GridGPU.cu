@@ -3,7 +3,6 @@
 #include "State.h"
 #include "helpers.h"
 #include "Bond.h"
-#include "BoundsGPU.h"
 #include "list_macro.h"
 #include "Mod.h"
 #include "Fix.h"
@@ -14,24 +13,44 @@
 /* GridGPU members */
 
 void GridGPU::initArrays() {
-    perCellArray =
-        GPUArrayGlobal<uint32_t>(prod(ns) + 1);
-    perAtomArray =
-        GPUArrayGlobal<uint16_t>(state->atoms.size()+1);
+    //this happens in adjust for new bounds
+    //perCellArray = GPUArrayGlobal<uint32_t>(prod(ns) + 1);
+    perAtomArray = GPUArrayGlobal<uint16_t>(state->atoms.size()+1);
     // also cumulative sum, tracking cumul. sum of max per block
-    perBlockArray =
-        GPUArrayGlobal<uint32_t>(NBLOCK(state->atoms.size()) + 1);
+    perBlockArray = GPUArrayGlobal<uint32_t>(NBLOCK(state->atoms.size()) + 1);
     // not +1 on this one, isn't cumul sum
-    perBlockArray_maxNeighborsInBlock =
-        GPUArrayDeviceGlobal<uint16_t>(NBLOCK(state->atoms.size()));
-    xsLastBuild =
-        GPUArrayDeviceGlobal<float4>(state->atoms.size());
+    perBlockArray_maxNeighborsInBlock = GPUArrayDeviceGlobal<uint16_t>(NBLOCK(state->atoms.size()));
+    xsLastBuild = GPUArrayDeviceGlobal<float4>(state->atoms.size());
 
     // in prepare for run, you make GPU grid _after_ copying xs to device
     buildFlag = GPUArrayGlobal<int>(1);
     buildFlag.d_data.memset(0);
 }
 
+void GridGPU::setBounds(BoundsGPU &newBounds) {
+    Vector trace = state->boundsGPU.rectComponents;  
+    Vector attemptDDim = Vector(minGridDim);
+    VectorInt nGrid = trace / attemptDDim;  // so rounding to bigger grid
+
+    Vector actualDDim = trace / nGrid;
+
+    // making grid that is exactly size of box.  This way can compute offsets
+    // easily from Grid that doesn't have to deal with higher-level stuff like
+    // bounds
+    ds = actualDDim.asFloat3();
+    os = state->boundsGPU.lo;
+    int3 nsNew = nGrid.asInt3();
+    if (state->is2d) {
+        nsNew.z = 1;
+        ds.z = 1;
+        assert(os.z == -.5);
+    }
+    if (nsNew != ns) {
+        ns = nsNew;
+        perCellArray = GPUArrayGlobal<uint32_t>(prod(ns) + 1);
+    }
+    boundsLastBuild = newBounds;
+}
 
 void GridGPU::initStream() {
     //std::cout << "initializing stream" << std::endl;
@@ -52,24 +71,11 @@ GridGPU::GridGPU(State *state_, float dx_, float dy_, float dz_, float neighCuto
     neighCutoffMax = neighCutoffMax_;
 
     streamCreated = false;
-    Vector trace = state->bounds.rectComponents;  // EEHHHHH SHOULD CHANGE TO BOUNDSGPU, but it doesn't really matter because you initialize them at the same time.  FOR NOW
-    Vector attemptDDim = Vector(dx_, dy_, dz_);
-    VectorInt nGrid = trace / attemptDDim;  // so rounding to bigger grid
-    Vector actualDDim = trace / nGrid;
-
-    // making grid that is exactly size of box.  This way can compute offsets
-    // easily from Grid that doesn't have to deal with higher-level stuff like
-    // bounds
-    ns = nGrid.asInt3();
-    ds = actualDDim.asFloat3();
-    os = state->boundsGPU.lo;
-    if (state->is2d) {
-        ns.z = 1;
-        ds.z = 1;
-        assert(os.z == -.5);
-    }
-
-    dsOrig = actualDDim.asFloat3();
+    ns = make_int3(0, 0, 0);
+    minGridDim = make_float3(dx_, dy_, dz_);
+    boundsLastBuild = BoundsGPU(make_float3(0, 0, 0), make_float3(0, 0, 0), make_float3(0, 0, 0));
+    setBounds(state->boundsGPU);
+  
     initArrays();
     initStream();
     handleExclusions();
@@ -519,15 +525,16 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
 
     DeviceManager &devManager = state->devManager;
     int warpSize = devManager.prop.warpSize;
-    // TODO: remove sorting option.  Must sort every time if using mpi, and
-    // also I think building without sorting isn't even working right now
+
     if (neighCut == -1) {
         neighCut = neighCutoffMax;
     }
 
-    Vector nsV = Vector(make_float3(ns));
     int nAtoms = state->atoms.size();
     int activeIdx = state->gpd.activeIdx();
+    if (boundsLastBuild != state->boundsGPU) {
+        setBounds(state->boundsGPU);
+    }
     BoundsGPU bounds = state->boundsGPU;
 
     // DO ASYNC COPY TO xsLastBuild

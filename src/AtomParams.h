@@ -46,7 +46,7 @@ public:
      *
      * Add a new type of atoms to the system.
      */
-    int addSpecies(std::string handle, double mass, double atomicNum=6);
+    int addSpecies(std::string handle, double mass, int atomicNum=6);
 
     /*! \brief Remove all atom type info
      *
@@ -71,7 +71,7 @@ public:
     int numTypes; //!< Number of atom types
     std::vector<std::string> handles; //!< List of handles to specify atom types
     std::vector<double> masses; //!< List of masses, one for each atom type
-    std::vector<double> atomicNums; //!< For each atom type, this vector stores
+    std::vector<int> atomicNums; //!< For each atom type, this vector stores
                                     //!< its number in the periodic table
 };
 

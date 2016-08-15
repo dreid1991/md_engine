@@ -87,6 +87,13 @@ __global__ void compute_force_angle(int nAtoms, float4 *xs, float4 *forces, int 
                     evaluator.forcesAll(angleType, theta, s, c, distSqrs, directors, invDistProd, allForces);
                     computeVirial(virialSum, allForces[0], directors[0]);
                     computeVirial(virialSum, allForces[2], directors[1]);
+                    /*
+                    if (idx==0) {
+                        for (int i=0; i<3; i++) {
+                            printf("allForces %f %f %f\n", allForces[i].x, allForces[i].y, allForces[i].z);
+                        }
+                    }
+                    */
                     forceSum += allForces[myIdxInAngle];
                 } else {
                     forceSum += evaluator.force(angleType, theta, s, c, distSqrs, directors, invDistProd, myIdxInAngle);

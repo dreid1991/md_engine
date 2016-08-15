@@ -22,5 +22,6 @@
 #include "FixChargePairDSF.h"
 #include "FixChargeEwald.h"
 #include "FixWCA.h"
+#include "FixPressureBerendsen.h"
 
 #endif

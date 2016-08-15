@@ -39,16 +39,18 @@ integVerlet = IntegratorVerlet(state)
 #boundsData = state.dataManager.recordBounds(100)
 #engData = state.dataManager.recordEnergy('all', 100)
 
+#pressure = FixPressureBerendsen(state, "constP", 0.2, 5);
+#state.activateFix(pressure);
+
 #writeconfig = WriteConfig(state, fn='test_out', writeEvery=1, format='xyz', handle='writer')
 #state.activateWriteConfig(writeconfig)
-integVerlet.run(10000)
+integVerlet.run(100000)
 sumV = 0.
 for a in state.atoms:
     sumV += a.vel.lenSqr()
-print sumV / len(state.atoms)/3.0
-print len(tempData.vals)
+#print sumV / len(state.atoms)/3.0
 #plt.plot(pressureData.turns, pressureData.vals)
-#plt.plot(engData.turns, engData.vals)
+#plt.show()
 #plt.show()
 #state.dataManager.stopRecord(tempData)
 #integVerlet.run(10000)

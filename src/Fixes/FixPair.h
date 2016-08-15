@@ -2,7 +2,7 @@
 #ifndef FIX_PAIR_H
 #define FIX_PAIR_H
 
-#define DEFAULT_FILL INT_MAX
+#define DEFAULT_FILL -1000
 
 #include <climits>
 #include <map>
@@ -291,7 +291,7 @@ protected:
      *
      * This function reads the pair parameters from a given xmlNode.
      */
-    bool readPairParams(pugi::xml_node xmlNode);
+    bool readFromRestart();
 
     //! Create restart chunk for pair parameters
     /*!

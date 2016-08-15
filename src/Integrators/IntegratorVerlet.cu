@@ -28,6 +28,8 @@ __global__ void preForce_cu(int nAtoms, float4 *xs, float4 *vs, float4 *fs,
         // Update position by a full timestep
         float4 pos = xs[idx];
 
+        //printf("pos %f %f %f\n", pos.x, pos.y, pos.z);
+        //printf("vel %f %f %f\n", vel.x, vel.y, vel.z);
         float3 dx = dt*make_float3(vel);
         pos += dx;
         xs[idx] = pos;
