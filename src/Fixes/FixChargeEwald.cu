@@ -745,13 +745,13 @@ bool FixChargeEwald::prepareForRun() {
 }
 
 void FixChargeEwald::handleChangedBounds(bool printError) {
-    printf("DOING BOUNDS");
+   // printf("DOING BOUNDS");
     find_optimal_parameters(printError);
     calc_Green_function();
     boundsLastOptimize = state->boundsGPU;
 }
 void FixChargeEwald::compute(bool computeVirials) {
-    CUT_CHECK_ERROR("before FixChargeEwald kernel execution failed");
+ //   CUT_CHECK_ERROR("before FixChargeEwald kernel execution failed");
 
 //     cout<<"FixChargeEwald::compute..\n";
     int nAtoms = state->atoms.size();
@@ -770,7 +770,7 @@ void FixChargeEwald::compute(bool computeVirials) {
     dim3 dimBlock(8,8,8);
     dim3 dimGrid((sz.x + dimBlock.x - 1) / dimBlock.x,(sz.y + dimBlock.y - 1) / dimBlock.y,(sz.z + dimBlock.z - 1) / dimBlock.z);    
     map_charge_set_to_zero_cu<<<dimGrid, dimBlock>>>(sz,FFT_Qs);
-    CUT_CHECK_ERROR("map_charge_set_to_zero_cu kernel execution failed");
+  //  CUT_CHECK_ERROR("map_charge_set_to_zero_cu kernel execution failed");
 
       switch (interpolation_order){
       case 1:{map_charge_to_grid_order_1_cu
@@ -790,11 +790,11 @@ void FixChargeEwald::compute(bool computeVirials) {
                                               (float *)FFT_Qs);
               break;}
     }    
-    CUT_CHECK_ERROR("map_charge_to_grid_cu kernel execution failed");
+   // CUT_CHECK_ERROR("map_charge_to_grid_cu kernel execution failed");
 
     cufftExecC2C(plan, FFT_Qs, FFT_Qs, CUFFT_FORWARD);
-    cudaDeviceSynchronize();
-    CUT_CHECK_ERROR("cufftExecC2C Qs execution failed");
+   // cudaDeviceSynchronize();
+  //  CUT_CHECK_ERROR("cufftExecC2C Qs execution failed");
 
     
 //     //test area
@@ -811,7 +811,6 @@ void FixChargeEwald::compute(bool computeVirials) {
 //                 ofs<<'\n';
 //                 cout<<'\n';
 //             }
-//     ofs.close();
 
     
     //next potential calculation: just going to use Ex to store it for now
@@ -825,8 +824,8 @@ void FixChargeEwald::compute(bool computeVirials) {
     cufftExecC2C(plan, FFT_Ex, FFT_Ex,  CUFFT_INVERSE);
     cufftExecC2C(plan, FFT_Ey, FFT_Ey,  CUFFT_INVERSE);
     cufftExecC2C(plan, FFT_Ez, FFT_Ez,  CUFFT_INVERSE);
-    cudaDeviceSynchronize();
-    CUT_CHECK_ERROR("cufftExecC2C  E_field execution failed");
+  //  cudaDeviceSynchronize();
+   // CUT_CHECK_ERROR("cufftExecC2C  E_field execution failed");
     
     
     /*//test area

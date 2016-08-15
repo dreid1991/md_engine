@@ -12,7 +12,7 @@ state.deviceManager.setDevice(0)
 dx = 20
 dy = 20
 dz = 8
-ndim = 5
+ndim = 3
 state.bounds = Bounds(state, lo = Vector(0, -20, -20), hi = Vector(dx*ndim+20, dy*ndim+20, dz*ndim+20))
 #state.bounds = Bounds(state, lo = Vector(0, -20, -20), hi = Vector(40, 40, 40))#Vector(dx*ndim+20, dy*ndim+20, dz*ndim+20))
 state.rCut = 3.0
@@ -113,10 +113,10 @@ for x in range(ndim):
 
 #integVerlet = IntegraterVerlet(state)
 constPressure = FixPressureBerendsen(state, 'constp', 1*pUnit, .5)
-state.activateFix(constPressure)
-#ewald = FixChargeEwald(state, "chargeFix", "all")
-#ewald.setParameters(32, 3.0, 3)
-#state.activateFix(ewald)
+#state.activateFix(constPressure)
+ewald = FixChargeEwald(state, "chargeFix", "all")
+ewald.setParameters(32, 3.0, 3)
+state.activateFix(ewald)
 
 tempData = state.dataManager.recordTemperature('all', 1000)
 integVerlet.run(10000)
