@@ -139,6 +139,7 @@ __global__ void Green_function_cu(BoundsGPU bounds, int3 sz,float *Green_functio
           float sum1=0.0f;   
           float sum2=0.0f;   
           float k2=lengthSqr(k);
+          float Fouralpha2inv=0.25/alpha/alpha;
           if (k2!=0.0){
               for (int ix=-sum_limits;ix<=sum_limits;ix++){//TODO different limits 
                 for (int iy=-sum_limits;iy<=sum_limits;iy++){
@@ -149,13 +150,13 @@ __global__ void Green_function_cu(BoundsGPU bounds, int3 sz,float *Green_functio
 //                             kpM.z+=6.28318530717958647693f/h.z*iz;
                             float kpMlen=lengthSqr(kpM);
                             float W=sinc(kpM.x*h.x*0.5)*sinc(kpM.y*h.y*0.5)*sinc(kpM.z*h.z*0.5);
-                            for(int p=1;p<intrpl_order;p++)
-                                  W*=W;
+//                             for(int p=1;p<intrpl_order;p++)
+//                                   W*=W;
     //                          W*=h;//not need- cancels out
-                            float W2=W*W;
-                            
+//                             float W2=W*W;
+                             float W2=pow(W,intrpl_order*2);
                             //4*PI
-                            sum1+=12.56637061435917295385*exp(-kpMlen*0.25/alpha/alpha)*dot(k,kpM)/kpMlen*W2;
+                            sum1+=12.56637061435917295385*exp(-kpMlen*Fouralpha2inv)*dot(k,kpM)/kpMlen*W2;
                             sum2+=W2;
                   }
                 }
@@ -592,7 +593,8 @@ void FixChargeEwald::setTotalQ2() {
          SumSingle());
 
     tmp.dataToHost();   
-    total_Q=tmp.h_data[0];    
+    total_Q=tmp.h_data[0];   
+    
     cout<<"total_Q "<<total_Q<<'\n';
     cout<<"total_Q2 "<<total_Q2<<'\n';
 }
@@ -683,8 +685,10 @@ void FixChargeEwald::calc_Green_function(){
     
     dim3 dimBlock(8,8,8);
     dim3 dimGrid((sz.x + dimBlock.x - 1) / dimBlock.x,(sz.y + dimBlock.y - 1) / dimBlock.y,(sz.z + dimBlock.z - 1) / dimBlock.z);    
+    int sum_limits=int(alpha*pow(h.x*h.y*h.z,1.0/3.0)/3.14159*(sqrt(-log(10E-7))))+1;
+    cout<<"sum_limits " <<sum_limits<<'\n';
     Green_function_cu<<<dimGrid, dimBlock>>>(state->boundsGPU, sz,Green_function.getDevData(),alpha,
-                                             10,interpolation_order);//TODO parameters unknown
+                                             sum_limits,interpolation_order);//TODO parameters unknown
     CUT_CHECK_ERROR("Green_function_cu kernel execution failed");
     
         //test area
@@ -740,7 +744,9 @@ void FixChargeEwald::calc_potential(cufftComplex *phi_buf){
 bool FixChargeEwald::prepareForRun() {
     virialField = GPUArrayDeviceGlobal<Virial>(1);
     setTotalQ2();
-    handleChangedBounds(true);
+    if ((state->boundsGPU != boundsLastOptimize)||(total_Q2!=total_Q2LastOptimize)) {
+        handleChangedBounds(true);
+    }
     return true;
 }
 
@@ -749,6 +755,7 @@ void FixChargeEwald::handleChangedBounds(bool printError) {
     find_optimal_parameters(printError);
     calc_Green_function();
     boundsLastOptimize = state->boundsGPU;
+    total_Q2LastOptimize=total_Q2;
 }
 void FixChargeEwald::compute(bool computeVirials) {
  //   CUT_CHECK_ERROR("before FixChargeEwald kernel execution failed");
@@ -759,7 +766,7 @@ void FixChargeEwald::compute(bool computeVirials) {
     GridGPU &grid = state->gridGPU;
     int activeIdx = gpd.activeIdx();
     uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
-    if (state->boundsGPU != boundsLastOptimize) {
+    if ((state->boundsGPU != boundsLastOptimize)||(total_Q2!=total_Q2LastOptimize)) {
         handleChangedBounds(false);
     }
     
