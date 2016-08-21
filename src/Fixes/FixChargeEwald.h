@@ -51,6 +51,7 @@ private:
     float3 L;
     GPUArrayDeviceGlobal<Virial> virialField;
     BoundsGPU boundsLastOptimize;
+    float total_Q2LastOptimize;    
     void handleChangedBounds(bool);
         
 
