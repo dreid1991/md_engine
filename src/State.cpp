@@ -366,6 +366,11 @@ bool State::prepareForRun() {
     if (!requireCharges.empty()) {
         requiresCharges = *std::max_element(requireCharges.begin(), requireCharges.end());
     }
+    requiresPostNVE_V = false;
+    std::vector<bool> requirePostNVE_V = LISTMAP(Fix *, bool, fix, fixes, fix->requiresPostNVE_V);
+    if (!requirePostNVE_V.empty()) {
+        requiresPostNVE_V = *std::max_element(requirePostNVE_V.begin(), requirePostNVE_V.end());
+    }
 
     dataManager.computeVirialsInForce = false;
     std::vector<bool> requireVirialsFixes = LISTMAP(Fix *, bool, fix, fixes, fix->requiresVirials);

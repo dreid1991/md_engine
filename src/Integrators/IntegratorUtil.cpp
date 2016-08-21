@@ -20,6 +20,25 @@ void IntegratorUtil::force(bool computeVirials) {
     }
 };
 
+void IntegratorUtil::postNVE_V() {
+    int simTurn = state->turn;
+    std::vector<Fix *> &fixes = state->fixes;
+    for (Fix *f : fixes) {
+        if (! (simTurn % f->applyEvery)) {
+            f->postNVE_V();
+        }
+    }
+}
+
+void IntegratorUtil::postNVE_X() {
+    int simTurn = state->turn;
+    std::vector<Fix *> &fixes = state->fixes;
+    for (Fix *f : fixes) {
+        if (! (simTurn % f->applyEvery)) {
+            f->postNVE_X();
+        }
+    }
+}
 
 void IntegratorUtil::singlePointEng() {
     GPUArrayGlobal<float> &perParticleEng = state->gpd.perParticleEng;

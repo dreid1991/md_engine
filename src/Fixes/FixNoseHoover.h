@@ -11,6 +11,7 @@
 
 #include "Interpolator.h"
 #include "DataComputerTemperature.h"
+#include "DataComputerPressure.h"
 
 //! Make FixNoseHoover available to the python interface
 void export_FixNoseHoover();
@@ -32,7 +33,7 @@ void export_FixNoseHoover();
  *
  * \todo Implement barostat.
  */
-class FixNoseHoover : public Interpolator , public Fix {
+class FixNoseHoover : public Fix {
 public:
     //! Delete default constructor
     FixNoseHoover() = delete;
@@ -112,6 +113,7 @@ private:
      * \param scale Scale factor for rescaling
      */
     void rescale();
+    void setPressure(double pressure);
 
     float frequency; //!< Frequency of the Nose-Hoover thermostats
 
@@ -132,8 +134,29 @@ private:
     std::vector<double> thermForce; //!< Force on the Nose-Hoover thermostats
     std::vector<double> thermMass; //!< Masses of the Nose-Hoover thermostats
 
-    float scale; //!< Factor by which the velocities are rescaled
+    std::vector<double> omega;
+    std::vector<double> omegaVel;
+    std::vector<double> omegaMass;
+    std::vector<double> pressFreq;
+    std::vector<double> pressCurrent;
+    void setPressCurrent();
+    void thermostatIntegrate(double, double, bool);
+    void omegaIntegrate();
+    void scaleVelocitiesOmega();
+    std::vector<bool> pFlags;
+    Interpolator tempInterpolator;
+    Interpolator pressInterpolator;
+
+    float3 scale; //!< Factor by which the velocities are rescaled
     MD_ENGINE::DataComputerTemperature tempComputer;
+    MD_ENGINE::DataComputerPressure pressComputer;
+    bool thermostatting;
+    bool barostatting;
+    int pressMode;
+
+    float mtkTerm1;
+    float mtkTerm2;
+
 };
 
 #endif

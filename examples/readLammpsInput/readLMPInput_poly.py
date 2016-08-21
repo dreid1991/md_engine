@@ -12,7 +12,7 @@ state.deviceManager.setDevice(0)
 dx = 20
 dy = 20
 dz = 8
-ndim = 3
+ndim = 1
 state.bounds = Bounds(state, lo = Vector(0, -20, -20), hi = Vector(dx*ndim+20, dy*ndim+20, dz*ndim+20))
 #state.bounds = Bounds(state, lo = Vector(0, -20, -20), hi = Vector(40, 40, 40))#Vector(dx*ndim+20, dy*ndim+20, dz*ndim+20))
 state.rCut = 3.0
@@ -119,7 +119,9 @@ ewald.setParameters(32, 3.0, 3)
 state.activateFix(ewald)
 
 tempData = state.dataManager.recordTemperature('all', 1000)
-integVerlet.run(10000)
+print 'energy %f' % (integVerlet.energyAverage('all') * unitEng * len(state.atoms))
+#integVerlet.run(1000)
+'''
 print state.bounds.hi
 print state.bounds.lo
 vol = 1.
@@ -137,6 +139,9 @@ print sumMass * unitMass
 #print tempData.vals
 #print [p/pUnit for p in pressureData.vals]
 print tempData.vals
+
+
+'''
 #print state.atoms[0].pos.dist(state.atoms[1].pos)
 #print tempData.vals
 

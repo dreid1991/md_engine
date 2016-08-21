@@ -6,7 +6,7 @@
 #include "BoundsGPU.h"
 #include "cutils_math.h"
 class Interpolator {
-protected:
+public:
     //ONE of these three groups will be used based on thermo type
     std::vector<double> intervals;
     std::vector<double> vals;
@@ -25,7 +25,6 @@ protected:
 
     double currentVal;
 
-public:
     Interpolator(boost::python::list intervalsPy, boost::python::list valsPy);
     Interpolator(boost::python::object valFunc_);
     Interpolator(double val_);

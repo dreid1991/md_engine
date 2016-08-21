@@ -447,7 +447,10 @@ def dihedralOPLS_data(reader, args):
     coefs = [args[-1], args[-2], args[-3], args[-4]]
     coefs.reverse()
 
+    print 'HEY'
+    print coefs
     coefs = [float(x) / reader.unitEng for x in coefs]
+    print coefs
     return [type, coefs]
 
 def dihedralOPLS_input(reader, args):

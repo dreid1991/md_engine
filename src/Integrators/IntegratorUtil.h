@@ -19,6 +19,8 @@ public:
      *
      */
     void force(bool computeVirials);
+    void postNVE_V();
+    void postNVE_X();
 
     //! Collect data for all DataSets
     void doDataComputation();

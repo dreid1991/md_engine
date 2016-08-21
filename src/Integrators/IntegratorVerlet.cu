@@ -10,6 +10,37 @@
 
 namespace py = boost::python;
 
+__global__ void nve_v_cu(int nAtoms, float4 *vs, float4 *fs, float dt) {
+    int idx = GETIDX();
+    if (idx < nAtoms) {
+        // Update velocity by a half timestep
+        float4 vel = vs[idx];
+        float invmass = vel.w;
+
+        float4 force = fs[idx];
+
+        float3 dv = 0.5f * dt * invmass * make_float3(force);
+        vel += dv;
+        vs[idx] = vel;
+        fs[idx] = make_float4(0.0f, 0.0f, 0.0f, force.w);
+    }
+}
+
+__global__ void nve_x_cu(int nAtoms, float4 *xs, float4 *vs, float dt) {
+    int idx = GETIDX();
+    if (idx < nAtoms) {
+        // Update position by a full timestep
+        float4 vel = vs[idx];
+        float4 pos = xs[idx];
+
+        //printf("pos %f %f %f\n", pos.x, pos.y, pos.z);
+        //printf("vel %f %f %f\n", vel.x, vel.y, vel.z);
+        float3 dx = dt*make_float3(vel);
+        pos += dx;
+        xs[idx] = pos;
+    }
+}
+//so preForce_cu is split into two steps (nve_v, nve_x) if any of the fixes (barostat, for example), need to throw a step in there (as determined by requiresPostNVE_V flag)
 __global__ void preForce_cu(int nAtoms, float4 *xs, float4 *vs, float4 *fs,
                             float dt)
 {
@@ -81,7 +112,14 @@ void IntegratorVerlet::run(int numTurns)
         stepInit(computeVirialsInForce);
 
         // Perform first half of velocity-Verlet step
-        preForce();
+        if (state->requiresPostNVE_V) {
+            nve_v();
+            postNVE_V();
+            nve_x();
+        } else {
+            preForce();
+        }
+        postNVE_X();
 
         // Recalculate forces
         force(computeVirialsInForce);
@@ -111,6 +149,23 @@ void IntegratorVerlet::run(int numTurns)
     basicFinish();
 }
 
+void IntegratorVerlet::nve_v() {
+    uint activeIdx = state->gpd.activeIdx();
+    nve_v_cu<<<NBLOCK(state->atoms.size()), PERBLOCK>>>(
+            state->atoms.size(),
+            state->gpd.vs.getDevData(),
+            state->gpd.fs.getDevData(),
+            state->dt);
+}
+
+void IntegratorVerlet::nve_x() {
+    uint activeIdx = state->gpd.activeIdx();
+    nve_x_cu<<<NBLOCK(state->atoms.size()), PERBLOCK>>>(
+            state->atoms.size(),
+            state->gpd.xs.getDevData(),
+            state->gpd.vs.getDevData(),
+            state->dt);
+}
 void IntegratorVerlet::preForce()
 {
     uint activeIdx = state->gpd.activeIdx();

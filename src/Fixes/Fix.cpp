@@ -17,6 +17,7 @@ Fix::Fix(boost::shared_ptr<State> state_, std::string handle_, std::string group
       orderPreference(orderPreference_), restartHandle(type + "_" + handle)
 {
     updateGroupTag();
+    requiresPostNVE_V = false;
     /*
      * implemented per-fix.  May need to initialize junk first
     if (state->readConfig->fileOpen) {

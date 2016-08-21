@@ -15,6 +15,8 @@ namespace MD_ENGINE {
 
             void computeScalar_CPU();
             void computeTensor_CPU();
+            void computeScalarFromTensor();
+            void computeTensorFromScalar();
 
             DataComputerTemperature(State *, bool, bool);
             int ndf;

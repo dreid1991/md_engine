@@ -121,8 +121,8 @@ class DihedralEvaluatorOPLS {
 
         }
 
+                //energySum += evaluator.energy(dihedralType, phi, scValues, invLenSqrs, c12Mags, c0, c, invMagProds, c12Mags, invLens, directors, myIdxInDihedral);
         inline __device__ float energy(DihedralOPLSType dihedralType, float phi, float scValues[3], float invLenSqrs[3], float c12Mangs[3], float c0, float c, float invMagProds[2], float c12Mags[2], float invLens[3], float3 directors[3], int myIdxInDihedral) {
-
             float eng = 0.5 * (
                                dihedralType.coefs[0] * (1 + c)
                                + dihedralType.coefs[1] * (1.0f - cosf(2.0f*phi))

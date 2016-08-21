@@ -115,6 +115,7 @@ public:
     int periodicInterval; //!< Periodicity to wrap atoms and rebuild neighbor
                           //!< list
     bool requiresCharges; //!< Charges will be stored 
+    bool requiresPostNVE_V;//!< If any of the need a step between post nve_v and nve_x.  If not, combine steps and do not call it.  If so, call it for all fixes
 
     //! Cutoff parameter for pair interactions
     /*!

@@ -11,7 +11,9 @@ DataComputerPressure::DataComputerPressure(State *state_, bool computeScalar_, b
 
 void DataComputerPressure::computeScalar_GPU(bool transferToCPU, uint32_t groupTag) {
     mdAssert(groupTag == 1, "Trying to compute pressure for group other than 'all'");
-    tempComputer.computeScalar_GPU(transferToCPU, groupTag);
+    if (!usingExternalTemperature) {
+        tempComputer.computeScalar_GPU(transferToCPU, groupTag);
+    }
     GPUData &gpd = state->gpd;
     pressureGPUScalar.d_data.memset(0);
     lastGroupTag = groupTag;
@@ -37,7 +39,9 @@ void DataComputerPressure::computeScalar_GPU(bool transferToCPU, uint32_t groupT
 
 void DataComputerPressure::computeTensor_GPU(bool transferToCPU, uint32_t groupTag) {
     mdAssert(groupTag == 1, "Trying to compute pressure for group other than 'all'");
-    tempComputer.computeTensor_GPU(transferToCPU, groupTag);
+    if (!usingExternalTemperature) {
+        tempComputer.computeTensor_GPU(transferToCPU, groupTag);
+    }
     GPUData &gpd = state->gpd;
     pressureGPUTensor.d_data.memset(0); 
     lastGroupTag = groupTag;
@@ -57,21 +61,34 @@ void DataComputerPressure::computeTensor_GPU(bool transferToCPU, uint32_t groupT
 
 void DataComputerPressure::computeScalar_CPU() {
     //we are assuming that z component of virial is zero if sim is 2D
-    tempComputer.computeScalar_CPU();
+    double tempScalar_loc, ndf_loc;
+    if (usingExternalTemperature) {
+        tempScalar_loc = tempScalar;
+        ndf_loc = tempNDF;
+    } else {
+        tempComputer.computeScalar_CPU();
+        tempScalar_loc = tempComputer.tempScalar;
+        ndf_loc = tempComputer.ndf;
+    }
     double sumVirial = pressureGPUScalar.h_data[0];
     double dim = state->is2d ? 2 : 3;
     double volume = state->boundsGPU.volume();
-    pressureScalar = (tempComputer.tempScalar * tempComputer.ndf + sumVirial) / (dim * volume);
+    pressureScalar = (tempScalar_loc * ndf_loc + sumVirial) / (dim * volume);
 }
 
 void DataComputerPressure::computeTensor_CPU() {
-    tempComputer.computeTensor_CPU();
-    Virial tempTensor = tempComputer.tempTensor;
+    Virial tempTensor_loc;
+    if (usingExternalTemperature) {
+        tempTensor_loc = tempTensor;
+    } else {
+        tempComputer.computeTensor_CPU();
+        tempTensor_loc = tempComputer.tempTensor;
+    }
     pressureTensor = Virial(0, 0, 0, 0, 0, 0);
     Virial sumVirial = pressureGPUTensor.h_data[0];
     double volume = state->boundsGPU.volume();
     for (int i=0; i<6; i++) {
-        pressureTensor[i] = (tempTensor[i] + sumVirial[i]) / volume;
+        pressureTensor[i] = (tempTensor_loc[i] + sumVirial[i]) / volume;
     }
     if (state->is2d) {
         pressureTensor[2] = 0;
