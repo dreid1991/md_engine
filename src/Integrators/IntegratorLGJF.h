@@ -17,6 +17,15 @@ void export_IntegratorLGJF();
  * Mol. Phys. 111 (8), 983-991, 2013
  * 
  */
+
+
+//
+//
+//
+// This integrator not to be used with langevin fixes or velocity-dependent fixes
+//
+//
+//
 class IntegratorLGJF : public Integrator
 {
 public:
