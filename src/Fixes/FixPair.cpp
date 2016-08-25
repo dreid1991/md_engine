@@ -127,6 +127,9 @@ bool FixPair::setParameter(std::string param,
 {
     int i = state->atomParams.typeFromHandle(handleA);
     int j = state->atomParams.typeFromHandle(handleB);
+    if (i == -1 or j == -1) {
+        return false;
+    }
     if (paramMap.find(param) != paramMap.end()) {
         int numTypes = state->atomParams.numTypes;
         std::vector<float> &arr = *(paramMap[param]);
