@@ -12,7 +12,9 @@ class DihedralEvaluatorCHARMM {
         inline __device__ float3 force(DihedralCHARMMType dihedralType, float phi, float scValues[3], float invLenSqrs[3], float c12Mangs[3], float c0, float c, float invMagProds[2], float c12Mags[2], float invLens[3], float3 directors[3], int myIdxInDihedral) {
             float3 myForce;
     //LAMMPS pre-multiplies all of its coefs by 0.5.  We're doing it in the kernel.
+            //printf("k %f n %d d %f\n", dihedralType.k, dihedralType.n, dihedralType.d);
             float derivOfPotential = dihedralType.k * dihedralType.n * sinf(dihedralType.d - dihedralType.n*phi);
+            //printf("deriv %f\n", derivOfPotential);
 
             c *= derivOfPotential;
             scValues[2] *= derivOfPotential;
@@ -53,6 +55,7 @@ class DihedralEvaluatorCHARMM {
                     myForce = sFloat3 - myForce;
                 }
             }
+           // printf("%f %f %f\n", myForce.x, myForce.y, myForce.z);
             return myForce;
 
 
@@ -100,7 +103,6 @@ class DihedralEvaluatorCHARMM {
                 //energySum += evaluator.energy(dihedralType, phi, scValues, invLenSqrs, c12Mags, c0, c, invMagProds, c12Mags, invLens, directors, myIdxInDihedral);
         inline __device__ float energy(DihedralCHARMMType dihedralType, float phi, float scValues[3], float invLenSqrs[3], float c12Mangs[3], float c0, float c, float invMagProds[2], float c12Mags[2], float invLens[3], float3 directors[3], int myIdxInDihedral) {
             float eng = dihedralType.k * (1 + cosf(dihedralType.n*phi - dihedralType.d));
-            printf("ENG IS %f\n", eng);
             return (float) (0.25f * eng);
 
         }

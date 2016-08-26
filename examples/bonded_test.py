@@ -20,15 +20,15 @@ nonbond.setParameter('eps', 'spc1', 'spc1', 1)
 state.activateFix(nonbond)
 #dihedral testing
 state.addAtom('spc1', Vector(5, 5, 5))
-state.addAtom('spc1', Vector(5, 6, 5))
-state.addAtom('spc1', Vector(6, 6, 5))
-state.addAtom('spc1', Vector(6.7, 5.3, 5.5))
+state.addAtom('spc1', Vector(5, 7, 5))
+state.addAtom('spc1', Vector(7, 7, 5))
+state.addAtom('spc1', Vector(8.7, 6.7, 5.5))
 #state.addAtom('spc1', Vector(9.5, 5, 5))
 
 #eng = state.dataManager.recordEnergy('all', collectEvery = 1)
 
 bondHarm = FixBondHarmonic(state, 'bondHarm')
-bondHarm.setBondTypeCoefs(type=0, k=200, r0=1)
+bondHarm.setBondTypeCoefs(type=0, k=20, r0=1)
 #bondHarm.setBondTypeCoefs(type=0, k=0, r0=1)
 bondHarm.createBond(state.atoms[0], state.atoms[1], type=0)
 bondHarm.createBond(state.atoms[1], state.atoms[2], type=0)
@@ -46,7 +46,7 @@ state.activateFix(angleHarm)
 #dihedralOPLS.setDihedralTypeCoefs(type=0, coefs=[0, 0, 0, 0])
 
 dihedralCHARMM = FixDihedralCHARMM(state, 'dihedral')
-dihedralCHARMM.setDihedralTypeCoefs(type=0, k=10, n=1, d=0)
+dihedralCHARMM.setDihedralTypeCoefs(type=0, k=30, n=1, d=1)
 
 
 dihedralCHARMM.createDihedral(state.atoms[0], state.atoms[1], state.atoms[2], state.atoms[3], type=0)
@@ -57,9 +57,10 @@ state.setSpecialNeighborCoefs(0, 0, 0.5)
 #print 'energy %f' % (integVerlet.energyAverage('all') * len(state.atoms))
 writeconfig = WriteConfig(state, fn='test_out', writeEvery=100, format='xyz', handle='writer')
 state.activateWriteConfig(writeconfig)
-fixNVT = FixNVTRescale(state, 'temp', 'all', [0, 1], [.1, .1], 1)
+fixNVT = FixNVTRescale(state, 'temp', 'all', [0, 1], [.02, .02], 1)
 state.activateFix(fixNVT)
-integVerlet.run(10000)
+integVerlet.run(100000)
+#integVerlet.run(1)
 exit()
 '''
 #improper testing
