@@ -131,7 +131,7 @@ class NAMD_Reader:
                 epsInput = float(bits[2])
                 rMinInput = float(bits[3])
                 eps = -epsInput / self.unitEng
-                sigma = (rMinInput * 2) / pow(2.0, 1.0 / 6.0)#IS THE X2 CORRECT?  ASK AMIN
+                sigma = (rMinInput * 2) / pow(2.0, 1.0 / 6.0) / self.unitLen#IS THE X2 CORRECT?  ASK AMIN
                 self.nonbondFix.setParameter('sig', handle, handle, sigma)
                 self.nonbondFix.setParameter('eps', handle, handle, sigma)
             i+=1

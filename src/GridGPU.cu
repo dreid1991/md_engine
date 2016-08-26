@@ -226,6 +226,17 @@ __global__ void sortPerAtomArrays(
 }
 
 
+__device__ bool countAsNeighbor(float3 posA, float3 posB, int idA, int idB) {
+    if (posA.x != posB.x) {
+        return posA.x < posB.x;
+    } else if (posA.y != posB.y) {
+        return posA.y < posB.y;
+    } else if (posA.z != posB.z) {
+        return posA.z < posB.z;
+    }
+    return idA < idB;
+
+}
 /*! modifies myCount to be the number of neighbors in this cell */
 __device__ void checkCell(float3 pos, uint myId, float4 *xs, uint *ids,
                           uint32_t *gridCellArrayIdxs, int squareIdx,
@@ -236,7 +247,9 @@ __device__ void checkCell(float3 pos, uint myId, float4 *xs, uint *ids,
     for (int i=idxMin; i<idxMax; i++) {
         float3 otherPos = make_float3(xs[i]);
         float3 distVec = otherPos + loop - pos;
-        if (ids[i] != myId && dot(distVec, distVec) < neighCutSqr) {
+        //if (ids[i] != myId && dot(distVec, distVec) < neighCutSqr) {
+        int otherId = ids[i];
+        if (myId != otherId && countAsNeighbor(pos, otherPos, myId, otherId) && dot(distVec, distVec) < neighCutSqr) {
             myCount++;
         }
     }
@@ -320,7 +333,7 @@ __device__ int assignFromCell(float3 pos, int idx, uint myId, float4 *xs, uint *
         float3 distVec = otherPos + (offset * trace) - pos;
         uint otherId = ids[i];
 
-        if (myId != otherId && dot(distVec, distVec) < neighCutSqr/* &&
+        if (myId != otherId && countAsNeighbor(pos, otherPos, myId, otherId) && dot(distVec, distVec) < neighCutSqr/* &&
             !(isExcluded(otherId, exclusions, numExclusions, maxExclusions))*/) {
             uint exclusionTag = addExclusion(otherId, exclusionIds_shr, exclIdxLo_shr, exclIdxHi_shr);
             // if (myId==16) {

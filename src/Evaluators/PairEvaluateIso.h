@@ -32,6 +32,7 @@ __global__ void compute_force_iso(int nAtoms, const float4 *__restrict__ xs, flo
             if (multiplier) {
                 uint otherIdx = otherIdxRaw & EXCL_MASK;
                 float4 otherPosWhole = xs[otherIdx];
+                float *otherForce = (float *) (fs + otherIdx);
                 int otherType = __float_as_int(otherPosWhole.w);
                 float3 otherPos = make_float3(otherPosWhole);
                 //then wrap and compute forces!
@@ -48,6 +49,9 @@ __global__ void compute_force_iso(int nAtoms, const float4 *__restrict__ xs, flo
                 if (lenSqr < rCutSqr) {
                     float3 force = eval.force(dr, params_pair, lenSqr, multiplier);
                     forceSum += force;
+                    atomicAdd(otherForce, -force.x);
+                    atomicAdd(otherForce+1, -force.y);
+                    atomicAdd(otherForce+2, -force.z);
                     if (COMPUTEVIRIALS) {
                         computeVirial(virialsSum, force, dr);
                     }
@@ -56,9 +60,13 @@ __global__ void compute_force_iso(int nAtoms, const float4 *__restrict__ xs, flo
 
         }   
     //    printf("LJ force %f %f %f \n", forceSum.x, forceSum.y, forceSum.z);
-        float4 forceCur = fs[idx];
-        forceCur += forceSum;
-        fs[idx] = forceCur;
+        float *myForce = (float *) (fs + idx);
+        atomicAdd(myForce, forceSum.x);
+        atomicAdd(myForce+1, forceSum.y);
+        atomicAdd(myForce+2, forceSum.z);
+        //float4 forceCur = fs[idx];
+        //forceCur += forceSum;
+        //fs[idx] = forceCur;
         if (COMPUTEVIRIALS) {
             virialsSum *= 0.5f;
             virials[idx] += virialsSum;

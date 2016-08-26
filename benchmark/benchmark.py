@@ -42,9 +42,10 @@ integVerlet = IntegratorVerlet(state)
 #pressure = FixPressureBerendsen(state, "constP", 0.2, 5);
 #state.activateFix(pressure);
 
-#writeconfig = WriteConfig(state, fn='test_out', writeEvery=1, format='xyz', handle='writer')
+#writeconfig = WriteConfig(state, fn='test_out', writeEvery=10, format='xyz', handle='writer')
 #state.activateWriteConfig(writeconfig)
 integVerlet.run(10000)
+#print tempData.vals
 sumV = 0.
 for a in state.atoms:
     sumV += a.vel.lenSqr()
