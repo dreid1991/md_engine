@@ -44,40 +44,96 @@ template <class SRCVar, class SRCBase, class SRCFull, class DEST, class TYPEHOLD
 int copyMultiAtomToGPU(int nAtoms, std::vector<SRCVar> &src, std::vector<int> &idToIdx, GPUArrayDeviceGlobal<DEST> *dest, GPUArrayDeviceGlobal<int> *destIdxs, std::unordered_map<int, TYPEHOLDER> *forcerTypes, GPUArrayDeviceGlobal<TYPEHOLDER> *parameters, int maxExistingType) {
     std::vector<int> idxs(nAtoms+1, 0); //started out being used as counts
     std::vector<int> numAddedPerAtom(nAtoms, 0);
-    //so I can arbitrarily order.  I choose to do it by the the way atoms happen to be sorted currently.  Could be improved.
-    for (SRCVar &sVar : src) {
-        SRCFull &s = boost::get<SRCFull>(sVar);
-        for (int i=0; i<N; i++) {
-            int id = s.ids[i];
-            idxs[idToIdx[id]]++;
-        }
+    //fixes with >= 4 atoms will not be copied and will implement atomic adds for force calculations
+    //
+    //so I can arbitrarily order my forcers.  I choose to do it by the the way atoms happen to be sorted currently.  Could be improved.
+    const int cutoff = 3;
+    std::vector<DEST> destHost;
+    if (N <= cutoff) {
+        for (SRCVar &sVar : src) {
+            SRCFull &s = boost::get<SRCFull>(sVar);
+            for (int i=0; i<N; i++) {
+                int id = s.ids[i];
+                idxs[idToIdx[id]]++;
+            }
 
-    }
-    cumulativeSum(idxs.data(), nAtoms+1);
-    std::vector<DEST> destHost(idxs.back());
-    for (SRCVar &sVar : src) {
-        SRCFull &s = boost::get<SRCFull>(sVar);
-        SRCBase *base = (SRCBase *) &s;
-        std::array<int, N> atomIds = s.ids;
-        std::array<int, N> atomIndexes;
-        for (int i=0; i<N; i++) {
-            atomIndexes[i] = idToIdx[atomIds[i]];
         }
-        DEST d;
-        d.takeIds(base);
-        uint32_t type = s.type;
-        assert(N <= 8); //three bits for which idx, allowing up to 8 member forcers, can be changed later
-        for (int i=0; i<N; i++) {
-            DEST dForIth = d;
-            dForIth.type = type | (i << 29);
-            destHost[idxs[atomIndexes[i]] + numAddedPerAtom[atomIndexes[i]]] = dForIth;
-            numAddedPerAtom[atomIndexes[i]]++;
+        cumulativeSum(idxs.data(), nAtoms+1);
+        destHost = std::vector<DEST>(idxs.back());
+        for (SRCVar &sVar : src) {
+            SRCFull &s = boost::get<SRCFull>(sVar);
+            SRCBase *base = (SRCBase *) &s;
+            std::array<int, N> atomIds = s.ids;
+            std::array<int, N> atomIndexes;
+            for (int i=0; i<N; i++) {
+                atomIndexes[i] = idToIdx[atomIds[i]];
+            }
+            DEST d;
+            d.takeIds(base);
+            uint32_t type = s.type;
+            assert(N <= 8); //three bits for which idx, allowing up to 8 member forcers, can be changed later
+            for (int i=0; i<N; i++) {
+                DEST dForIth = d;
+                dForIth.type = type | (i << 29);
+                destHost[idxs[atomIndexes[i]] + numAddedPerAtom[atomIndexes[i]]] = dForIth;
+                numAddedPerAtom[atomIndexes[i]]++;
+            }
         }
+    } else {
+        for (SRCVar &sVar : src) {
+            SRCFull &s = boost::get<SRCFull>(sVar);
+            for (int i=0; i<N; i++) {
+                int id = s.ids[i];
+                idxs[idToIdx[id]]++;
+            }
+
+        }
+        cumulativeSum(idxs.data(), nAtoms+1);
+        destHost = std::vector<DEST>(idxs.back());
+        for (SRCVar &sVar : src) {
+            SRCFull &s = boost::get<SRCFull>(sVar);
+            SRCBase *base = (SRCBase *) &s;
+            std::array<int, N> atomIds = s.ids;
+            std::array<int, N> atomIndexes;
+            for (int i=0; i<N; i++) {
+                atomIndexes[i] = idToIdx[atomIds[i]];
+                base->ids[i] = atomIndexes[i]; //kinda repurposing ids as idxs here.  for benchmarking purposes
+            }
+            
+            DEST d;
+            d.takeIds(base);
+            uint32_t type = s.type;
+            assert(N <= 8); //three bits for which idx, allowing up to 8 member forcers, can be changed later
+            for (int i=0; i<N; i++) {
+                DEST dForIth = d;
+                dForIth.type = type | (i << 29);
+                destHost[idxs[atomIndexes[i]] + numAddedPerAtom[atomIndexes[i]]] = dForIth;
+                numAddedPerAtom[atomIndexes[i]]++;
+            }
+        }
+        /*
+        // for N >= 4, idxs are meaningless, just split looping over the dihedrals as evenly as possible
+        for (SRCVar &sVar : src) {
+            SRCFull &s = boost::get<SRCFull>(sVar);
+            SRCBase *base = (SRCBase *) &s;
+            std::array<int, N> atomIds = s.ids;
+            DEST d;
+            d.takeIds(base);
+            d.type = type;
+            destHost.push_back(d);
+
+        }
+        */
+
     }
     *dest = GPUArrayDeviceGlobal<DEST>(destHost.size());
     dest->set(destHost.data());
-    *destIdxs = GPUArrayDeviceGlobal<int>(idxs.size());
-    destIdxs->set(idxs.data());
+   // if (N <= cutoff) {
+        *destIdxs = GPUArrayDeviceGlobal<int>(idxs.size());
+        destIdxs->set(idxs.data());
+   // } else {
+   //     *destIdxs = GPUArrayDeviceGlobal<int>(1);
+   // }
 
     //getting max # bonds per block
     int maxPerBlock = 0;

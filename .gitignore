@@ -24,3 +24,5 @@ doc/latex/
 build/
 src/Makefile
 Makefile
+
+benchmark/*nvprof

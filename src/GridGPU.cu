@@ -21,6 +21,11 @@ void GridGPU::initArrays() {
     // not +1 on this one, isn't cumul sum
     perBlockArray_maxNeighborsInBlock = GPUArrayDeviceGlobal<uint16_t>(NBLOCK(state->atoms.size()));
     xsLastBuild = GPUArrayDeviceGlobal<float4>(state->atoms.size());
+    if (computeSortedIdxs) {
+        sortedIdxs = GPUArrayDeviceGlobal<int>(state->atoms.size());
+    } else {
+        sortedIdxs = GPUArrayDeviceGlobal<int>(1);
+    }
 
     // in prepare for run, you make GPU grid _after_ copying xs to device
     buildFlag = GPUArrayGlobal<int>(1);
@@ -76,10 +81,17 @@ GridGPU::GridGPU(State *state_, float dx_, float dy_, float dz_, float neighCuto
     boundsLastBuild = BoundsGPU(make_float3(0, 0, 0), make_float3(0, 0, 0), make_float3(0, 0, 0));
     setBounds(state->boundsGPU);
   
+    std::vector<bool> requireSorts = LISTMAP(Fix *, bool, fix, state->fixes, fix->requiresSortedAtoms);
+    if (!requireSorts.empty()) {
+        computeSortedIdxs = *std::max_element(requireSorts.begin(), requireSorts.end());
+    } else {
+        computeSortedIdxs = false;
+    }
     initArrays();
     initStream();
     handleExclusions();
     numChecksSinceLastBuild = 0;
+
 }
 
 GridGPU::~GridGPU() {
@@ -198,6 +210,7 @@ __global__ void sortPerAtomArrays(
                     int *idToIdxs,
                     bool requiresCharges,
                     uint32_t *gridCellArrayIdxs, uint16_t *idxInGridCell, int nAtoms,
+                    int *sortedIdxs, bool computeSortedIdxs,
                     float3 os, float3 ds, int3 ns) {
 
     int idx = GETIDX();
@@ -217,6 +230,9 @@ __global__ void sortPerAtomArrays(
         copyToOtherList<float4>(fsFrom, fsTo, idx, sortedIdx);
         if (requiresCharges) {
             copyToOtherList<float>(qsFrom, qsTo, idx, sortedIdx);
+        }
+        if (computeSortedIdxs) {
+            sortedIdxs[idx] = sortedIdx;
         }
 
         idToIdxs[id] = sortedIdx;
@@ -600,8 +616,9 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
                     state->gpd.qs(activeIdx), state->gpd.qs(!activeIdx),
                     state->gpd.idToIdxs.d_data.data(),
                     state->requiresCharges,
-                    perCellArray.d_data.data(), perAtomArray.d_data.data(),
-                    nAtoms, os, ds, ns
+                    perCellArray.d_data.data(), perAtomArray.d_data.data(), nAtoms,
+                    sortedIdxs.data(), computeSortedIdxs,
+                    os, ds, ns
         );
         activeIdx = state->gpd.switchIdx();
         gridIdx = activeIdx;

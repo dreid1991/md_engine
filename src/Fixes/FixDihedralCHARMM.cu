@@ -10,6 +10,7 @@ const std::string dihedralCHARMMType = "DihedralCHARMM";
 
 
 FixDihedralCHARMM::FixDihedralCHARMM(SHARED(State) state_, string handle) : FixPotentialMultiAtom (state_, handle, dihedralCHARMMType, true){
+    requiresSortedAtoms = true;
     readFromRestart();
 }
 

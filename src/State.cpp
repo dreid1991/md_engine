@@ -384,7 +384,6 @@ bool State::prepareForRun() {
     }
 
 
-
     int nAtoms = atoms.size();
 
     xs_vec.reserve(nAtoms);

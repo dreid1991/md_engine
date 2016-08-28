@@ -210,6 +210,7 @@ public:
      */
     void validAtoms(std::vector<Atom *> &atoms);
 
+
 public:
     State *state; //!< Pointer to the simulation state
     std::string handle; //!< "Name" of the Fix
@@ -222,6 +223,7 @@ public:
     bool requiresCharges; //!< True if Fix needs charges.  Fixes will be stored if any fix has this as true
     bool isThermostat; //!< True if is a thermostat. Used for barostats.
     bool requiresPostNVE_V;
+    bool requiresSortedAtoms;
     int orderPreference; //!< Fixes with a high order preference are calculated
                          //!< later.
 

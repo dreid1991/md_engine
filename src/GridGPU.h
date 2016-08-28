@@ -66,6 +66,7 @@ public:
     GPUArrayGlobal<uint32_t> perBlockArray;     //!< Number of neighbors in a GPU block
     GPUArrayDeviceGlobal<uint16_t> perBlockArray_maxNeighborsInBlock; //!< array for holding max # neighs of atoms in a GPU block
     GPUArrayGlobal<uint16_t> perAtomArray;      //!< For each atom, store the place in the grid
+    GPUArrayDeviceGlobal<int> sortedIdxs;
     GPUArrayDeviceGlobal<float4> xsLastBuild;   //!< Contains the atom positions at
                                                 //!< the time of the last build.
     GPUArrayGlobal<int> buildFlag;  //!< If buildFlag[0] == true, neighbor list
@@ -76,6 +77,7 @@ public:
     GPUArrayDeviceGlobal<uint> neighborlist;    //!< List of atoms within cutoff radius of atom at GPU idx
     State *state;   //!< Pointer to the simulation state
     float neighCutoffMax;   //!< largest cutoff radius of any interacting pair + padding, default value for grid building
+    bool computeSortedIdxs;//!< flag for whether to compute sorted indexes or not - depending on whether any fix needs them or not
 
     /*! \brief Constructor
      *
