@@ -905,6 +905,7 @@ void FixChargeEwald::compute(bool computeVirials) {
 
 
     float *neighborCoefs = state->specialNeighborCoefs;
+    /*
      if (computeVirials) {
           int warpSize = state->devManager.prop.warpSize;
             virialField.memset(0); 
@@ -913,12 +914,6 @@ void FixChargeEwald::compute(bool computeVirials) {
           
 
 
- /*         sum_virials_cu <<<NBLOCK(sz.x*sz.y*sz.z/(double)N_DATA_PER_THREAD),PERBLOCK,N_DATA_PER_THREAD*sizeof(Virial)*PERBLOCK>>>
-                  (virial.getDevData(),virials.getDevData(),sz.x*sz.y*sz.z, warpSize); */  
-        //  virial.dataToHost();
-
-        //  cout<<"field_virial "<<virial.h_data[0][0]<<' '<<virial.h_data[0][1]<<' '<<virial.h_data[0][2]<<' '<<virial.h_data[0][3]<<' '<<virial.h_data[0][4]<<' '<<virial.h_data[0][5]<<' '<<'\n';
-       //     cudaDeviceSynchronize();
           BoundsGPU &b=state->boundsGPU;
           float volume=b.volume();          
         //  Virial virial_per_particle = Virial(0, 0, 0, 0, 0, 0);  
@@ -953,6 +948,7 @@ void FixChargeEwald::compute(bool computeVirials) {
                                               state->devManager.prop.warpSize, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2],
                                               gpd.virials.d_data.data(), virialField.data(), 0);
     }
+    */
     CUT_CHECK_ERROR("Ewald_short_range_forces_cu  execution failed");
 
 }

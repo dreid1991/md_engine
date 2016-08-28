@@ -18,6 +18,7 @@ __global__ void compute_force_iso(int nAtoms, const float4 *__restrict__ xs, flo
         Virial virialsSum = Virial(0, 0, 0, 0, 0, 0);
         int baseIdx = baseNeighlistIdx(cumulSumMaxPerBlock, warpSize);
         float4 posWhole = xs[idx];
+       // float qi = qs[idx];
         int type = __float_as_int(posWhole.w);
         float3 pos = make_float3(posWhole);
 
@@ -46,7 +47,10 @@ __global__ void compute_force_iso(int nAtoms, const float4 *__restrict__ xs, flo
                 //evaluator.force(forceSum, dr, params_pair, lenSqr, multiplier);
                 float rCutSqr = params_pair[0];
                 if (lenSqr < rCutSqr) {
+                 //   float qj = qs[otherIdx];
                     float3 force = eval.force(dr, params_pair, lenSqr, multiplier);
+
+                  //  float forceScalar = qi*qj*(erfcf((alpha*len))*rinv+(2.0*0.5641895835477563*alpha)*exp(-alpha*alpha*lenSqr))*r2inv* multiplier;
                     forceSum += force;
                     if (COMPUTEVIRIALS) {
                         computeVirial(virialsSum, force, dr);
