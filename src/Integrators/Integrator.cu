@@ -147,6 +147,7 @@ void Integrator::basicPrepare(int numTurns) {
     for (GPUArray *dat : activeData) {
         dat->dataToDevice();
     }
+    printf("PREPARING\n");
     for (Fix *f : state->fixes) {
         f->updateGroupTag();
         f->prepareForRun();

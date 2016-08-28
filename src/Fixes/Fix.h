@@ -209,6 +209,7 @@ public:
      * \todo Pass const reference. Make this function const.
      */
     void validAtoms(std::vector<Atom *> &atoms);
+    virtual void sort(int *oldIdxToNew){};
 
 
 public:

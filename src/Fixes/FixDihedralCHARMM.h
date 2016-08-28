@@ -28,6 +28,7 @@ public:
 
     //std::vector<pair<int, std::vector<int> > > neighborlistExclusions();
     bool readFromRestart();
+    void sort (int *oldIdxsToNew);
 
 };
 

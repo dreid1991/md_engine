@@ -538,7 +538,6 @@ __global__ void setCumulativeSumPerBlock(int numBlocks, uint32_t *perBlockArray,
 
 
 void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
-
     DeviceManager &devManager = state->devManager;
     int warpSize = devManager.prop.warpSize;
 
@@ -622,6 +621,11 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
         );
         activeIdx = state->gpd.switchIdx();
         gridIdx = activeIdx;
+        if (computeSortedIdxs) {
+            for (Fix *f : state->fixes) {
+                f->sort(sortedIdxs.data());
+            }
+        }
 
         float3 trace = boundsUnskewed.trace();
 

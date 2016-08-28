@@ -191,7 +191,7 @@ __global__ void compute_energy_dihedral(int nAtoms, float4 *xs, float *perPartic
             int myIdxInDihedral = dihedrals_shr[shr_idx].type >> 29;
             int idSelf = dihedrals_shr[shr_idx].ids[myIdxInDihedral];
             
-            int idxSelf = idToIdxs[idSelf]; 
+            int idxSelf = idSelf;//idToIdxs[idSelf]; 
         
             float3 pos = make_float3(xs[idxSelf]);
            // printf("I am idx %d and I am evaluating atom with pos %f %f %f\n", idx, pos.x, pos.y, pos.z);
@@ -227,7 +227,8 @@ __global__ void compute_energy_dihedral(int nAtoms, float4 *xs, float *perPartic
 
 
                 for (int i=0; i<3; i++) {
-                    int idxOther = idToIdxs[dihedral.ids[toGet[i]]];
+                    //int idxOther = idToIdxs[dihedral.ids[toGet[i]]];
+                    int idxOther = dihedral.ids[toGet[i]];
                     positions[toGet[i]] = make_float3(xs[idxOther]);
                 }
                 for (int i=1; i<3; i++) {

@@ -14,6 +14,30 @@ FixDihedralCHARMM::FixDihedralCHARMM(SHARED(State) state_, string handle) : FixP
     readFromRestart();
 }
 
+__global__ void setDihedralIdxs(int nDihedrals, int *idxMap, DihedralGPU *forcers) {
+    int idx = GETIDX();
+    if (idx < nDihedrals) {
+        DihedralGPU dih = forcers[idx];
+        /*
+        uint4 *ptr = (uint4 *) (forcers + idx);
+        uint4 idxs = ptr[0];
+        uint4 b= idxs;
+        idxs.x = idxMap[idxs.x];
+        idxs.y = idxMap[idxs.y];
+        idxs.z = idxMap[idxs.z];
+        idxs.w = idxMap[idxs.w];
+        */
+        for (int i=0; i<4; i++) {
+            dih.ids[i] = idxMap[dih.ids[i]];
+        }
+
+        //printf("before %d %d %d %d, after %d %d %d %d\n", b.x, b.y, b.z, b.w, idxs.x, idxs.y, idxs.z, idxs.w);
+        forcers[idx] = dih;
+        //ptr[0] = idxs;
+
+    }
+
+}
 
 void FixDihedralCHARMM::compute(bool computeVirials) {
     int nAtoms = state->atoms.size();
@@ -40,6 +64,10 @@ void FixDihedralCHARMM::singlePointEng(float *perParticleEng) {
 }
 
 
+
+void FixDihedralCHARMM::sort(int *oldIdxsToNew) {
+    setDihedralIdxs<<<NBLOCK(forcersGPU.size()), PERBLOCK>>>(forcersGPU.size(), oldIdxsToNew, forcersGPU.data());
+}
 
 void FixDihedralCHARMM::createDihedral(Atom *atomA, Atom *atomB, Atom *atomC, Atom *atomD, double k, int n, double d, int type) {
     if (type==-1) {
