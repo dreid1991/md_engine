@@ -10,6 +10,7 @@ class State;
 
 void export_FixChargePairDSF();
 
+extern const std::string chargePairDSFType;
 class FixChargePairDSF : public FixCharge {
 
 private:

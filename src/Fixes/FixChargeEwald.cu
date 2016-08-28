@@ -522,6 +522,7 @@ __global__ void compute_short_range_energies_cu(int nAtoms, float4 *xs, uint16_t
 }
 FixChargeEwald::FixChargeEwald(SHARED(State) state_, string handle_, string groupHandle_): FixCharge(state_, handle_, groupHandle_, chargeEwaldType, true){
   cufftCreate(&plan);
+  canOffloadChargePairCalc = true;
 }
 
 

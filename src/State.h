@@ -500,6 +500,7 @@ public:
      * seed is 0, the RNG is initialized with a random seed.
      */
     void seedRNG(unsigned int seed = 0);
+    void handleChargeOffloading();
 
 private:
     std::mt19937 randomNumberGenerator; //!< Random number generator

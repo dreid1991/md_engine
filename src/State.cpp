@@ -440,10 +440,22 @@ bool State::prepareForRun() {
     gpd.vsBuffer = GPUArrayGlobal<float4>(nAtoms);
     gpd.fsBuffer = GPUArrayGlobal<float4>(nAtoms);
     gpd.idsBuffer = GPUArrayGlobal<uint>(nAtoms);
+    handleChargeOffloading();
 
     return true;
 }
-
+void State::handleChargeOffloading() {
+    for (Fix *f : fixes) {
+        if (f->canOffloadChargePairCalc) {
+            for (Fix *g : fixes) {
+                if (g->canAcceptChargePairCalc and not g->hasAcceptedChargePairCalc) {
+                    g->acceptChargePairCalc(f); //responsible for setting all flags for f and g
+                }
+            }
+        }
+    }
+    printf("FIN\n");
+}
 void copyAsyncWithInstruc(State *state, std::function<void (int64_t )> cb, int64_t turn) {
     cudaStream_t stream;
     CUCHECK(cudaStreamCreate(&stream));

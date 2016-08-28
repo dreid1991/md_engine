@@ -18,6 +18,14 @@ Fix::Fix(boost::shared_ptr<State> state_, std::string handle_, std::string group
 {
     updateGroupTag();
     requiresPostNVE_V = false;
+
+    canOffloadChargePairCalc = false;
+    canAcceptChargePairCalc = false;
+    
+    hasOffloadedChargePairCalc = false;
+    hasAcceptedChargePairCalc = false;
+
+
     /*
      * implemented per-fix.  May need to initialize junk first
     if (state->readConfig->fileOpen) {

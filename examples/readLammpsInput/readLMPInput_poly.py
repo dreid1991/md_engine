@@ -119,8 +119,8 @@ ewald.setParameters(32, 3.0, 3)
 state.activateFix(ewald)
 
 tempData = state.dataManager.recordTemperature('all', 1000)
-print 'energy %f' % (integVerlet.energyAverage('all') * unitEng * len(state.atoms))
-#integVerlet.run(1000)
+#print 'energy %f' % (integVerlet.energyAverage('all') * unitEng * len(state.atoms))
+integVerlet.run(100)
 '''
 print state.bounds.hi
 print state.bounds.lo

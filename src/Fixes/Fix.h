@@ -209,6 +209,7 @@ public:
      * \todo Pass const reference. Make this function const.
      */
     void validAtoms(std::vector<Atom *> &atoms);
+    virtual void acceptChargePairCalc(Fix *){};
 
 public:
     State *state; //!< Pointer to the simulation state
@@ -220,12 +221,22 @@ public:
     const bool forceSingle; //!< True if Fix contributes to single point energy.
     bool requiresVirials; //!< True if Fix needs virials.  Fixes will compute virials if any fix has this as true
     bool requiresCharges; //!< True if Fix needs charges.  Fixes will be stored if any fix has this as true
+    //these are 
     bool isThermostat; //!< True if is a thermostat. Used for barostats.
     bool requiresPostNVE_V;
+
+    bool canOffloadChargePairCalc;
+    bool canAcceptChargePairCalc;
+    
+    bool hasOffloadedChargePairCalc;
+    bool hasAcceptedChargePairCalc;
+
     int orderPreference; //!< Fixes with a high order preference are calculated
                          //!< later.
 
     const std::string restartHandle; //!< Handle for restart string
+
+
 };
 
 /*

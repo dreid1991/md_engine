@@ -3,10 +3,10 @@
 #include "BoundsGPU.h"
 #include "GridGPU.h"
 #include "list_macro.h"
-#include "PairEvaluateIso.h"
 #include "State.h"
 #include "cutils_func.h"
 #include "ReadConfig.h"
+#include "EvaluatorWrapper.h"
 using namespace std;
 namespace py = boost::python;
 const string LJCutType = "LJCut";
@@ -23,6 +23,8 @@ FixLJCut::FixLJCut(boost::shared_ptr<State> state_, string handle_)
     initializeParameters(rCutHandle, rCuts);
     paramOrder = {rCutHandle, epsHandle, sigHandle};
     readFromRestart();
+    canAcceptChargePairCalc = true;
+    evalWrap = boost::shared_ptr<EvaluatorWrapper>((EvaluatorWrapper *) new EvaluatorWrapperImplement<EvaluatorLJ, 3>(EvaluatorLJ()));
     /*
     if (state->readConfig->fileOpen) {
         auto restData = state->readConfig->readFix(type, handle);
@@ -42,6 +44,7 @@ void FixLJCut::compute(bool computeVirials) {
     int activeIdx = gpd.activeIdx();
     uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
     float *neighborCoefs = state->specialNeighborCoefs;
+    /*
     if (computeVirials) {
         compute_force_iso<EvaluatorLJ, 3, true> <<<NBLOCK(nAtoms), PERBLOCK, 3*numTypes*numTypes*sizeof(float)>>>(
                 nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx),
@@ -49,16 +52,24 @@ void FixLJCut::compute(bool computeVirials) {
                 state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU,
                 neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.virials.d_data.data(), evaluator);
     } else {
-        compute_force_iso<EvaluatorLJ, 3, false> <<<NBLOCK(nAtoms), PERBLOCK, 3*numTypes*numTypes*sizeof(float)>>>(
+    */
+        evalWrap->compute(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx),
+                neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(),
+                state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU,
+                neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.virials.d_data.data());
+        /*compute_force_iso<EvaluatorLJ, 3, false> <<<NBLOCK(nAtoms), PERBLOCK, 3*numTypes*numTypes*sizeof(float)>>>(
                 nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx),
                 neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(),
                 state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU,
                 neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.virials.d_data.data(), evaluator);
-    }
+*/
+    //}
 
 }
 
+void FixLJCut::acceptChargePairCalc(Fix *) {};
 void FixLJCut::singlePointEng(float *perParticleEng) {
+    /*
     int nAtoms = state->atoms.size();
     int numTypes = state->atomParams.numTypes;
     GPUData &gpd = state->gpd;
@@ -66,9 +77,10 @@ void FixLJCut::singlePointEng(float *perParticleEng) {
     int activeIdx = gpd.activeIdx();
     uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
     float *neighborCoefs = state->specialNeighborCoefs;
+    */
 
-    compute_energy_iso<EvaluatorLJ, 3><<<NBLOCK(nAtoms), PERBLOCK, 3*numTypes*numTypes*sizeof(float)>>>(nAtoms, gpd.xs(activeIdx), perParticleEng, 
-                                                                                                        neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], evaluator);
+  //  compute_energy_iso<EvaluatorLJ, 3><<<NBLOCK(nAtoms), PERBLOCK, 3*numTypes*numTypes*sizeof(float)>>>(nAtoms, gpd.xs(activeIdx), perParticleEng, 
+    //                                                                                                    neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], evaluator);
 
 
 

@@ -12,6 +12,7 @@
 class State;
 
 void export_FixChargeEwald();
+extern const std::string chargeEwaldType;
 
 /*! \class FixChargeEwald
  * \brief Short and Long range Coulomb interaction

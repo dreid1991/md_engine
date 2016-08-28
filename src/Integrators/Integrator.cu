@@ -151,6 +151,7 @@ void Integrator::basicPrepare(int numTurns) {
         f->updateGroupTag();
         f->prepareForRun();
     }
+    //state->handleChargeOffloading();
     state->gridGPU.periodicBoundaryConditions(-1, true);
     for (boost::shared_ptr<MD_ENGINE::DataSetUser> ds : state->dataManager.dataSets) {
         ds->prepareForRun(); //will also prepare those data sets' computers
@@ -161,6 +162,8 @@ void Integrator::basicPrepare(int numTurns) {
 void Integrator::basicFinish() {
     for (Fix *f : state->fixes) {
         f->postRun();
+        f->hasAcceptedChargePairCalc = false;
+        f->hasOffloadedChargePairCalc = false;
     }
     if (state->asyncData && state->asyncData->joinable()) {
         state->asyncData->join();
