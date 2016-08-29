@@ -10,6 +10,26 @@ const std::string DPD_Type = "isothermalDPD";
 namespace py = boost::python;
 
 // here, we place the implementations of the constructors
+// check on the 'false, false, 1' and consider its validity for this fix
+// ; the 1 is probably ok
+FixDPD_T::FixDPD_T(State *state_, float gamma_, float rcut_, int s_) 
+    : FixDPD(state_, handle_, groupHandle_, DPD_Type, false, false, 1),
+      gamma(gamma_), rcut(rcut_), s(s_) 
+    {
+// set some flags here to let class know that gamma was specified, not sigma
+updateGamma = false;
+};
+
+// and the constructor where sigma is provided
+FixDPD_T::FixDPD_T(State *state_, float sigma_, float rcut_, int s_)
+    : FixDPD(state_, handle_, groupHandle_, DPD_Type, false, false, 1),
+      sigma(sigma_), rcut(rcut_), s(s_)
+    {
+// set some flags here to let class know that sigma was specified, not gamma
+updateGamma = true;
+// then gamma must be computed in prepareForRun()
+};
+
 
 // our compute function
 void FixDPD_T::compute(bool computeVirials) {
@@ -53,7 +73,7 @@ void FixDPD_T::stepFinal( ) {
 
 bool FixDPD_T::prepareForRun() {
     // instantiate this fix's evaulator with the appropriate parameters
-    //evaluator = EvaluatorDPD_T();
+    evaluator = EvaluatorDPD_T();
 
     return true;
 };
