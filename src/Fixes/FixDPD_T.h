@@ -11,10 +11,10 @@ class FixDPD_T : public FixDPD {
 
     public:
         // our friction coefficient gamma
-        float gamma;
+        double gamma;
 
         // amplitude of the thermal noise given by sigma
-        float sigma;
+        double sigma;
         // note that we will need to pass dt, timestep, and the temperature setpoint
         // to the fix compute somewhere
         // where temperature is specified by the interpolator class
@@ -25,13 +25,32 @@ class FixDPD_T : public FixDPD {
         bool updateGamma;
         // a constructor in which the friction coefficient is specified
         // in the body of this constructor, we calculate sigma
-        FixDPD_T (State* state_, std::string handle_, std::string groupHandle_, 
-                  float gamma_, float rcut_, int s_) ;
-        
-        // a constructor in which the amplitude of the thermal fluctuations is specified
-        // in the body of this constructor, we calculate gamma
+        //
+        // and we need to include the interpolator temperature data
+        //
+        //
+        //FixDPD_T (State* state_, std::string handle_, std::string groupHandle_, 
+        //          double gamma_, double rcut_, int s_) ;
+        //
+        //
+        // given gamma, we make three constructors for the different implementations of interpolator
         FixDPD_T (State* state_, std::string handle_, std::string groupHandle_,
-                  float sigma_, float rcut_, int s_) ; 
+                  double gamma_, double rcut_, double s_, boost::python::list intervals_,
+                  boost::python::list temps_);
+        FixDPD_T (State* state_, std::string handle_, std::string groupHandle_,
+                  double gamma_, double rcut_, double s_, boost::python::object tempFunc_);
+        FixDPD_T (State* state_, std::string handle_, std::string groupHandle_,
+                  double gamma_, double rcut_, double s_, double temp_);
+        
+
+        // same, but now we are given the thermal noise coefficient sigma instead
+        FixDPD_T (State* state_, std::string handle_, std::string groupHandle_,
+                  double sigma_, double rcut_, double s_, boost::python::list intervals_,
+                  boost::python::list temps_);
+        FixDPD_T (State* state_, std::string handle_, std::string groupHandle_,
+                  double sigma_, double rcut_, double s_, boost::python::object tempFunc_);
+        FixDPD_T (State* state_, std::string handle_, std::string groupHandle_,
+                  double sigma_, double rcut_, double s_, double temp_);
         
         // our destructor
         ~FixDPD_T () {};

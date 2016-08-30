@@ -2,14 +2,14 @@
 #include "cutils_func.h"
 #include "helpers.h"
 #include "Vector.h"
-
+#include <cmath>
 class EvaluatorDPD_T {
 public:
 
     float sigma;
     float gamma;
     float rcut;
-    int s;
+    float  s;
 
     // square root of the current dt, used when calculating the contribution of the thermal noise
     float sqrtdt;
@@ -19,12 +19,13 @@ public:
     // during the course of the simulation, as it was an input temperature.
     // a simple boolean should suffice
     //
-    EvaluatorDPD_T (float sigma_, float gamma_, float rcut_, int s_) {
+    EvaluatorDPD_T (float sigma_, float gamma_, float rcut_, float s_) {
 
 
         // sigma is the thermal noise amplitude; gamma is the friction factor
         // rcut is the cutoff of the weight function;
         // s defines the exponent in the weight function (usually 1, sometimes 2, etc... )
+        // cast as float to avoid any ambiguity of floating point math operations
         sigma = sigma_;
         gamma = gamma_;
         rcut = rcut_;
@@ -33,7 +34,7 @@ public:
 
     // desired syntax: wRij = weightRandom(dist) (exponent s should be provided in construction)
     inline __device__  float3 weightRandom(dist) {
-        float weightFactor = (1.0f - (dist / rcut)) ** s;
+        float weightFactor = pow((1.0f - (dist / rcut)) , s);
         return weightFactor
             // weight dissipative is just wRij ** 2
     };
@@ -87,12 +88,11 @@ public:
 template <class EVALUATOR>
 __global__ void computeDPD_Isothermal (int nAtoms, const float4 *__restrict__ xs, float4 *__restrict__ fs, const float4 *__restrict__ vs, 
                                        const uint *__restrict__ ids, float3 *__restrict__ fds, const uint16_t *__restrict__ neighborCounts, 
-                                       const uint *__restrict__ neighborList, int warpSize, int timestep,  BoundsGPU bounds, 
+                                       const uint *__restrict__ neighborList, const uint32_t * __restrict__ cumulSumMaxPerBlock,
+                                       int warpSize, int timestep,  BoundsGPU bounds,  const uint __restrict__ groupTag,  
                                        EVALUATOR eval) {
 
     // if we are only using this for isothermal dpd, do we need to pass in the evaluator via templating? 
-    // also, what are we doing with the virials in this fix?
-    // we are not doing anything with the virials! langevin fixes do not contribute to the virials
     int idx = GETIDX();
     if (idx < nAtoms) {
         float4 forceWhole = fs[idx];
