@@ -3,6 +3,7 @@
 #include "helpers.h"
 #include "Vector.h"
 #include <cmath>
+
 class EvaluatorDPD_T {
 public:
 
@@ -11,32 +12,36 @@ public:
     float rcut;
     float  s;
 
-    // square root of the current dt, used when calculating the contribution of the thermal noise
-    float sqrtdt;
-    // somewhere in here, in conjunction with the interpolator, we need to denote whether to 
-    // recalculate either sigma or gamma as the setpoint temperature changes.
-    // The parameter (either sigma or gamma) input by the user should /not/ change
-    // during the course of the simulation, as it was an input temperature.
-    // a simple boolean should suffice
-    //
+    // inverse square root of the current dt, used when calculating the contribution of the thermal noise
+    float invSqrtdt;
+
+    // our constructors
+    EvaluatorDPD_T() {};
+
+
+    // sigma is the thermal noise amplitude; gamma is the friction factor
+    // rcut is the cutoff of the weight function;
+    // s defines the exponent in the weight function (usually 1, sometimes 2, etc... )
+    // cast as float to avoid any ambiguity of floating point math operations
     EvaluatorDPD_T (float sigma_, float gamma_, float rcut_, float s_) {
-
-
-        // sigma is the thermal noise amplitude; gamma is the friction factor
-        // rcut is the cutoff of the weight function;
-        // s defines the exponent in the weight function (usually 1, sometimes 2, etc... )
-        // cast as float to avoid any ambiguity of floating point math operations
         sigma = sigma_;
         gamma = gamma_;
         rcut = rcut_;
         s = s_;
     };
 
+    void updateGamma(float gamma_) {
+        gamma = gamma_;
+    };
+
+    void updateSigma(float sigma_) {
+        sigma = sigma_;
+    };
     // desired syntax: wRij = weightRandom(dist) (exponent s should be provided in construction)
     inline __device__  float3 weightRandom(dist) {
         float weightFactor = pow((1.0f - (dist / rcut)) , s);
-        return weightFactor
-            // weight dissipative is just wRij ** 2
+        return weightFactor;
+        // weight dissipative is just wRij ** 2
     };
 
     // this is a function because only the dissipative forces are computed in the stepFinal compute call
@@ -61,7 +66,7 @@ public:
 
             // compute the normalized direction vector between atoms i and j
             float3 eij = (pos - otherpos) / dist; 
-            
+
             // get some random numbers from Saru microstream
             //float3 randomVectorij = Saru(seed1, seed2, timestep); // TODO correct this syntax (currently pseudocode)
             // sqrtdt can be instantiated during prepareForRun()
@@ -72,7 +77,7 @@ public:
             return force;
         } else {
             forces_dissipative = (0.0f, 0.0f, 0.0f)
-            return (0.0f, 0.0f, 0.0f);
+                return (0.0f, 0.0f, 0.0f);
         };
         // then call Saru and compute FRij
         // then compute the relative velocities (careful othe directionality! computing vij, not vji

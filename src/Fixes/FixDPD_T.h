@@ -23,33 +23,24 @@ class FixDPD_T : public FixDPD {
         // temperature is changed.  True if we update gamma, false if we update sigma
         // (dependent on whether the user specifies sigma or gamma at run time)
         bool updateGamma;
-        // a constructor in which the friction coefficient is specified
-        // in the body of this constructor, we calculate sigma
-        //
-        // and we need to include the interpolator temperature data
-        //
-        //
-        //FixDPD_T (State* state_, std::string handle_, std::string groupHandle_, 
-        //          double gamma_, double rcut_, int s_) ;
-        //
-        //
+        
         // given gamma, we make three constructors for the different implementations of interpolator
-        FixDPD_T (State* state_, std::string handle_, std::string groupHandle_,
+        FixDPD_T (boost::shared_ptr<State> state_, std::string handle_, std::string groupHandle_,
                   double gamma_, double rcut_, double s_, boost::python::list intervals_,
                   boost::python::list temps_);
-        FixDPD_T (State* state_, std::string handle_, std::string groupHandle_,
+        FixDPD_T (boost::shared_ptr<State> state_, std::string handle_, std::string groupHandle_,
                   double gamma_, double rcut_, double s_, boost::python::object tempFunc_);
-        FixDPD_T (State* state_, std::string handle_, std::string groupHandle_,
+        FixDPD_T (boost::shared_ptr<State> state_, std::string handle_, std::string groupHandle_,
                   double gamma_, double rcut_, double s_, double temp_);
         
 
         // same, but now we are given the thermal noise coefficient sigma instead
-        FixDPD_T (State* state_, std::string handle_, std::string groupHandle_,
+        FixDPD_T (boost::shared_ptr<State> state_, std::string handle_, std::string groupHandle_,
                   double sigma_, double rcut_, double s_, boost::python::list intervals_,
                   boost::python::list temps_);
-        FixDPD_T (State* state_, std::string handle_, std::string groupHandle_,
+        FixDPD_T (boost::shared_ptr<State> state_, std::string handle_, std::string groupHandle_,
                   double sigma_, double rcut_, double s_, boost::python::object tempFunc_);
-        FixDPD_T (State* state_, std::string handle_, std::string groupHandle_,
+        FixDPD_T (boost::shared_ptr<State> state_, std::string handle_, std::string groupHandle_,
                   double sigma_, double rcut_, double s_, double temp_);
         
         // our destructor
@@ -64,9 +55,9 @@ class FixDPD_T : public FixDPD {
         // hand some stuff to the evaluator (whatever it might need)
 		bool prepareForRun();
 		
-        // here we might delete stuff?
+        // 
         bool postRun();
-
+        // this fix does not contribute to the single point energy
         void singlePointEng(float *);
         
         EvaluatorDPD_T evaluator;
