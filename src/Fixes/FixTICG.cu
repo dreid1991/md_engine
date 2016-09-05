@@ -28,6 +28,7 @@ void FixTICG::compute(bool computeVirials) {
     int activeIdx = gpd.activeIdx();
     uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
     float *neighborCoefs = state->specialNeighborCoefs;
+    /*
     if (computeVirials) {
         compute_force_iso<EvaluatorTICG, 2, true> <<<NBLOCK(nAtoms), PERBLOCK, 2*numTypes*numTypes*sizeof(float)>>>(
                 nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx),
@@ -41,6 +42,7 @@ void FixTICG::compute(bool computeVirials) {
                 state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU,
                 neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.virials.d_data.data(), evaluator);
     }
+    */
 
 }
 

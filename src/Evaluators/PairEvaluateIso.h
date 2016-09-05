@@ -3,7 +3,7 @@
 #include "Virial.h"
 #include "helpers.h"
 template <class T, int N, bool COMPUTEVIRIALS>
-__global__ void compute_force_iso(int nAtoms, const float4 *__restrict__ xs, float4 *__restrict__ fs, const uint16_t *__restrict__ neighborCounts, const uint *__restrict__ neighborlist, const uint32_t * __restrict__ cumulSumMaxPerBlock, int warpSize, const float *__restrict__ parameters, int numTypes,  BoundsGPU bounds, float onetwoStr, float onethreeStr, float onefourStr, Virial *__restrict__ virials, T eval) {
+__global__ void compute_force_iso(int nAtoms, const float4 *__restrict__ xs, float4 *__restrict__ fs, const uint16_t *__restrict__ neighborCounts, const uint *__restrict__ neighborlist, const uint32_t * __restrict__ cumulSumMaxPerBlock, int warpSize, const float *__restrict__ parameters, int numTypes,  BoundsGPU bounds, float onetwoStr, float onethreeStr, float onefourStr, Virial *__restrict__ virials, float *qs, T eval) {
     float multipliers[4] = {1, onetwoStr, onethreeStr, onefourStr};
     extern __shared__ float paramsAll[];
     int sqrSize = numTypes*numTypes;
@@ -17,8 +17,8 @@ __global__ void compute_force_iso(int nAtoms, const float4 *__restrict__ xs, flo
     if (idx < nAtoms) {
         Virial virialsSum = Virial(0, 0, 0, 0, 0, 0);
         int baseIdx = baseNeighlistIdx(cumulSumMaxPerBlock, warpSize);
-        float4 posWhole = xs[idx];
        // float qi = qs[idx];
+        float4 posWhole = xs[idx];
         int type = __float_as_int(posWhole.w);
         float3 pos = make_float3(posWhole);
 
@@ -47,10 +47,15 @@ __global__ void compute_force_iso(int nAtoms, const float4 *__restrict__ xs, flo
                 //evaluator.force(forceSum, dr, params_pair, lenSqr, multiplier);
                 float rCutSqr = params_pair[0];
                 if (lenSqr < rCutSqr) {
-                 //   float qj = qs[otherIdx];
+         //           float qj = qs[otherIdx];
+                 
                     float3 force = eval.force(dr, params_pair, lenSqr, multiplier);
-
-                  //  float forceScalar = qi*qj*(erfcf((alpha*len))*rinv+(2.0*0.5641895835477563*alpha)*exp(-alpha*alpha*lenSqr))*r2inv* multiplier;
+           //         float alpha = .994225;
+             //       float r2inv = 1.0f/lenSqr;
+              //      float rinv = sqrtf(r2inv);
+               //     float len = sqrtf(lenSqr);
+                //    float forceScalar = qi*qj*(erfcf((alpha*len))*rinv+(2.0*0.5641895835477563*alpha)*exp(-alpha*alpha*lenSqr))*r2inv* multiplier;
+                 //   force += dr * forceScalar;
                     forceSum += force;
                     if (COMPUTEVIRIALS) {
                         computeVirial(virialsSum, force, dr);

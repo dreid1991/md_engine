@@ -90,9 +90,9 @@ class NAMD_Reader:
         if self.angleFix != None:
             self.readAngleCoefs()
             self.readAngles()
-        if self.dihedralFix != None:
-            self.readDihedrals()
-            self.readDihedralCoefs()
+      #  if self.dihedralFix != None:
+      #      self.readDihedrals()
+      #      self.readDihedralCoefs()
       #  if self.improperFix != None:
       #      self.readImpropers()
       #      self.readImproperCoefs()

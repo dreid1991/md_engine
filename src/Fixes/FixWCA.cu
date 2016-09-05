@@ -26,7 +26,7 @@ void FixWCA::compute(bool computeVirials) {
     int activeIdx = gpd.activeIdx();
     uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
     float *neighborCoefs = state->specialNeighborCoefs;
-
+/*
     if (computeVirials) {
         compute_force_iso<EvaluatorWCA, 3, true>  <<<NBLOCK(nAtoms), PERBLOCK, 3*numTypes*numTypes*sizeof(float)>>>(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx), 
                 neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU, 
@@ -36,6 +36,7 @@ void FixWCA::compute(bool computeVirials) {
                 neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU, 
                 neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.virials.d_data.data(), evaluator);
     }
+    */
 
 
 
