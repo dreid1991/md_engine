@@ -2,22 +2,25 @@
 #include "cutils_func.h"
 #include "Virial.h"
 #include "helpers.h"
-template <class T, int N, bool COMPUTEVIRIALS>
-__global__ void compute_force_iso(int nAtoms, const float4 *__restrict__ xs, float4 *__restrict__ fs, const uint16_t *__restrict__ neighborCounts, const uint *__restrict__ neighborlist, const uint32_t * __restrict__ cumulSumMaxPerBlock, int warpSize, const float *__restrict__ parameters, int numTypes,  BoundsGPU bounds, float onetwoStr, float onethreeStr, float onefourStr, Virial *__restrict__ virials, float *qs, T eval) {
+template <class PAIR_EVAL, int N_PARAM, bool COMP_VIRIALS, class CHARGE_EVAL, bool COMP_CHARGES>
+__global__ void compute_force_iso(int nAtoms, const float4 *__restrict__ xs, float4 *__restrict__ fs, const uint16_t *__restrict__ neighborCounts, const uint *__restrict__ neighborlist, const uint32_t * __restrict__ cumulSumMaxPerBlock, int warpSize, const float *__restrict__ parameters, int numTypes,  BoundsGPU bounds, float onetwoStr, float onethreeStr, float onefourStr, Virial *__restrict__ virials, float *qs, float qCutoffSqr, PAIR_EVAL pairEval, CHARGE_EVAL chargeEval) {
     float multipliers[4] = {1, onetwoStr, onethreeStr, onefourStr};
     extern __shared__ float paramsAll[];
     int sqrSize = numTypes*numTypes;
-    float *params_shr[N];
-    for (int i=0; i<N; i++) {
+    float *params_shr[N_PARAM];
+    for (int i=0; i<N_PARAM; i++) {
         params_shr[i] = paramsAll + i * sqrSize;
     }
-    copyToShared<float>(parameters, paramsAll, N*sqrSize);
+    copyToShared<float>(parameters, paramsAll, N_PARAM*sqrSize);
     __syncthreads();
     int idx = GETIDX();
     if (idx < nAtoms) {
         Virial virialsSum = Virial(0, 0, 0, 0, 0, 0);
         int baseIdx = baseNeighlistIdx(cumulSumMaxPerBlock, warpSize);
-       // float qi = qs[idx];
+        float qi;
+        if (COMP_CHARGES) {
+            qi = qs[idx];
+        }
         float4 posWhole = xs[idx];
         int type = __float_as_int(posWhole.w);
         float3 pos = make_float3(posWhole);
@@ -40,24 +43,27 @@ __global__ void compute_force_iso(int nAtoms, const float4 *__restrict__ xs, flo
                 float3 dr = bounds.minImage(pos - otherPos);
                 float lenSqr = lengthSqr(dr);
                 //printf("dr sqr pair is %f OMG UNCOMMENT IF MULT\n", lenSqr);
-                float params_pair[N];
-                for (int pIdx=0; pIdx<N; pIdx++) {
+                float params_pair[N_PARAM];
+                for (int pIdx=0; pIdx<N_PARAM; pIdx++) {
                     params_pair[pIdx] = params_shr[pIdx][sqrIdx];
                 }
                 //evaluator.force(forceSum, dr, params_pair, lenSqr, multiplier);
                 float rCutSqr = params_pair[0];
+                float3 force = make_float3(0, 0, 0);
+                bool computedForce = false;
                 if (lenSqr < rCutSqr) {
-         //           float qj = qs[otherIdx];
-                 
-                    float3 force = eval.force(dr, params_pair, lenSqr, multiplier);
-           //         float alpha = .994225;
-             //       float r2inv = 1.0f/lenSqr;
-              //      float rinv = sqrtf(r2inv);
-               //     float len = sqrtf(lenSqr);
-                //    float forceScalar = qi*qj*(erfcf((alpha*len))*rinv+(2.0*0.5641895835477563*alpha)*exp(-alpha*alpha*lenSqr))*r2inv* multiplier;
-                 //   force += dr * forceScalar;
+                    force += pairEval.force(dr, params_pair, lenSqr, multiplier);
+                    computedForce = true;
+                }
+                if (COMP_CHARGES && lenSqr < qCutoffSqr) {
+                    float qj = qs[otherIdx];
+
+                    force += chargeEval.force(dr, lenSqr, qi, qj, multiplier);
+                    computedForce = true;
+                }
+                if (computedForce) {
                     forceSum += force;
-                    if (COMPUTEVIRIALS) {
+                    if (COMP_VIRIALS) {
                         computeVirial(virialsSum, force, dr);
                     }
                 }
@@ -68,7 +74,7 @@ __global__ void compute_force_iso(int nAtoms, const float4 *__restrict__ xs, flo
         float4 forceCur = fs[idx];
         forceCur += forceSum;
         fs[idx] = forceCur;
-        if (COMPUTEVIRIALS) {
+        if (COMP_VIRIALS) {
             virialsSum *= 0.5f;
             virials[idx] += virialsSum;
         }

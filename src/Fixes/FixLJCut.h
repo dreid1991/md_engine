@@ -3,7 +3,6 @@
 #define FIXLJCUT_H
 
 #include "FixPair.h"
-#include "PairEvaluatorLJ.h"
 #include "xml_func.h"
 //! Make FixLJCut available to the pair base class in boost
 class EvaluatorWrapper;

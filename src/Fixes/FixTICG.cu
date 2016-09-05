@@ -21,6 +21,7 @@ FixTICG::FixTICG(boost::shared_ptr<State> state_, std::string handle_)
 
 void FixTICG::compute(bool computeVirials) {
 
+    /*
     int nAtoms = state->atoms.size();
     int numTypes = state->atomParams.numTypes;
     GPUData &gpd = state->gpd;
@@ -28,6 +29,7 @@ void FixTICG::compute(bool computeVirials) {
     int activeIdx = gpd.activeIdx();
     uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
     float *neighborCoefs = state->specialNeighborCoefs;
+    */
     /*
     if (computeVirials) {
         compute_force_iso<EvaluatorTICG, 2, true> <<<NBLOCK(nAtoms), PERBLOCK, 2*numTypes*numTypes*sizeof(float)>>>(

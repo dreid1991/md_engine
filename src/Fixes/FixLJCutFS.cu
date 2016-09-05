@@ -19,6 +19,7 @@ FixLJCutFS::FixLJCutFS(SHARED(State) state_, std::string handle_)
     paramOrder = {rCutHandle, epsHandle, sigHandle, "FCutHandle"};
 }
 void FixLJCutFS::compute(bool computeVirials) {
+    /*
     int nAtoms = state->atoms.size();
     int numTypes = state->atomParams.numTypes;
     GPUData &gpd = state->gpd;
@@ -26,6 +27,7 @@ void FixLJCutFS::compute(bool computeVirials) {
     int activeIdx = gpd.activeIdx();
     uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
     float *neighborCoefs = state->specialNeighborCoefs;
+    */
 /*
     if (computeVirials) {
         compute_force_iso<EvaluatorLJFS, 4, true>  <<<NBLOCK(nAtoms), PERBLOCK, 4*numTypes*numTypes*sizeof(float)>>>(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx), 

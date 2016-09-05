@@ -89,11 +89,11 @@ int copyMultiAtomToGPU(int nAtoms, std::vector<SRCVar> &src, std::vector<int> &i
             destHost.push_back(d);
         }
 */
-    }
+ //   }
     *dest = GPUArrayDeviceGlobal<DEST>(destHost.size());
     dest->set(destHost.data());
     int maxPerBlock = 0;
-    if (redundantCalcs) {
+    //if (redundantCalcs) {
         *destIdxs = GPUArrayDeviceGlobal<int>(idxs.size());
         destIdxs->set(idxs.data());
 
@@ -101,7 +101,7 @@ int copyMultiAtomToGPU(int nAtoms, std::vector<SRCVar> &src, std::vector<int> &i
         for (int i=0; i<nAtoms; i+=PERBLOCK) {
             maxPerBlock = std::fmax(maxPerBlock, idxs[std::fmin(i+PERBLOCK+1, idxs.size()-1)] - idxs[i]);
         }
-    }
+   // }
 
 
     //now copy types

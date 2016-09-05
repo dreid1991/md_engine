@@ -20,13 +20,11 @@ void FixDihedralOPLS::compute(bool computeVirials) {
 
 
     GPUData &gpd = state->gpd;
-    /*
-    if (computeVirials) {
-        compute_force_dihedral<DihedralOPLSType, DihedralEvaluatorOPLS, true><<<NBLOCK(nAtoms), PERBLOCK, sizeof(DihedralGPU) * maxForcersPerBlock + sizeof(DihedralOPLSType) * parameters.size() >>>(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx), gpd.idToIdxs.d_data.data(), forcersGPU.data(), forcerIdxs.data(), state->boundsGPU, parameters.data(), parameters.size(), gpd.virials.d_data.data(), evaluator);
-    } else {
+    //if (computeVirials) {
+    //    compute_force_dihedral<DihedralOPLSType, DihedralEvaluatorOPLS, true><<<NBLOCK(nAtoms), PERBLOCK, sizeof(DihedralGPU) * maxForcersPerBlock + sizeof(DihedralOPLSType) * parameters.size() >>>(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx), gpd.idToIdxs.d_data.data(), forcersGPU.data(), forcerIdxs.data(), state->boundsGPU, parameters.data(), parameters.size(), gpd.virials.d_data.data(), evaluator);
+  //  } else {
         compute_force_dihedral<DihedralOPLSType, DihedralEvaluatorOPLS, false><<<NBLOCK(nAtoms), PERBLOCK, sizeof(DihedralGPU) * maxForcersPerBlock + sizeof(DihedralOPLSType) * parameters.size() >>>(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx), gpd.idToIdxs.d_data.data(), forcersGPU.data(), forcerIdxs.data(), state->boundsGPU, parameters.data(), parameters.size(), gpd.virials.d_data.data(), evaluator);
-    }
-    */
+//    }
 
 }
 

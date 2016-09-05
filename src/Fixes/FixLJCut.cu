@@ -7,6 +7,8 @@
 #include "cutils_func.h"
 #include "ReadConfig.h"
 #include "EvaluatorWrapper.h"
+#include "PairEvaluatorLJ.h"
+#include "PairEvaluatorEwald.h"
 using namespace std;
 namespace py = boost::python;
 const string LJCutType = "LJCut";
@@ -24,7 +26,10 @@ FixLJCut::FixLJCut(boost::shared_ptr<State> state_, string handle_)
     paramOrder = {rCutHandle, epsHandle, sigHandle};
     readFromRestart();
     canAcceptChargePairCalc = true;
-    evalWrap = boost::shared_ptr<EvaluatorWrapper>((EvaluatorWrapper *) new EvaluatorWrapperImplement<EvaluatorLJ, 3>(EvaluatorLJ()));
+    float alpha = .994225;
+    EvaluatorEwald ew;
+    ew.alpha = alpha;
+    evalWrap = boost::shared_ptr<EvaluatorWrapper>((EvaluatorWrapper *) new EvaluatorWrapperImplement<EvaluatorLJ, 3, false, EvaluatorEwald, true>(EvaluatorLJ(), ew));
     /*
     if (state->readConfig->fileOpen) {
         auto restData = state->readConfig->readFix(type, handle);
@@ -56,7 +61,7 @@ void FixLJCut::compute(bool computeVirials) {
         evalWrap->compute(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx),
                 neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(),
                 state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU,
-                neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.virials.d_data.data(), gpd.qs(activeIdx));
+                neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.virials.d_data.data(), gpd.qs(activeIdx), 2.0*2.0);
         /*compute_force_iso<EvaluatorLJ, 3, false> <<<NBLOCK(nAtoms), PERBLOCK, 3*numTypes*numTypes*sizeof(float)>>>(
                 nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx),
                 neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(),
