@@ -13,7 +13,7 @@ class NAMD_Bonded_Forcer:
         matchLevel = 3
         for i in range(len(atomTypesForcer)):
             atomType = atomTypesForcer[i]
-            if atomType == 'x':
+            if atomType[-1] == 'x':
                 if matchLevel > 1:
                     matchLevel = 1
             elif atomType[-1] == 'X':
@@ -73,15 +73,16 @@ class NAMD_Reader:
 
 
         self.readAtoms()
-        print len(self.state.atoms)
         #self.readAtomTypes()
 
 
         #might not want to change bounds if you just adding parameters to an existing simulation
+
         if self.setBounds:
             self.readBounds()
         if self.nonbondFix != None:
             self.readPairCoefs()
+
 
         if self.bondFix != None:
             self.readBondCoefs()
@@ -93,8 +94,8 @@ class NAMD_Reader:
             self.readAngles()
             print 'Read angles'
         if self.dihedralFix != None:
-            self.readDihedrals()
             self.readDihedralCoefs()
+            self.readDihedrals()
             print 'Read dihedrals'
       #  if self.improperFix != None:
       #      self.readImpropers()
@@ -156,32 +157,15 @@ class NAMD_Reader:
         def createBond(atoms, type):
             self.bondFix.createBond(atoms[0], atoms[1], type=type)
         self.readInMultiAtom('NBOND', self.bondTypes, 2, createBond)
-        '''
-        nBonds = 0
-        idxStart = 0
-        for i in xrange(len(self.structureFileLines)):
-            if 'NBOND' in self.structureFileLines[i]:
-                nBonds = int(self.structureFileLines[i].split()[0])
-                idxStart = i+1
-        allEntries = []
-        i = idxStart
-        bits = self.structureFileLines[i].split()
-        while len(bits):
-            allEntries += bits
-            i+=1
-            bits = self.structureFileLines[i].split()
-        for i in range(0, len(allEntries), 2):
-            idA = self.namdToSimId[int(allEntries[i])]
-            idB = self.namdToSimId[int(allEntries[i+1])]
-            typeA = self.atomFromId(idA).type
-            typeB = self.atomFromId(idB).type
-            forcer = self.pickBestForcer([typeA, typeB], self.bondTypes)
-            self.bondFix.createBond(self.state.atoms[self.state.idToIdx(idA)], self.state.atoms[self.state.idToIdx(idA)], type = forcer.type)
-        '''
     def readAngles(self):
         def createAngle(atoms, type):
             self.angleFix.createAngle(atoms[0], atoms[1], atoms[2], type=type)
         self.readInMultiAtom('NTHETA', self.angleTypes, 3, createAngle)
+    def readDihedrals(self):
+        def createDihedral(atoms, type):
+            self.dihedralFix.createDihedral(atoms[0], atoms[1], atoms[2], atoms[3], type=type)
+        self.readInMultiAtom('NPHI', self.dihedralTypes, 4, createDihedral)
+
     def atomFromId(self, id):
         idx = self.state.idToIdx(id)
         return self.state.atoms[idx]
@@ -199,6 +183,7 @@ class NAMD_Reader:
                 rMinInput = float(bits[3])
                 eps = -epsInput / self.unitEng
                 sigma = (rMinInput) / (pow(2.0, 1.0 / 6.0) * self.unitLen)#IS THE X2 CORRECT?  ASK AMIN
+                print sigma
                # sigma = (rMinInput) / pow(2.0, 1.0 / 6.0)#IS THE X2 CORRECT?  ASK AMIN
                 self.nonbondFix.setParameter('sig', handle, handle, sigma)
                 self.nonbondFix.setParameter('eps', handle, handle, eps)
@@ -244,6 +229,26 @@ class NAMD_Reader:
 
             i+=1
 
+#x CA CD x 2.65 2 180.
+    def readDihedralCoefs(self):
+        for i in range(len(self.parameterFileLines)):
+            if 'DIHEDRAL' in self.stripComments(self.parameterFileLines[i]):
+                break
+        i+=2
+        self.dihedralTypes = []
+        while i < len(self.parameterFileLines) and len(self.parameterFileLines[i].split()) > 0:
+            bits = self.stripComments(self.parameterFileLines[i]).split()
+            if len(bits):
+                atomTypes = [self.atomTypePrefix + b for b in bits[:4]]
+                k = float(bits[4]) / self.unitEng #2 because LAMMPS includes the 1/2 in its k
+
+                n = int(bits[5])
+                d = float(bits[6]) * DEGREES_TO_RADIANS
+                type = len(self.dihedralTypes)
+                self.dihedralFix.setDihedralTypeCoefs(type, k, n, d)
+                self.dihedralTypes.append(NAMD_Bonded_Forcer(type, atomTypes))
+
+            i+=1
     def isNums(self, bits):
         for b in bits:
             if b[0] == '#':
@@ -265,4 +270,9 @@ class NAMD_Reader:
 
     def pickBestForcer(self, types, forcers):
         fits = [f.matchLevel(types) for f in forcers]
+        if max(fits) == 0:
+            print fits
+            print types
+            print 'COULD NOT FIT FORCER TO TYPE'
+            assert(max(fits))
         return forcers[fits.index(max(fits))]
