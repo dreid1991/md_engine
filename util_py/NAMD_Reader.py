@@ -86,13 +86,16 @@ class NAMD_Reader:
         if self.bondFix != None:
             self.readBondCoefs()
             self.readBonds()
+            print 'Read bonds'
 
         if self.angleFix != None:
             self.readAngleCoefs()
             self.readAngles()
-      #  if self.dihedralFix != None:
-      #      self.readDihedrals()
-      #      self.readDihedralCoefs()
+            print 'Read angles'
+        if self.dihedralFix != None:
+            self.readDihedrals()
+            self.readDihedralCoefs()
+            print 'Read dihedrals'
       #  if self.improperFix != None:
       #      self.readImpropers()
       #      self.readImproperCoefs()
