@@ -11,6 +11,7 @@ class DihedralEvaluatorCHARMM {
                 //float3 myForce = evaluator.force(dihedralType, phi, c, scValues, invLenSqrs, c12Mags, c0, c, invMagProds, c12Mags, invLens, directors, myIdxInDihedral);
         inline __device__ float3 force(DihedralCHARMMType dihedralType, float phi, float scValues[3], float invLenSqrs[3], float c12Mangs[3], float c0, float c, float invMagProds[2], float c12Mags[2], float invLens[3], float3 directors[3], int myIdxInDihedral) {
             float3 myForce;
+            printf("phi %f phiEq %f n %d, arg %f\n", phi, dihedralType.d, dihedralType.n, sinf(dihedralType.d - dihedralType.n*phi));
     //LAMMPS pre-multiplies all of its coefs by 0.5.  We're doing it in the kernel.
             //printf("k %f n %d d %f\n", dihedralType.k, dihedralType.n, dihedralType.d);
             float derivOfPotential = dihedralType.k * dihedralType.n * sinf(dihedralType.d - dihedralType.n*phi);

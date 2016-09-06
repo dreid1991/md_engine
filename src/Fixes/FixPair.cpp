@@ -83,6 +83,10 @@ void FixPair::prepareParameters_from_other(std::string handle,
 
 }
 
+void FixPair::acceptChargePairCalc(Fix *chargeFix) {
+    chargeCalcFix = chargeFix;
+    setEvaluator();
+}
 void FixPair::ensureParamSize(std::vector<float> &array)
 {
     int desiredSize = state->atomParams.numTypes;

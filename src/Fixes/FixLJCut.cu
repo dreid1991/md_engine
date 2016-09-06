@@ -8,7 +8,7 @@
 #include "ReadConfig.h"
 #include "EvaluatorWrapper.h"
 #include "PairEvaluatorLJ.h"
-#include "PairEvaluatorEwald.h"
+//#include "ChargeEvaluatorEwald.h"
 using namespace std;
 namespace py = boost::python;
 const string LJCutType = "LJCut";
@@ -29,7 +29,7 @@ FixLJCut::FixLJCut(boost::shared_ptr<State> state_, string handle_)
     float alpha = .994225;
     EvaluatorEwald ew;
     ew.alpha = alpha;
-    evalWrap = boost::shared_ptr<EvaluatorWrapper>((EvaluatorWrapper *) new EvaluatorWrapperImplement<EvaluatorLJ, 3, false, EvaluatorEwald, true>(EvaluatorLJ(), ew));
+ //   evalWrap = boost::shared_ptr<EvaluatorWrapper>((EvaluatorWrapper *) new EvaluatorWrapperImplement<EvaluatorLJ, 3, false, EvaluatorEwald, true>(EvaluatorLJ(), ew));
     /*
     if (state->readConfig->fileOpen) {
         auto restData = state->readConfig->readFix(type, handle);
@@ -61,7 +61,7 @@ void FixLJCut::compute(bool computeVirials) {
         evalWrap->compute(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx),
                 neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(),
                 state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU,
-                neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.virials.d_data.data(), gpd.qs(activeIdx), 2.0*2.0);
+                neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.virials.d_data.data(), gpd.qs(activeIdx), 2.0*2.0, computeVirials);
         /*compute_force_iso<EvaluatorLJ, 3, false> <<<NBLOCK(nAtoms), PERBLOCK, 3*numTypes*numTypes*sizeof(float)>>>(
                 nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx),
                 neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(),
@@ -72,7 +72,6 @@ void FixLJCut::compute(bool computeVirials) {
 
 }
 
-void FixLJCut::acceptChargePairCalc(Fix *) {};
 void FixLJCut::singlePointEng(float *perParticleEng) {
     /*
     int nAtoms = state->atoms.size();
@@ -88,6 +87,12 @@ void FixLJCut::singlePointEng(float *perParticleEng) {
     //                                                                                                    neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], evaluator);
 
 
+
+}
+
+void FixLJCut::setEvalWrapper() {
+    PairEvaluatorLJ eval;
+    evalWrap = pickEvaluator<PairEvaluatorLJ, 3>(eval, chargeCalcFix);
 
 }
 
@@ -122,6 +127,7 @@ bool FixLJCut::prepareForRun() {
     prepareParameters(sigHandle, fillSig, processSig, false);
     prepareParameters(rCutHandle, fillRCut, processRCut, true, fillRCutDiag);
     sendAllToDevice();
+    setEvaluator();
     return true;
 }
 

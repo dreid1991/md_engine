@@ -46,11 +46,11 @@ writeconfig.unitLen = 1/unitLen
 reader = LAMMPS_Reader(state=state, unitLen = unitLen, unitMass = unitMass, unitEng = unitEng, nonbondFix = ljcut, atomTypePrefix = 'PTB7_', setBounds=False, bondFix = bondHarm,   angleFix = angleHarm, dihedralFix = dihedralOPLS,improperFix=improperHarm,)
 reader.read(dataFn = 'poly_min.data')
 
-#1 kelven = 1.38e-23 J/K  / (2760/6.022e23) = .00301 temp units
+#1 kelven = 1.38e-23 J/K  / (276/6.022e23) = .00301 temp units
 #to tReal * conversion = LJ tempo
 #pressure = pReal * unitLen^3/unitEng = 3.5^3/.066
 #so to pressure / 649.62 = pReal
-tUnit = 0.00301
+tUnit = 0.0301
 pUnit = unitLen**3 / unitEng
 
 '''

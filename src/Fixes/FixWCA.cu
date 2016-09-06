@@ -103,6 +103,11 @@ bool FixWCA::prepareForRun() {
     return true;
 }
 
+void setEvalWrapper() {
+}
+    PairEvaluatorWCA eval;
+    evalWrap = pickEvaluator<PairEvaluatorWCA, 3>(eval, chargeCalcFix);
+
 std::string FixWCA::restartChunk(std::string format) {
     std::stringstream ss;
     ss << restartChunkPairParams(format);

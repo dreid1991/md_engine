@@ -5,6 +5,7 @@
 //#include "AtomParams.h"
 #include "GPUArrayTex.h"
 #include "FixCharge.h"
+#include "ChargeEvaluatorDSF.h"
 
 class State;
 
@@ -27,6 +28,9 @@ public:
 
     void setParameters(float alpha_, float r_cut_);
     void compute(bool);
+    ChargeEvaluatorDSF generateEvaluator() {
+        return ChargeEvaluatorDSF(alpha, A, shift);
+    }
 
 };
 

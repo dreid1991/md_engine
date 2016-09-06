@@ -106,8 +106,13 @@ bool FixLJCutFS::prepareForRun() {
     prepareParameters(rCutHandle, fillRCut, processRCut, true, fillRCutDiag);
     prepareParameters("FCutHandle", fillFCut);
     sendAllToDevice();
+    setEvalWrapper();
     return true;
 }
+
+void FixLJCut::setEvalWrapper() {
+    PairEvaluatorLJFS eval;
+    evalWrap = pickEvaluator<PairEvaluatorLJFS, 3>(eval, chargeCalcFix);
 
 std::string FixLJCutFS::restartChunk(std::string format) {
     std::stringstream ss;

@@ -76,6 +76,7 @@ class FixLJCut : public FixPair {
 
         //! Return list of cutoff values
         std::vector<float> getRCuts();
+        void setEvalWrapper();
     public:
         const std::string epsHandle; //!< Handle for parameter epsilon
         const std::string sigHandle; //!< Handle for parameter sigma
@@ -85,9 +86,7 @@ class FixLJCut : public FixPair {
         std::vector<float> rCuts; //!< vector storing cutoff distance values
 
         //EvaluatorLJ evaluator; //!< Evaluator for generic pair interactions
-        boost::shared_ptr<EvaluatorWrapper> evalWrap;
 
-        void acceptChargePairCalc(Fix *);
 };
 
 #endif

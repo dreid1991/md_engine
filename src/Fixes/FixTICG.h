@@ -67,7 +67,7 @@ class FixTICG : public FixPair {
         std::vector<float> Cs; //!< vector storing epsilon values
         std::vector<float> rCuts; //!< vector storing cutoff distance values
 
-        EvaluatorTICG evaluator; //!< Evaluator for generic pair interactions
+        void setEvalWrapper();
 };
 
 #endif

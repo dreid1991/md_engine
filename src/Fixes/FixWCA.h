@@ -79,7 +79,7 @@ class FixWCA : public FixPair {
         std::vector<float> sigmas; //!< vector storing sigma values
         std::vector<float> rCuts; //!< vector storing cutoff distance values
 
-        EvaluatorWCA evaluator; //!< Evaluator for generic pair interactions
+        void setEvalWrapper();
 };
 
 #endif

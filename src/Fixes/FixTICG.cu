@@ -49,6 +49,7 @@ void FixTICG::compute(bool computeVirials) {
 }
 
 void FixTICG::singlePointEng(float *perParticleEng) {
+    /*
     int nAtoms = state->atoms.size();
     int numTypes = state->atomParams.numTypes;
     GPUData &gpd = state->gpd;
@@ -56,8 +57,9 @@ void FixTICG::singlePointEng(float *perParticleEng) {
     int activeIdx = gpd.activeIdx();
     uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
     float *neighborCoefs = state->specialNeighborCoefs;
+    */
 
-    compute_energy_iso<EvaluatorTICG, 2><<<NBLOCK(nAtoms), PERBLOCK, 2*numTypes*numTypes*sizeof(float)>>>(nAtoms, gpd.xs(activeIdx), perParticleEng, neighbor\
+ //   compute_energy_iso<EvaluatorTICG, 2><<<NBLOCK(nAtoms), PERBLOCK, 2*numTypes*numTypes*sizeof(float)>>>(nAtoms, gpd.xs(activeIdx), perParticleEng, neighbor\
 Counts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU, ne\
 ighborCoefs[0], neighborCoefs[1], neighborCoefs[2], evaluator);
 
@@ -78,9 +80,14 @@ bool FixTICG::prepareForRun() {
     prepareParameters(CHandle,  processCs);
     prepareParameters(rCutHandle, processRCut);
     sendAllToDevice();
+    setEvalWrapper();
     return true;
 }
 
+void FixTICG::setEvalWrapper() {
+    EvaluatorTICG eval;
+    evalWrap = pickEvaluator<EvaluatorTICG, 3>(eval, chargeCalcFix);
+}
 std::string FixTICG::restartChunk(std::string format) {
     std::stringstream ss;
     ss << restartChunkPairParams(format);

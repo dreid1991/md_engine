@@ -906,7 +906,7 @@ void FixChargeEwald::compute(bool computeVirials) {
 
 
     float *neighborCoefs = state->specialNeighborCoefs;
-    /*
+    //SHORT RANGE
      if (computeVirials) {
           int warpSize = state->devManager.prop.warpSize;
             virialField.memset(0); 
@@ -949,7 +949,6 @@ void FixChargeEwald::compute(bool computeVirials) {
                                               state->devManager.prop.warpSize, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2],
                                               gpd.virials.d_data.data(), virialField.data(), 0);
     }
-    */
     CUT_CHECK_ERROR("Ewald_short_range_forces_cu  execution failed");
 
 }

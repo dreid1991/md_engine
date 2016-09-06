@@ -8,6 +8,7 @@
 #include "GPUArrayGlobal.h"
 #include "Virial.h"
 #include "BoundsGPU.h"
+#include "ChargeEvaluatorEwald.h"
 
 class State;
 
@@ -80,6 +81,9 @@ public:
         res.push_back(r_cut);
         return res;
     }    
+    ChargeEvaluatorEwald generateEvaluator() {
+        return ChargeEvaluatorEwald(alpha);
+    }
 };
 
 #endif

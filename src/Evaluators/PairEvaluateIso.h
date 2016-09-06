@@ -1,7 +1,11 @@
+#pragma once
+#ifndef PAIR_EVALUATOR_ISO_H
+#define PAIR_EVALUATOR_ISO_H
 #include "BoundsGPU.h"
 #include "cutils_func.h"
 #include "Virial.h"
 #include "helpers.h"
+#include "SquareVector.h"
 template <class PAIR_EVAL, int N_PARAM, bool COMP_VIRIALS, class CHARGE_EVAL, bool COMP_CHARGES>
 __global__ void compute_force_iso(int nAtoms, const float4 *__restrict__ xs, float4 *__restrict__ fs, const uint16_t *__restrict__ neighborCounts, const uint *__restrict__ neighborlist, const uint32_t * __restrict__ cumulSumMaxPerBlock, int warpSize, const float *__restrict__ parameters, int numTypes,  BoundsGPU bounds, float onetwoStr, float onethreeStr, float onefourStr, Virial *__restrict__ virials, float *qs, float qCutoffSqr, PAIR_EVAL pairEval, CHARGE_EVAL chargeEval) {
     float multipliers[4] = {1, onetwoStr, onethreeStr, onefourStr};
@@ -144,4 +148,4 @@ __global__ void compute_energy_iso(int nAtoms, float4 *xs, float *perParticleEng
     }
 
 }
-
+#endif
