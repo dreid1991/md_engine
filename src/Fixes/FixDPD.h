@@ -2,6 +2,8 @@
 #ifndef FIXDPD_H
 #define FIXDPD_H
 
+#include "boost_for_export.h"
+#include "Interpolator.h"
 #include "Fix.h"
 //! Make FixDPD available to the pair base class in boost
 void export_FixDPD();
@@ -21,7 +23,7 @@ class FixDPD : public Interpolator, public Fix {
 			std::string groupHandle_, std::string type_, 
 		    py::list intervals_, py::list temps_) : 
           Interpolator(intervals_, temps_), 
-          Fix(state_, handle_, groupHandle_, type_, false, false, false, 1)
+          Fix(state_, handle_, groupHandle_, type_, false, false, false, applyEvery=1)
         {
 
         };
@@ -29,7 +31,7 @@ class FixDPD : public Interpolator, public Fix {
            std::string groupHandle_, std::string type_,
            py::object tempFunc_) : 
           Interpolator(tempFunc_), 
-          Fix(state_, handle_, groupHandle_, type_, false, false, false, 1)
+          Fix(state_, handle_, groupHandle_, type_, false, false, false, applyEvery=1)
     {
 
     };
@@ -38,13 +40,13 @@ class FixDPD : public Interpolator, public Fix {
            std::string groupHandle_, std::string type_, 
            double temp_): 
           Interpolator(temp_), 
-          Fix(state_, handle_, groupHandle_, type_, false, false, false, 1)
+          Fix(state_, handle_, groupHandle_, type_, false, false, false, applyEvery=1)
     {
 
     }; 
 
 
-}
+};
 
 #endif
 

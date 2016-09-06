@@ -3,6 +3,7 @@
 #define FIXDPD_T_H
 
 #include "FixDPD.h"
+#include "DPDEvaluatorIsothermal.h"
 
 void export_FixDPD_T();
 
@@ -15,6 +16,13 @@ class FixDPD_T : public FixDPD {
 
         // amplitude of the thermal noise given by sigma
         double sigma;
+        // seed provided by user, allows for different inter-simulation results
+        int64_t seed;
+        double s;
+        double rcut;
+        // the hashed seed for use in SARU, which will be incremented by the timestep each turn
+        // to yield a unique microstream of random numbers
+        int64_t hashedSeed;
         // note that we will need to pass dt, timestep, and the temperature setpoint
         // to the fix compute somewhere
         // where temperature is specified by the interpolator class
@@ -26,23 +34,23 @@ class FixDPD_T : public FixDPD {
         
         // given gamma, we make three constructors for the different implementations of interpolator
         FixDPD_T (boost::shared_ptr<State> state_, std::string handle_, std::string groupHandle_,
-                  double gamma_, double rcut_, double s_, boost::python::list intervals_,
+                  double gamma_, double rcut_, double s_, int64_t seed_, boost::python::list intervals_,
                   boost::python::list temps_);
         FixDPD_T (boost::shared_ptr<State> state_, std::string handle_, std::string groupHandle_,
-                  double gamma_, double rcut_, double s_, boost::python::object tempFunc_);
+                  double gamma_, double rcut_, double s_, int64_t seed_, boost::python::object tempFunc_);
         FixDPD_T (boost::shared_ptr<State> state_, std::string handle_, std::string groupHandle_,
-                  double gamma_, double rcut_, double s_, double temp_);
+                  double gamma_, double rcut_, double s_, int64_t seed_, double temp_);
         
 
-        // same, but now we are given the thermal noise coefficient sigma instead
-        FixDPD_T (boost::shared_ptr<State> state_, std::string handle_, std::string groupHandle_,
-                  double sigma_, double rcut_, double s_, boost::python::list intervals_,
-                  boost::python::list temps_);
-        FixDPD_T (boost::shared_ptr<State> state_, std::string handle_, std::string groupHandle_,
-                  double sigma_, double rcut_, double s_, boost::python::object tempFunc_);
-        FixDPD_T (boost::shared_ptr<State> state_, std::string handle_, std::string groupHandle_,
-                  double sigma_, double rcut_, double s_, double temp_);
-        
+        //// same, but now we are given the thermal noise coefficient sigma instead
+        //FixDPD_T (boost::shared_ptr<State> state_, std::string handle_, std::string groupHandle_,
+        //          double sigma_, double rcut_, double s_, int64_t seed_, boost::python::list intervals_,
+        //          boost::python::list temps_);
+        //FixDPD_T (boost::shared_ptr<State> state_, std::string handle_, std::string groupHandle_,
+        //          double sigma_, double rcut_, double s_, int64_t seed_, boost::python::object tempFunc_);
+        //FixDPD_T (boost::shared_ptr<State> state_, std::string handle_, std::string groupHandle_,
+        //          double sigma_, double rcut_, double s_, int64_t seed_, double temp_);
+        //
         // our destructor
         ~FixDPD_T () {};
 
@@ -61,6 +69,6 @@ class FixDPD_T : public FixDPD {
         void singlePointEng(float *);
         
         EvaluatorDPD_T evaluator;
-}
+};
 
 #endif
