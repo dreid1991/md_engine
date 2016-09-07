@@ -73,7 +73,7 @@ FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state_, std::string handle
                 pressComputer(state, true, false), 
                 pressMode(PRESSMODE::ISO),
                 thermostatting(true),
-                barostatting(true)
+                barostatting(false)
 {
     pressComputer.usingExternalTemperature = true;
 }

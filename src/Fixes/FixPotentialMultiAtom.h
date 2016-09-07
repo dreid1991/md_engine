@@ -34,8 +34,10 @@ class FixPotentialMultiAtom : public Fix, public TypedItemHolder {
         GPUArrayDeviceGlobal<int> forcerIdxs;
         GPUArrayDeviceGlobal<ForcerTypeHolder> parameters;
         VariantPyListInterface<CPUVariant, CPUMember> pyListInterface;
+        int sharedMemSizeForParams;
+        bool usingSharedMemForParams;
+        
         int maxForcersPerBlock;
-
         bool prepareForRun() {
             int maxExistingType = -1;
             std::unordered_map<ForcerTypeHolder, int> reverseMap;
@@ -69,6 +71,8 @@ class FixPotentialMultiAtom : public Fix, public TypedItemHolder {
             }
             maxForcersPerBlock = copyMultiAtomToGPU<CPUVariant, CPUBase, CPUMember, GPUMember, ForcerTypeHolder, N>(state->atoms.size(), forcers, state->idToIdx, &forcersGPU, &forcerIdxs, &forcerTypes, &parameters, maxExistingType);
 
+
+            setSharedMemForParams(); 
             return true;
         } 
         void setForcerType(int n, CPUMember &forcer) {
@@ -138,6 +142,18 @@ class FixPotentialMultiAtom : public Fix, public TypedItemHolder {
             
         }
 
+        void setSharedMemForParams() {
+            //ATTENTION - THIS COULD CRASH B/C IT ONLY CHECKS FOR IF PARAMS OVERFLOWS, BUT COMBINATION OF FORCERS AND TYPES COULD ALSO OVERFLOW.  PLEASE FIX.
+            int size = parameters.size() * sizeof(ForcerTypeHolder);
+            if (size > state->devManager.prop.sharedMemPerBlock) {
+                usingSharedMemForParams = false;
+                sharedMemSizeForParams = 0;
+            } else {
+                usingSharedMemForParams = true;
+                sharedMemSizeForParams = size;
+            }
+
+        }
 };
 
 #endif
