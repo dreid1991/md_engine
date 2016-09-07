@@ -143,9 +143,8 @@ class FixPotentialMultiAtom : public Fix, public TypedItemHolder {
         }
 
         void setSharedMemForParams() {
-            //ATTENTION - THIS COULD CRASH B/C IT ONLY CHECKS FOR IF PARAMS OVERFLOWS, BUT COMBINATION OF FORCERS AND TYPES COULD ALSO OVERFLOW.  PLEASE FIX.
             int size = parameters.size() * sizeof(ForcerTypeHolder);
-            if (size > state->devManager.prop.sharedMemPerBlock) {
+            if (size + maxForcersPerBlock*sizeof(GPUMember)> state->devManager.prop.sharedMemPerBlock) {
                 usingSharedMemForParams = false;
                 sharedMemSizeForParams = 0;
             } else {

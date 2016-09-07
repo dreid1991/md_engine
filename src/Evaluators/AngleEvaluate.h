@@ -121,21 +121,10 @@ __global__ void compute_force_angle(int nAtoms, float4 *xs, float4 *forces, int 
 
 
 template <class ANGLETYPE, class EVALUATOR>
-__global__ void compute_energy_angle(int nAtoms, float4 *xs, float *perParticleEng, int *idToIdxs, AngleGPU *angles, int *startstops, BoundsGPU bounds, ANGLETYPE *parameters, int nParameters, bool usingSharedMemForParams, EVALUATOR evaluator) {
-    /*
+__global__ void compute_energy_angle(int nAtoms, float4 *xs, float *perParticleEng, int *idToIdxs, AngleGPU *angles, int *startstops, BoundsGPU bounds, ANGLETYPE *parameters_arg, int nParameters, bool usingSharedMemForParams, EVALUATOR evaluator) {
+
     int idx = GETIDX();
-    extern __shared__ int all_shr[];
-    int idxBeginCopy = startstops[blockDim.x*blockIdx.x];
-    int idxEndCopy = startstops[min(nAtoms, blockDim.x*(blockIdx.x+1))];
-    AngleGPU *angles_shr = (AngleGPU *) all_shr;
-    ANGLETYPE *parameters_shr = (ANGLETYPE *) (angles_shr + (idxEndCopy - idxBeginCopy));
-    copyToShared<AngleGPU>(angles + idxBeginCopy, angles_shr, idxEndCopy - idxBeginCopy);
-    copyToShared<ANGLETYPE>(parameters, parameters_shr, nParameters);
-    __syncthreads();
-    */
-    /*
-    int idx = GETIDX();
-    extern __shared__ int all_shr[];
+    extern __shared__ char all_shr[];
     int idxBeginCopy = startstops[blockDim.x*blockIdx.x];
     int idxEndCopy = startstops[min(nAtoms, blockDim.x*(blockIdx.x+1))];
     AngleGPU *angles_shr = (AngleGPU *) all_shr;
@@ -148,8 +137,7 @@ __global__ void compute_energy_angle(int nAtoms, float4 *xs, float *perParticleE
     } else {
         parameters = parameters_arg;
     }
-    */
-    /*
+    __syncthreads();
     if (idx < nAtoms) {
         //printf("going to compute %d\n", idx);
         int startIdx = startstops[idx];
@@ -172,7 +160,7 @@ __global__ void compute_energy_angle(int nAtoms, float4 *xs, float *perParticleE
                 uint32_t typeFull = angle.type;
                 myIdxInAngle = typeFull >> 29;
                 int type = ((typeFull << 3) >> 3);
-                ANGLETYPE angleType = parameters_shr[type];
+                ANGLETYPE angleType = parameters[type];
                 float3 positions[3];
                 positions[myIdxInAngle] = pos;
                 int toGet[2];
@@ -227,6 +215,5 @@ __global__ void compute_energy_angle(int nAtoms, float4 *xs, float *perParticleE
             perParticleEng[idxSelf] += engSum;
         }
     }
-    */
 }
 

@@ -183,7 +183,7 @@ class FixBond : public Fix, public TypedItemHolder {
 
         void setSharedMemForParams() {
             int size = parameters.size() * sizeof(BONDTYPEHOLDER);
-            if (size > state->devManager.prop.sharedMemPerBlock) {
+            if (size + maxBondsPerBlock * sizeof(GPUMember) > state->devManager.prop.sharedMemPerBlock) {
                 usingSharedMemForParams = false;
                 sharedMemSizeForParams = 0;
             } else {
