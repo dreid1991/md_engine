@@ -6,6 +6,7 @@
 #include "PairEvaluateIso.h"
 #include "State.h"
 #include "cutils_func.h"
+#include "EvaluatorWrapper.h"
 
 const std::string LJCutType = "LJCutWCA";
 
@@ -45,6 +46,7 @@ void FixWCA::compute(bool computeVirials) {
 }
 
 void FixWCA::singlePointEng(float *perParticleEng) {
+    /*
     int nAtoms = state->atoms.size();
     int numTypes = state->atomParams.numTypes;
     GPUData &gpd = state->gpd;
@@ -56,6 +58,7 @@ void FixWCA::singlePointEng(float *perParticleEng) {
     compute_energy_iso<EvaluatorWCA, 3><<<NBLOCK(nAtoms), PERBLOCK, 3*numTypes*numTypes*sizeof(float)>>>(nAtoms, gpd.xs(activeIdx), perParticleEng, neighbor\
 Counts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU, ne\
 ighborCoefs[0], neighborCoefs[1], neighborCoefs[2], evaluator);
+    */
 
 
 
@@ -103,10 +106,10 @@ bool FixWCA::prepareForRun() {
     return true;
 }
 
-void setEvalWrapper() {
+void FixWCA::setEvalWrapper() {
+    EvaluatorWCA eval;
+    evalWrap = pickEvaluator<EvaluatorWCA, 3>(eval, chargeCalcFix);
 }
-    PairEvaluatorWCA eval;
-    evalWrap = pickEvaluator<PairEvaluatorWCA, 3>(eval, chargeCalcFix);
 
 std::string FixWCA::restartChunk(std::string format) {
     std::stringstream ss;

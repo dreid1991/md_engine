@@ -43,7 +43,7 @@ void writeAtomParams(ofstream &outFile, AtomParams &params) {
     outFile << "</handle>\n";
 
     outFile << "<mass>\n";
-    for (num mass : params.masses) {
+    for (double mass : params.masses) {
         outFile << mass << "\n";
     }
     outFile << "</mass>\n";

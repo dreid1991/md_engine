@@ -6,10 +6,10 @@
 #include "Logging.h"
 using namespace std;
 
-vector<vector<num> > mapTo2d(vector<num> &xs, const int dim) {
-	vector<vector<num> > mapped;
+vector<vector<double> > mapTo2d(vector<double> &xs, const int dim) {
+	vector<vector<double> > mapped;
 	for (int i=0; i<dim; i++) {
-		vector<num> bit;
+		vector<double> bit;
 		bit.reserve(dim);
 		for (int j=i*dim; j<(i+1)*dim; j++) {
 			bit.push_back(xs[j]);
@@ -151,9 +151,9 @@ vector<Bond> buildBonds(pugi::xml_node &config, State *state, string tag, int nu
 			ss >> line;
 			atoms[1] = state->atomFromId(atoi(line.c_str()));
 			ss >> line;
-			num k = atof(line.c_str());
+			double k = atof(line.c_str());
 			ss >> line;
-			num rEq = atof(line.c_str());
+			double rEq = atof(line.c_str());
 			assert(atoms[0] != (Atom *) NULL and atoms[1] != (Atom *) NULL);
 			state->addBond(atoms[0], atoms[1], k, rEq);
 		}

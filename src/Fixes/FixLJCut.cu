@@ -8,6 +8,7 @@
 #include "ReadConfig.h"
 #include "EvaluatorWrapper.h"
 #include "PairEvaluatorLJ.h"
+#include "EvaluatorWrapper.h"
 //#include "ChargeEvaluatorEwald.h"
 using namespace std;
 namespace py = boost::python;
@@ -26,9 +27,6 @@ FixLJCut::FixLJCut(boost::shared_ptr<State> state_, string handle_)
     paramOrder = {rCutHandle, epsHandle, sigHandle};
     readFromRestart();
     canAcceptChargePairCalc = true;
-    float alpha = .994225;
-    EvaluatorEwald ew;
-    ew.alpha = alpha;
  //   evalWrap = boost::shared_ptr<EvaluatorWrapper>((EvaluatorWrapper *) new EvaluatorWrapperImplement<EvaluatorLJ, 3, false, EvaluatorEwald, true>(EvaluatorLJ(), ew));
     /*
     if (state->readConfig->fileOpen) {
@@ -91,8 +89,8 @@ void FixLJCut::singlePointEng(float *perParticleEng) {
 }
 
 void FixLJCut::setEvalWrapper() {
-    PairEvaluatorLJ eval;
-    evalWrap = pickEvaluator<PairEvaluatorLJ, 3>(eval, chargeCalcFix);
+    EvaluatorLJ eval;
+    evalWrap = pickEvaluator<EvaluatorLJ, 3>(eval, chargeCalcFix);
 
 }
 
@@ -127,7 +125,7 @@ bool FixLJCut::prepareForRun() {
     prepareParameters(sigHandle, fillSig, processSig, false);
     prepareParameters(rCutHandle, fillRCut, processRCut, true, fillRCutDiag);
     sendAllToDevice();
-    setEvaluator();
+    setEvalWrapper();
     return true;
 }
 

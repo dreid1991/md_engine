@@ -6,6 +6,7 @@
 #include "PairEvaluateIso.h"
 #include "State.h"
 #include "cutils_func.h"
+#include "EvaluatorWrapper.h"
 
 const std::string TICGType = "TICG";
 

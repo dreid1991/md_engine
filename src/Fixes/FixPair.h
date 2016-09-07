@@ -14,9 +14,8 @@
 #include "GPUArrayGlobal.h"
 #include "Fix.h"
 #include "xml_func.h"
-#include "EvaluatorWrapper.h"
 #include "SquareVector.h"
-
+class EvaluatorWrapper;
 void export_FixPair();
 
 class State;
