@@ -76,6 +76,8 @@ __global__ void compute_force_iso(int nAtoms, const float4 *__restrict__ xs, flo
         }   
     //    printf("LJ force %f %f %f \n", forceSum.x, forceSum.y, forceSum.z);
         float4 forceCur = fs[idx];
+        //float mult = 0.066 / 3.5;
+        //printf("cur %f %f %f new %f %f %f\n", forceCur.x, forceCur.y, forceCur.z, mult*forceSum.x, mult*forceSum.y, mult*forceSum.z);
         forceCur += forceSum;
         fs[idx] = forceCur;
         if (COMP_VIRIALS) {

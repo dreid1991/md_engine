@@ -36,7 +36,6 @@ class FixPotentialMultiAtom : public Fix, public TypedItemHolder {
         VariantPyListInterface<CPUVariant, CPUMember> pyListInterface;
         int sharedMemSizeForParams;
         bool usingSharedMemForParams;
-        
         int maxForcersPerBlock;
         bool prepareForRun() {
             int maxExistingType = -1;
@@ -144,7 +143,8 @@ class FixPotentialMultiAtom : public Fix, public TypedItemHolder {
 
         void setSharedMemForParams() {
             int size = parameters.size() * sizeof(ForcerTypeHolder);
-            if (size + maxForcersPerBlock*sizeof(GPUMember)> state->devManager.prop.sharedMemPerBlock) {
+            //<= 3 is b/c of threshold for using redundant calcs
+            if (size + int(N<=3) * maxForcersPerBlock*sizeof(GPUMember)> state->devManager.prop.sharedMemPerBlock) {
                 usingSharedMemForParams = false;
                 sharedMemSizeForParams = 0;
             } else {

@@ -3,10 +3,12 @@
 #include "Improper.h"
 class ImproperEvaluatorHarmonic {
 public:
-    inline __device__ float3 force(ImproperHarmonicType improperType, float theta, float scValues[3], float invLenSqrs[3], float invLens[3], float angleBits[3], float s, float c, float3 directors[3], int myIdxInImproper) {
+    inline __device__ float dPotential(ImproperHarmonicType improperType, float theta) {
         float dTheta = theta - improperType.thetaEq;
 
-        float a = improperType.k * dTheta;
+        float dp = improperType.k * dTheta;
+        return dp;
+        /*
         a *= -2.0f / s;
         scValues[2] *= a;
         c *= a;
@@ -46,6 +48,7 @@ public:
             }
         }
         return myForce;
+        */
     }
    inline __device__ void forcesAll(ImproperHarmonicType improperType, float theta, float scValues[3], float invLenSqrs[3], float invLens[3], float angleBits[3], float s, float c, float3 directors[3], float3 forces[4]) {
         float dTheta = theta - improperType.thetaEq;

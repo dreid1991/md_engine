@@ -44,8 +44,9 @@ template <class SRCVar, class SRCBase, class SRCFull, class DEST, class TYPEHOLD
 int copyMultiAtomToGPU(int nAtoms, std::vector<SRCVar> &src, std::vector<int> &idToIdx, GPUArrayDeviceGlobal<DEST> *dest, GPUArrayDeviceGlobal<int> *destIdxs, std::unordered_map<int, TYPEHOLDER> *forcerTypes, GPUArrayDeviceGlobal<TYPEHOLDER> *parameters, int maxExistingType) {
     std::vector<int> idxs(nAtoms+1, 0); //started out being used as counts
     std::vector<int> numAddedPerAtom(nAtoms, 0);
-   // bool redundantCalcs = N <= 3;
- //   if (redundantCalcs ) {
+    bool redundantCalcs = N <= 3;
+    std::vector<DEST> destHost;
+    if (redundantCalcs ) {
         //so I can arbitrarily order.  I choose to do it by the the way atoms happen to be sorted currently.  Could be improved.
         for (SRCVar &sVar : src) {
             SRCFull &s = boost::get<SRCFull>(sVar);
@@ -56,7 +57,7 @@ int copyMultiAtomToGPU(int nAtoms, std::vector<SRCVar> &src, std::vector<int> &i
 
         }
         cumulativeSum(idxs.data(), nAtoms+1);
-        std::vector<DEST> destHost(idxs.back());
+        destHost = std::vector<DEST> (idxs.back());
         for (SRCVar &sVar : src) {
             SRCFull &s = boost::get<SRCFull>(sVar);
             SRCBase *base = (SRCBase *) &s;
@@ -76,24 +77,21 @@ int copyMultiAtomToGPU(int nAtoms, std::vector<SRCVar> &src, std::vector<int> &i
                 numAddedPerAtom[atomIndexes[i]]++;
             }
         }
- /*&   } else {
-        std::vector<DEST> destHost();
+    } else {
         for (SRCVar &sVar : src) {
             SRCFull &s = boost::get<SRCFull>(sVar);
             SRCBase *base = (SRCBase *) &s;
-            std::array<int, N> atomIds = s.ids;
-            std::array<int, N> atomIndexes;
             DEST d;
             d.takeIds(base);
             d.type = s.type;
             destHost.push_back(d);
         }
-*/
- //   }
+
+    }
     *dest = GPUArrayDeviceGlobal<DEST>(destHost.size());
     dest->set(destHost.data());
     int maxPerBlock = 0;
-    //if (redundantCalcs) {
+    if (redundantCalcs) {
         *destIdxs = GPUArrayDeviceGlobal<int>(idxs.size());
         destIdxs->set(idxs.data());
 
@@ -101,7 +99,7 @@ int copyMultiAtomToGPU(int nAtoms, std::vector<SRCVar> &src, std::vector<int> &i
         for (int i=0; i<nAtoms; i+=PERBLOCK) {
             maxPerBlock = std::fmax(maxPerBlock, idxs[std::fmin(i+PERBLOCK+1, idxs.size()-1)] - idxs[i]);
         }
-   // }
+    }
 
 
     //now copy types
