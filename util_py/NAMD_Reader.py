@@ -182,7 +182,11 @@ class NAMD_Reader:
                 epsInput = float(bits[2])
                 rMinInput = float(bits[3])
                 eps = -epsInput / self.unitEng
+<<<<<<< HEAD
                 sigma = 2*(rMinInput) / (pow(2.0, 1.0 / 6.0) * self.unitLen)#IS THE X2 CORRECT?  ASK AMIN
+=======
+                sigma = (rMinInput) / (pow(2.0, 1.0 / 6.0) * self.unitLen)#IS THE X2 CORRECT?  ASK AMIN
+>>>>>>> cb01712e7ecd665b9dbc5b81e599e7ee02c37f1b
                 print sigma
                # sigma = (rMinInput) / pow(2.0, 1.0 / 6.0)#IS THE X2 CORRECT?  ASK AMIN
                 self.nonbondFix.setParameter('sig', handle, handle, sigma)
@@ -244,7 +248,6 @@ class NAMD_Reader:
 
                 n = int(bits[5])
                 d = float(bits[6]) * DEGREES_TO_RADIANS
-                print k, n, d
                 type = len(self.dihedralTypes)
                 self.dihedralFix.setDihedralTypeCoefs(type, k, n, d)
                 self.dihedralTypes.append(NAMD_Bonded_Forcer(type, atomTypes))

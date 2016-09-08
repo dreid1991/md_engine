@@ -12,7 +12,7 @@ state.deviceManager.setDevice(0)
 dx = 20
 dy = 20
 dz = 8
-ndim = 1
+ndim = 3
 state.bounds = Bounds(state, lo = Vector(0, -20, -20), hi = Vector(dx*ndim+20, dy*ndim+20, dz*ndim+20))
 #state.bounds = Bounds(state, lo = Vector(0, -20, -20), hi = Vector(40, 40, 40))#Vector(dx*ndim+20, dy*ndim+20, dz*ndim+20))
 state.rCut = 3.0

@@ -1,17 +1,21 @@
 template <class IMPROPERTYPE, class EVALUATOR, bool COMPUTEVIRIALS> 
-__global__ void compute_force_improper(int nAtoms, float4 *xs, float4 *forces, int *idToIdxs, ImproperGPU *impropers, int *startstops, BoundsGPU bounds, IMPROPERTYPE *parameters, int nParameters, Virial *virials, EVALUATOR evaluator) {
+__global__ void compute_force_improper(int nAtoms, float4 *xs, float4 *forces, int *idToIdxs, ImproperGPU *impropers, int *startstops, BoundsGPU bounds, IMPROPERTYPE *parameters_arg, int nParameters, Virial *virials, bool usingSharedMemForParams, EVALUATOR evaluator) {
 
 
     int idx = GETIDX();
-    extern __shared__ int all_shr[];
+    extern __shared__ char all_shr[];
     int idxBeginCopy = startstops[blockDim.x*blockIdx.x];
     int idxEndCopy = startstops[min(nAtoms, blockDim.x*(blockIdx.x+1))];
-
     ImproperGPU *impropers_shr = (ImproperGPU *) all_shr;
-    IMPROPERTYPE *parameters_shr = (IMPROPERTYPE *) (impropers_shr + (idxEndCopy - idxBeginCopy));
+    int sizeImpropers = (idxEndCopy - idxBeginCopy) * sizeof(ImproperGPU);
     copyToShared<ImproperGPU>(impropers + idxBeginCopy, impropers_shr, idxEndCopy - idxBeginCopy);
-    copyToShared<IMPROPERTYPE>(parameters, parameters_shr, nParameters);
-
+    IMPROPERTYPE *parameters;
+    if (usingSharedMemForParams) {
+        parameters = (IMPROPERTYPE *) (all_shr + sizeImpropers);
+        copyToShared<IMPROPERTYPE>(parameters_arg, parameters, nParameters);
+    } else {
+        parameters = parameters_arg;
+    }
     __syncthreads();
     if (idx < nAtoms) { //HEY - THIS SHOULD BE < nAtoms
   //      printf("going to compute %d\n", idx);
@@ -36,7 +40,7 @@ __global__ void compute_force_improper(int nAtoms, float4 *xs, float4 *forces, i
                 uint32_t typeFull = improper.type;
                 myIdxInImproper = typeFull >> 29;
                 int type = static_cast<int>((typeFull << 3) >> 3);   
-                IMPROPERTYPE improperType = parameters_shr[type];
+                IMPROPERTYPE improperType = parameters[type];
                 float3 positions[4];
                 positions[myIdxInImproper] = pos;
                 int toGet[3];
@@ -138,18 +142,23 @@ __global__ void compute_force_improper(int nAtoms, float4 *xs, float4 *forces, i
 
 
 template <class IMPROPERTYPE, class EVALUATOR> 
-__global__ void compute_energy_improper(int nAtoms, float4 *xs, float *perParticleEng, int *idToIdxs, ImproperGPU *impropers, int *startstops, BoundsGPU bounds, IMPROPERTYPE *parameters, int nParameters, EVALUATOR T) {
-
+__global__ void compute_energy_improper(int nAtoms, float4 *xs, float *perParticleEng, int *idToIdxs, ImproperGPU *impropers, int *startstops, BoundsGPU bounds, IMPROPERTYPE *parameters_arg, int nParameters, bool usingSharedMemForParams, EVALUATOR T) {
 
     int idx = GETIDX();
-    extern __shared__ int all_shr[];
+    extern __shared__ char all_shr[];
     int idxBeginCopy = startstops[blockDim.x*blockIdx.x];
     int idxEndCopy = startstops[min(nAtoms, blockDim.x*(blockIdx.x+1))];
-
     ImproperGPU *impropers_shr = (ImproperGPU *) all_shr;
-    IMPROPERTYPE *parameters_shr = (IMPROPERTYPE *) (impropers_shr + (idxEndCopy - idxBeginCopy));
+    int sizeImpropers = (idxEndCopy - idxBeginCopy) * sizeof(ImproperGPU);
     copyToShared<ImproperGPU>(impropers + idxBeginCopy, impropers_shr, idxEndCopy - idxBeginCopy);
-    copyToShared<IMPROPERTYPE>(parameters, parameters_shr, nParameters);
+    IMPROPERTYPE *parameters;
+    if (usingSharedMemForParams) {
+        parameters = (IMPROPERTYPE *) (all_shr + sizeImpropers);
+        copyToShared<IMPROPERTYPE>(parameters_arg, parameters, nParameters);
+    } else {
+        parameters = parameters_arg;
+    }
+    __syncthreads();
 
     __syncthreads();
     if (idx < nAtoms) { //HEY - THIS SHOULD BE < nAtoms
@@ -174,7 +183,7 @@ __global__ void compute_energy_improper(int nAtoms, float4 *xs, float *perPartic
                 uint32_t typeFull = improper.type;
                 myIdxInImproper = typeFull >> 29;
                 int type = static_cast<int>((typeFull << 3) >> 3);   
-                IMPROPERTYPE improperType = parameters_shr[type];
+                IMPROPERTYPE improperType = parameters[type];
                 float3 positions[4];
                 positions[myIdxInImproper] = pos;
                 int toGet[3];
