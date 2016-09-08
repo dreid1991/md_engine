@@ -230,6 +230,7 @@ public:
     
     bool hasOffloadedChargePairCalc;
     bool hasAcceptedChargePairCalc;
+    void resetChargePairFlags();
 
     int orderPreference; //!< Fixes with a high order preference are calculated
                          //!< later.

@@ -445,6 +445,8 @@ public:
      * Copy data from the GPU Data class back to the atoms vectors.
      */
     bool downloadFromRun();
+//!resets various flags for fixes
+    void finish(); 
 
     //! Set all Atom velocities to zero
     void zeroVelocities();

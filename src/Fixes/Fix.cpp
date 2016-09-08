@@ -38,6 +38,11 @@ Fix::Fix(boost::shared_ptr<State> state_, std::string handle_, std::string group
     */
 }
 
+void Fix::resetChargePairFlags() {
+
+    hasOffloadedChargePairCalc = false;
+    hasAcceptedChargePairCalc = false;
+}
 bool Fix::isEqual(Fix &f) {
     return f.handle == handle;
 }

@@ -449,7 +449,9 @@ void State::handleChargeOffloading() {
         if (f->canOffloadChargePairCalc) {
             for (Fix *g : fixes) {
                 if (g->canAcceptChargePairCalc and not g->hasAcceptedChargePairCalc) {
-                    g->acceptChargePairCalc(f); //responsible for setting all flags for f and g
+                    g->acceptChargePairCalc(f); 
+                    f->hasOffloadedChargePairCalc = true;
+                    g->hasAcceptedChargePairCalc = true;
                 }
             }
         }
@@ -526,7 +528,11 @@ bool State::downloadFromRun() {
     return true;
 }
 
-
+void State::finish() {
+    for (Fix *f : fixes) {
+        f->resetChargePairFlags();
+    }
+}
 
 bool State::addToGroupPy(std::string handle, py::list toAdd) {//list of atom ids
     uint32_t tagBit = groupTagFromHandle(handle);  //if I remove asserts from this, could return things other than true, like if handle already exists

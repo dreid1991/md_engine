@@ -24,6 +24,7 @@ bool FixPressureBerendsen::stepFinal() {
     pressureComputer.computeScalar_CPU();
     double pressure = pressureComputer.pressureScalar;
     double dilation = std::pow(1.0 - state->dt/period * (target - pressure) / bulkModulus, 1.0/3.0);
+    //printf("dilation %f\n", dilation);
     Mod::scaleSystem(state, dilation);
     return true;
 }

@@ -173,6 +173,7 @@ void Integrator::basicFinish() {
     }
     cudaDeviceSynchronize();
     state->downloadFromRun();
+    state->finish();
 }
 
 

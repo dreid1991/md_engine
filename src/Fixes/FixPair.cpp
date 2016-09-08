@@ -86,6 +86,7 @@ void FixPair::prepareParameters_from_other(std::string handle,
 void FixPair::acceptChargePairCalc(Fix *chargeFix) {
     chargeCalcFix = chargeFix;
     setEvalWrapper();
+
 }
 void FixPair::ensureParamSize(std::vector<float> &array)
 {

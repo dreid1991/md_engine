@@ -110,6 +110,7 @@ __global__ void compute_force_improper(int nAtoms, float4 *xs, float4 *forces, i
                 if (COMPUTEVIRIALS) {
                     float3 allForces[4];
                     evaluator.forcesAll(improperType, theta, scValues, invLenSqrs, invLens, angleBits, s, c, directors, allForces);
+                    //printf("forces %f %f %f , %f %f %f , %f %f %f , %f %f %f\n", allForces[0].x, allForces[0].y, allForces[0].z,allForces[1].x, allForces[1].y, allForces[1].z,allForces[2].x, allForces[2].y, allForces[2].z,allForces[3].x, allForces[3].y, allForces[3].z);
                     computeVirial(sumVirials, allForces[0], directors[0]);
                     computeVirial(sumVirials, allForces[2], directors[1]);
                     computeVirial(sumVirials, allForces[3], directors[1] + directors[2]);
