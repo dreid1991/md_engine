@@ -105,6 +105,12 @@ __global__ void compute_force_dihedral(int nDihedrals, float4 *xs, float4 *fs, i
 
         //printf("no force\n");
         float dPotential = evaluator.dPotential(dihedralType, phi);
+        float sinPhi = sinf(phi);
+        float absSinPhi = sinPhi < 0 ? -sinPhi : sinPhi;
+        if (absSinPhi < EPSILON) {
+            sinPhi = EPSILON;
+        }
+        dPotential /= sinPhi;
         float3 forces[4];
 
 

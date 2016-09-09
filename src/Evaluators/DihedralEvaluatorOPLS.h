@@ -10,18 +10,12 @@ class DihedralEvaluatorOPLS {
 
                 //float3 myForce = evaluator.force(dihedralType, phi, c, scValues, invLenSqrs, c12Mags, c0, c, invMagProds, c12Mags, invLens, directors, myIdxInDihedral);
         inline __device__ float dPotential(DihedralOPLSType dihedralType, float phi) {
-            float sinPhi = sinf(phi);
-            float absSinPhi = sinPhi < 0 ? -sinPhi : sinPhi;
-            if (absSinPhi < EPSILON) {
-                sinPhi = EPSILON;
-            }
-            float invSinPhi = 1.0f / sinPhi;
     //LAMMPS pre-multiplies all of its coefs by 0.5.  We're doing it in the kernel.
             return 0.5 * (
-                    dihedralType.coefs[0] 
-                    - 2.0f * dihedralType.coefs[1] * sinf(2.0f*phi) * invSinPhi
-                    + 3.0f * dihedralType.coefs[2] * sinf(3.0f*phi) * invSinPhi
-                    - 4.0f * dihedralType.coefs[3] * sinf(4.0f*phi) * invSinPhi
+                    dihedralType.coefs[0] * sinf(phi)
+                    - 2.0f * dihedralType.coefs[1] * sinf(2.0f*phi) 
+                    + 3.0f * dihedralType.coefs[2] * sinf(3.0f*phi)
+                    - 4.0f * dihedralType.coefs[3] * sinf(4.0f*phi)
                     )
                 ;
         }

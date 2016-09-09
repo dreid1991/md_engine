@@ -106,12 +106,6 @@ void IntegratorVerlet::run(int numTurns)
             state->gridGPU.periodicBoundaryConditions();
         }
         bool computeVirialsInForce = dataManager.virialTurns.find(state->turn) != dataManager.virialTurns.end();
-        if (computeVirialsInForce) {
-            printf("vir on %d\n", int(state->turn));
-        }
-        // Prepare for timestep
-        //! \todo Should asyncOperations() and doDataCollection() go into
-        //!       Integrator::stepInit()? Same for periodicBoundayConditions()
 
         stepInit(computeVirialsInForce);
 
