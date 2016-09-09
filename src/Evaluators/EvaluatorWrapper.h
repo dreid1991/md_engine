@@ -7,7 +7,12 @@
 class EvaluatorWrapper {
 public:
     virtual void compute(int nAtoms, float4 *xs, float4 *fs, uint16_t *neighborCounts, uint *neighborlist, uint32_t *cumulSumMaxPerBlock, int warpSize, float *parameters, int numTypes,  BoundsGPU bounds, float onetwoStr, float onethreeStr, float onefourStr, Virial *virials, float *qs, float qCutoffSqr, bool computeVirials) {};
+    virtual void energy(int nAtoms, float4 *xs, float *perParticleEng, uint16_t *neighborCounts, uint *neighborlist, uint32_t *cumulSumMaxPerBlock, int warpSize, float *parameters, int numTypes, BoundsGPU bounds, float onetwoStr, float onethreeStr, float onefourStr, float *qs, float qCutoffSqr) {};
 };
+
+
+
+
 
 template <class PAIR_EVAL, int N_PARAM, class CHARGE_EVAL, bool COMP_CHARGES>
 class EvaluatorWrapperImplement : public EvaluatorWrapper {
@@ -25,8 +30,18 @@ public:
             compute_force_iso<PAIR_EVAL, N_PARAM, false, CHARGE_EVAL, COMP_CHARGES> <<<NBLOCK(nAtoms), PERBLOCK, N_PARAM*numTypes*numTypes*sizeof(float)>>>(nAtoms, xs, fs, neighborCounts, neighborlist, cumulSumMaxPerBlock, warpSize, parameters, numTypes, bounds, onetwoStr, onethreeStr, onefourStr, virials, qs, qCutoffSqr, pairEval, chargeEval);
         }
     }
+    virtual void energy(int nAtoms, float4 *xs, float *perParticleEng, uint16_t *neighborCounts, uint *neighborlist, uint32_t *cumulSumMaxPerBlock, int warpSize, float *parameters, int numTypes, BoundsGPU bounds, float onetwoStr, float onethreeStr, float onefourStr, float *qs, float qCutoffSqr) {
+        compute_energy_iso<PAIR_EVAL, N_PARAM> <<<NBLOCK(nAtoms), PERBLOCK, N_PARAM*numTypes*numTypes*sizeof(float)>>> (nAtoms, xs, perParticleEng, neighborCounts, neighborlist, cumulSumMaxPerBlock, warpSize, parameters, numTypes, bounds, onetwoStr, onethreeStr, onefourStr, pairEval);//, qs, qCutoffSqr);
+    }
 
 };
+
+
+
+
+
+
+
 template<class PAIR_EVAL, int N_PARAM>
 boost::shared_ptr<EvaluatorWrapper> pickEvaluator_CHARGE(PAIR_EVAL pairEval, Fix *chargeFix) {
     if (chargeFix == nullptr) {
