@@ -46,12 +46,13 @@ void DataSetUser::appendData() {
 }
 
         
-void DataSetUser::setNextTurn(int64_t currentTurn) {
+int64_t DataSetUser::setNextTurn(int64_t currentTurn) {
     if (computeMode == COMPUTEMODE::INTERVAL) {
         nextCompute = currentTurn + interval;
     } else {
         nextCompute = py::call<int64_t>(pyFuncRaw, currentTurn);
     }
+    return nextCompute;
 }
 
 boost::python::object DataSetUser::getPyFunc() {

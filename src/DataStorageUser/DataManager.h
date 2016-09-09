@@ -6,6 +6,7 @@
 #include "boost_for_export.h"
 #include <vector>
 #include <string>
+#include <set>
 class State;
 void export_DataManager();
 namespace MD_ENGINE {
@@ -35,9 +36,14 @@ class DataManager {
         int64_t turnLastEngs;
 
         void computeEnergy();
+
+        void addVirialTurn(int64_t);
+        void clearVirialTurn(int64_t);
+        std::set<int64_t> virialTurns;//!<Turns on which virial coefs will be calculated
+        int64_t turnVirialsComputed;//!<Turn virial coefs last computed
 //!flag for if fixes compute virials in the forst kernels or not.  Is true if any data or fixes need them
 
-        bool computeVirialsInForce; //is set in prepareForRun
+
 };
 
 }

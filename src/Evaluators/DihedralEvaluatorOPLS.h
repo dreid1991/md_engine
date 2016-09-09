@@ -9,6 +9,25 @@ class DihedralEvaluatorOPLS {
         //dihedralType, phi, c, scValues, invLenSqrs, c12Mags, c0,
 
                 //float3 myForce = evaluator.force(dihedralType, phi, c, scValues, invLenSqrs, c12Mags, c0, c, invMagProds, c12Mags, invLens, directors, myIdxInDihedral);
+        inline __device__ float dPotential(DihedralOPLSType dihedralType, float phi) {
+    //LAMMPS pre-multiplies all of its coefs by 0.5.  We're doing it in the kernel.
+            return 0.5 * (
+                    dihedralType.coefs[0] * sinf(phi)
+                    - 2.0f * dihedralType.coefs[1] * sinf(2.0f*phi) 
+                    + 3.0f * dihedralType.coefs[2] * sinf(3.0f*phi)
+                    - 4.0f * dihedralType.coefs[3] * sinf(4.0f*phi)
+                    )
+                ;
+        }
+        inline __device__ float potential(DihedralOPLSType dihedralType, float phi) {
+            return  0.5 * (
+                           dihedralType.coefs[0] * (1.0f + cosf(phi))
+                           + dihedralType.coefs[1] * (1.0f - cosf(2.0f*phi))
+                           + dihedralType.coefs[2] * (1.0f + cosf(3.0f*phi)) 
+                           + dihedralType.coefs[3] * (1.0f - cosf(4.0f*phi)) 
+                          );
+        }
+        /*
         inline __device__ float3 force(DihedralOPLSType dihedralType, float phi, float scValues[3], float invLenSqrs[3], float c12Mangs[3], float c0, float c, float invMagProds[2], float c12Mags[2], float invLens[3], float3 directors[3], int myIdxInDihedral) {
             float3 myForce;
             float sinPhi = sinf(phi);
@@ -133,6 +152,7 @@ class DihedralEvaluatorOPLS {
             return (float) (0.25f * eng);
 
         }
+        */
 };
 
 #endif

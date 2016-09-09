@@ -11,7 +11,7 @@
 #include "BoundsGPU.h"
 class State;
 
-#define EXCL_MASK (~(3<<30));
+#include "globalDefs.h"
 //okay, this is going to contain all the kernels needed to do gridding
 //can also have it contain the 3d grid for neighbor int2 s
 

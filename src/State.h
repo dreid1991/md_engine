@@ -12,6 +12,7 @@
 #include <map>
 #include <tuple>
 #include <vector>
+#include <set>
 #include <functional>
 #include <random>
 #include <thread>
@@ -45,7 +46,6 @@ void export_State();
 class PythonOperation;
 class ReadConfig;
 class Fix;
-//class DataManager;
 class WriteConfig;
 
 //! Simulation state
@@ -126,6 +126,7 @@ public:
      */
     double rCut;
     double padding; //!< Added to rCut for cutoff distance of neighbor building
+
 
     //! Set the coefficients for bonded neighbor interactions
     /*!
@@ -445,6 +446,8 @@ public:
      * Copy data from the GPU Data class back to the atoms vectors.
      */
     bool downloadFromRun();
+//!resets various flags for fixes
+    void finish(); 
 
     //! Set all Atom velocities to zero
     void zeroVelocities();
@@ -500,6 +503,7 @@ public:
      * seed is 0, the RNG is initialized with a random seed.
      */
     void seedRNG(unsigned int seed = 0);
+    void handleChargeOffloading();
 
 private:
     std::mt19937 randomNumberGenerator; //!< Random number generator

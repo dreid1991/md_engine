@@ -6,6 +6,7 @@ namespace py = boost::python;
 using namespace MD_ENGINE;
 
 DataComputerPressure::DataComputerPressure(State *state_, bool computeScalar_, bool computeTensor_) : DataComputer(state_, computeScalar_, computeTensor_, false, true), tempComputer(state_, computeScalar_, computeTensor_) {
+    usingExternalTemperature = false;
 }
 
 
@@ -73,6 +74,7 @@ void DataComputerPressure::computeScalar_CPU() {
     double sumVirial = pressureGPUScalar.h_data[0];
     double dim = state->is2d ? 2 : 3;
     double volume = state->boundsGPU.volume();
+    //printf("dof %f temp %f\n", ndf_loc, tempScalar_loc);
     pressureScalar = (tempScalar_loc * ndf_loc + sumVirial) / (dim * volume);
 }
 

@@ -73,6 +73,16 @@ boost::shared_ptr<DataSetUser> DataManager::recordPressure(std::string groupHand
 
 
 }
+
+void DataManager::addVirialTurn(int64_t t) {
+    virialTurns.insert(t);
+}
+void DataManager::clearVirialTurn(int64_t turn) {
+    auto it = virialTurns.find(turn);
+    if (it != virialTurns.end()) {
+        virialTurns.erase(it);
+    }
+}
 /*
 
 SHARED(DataSet) DataManager::getDataSet(string handle) {

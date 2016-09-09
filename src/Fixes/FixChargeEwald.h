@@ -8,10 +8,12 @@
 #include "GPUArrayGlobal.h"
 #include "Virial.h"
 #include "BoundsGPU.h"
+#include "ChargeEvaluatorEwald.h"
 
 class State;
 
 void export_FixChargeEwald();
+extern const std::string chargeEwaldType;
 
 /*! \class FixChargeEwald
  * \brief Short and Long range Coulomb interaction
@@ -79,6 +81,9 @@ public:
         res.push_back(r_cut);
         return res;
     }    
+    ChargeEvaluatorEwald generateEvaluator() {
+        return ChargeEvaluatorEwald(alpha);
+    }
 };
 
 #endif

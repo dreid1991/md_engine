@@ -4,9 +4,9 @@
 
 #include <boost/python.hpp>
 #include <boost/shared_ptr.hpp>
-
 #include "Logging.h"
 #include "State.h"
+using namespace MD_ENGINE;
 
 namespace py = boost::python;
 
@@ -100,14 +100,12 @@ void IntegratorVerlet::run(int numTurns)
     int periodicInterval = state->periodicInterval;
 
     auto start = std::chrono::high_resolution_clock::now();
-    bool computeVirialsInForce = state->dataManager.computeVirialsInForce;
+    DataManager &dataManager = state->dataManager;
     for (int i=0; i<numTurns; ++i) {
         if (state->turn % periodicInterval == 0) {
             state->gridGPU.periodicBoundaryConditions();
         }
-        // Prepare for timestep
-        //! \todo Should asyncOperations() and doDataCollection() go into
-        //!       Integrator::stepInit()? Same for periodicBoundayConditions()
+        bool computeVirialsInForce = dataManager.virialTurns.find(state->turn) != dataManager.virialTurns.end();
 
         stepInit(computeVirialsInForce);
 
@@ -131,6 +129,7 @@ void IntegratorVerlet::run(int numTurns)
 
         stepFinal();
         doDataAppending();
+        dataManager.clearVirialTurn(state->turn);
 
         //! \todo The following parts could also be moved into stepFinal
         state->turn++;

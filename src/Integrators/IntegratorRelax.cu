@@ -2,6 +2,7 @@
 #include "cutils_func.h"
 #include "State.h"
 
+using namespace MD_ENGINE;
 
 IntegratorRelax::IntegratorRelax(SHARED(State) state_)
     : Integrator(state_.get())
@@ -83,7 +84,7 @@ __global__ void FIRE_preForce_cu(int nAtoms, float4 *xs, float4 *vs, float4 *fs,
 
 
 
-double IntegratorRelax::run(int numTurns, num fTol) {
+double IntegratorRelax::run(int numTurns, double fTol) {
     std::cout << "FIRE relaxation\n";
     basicPreRunChecks();  
     basicPrepare(numTurns);
@@ -118,12 +119,13 @@ double IntegratorRelax::run(int numTurns, num fTol) {
 
     //neighborlist build
     state->gridGPU.periodicBoundaryConditions(-1, true);
-    bool computeVirialsInForce = state->dataManager.computeVirialsInForce;
+    DataManager &dataManager = state->dataManager;
     for (int i=0; i<numTurns; i++) {
         //init to 0 on cpu and gpu
         VDotV.memsetByVal(0.0);
         VDotF.memsetByVal(0.0);
         FDotF.memsetByVal(0.0);
+        bool computeVirialsInForce = dataManager.virialTurns.find(state->turn) != dataManager.virialTurns.end();
 
         //vdotF calc
         if (! ((remainder + i) % periodicInterval)) {
@@ -243,7 +245,7 @@ double IntegratorRelax::run(int numTurns, num fTol) {
             force.dataToHost();
             //std::cout<<"Fire relax: force="<<force<<"; turns="<<i<<'\n';
 
-            if (force.h_data[0] < fTol*fTol) {//tolerance achived, exting
+            if (force.h_data[0] / (atomssize * atomssize) < fTol*fTol) {//tolerance achived, exting
                 basicFinish();
                 float finalForce = sqrt(force.h_data[0]);
                 std::cout<<"FIRE relax done: force="<< finalForce <<"; turns="<<i+1<<'\n';
@@ -254,9 +256,10 @@ double IntegratorRelax::run(int numTurns, num fTol) {
         //shout status
         if (state->verbose and not ((state->turn - turnInit) % state->shoutEvery)) {
             std::cout << "Turn " << (int) state->turn 
-                      << " " << (int) (100 * (state->turn - turnInit) / (num) numTurns)
+                      << " " << (int) (100 * (state->turn - turnInit) / (double) numTurns)
                       << " percent done" << std::endl;
         }
+        dataManager.clearVirialTurn(state->turn);
         state->turn++;
 
     }
@@ -281,7 +284,7 @@ double IntegratorRelax::run(int numTurns, num fTol) {
 
     basicFinish();
 
-    float finalForce = sqrt(force.h_data[0]);
+    float finalForce = sqrt(force.h_data[0]) / atomssize;
     std::cout << "FIRE relax done: force=" << finalForce 
               << "; turns=" << numTurns << std::endl;
 

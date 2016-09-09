@@ -150,10 +150,13 @@ void Integrator::basicPrepare(int numTurns) {
     for (Fix *f : state->fixes) {
         f->updateGroupTag();
         f->prepareForRun();
+        f->setVirialTurnPrepare();
     }
+    //state->handleChargeOffloading();
     state->gridGPU.periodicBoundaryConditions(-1, true);
     for (boost::shared_ptr<MD_ENGINE::DataSetUser> ds : state->dataManager.dataSets) {
         ds->prepareForRun(); //will also prepare those data sets' computers
+        state->dataManager.addVirialTurn(ds->nextCompute);
     }
 }
 
@@ -161,6 +164,8 @@ void Integrator::basicPrepare(int numTurns) {
 void Integrator::basicFinish() {
     for (Fix *f : state->fixes) {
         f->postRun();
+        f->hasAcceptedChargePairCalc = false;
+        f->hasOffloadedChargePairCalc = false;
     }
     if (state->asyncData && state->asyncData->joinable()) {
         state->asyncData->join();
@@ -170,6 +175,7 @@ void Integrator::basicFinish() {
     }
     cudaDeviceSynchronize();
     state->downloadFromRun();
+    state->finish();
 }
 
 

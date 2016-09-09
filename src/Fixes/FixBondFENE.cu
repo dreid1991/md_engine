@@ -29,7 +29,6 @@ void FixBondFENE::createBond(Atom *a, Atom *b, double k, double r0, double eps, 
 
 void FixBondFENE::setBondTypeCoefs(int type, double k, double r0, double eps, double sig) {
     assert(r0>=0);
-    printf("create bond type with k %f r0 %f eps %f sig %f\n", k, r0, eps, sig);
     BondFENE dummy(k, r0, eps, sig, type);
     setBondType(type, dummy);
 }

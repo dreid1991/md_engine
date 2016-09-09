@@ -140,6 +140,7 @@ public:
 
     //! Recalculate group bitmask from a (possibly changed) handle
     void updateGroupTag();
+    bool willFire(int64_t);//<!True if a fix will operate for the turn in the argument.
 
     //! Restart Fix
     /*!
@@ -209,6 +210,7 @@ public:
      * \todo Pass const reference. Make this function const.
      */
     void validAtoms(std::vector<Atom *> &atoms);
+    virtual void acceptChargePairCalc(Fix *){};
 
 public:
     State *state; //!< Pointer to the simulation state
@@ -220,16 +222,27 @@ public:
     const bool forceSingle; //!< True if Fix contributes to single point energy.
     bool requiresVirials; //!< True if Fix needs virials.  Fixes will compute virials if any fix has this as true
     bool requiresCharges; //!< True if Fix needs charges.  Fixes will be stored if any fix has this as true
+    //these are 
     bool isThermostat; //!< True if is a thermostat. Used for barostats.
     bool requiresPostNVE_V;
+
+    bool canOffloadChargePairCalc;
+    bool canAcceptChargePairCalc;
+    
+    bool hasOffloadedChargePairCalc;
+    bool hasAcceptedChargePairCalc;
+    double chargeRCut;
+    void resetChargePairFlags();
+
     int orderPreference; //!< Fixes with a high order preference are calculated
                          //!< later.
 
     const std::string restartHandle; //!< Handle for restart string
+
+    void setVirialTurnPrepare();
+    void setVirialTurn();
+
+
 };
 
-/*
-do it with precompiler instructions, lol!
-nah, just do methods of state.  Might have to add other function calls later as fixes become more complicated
-*/
 #endif

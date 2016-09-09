@@ -83,6 +83,15 @@ void FixPair::prepareParameters_from_other(std::string handle,
 
 }
 
+void FixPair::acceptChargePairCalc(Fix *chargeFix) {
+    std::vector<float> cutoffs = chargeFix->getRCuts();
+    mdAssert(cutoffs.size()==1, "Charge fix gave multiple rcutoffs.  This is a bug.");
+    chargeRCut = cutoffs[0];
+
+    chargeCalcFix = chargeFix;
+    setEvalWrapper();
+
+}
 void FixPair::ensureParamSize(std::vector<float> &array)
 {
     int desiredSize = state->atomParams.numTypes;
@@ -110,6 +119,7 @@ void FixPair::sendAllToDevice() {
     int totalSize = 0;
     for (auto it = paramMapProcessed.begin(); it!=paramMapProcessed.end(); it++) {
         totalSize += it->second.size(); 
+
     }
     paramsCoalesced = GPUArrayDeviceGlobal<float>(totalSize);
     int runningSize = 0;
@@ -211,6 +221,7 @@ std::string FixPair::restartChunkPairParams(std::string format) {
 
 void export_FixPair() {
     py::class_<FixPair,
+    boost::noncopyable,
     py::bases<Fix> > (
             "FixPair", py::no_init  )
         .def("setParameter", &FixPair::setParameter,

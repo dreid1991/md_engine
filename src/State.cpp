@@ -49,7 +49,6 @@ State::State() {
     verbose = true;
     readConfig = SHARED(ReadConfig) (new ReadConfig(this));
     atomParams = AtomParams(this);
-    dataManager.computeVirialsInForce = false; //will be set to true if a fix needs it (like barostat).  Is max of fixes computesVirials bool
     requiresCharges = false; //will be set to true if a fix needs it (like ewald sum).  Is max of fixes requiresCharges bool
     dataManager = DataManager(this);
     integUtil = IntegratorUtil(this);
@@ -372,18 +371,6 @@ bool State::prepareForRun() {
         requiresPostNVE_V = *std::max_element(requirePostNVE_V.begin(), requirePostNVE_V.end());
     }
 
-    dataManager.computeVirialsInForce = false;
-    std::vector<bool> requireVirialsFixes = LISTMAP(Fix *, bool, fix, fixes, fix->requiresVirials);
-    std::vector<bool> requireVirialsDataSets = LISTMAP(boost::shared_ptr<DataSetUser>, bool, ds, dataManager.dataSets, ds->requiresVirials());
-    //okay, so current behavior is if any data set or fix requires virials, they are recorded every timestep. 
-    //Data set may not require them that often, so could lead to sub-optimal performance.  
-    //In future, could be tricky about if I actually set require virials or just let data set ask data manager to compute virials in the rare event that they are needed
-    requireVirialsFixes.insert(requireVirialsFixes.end(), requireVirialsDataSets.begin(), requireVirialsDataSets.end());
-    if (!requireVirialsFixes.empty()) {
-        dataManager.computeVirialsInForce = *std::max_element(requireVirialsFixes.begin(), requireVirialsFixes.end());
-    }
-
-
 
     int nAtoms = atoms.size();
 
@@ -440,10 +427,24 @@ bool State::prepareForRun() {
     gpd.vsBuffer = GPUArrayGlobal<float4>(nAtoms);
     gpd.fsBuffer = GPUArrayGlobal<float4>(nAtoms);
     gpd.idsBuffer = GPUArrayGlobal<uint>(nAtoms);
+    handleChargeOffloading();
 
     return true;
 }
-
+void State::handleChargeOffloading() {
+    for (Fix *f : fixes) {
+        if (f->canOffloadChargePairCalc) {
+            for (Fix *g : fixes) {
+                if (g->canAcceptChargePairCalc and not g->hasAcceptedChargePairCalc) {
+                    g->acceptChargePairCalc(f); 
+                    f->hasOffloadedChargePairCalc = true;
+                    g->hasAcceptedChargePairCalc = true;
+                }
+            }
+        }
+    }
+    printf("FIN\n");
+}
 void copyAsyncWithInstruc(State *state, std::function<void (int64_t )> cb, int64_t turn) {
     cudaStream_t stream;
     CUCHECK(cudaStreamCreate(&stream));
@@ -514,7 +515,11 @@ bool State::downloadFromRun() {
     return true;
 }
 
-
+void State::finish() {
+    for (Fix *f : fixes) {
+        f->resetChargePairFlags();
+    }
+}
 
 bool State::addToGroupPy(std::string handle, py::list toAdd) {//list of atom ids
     uint32_t tagBit = groupTagFromHandle(handle);  //if I remove asserts from this, could return things other than true, like if handle already exists
@@ -630,7 +635,6 @@ void State::zeroVelocities() {
         a.vel.zero();
     }
 }
-
 
 void State::destroy() {
     //if (bounds) {  //UNCOMMENT

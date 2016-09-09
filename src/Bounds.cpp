@@ -126,6 +126,7 @@ void export_Bounds() {
     .def("copy", &Bounds::copy)
     .def("set", &Bounds::setPython)
     .def("minImage", &Bounds::minImage)
+    .def("volume", &Bounds::volume)
     .add_property("lo", &Bounds::getLoPy, &Bounds::setLoPy)
     .add_property("hi", &Bounds::getHiPy, &Bounds::setHiPy)
     ;

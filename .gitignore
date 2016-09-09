@@ -24,3 +24,6 @@ doc/latex/
 build/
 src/Makefile
 Makefile
+benchmark/*nvprof
+examples/readLammpsInput/chlorobenzene
+examples/readLammpsInput/chlorobenzene_small
