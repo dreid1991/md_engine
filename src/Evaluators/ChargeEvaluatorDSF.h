@@ -16,14 +16,10 @@ class ChargeEvaluatorDSF {
             float forceScalar = qi*qj*(erfcf((alpha*len))*r2inv+A*expf(-alpha*alpha*lenSqr)*rinv-shift)*rinv * multiplier;
             return dr * forceScalar;
         }
-      /*  inline __device__ float energy(float params[3], float lenSqr, float multiplier) {
-            float epstimes24 = params[1];
-            float sig6 = params[2];
-            float r2inv = 1/lenSqr;
-            float r6inv = r2inv*r2inv*r2inv;
-            float sig6r6inv = sig6 * r6inv;
-            return 0.5f * 4*(epstimes24 / 24)*sig6r6inv*(sig6r6inv-1.0f) * multiplier; //0.5 b/c we need to half-count energy b/c pairs are redundant
-        }*/
+        inline __device__ float energy(float lenSqr, float qi, float qj, float multiplier) {
+            printf("DSF engs not implemented\n");
+            return 0;
+        }
         ChargeEvaluatorDSF(float alpha_, float A_, float shift_) : alpha(alpha_), A(A_), shift(shift_) {};
 
 };

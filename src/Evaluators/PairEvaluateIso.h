@@ -93,8 +93,8 @@ __global__ void compute_force_iso(int nAtoms, const float4 *__restrict__ xs, flo
 
 
 
-template <class T, int N>
-__global__ void compute_energy_iso(int nAtoms, float4 *xs, float *perParticleEng, uint16_t *neighborCounts, uint *neighborlist, uint32_t *cumulSumMaxPerBlock, int warpSize, float *parameters, int numTypes, BoundsGPU bounds, float onetwoStr, float onethreeStr, float onefourStr, T evaluator) {
+template <class PAIR_EVAL, int N, class CHARGE_EVAL, bool COMP_CHARGES>
+__global__ void compute_energy_iso(int nAtoms, float4 *xs, float *perParticleEng, uint16_t *neighborCounts, uint *neighborlist, uint32_t *cumulSumMaxPerBlock, int warpSize, float *parameters, int numTypes, BoundsGPU bounds, float onetwoStr, float onethreeStr, float onefourStr, float *qs, float qCutoffSqr, PAIR_EVAL pairEval, CHARGE_EVAL chargeEval) {
     float multipliers[4] = {1, onetwoStr, onethreeStr, onefourStr};
     extern __shared__ float paramsAll[];
     int sqrSize = numTypes*numTypes;
@@ -112,12 +112,15 @@ __global__ void compute_energy_iso(int nAtoms, float4 *xs, float *perParticleEng
         //int type = * (int *) &posWhole.w;
         int type = __float_as_int(posWhole.w);
        // printf("type is %d\n", type);
+        float qi;
+        if (COMP_CHARGES) {
+            qi = qs[idx];
+        }
         float3 pos = make_float3(posWhole);
 
         float sumEng = 0;
 
         int numNeigh = neighborCounts[idx];
-        //printf("start, end %d %d\n", start, end);
         for (int i=0; i<numNeigh; i++) {
             int nlistIdx = baseIdx + warpSize * i;
             uint otherIdxRaw = neighborlist[nlistIdx];
@@ -136,16 +139,18 @@ __global__ void compute_energy_iso(int nAtoms, float4 *xs, float *perParticleEng
                     params_pair[pIdx] = params_shr[pIdx][sqrIdx];
                 }
                 float rCutSqr = params_pair[0];
-                if (lenSqr < rCutSqr) {                
-                    sumEng += evaluator.energy(params_pair, lenSqr, multiplier);
+                if (lenSqr < rCutSqr) {
+                    sumEng += pairEval.energy(params_pair, lenSqr, multiplier);
+                }
+                if (COMP_CHARGES && lenSqr < qCutoffSqr) {
+                    float qj = qs[otherIdx];
+                    sumEng += chargeEval.energy(lenSqr, qi, qj, multiplier);
                 }
 
             }
 
         }   
-        //printf("force %f %f %f with %d atoms \n", forceSum.x, forceSum.y, forceSum.z, end-start);
         perParticleEng[idx] += sumEng;
-        //fs[idx] += forceSum;
 
     }
 

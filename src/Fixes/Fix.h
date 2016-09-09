@@ -140,6 +140,7 @@ public:
 
     //! Recalculate group bitmask from a (possibly changed) handle
     void updateGroupTag();
+    bool willFire(int64_t);//<!True if a fix will operate for the turn in the argument.
 
     //! Restart Fix
     /*!
@@ -230,6 +231,7 @@ public:
     
     bool hasOffloadedChargePairCalc;
     bool hasAcceptedChargePairCalc;
+    double chargeRCut;
     void resetChargePairFlags();
 
     int orderPreference; //!< Fixes with a high order preference are calculated
@@ -237,11 +239,10 @@ public:
 
     const std::string restartHandle; //!< Handle for restart string
 
+    void setVirialTurnPrepare();
+    void setVirialTurn();
+
 
 };
 
-/*
-do it with precompiler instructions, lol!
-nah, just do methods of state.  Might have to add other function calls later as fixes become more complicated
-*/
 #endif

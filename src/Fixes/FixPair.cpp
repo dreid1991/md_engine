@@ -84,6 +84,10 @@ void FixPair::prepareParameters_from_other(std::string handle,
 }
 
 void FixPair::acceptChargePairCalc(Fix *chargeFix) {
+    std::vector<float> cutoffs = chargeFix->getRCuts();
+    mdAssert(cutoffs.size()==1, "Charge fix gave multiple rcutoffs.  This is a bug.");
+    chargeRCut = cutoffs[0];
+
     chargeCalcFix = chargeFix;
     setEvalWrapper();
 
@@ -115,6 +119,7 @@ void FixPair::sendAllToDevice() {
     int totalSize = 0;
     for (auto it = paramMapProcessed.begin(); it!=paramMapProcessed.end(); it++) {
         totalSize += it->second.size(); 
+
     }
     paramsCoalesced = GPUArrayDeviceGlobal<float>(totalSize);
     int runningSize = 0;

@@ -1047,18 +1047,20 @@ void FixChargeEwald::singlePointEng(float * perParticleEng) {
 //      cout<<"self correction "<<alpha/sqrt(M_PI)*total_Q2<<'\n';
 
     //pair energies
-    float *neighborCoefs = state->specialNeighborCoefs;
-    compute_short_range_energies_cu<<<NBLOCK(nAtoms), PERBLOCK>>>( nAtoms,
-                                              gpd.xs(activeIdx),                                                      
-                                              neighborCounts,
-                                              grid.neighborlist.data(),
-                                              grid.perBlockArray.d_data.data(),
-                                              gpd.qs(activeIdx),
-                                              alpha,
-                                              r_cut,
-                                              state->boundsGPU,
-                                              state->devManager.prop.warpSize, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2],perParticleEng,field_energy_per_particle);
-    CUT_CHECK_ERROR("Ewald_short_range_forces_cu  execution failed");
+    if (not hasOffloadedChargePairCalc) {
+        float *neighborCoefs = state->specialNeighborCoefs;
+        compute_short_range_energies_cu<<<NBLOCK(nAtoms), PERBLOCK>>>( nAtoms,
+                                                  gpd.xs(activeIdx),                                                      
+                                                  neighborCounts,
+                                                  grid.neighborlist.data(),
+                                                  grid.perBlockArray.d_data.data(),
+                                                  gpd.qs(activeIdx),
+                                                  alpha,
+                                                  r_cut,
+                                                  state->boundsGPU,
+                                                  state->devManager.prop.warpSize, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2],perParticleEng,field_energy_per_particle);
+        CUT_CHECK_ERROR("Ewald_short_range_forces_cu  execution failed");
+    }
     
 }
 

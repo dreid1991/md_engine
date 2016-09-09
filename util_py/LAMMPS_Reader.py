@@ -226,8 +226,10 @@ class LAMMPS_Reader:
             sig = float(line[4]) / self.unitLen
             self.nonbondFix.setParameter('sig', handleA=handleA, handleB=handleB, val=sig)
             self.nonbondFix.setParameter('eps', handleA=handleA, handleB=handleB, val=eps)
-            if len(line) > 4:
-                rCut = float(line[4]) / self.unitLen
+            print line
+
+            if len(line) > 5:
+                rCut = float(line[5]) / self.unitLen
                 self.nonbondFix.setParameter('rCut', handleA=handleA, handleB=handleB, val=rCut)
 
 

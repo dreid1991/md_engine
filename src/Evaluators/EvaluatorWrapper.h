@@ -22,16 +22,16 @@ public:
     PAIR_EVAL pairEval;
     CHARGE_EVAL chargeEval;
 //<class PAIR_EVAL, int N_PARAM, bool COMP_VIRIALS, class CHARGE_EVAL, bool COMP_CHARGES>
-    virtual void compute(int nAtoms, float4 *xs, float4 *fs, uint16_t *neighborCounts, uint *neighborlist, uint32_t *cumulSumMaxPerBlock, int warpSize, float *parameters, int numTypes,  BoundsGPU bounds, float onetwoStr, float onethreeStr, float onefourStr, Virial *virials, float *qs, float qCutoffSqr, bool computeVirials) {
+    virtual void compute(int nAtoms, float4 *xs, float4 *fs, uint16_t *neighborCounts, uint *neighborlist, uint32_t *cumulSumMaxPerBlock, int warpSize, float *parameters, int numTypes,  BoundsGPU bounds, float onetwoStr, float onethreeStr, float onefourStr, Virial *virials, float *qs, float qCutoff, bool computeVirials) {
         //printf("forcers!\n");
         if (computeVirials) {
-            compute_force_iso<PAIR_EVAL, N_PARAM, true, CHARGE_EVAL, COMP_CHARGES> <<<NBLOCK(nAtoms), PERBLOCK, N_PARAM*numTypes*numTypes*sizeof(float)>>>(nAtoms, xs, fs, neighborCounts, neighborlist, cumulSumMaxPerBlock, warpSize, parameters, numTypes, bounds, onetwoStr, onethreeStr, onefourStr, virials, qs, qCutoffSqr, pairEval, chargeEval);
+            compute_force_iso<PAIR_EVAL, N_PARAM, true, CHARGE_EVAL, COMP_CHARGES> <<<NBLOCK(nAtoms), PERBLOCK, N_PARAM*numTypes*numTypes*sizeof(float)>>>(nAtoms, xs, fs, neighborCounts, neighborlist, cumulSumMaxPerBlock, warpSize, parameters, numTypes, bounds, onetwoStr, onethreeStr, onefourStr, virials, qs, qCutoff*qCutoff, pairEval, chargeEval);
         } else {
-            compute_force_iso<PAIR_EVAL, N_PARAM, false, CHARGE_EVAL, COMP_CHARGES> <<<NBLOCK(nAtoms), PERBLOCK, N_PARAM*numTypes*numTypes*sizeof(float)>>>(nAtoms, xs, fs, neighborCounts, neighborlist, cumulSumMaxPerBlock, warpSize, parameters, numTypes, bounds, onetwoStr, onethreeStr, onefourStr, virials, qs, qCutoffSqr, pairEval, chargeEval);
+            compute_force_iso<PAIR_EVAL, N_PARAM, false, CHARGE_EVAL, COMP_CHARGES> <<<NBLOCK(nAtoms), PERBLOCK, N_PARAM*numTypes*numTypes*sizeof(float)>>>(nAtoms, xs, fs, neighborCounts, neighborlist, cumulSumMaxPerBlock, warpSize, parameters, numTypes, bounds, onetwoStr, onethreeStr, onefourStr, virials, qs, qCutoff*qCutoff, pairEval, chargeEval);
         }
     }
-    virtual void energy(int nAtoms, float4 *xs, float *perParticleEng, uint16_t *neighborCounts, uint *neighborlist, uint32_t *cumulSumMaxPerBlock, int warpSize, float *parameters, int numTypes, BoundsGPU bounds, float onetwoStr, float onethreeStr, float onefourStr, float *qs, float qCutoffSqr) {
-        compute_energy_iso<PAIR_EVAL, N_PARAM> <<<NBLOCK(nAtoms), PERBLOCK, N_PARAM*numTypes*numTypes*sizeof(float)>>> (nAtoms, xs, perParticleEng, neighborCounts, neighborlist, cumulSumMaxPerBlock, warpSize, parameters, numTypes, bounds, onetwoStr, onethreeStr, onefourStr, pairEval);//, qs, qCutoffSqr);
+    virtual void energy(int nAtoms, float4 *xs, float *perParticleEng, uint16_t *neighborCounts, uint *neighborlist, uint32_t *cumulSumMaxPerBlock, int warpSize, float *parameters, int numTypes, BoundsGPU bounds, float onetwoStr, float onethreeStr, float onefourStr, float *qs, float qCutoff) {
+        compute_energy_iso<PAIR_EVAL, N_PARAM, CHARGE_EVAL, COMP_CHARGES> <<<NBLOCK(nAtoms), PERBLOCK, N_PARAM*numTypes*numTypes*sizeof(float)>>> (nAtoms, xs, perParticleEng, neighborCounts, neighborlist, cumulSumMaxPerBlock, warpSize, parameters, numTypes, bounds, onetwoStr, onethreeStr, onefourStr, qs, qCutoff*qCutoff, pairEval, chargeEval);
     }
 
 };

@@ -38,6 +38,22 @@ Fix::Fix(boost::shared_ptr<State> state_, std::string handle_, std::string group
     */
 }
 
+bool Fix::willFire(int64_t t) {
+    return ! (t % applyEvery);
+}
+
+void Fix::setVirialTurnPrepare() {
+    if (requiresVirials) {
+        double multiple = ceil(state->turn / applyEvery);
+        state->dataManager.addVirialTurn(multiple * applyEvery);
+    }
+}
+void Fix::setVirialTurn() {
+    if (requiresVirials) {
+        state->dataManager.addVirialTurn(state->turn + applyEvery);
+    }
+}
+
 void Fix::resetChargePairFlags() {
 
     hasOffloadedChargePairCalc = false;

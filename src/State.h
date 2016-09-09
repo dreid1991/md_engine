@@ -12,6 +12,7 @@
 #include <map>
 #include <tuple>
 #include <vector>
+#include <set>
 #include <functional>
 #include <random>
 #include <thread>
@@ -45,7 +46,6 @@ void export_State();
 class PythonOperation;
 class ReadConfig;
 class Fix;
-//class DataManager;
 class WriteConfig;
 
 //! Simulation state
@@ -126,6 +126,7 @@ public:
      */
     double rCut;
     double padding; //!< Added to rCut for cutoff distance of neighbor building
+
 
     //! Set the coefficients for bonded neighbor interactions
     /*!

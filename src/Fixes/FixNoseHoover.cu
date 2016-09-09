@@ -50,7 +50,7 @@ FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state_, std::string handle
               groupHandle_,      // Group handle
               NoseHooverType,   // Fix name
               false,            // forceSingle
-              false,            // requiresVirials 
+              false,
               false,            // requiresCharges
               1                 // applyEvery
              ), frequency(1.0 / timeConstant_),
@@ -86,7 +86,7 @@ FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state_, std::string handle
               groupHandle_,      // Group handle
               NoseHooverType,   // Fix name
               false,            // forceSingle
-              false,            // requiresVirials 
+              false,
               false,            // requiresCharges
               1                 // applyEvery
              ), frequency(1.0 / timeConstant_),
@@ -124,7 +124,7 @@ FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state_, std::string handle
               groupHandle_,      // Group handle
               NoseHooverType,   // Fix name
               false,            // forceSingle
-              false,            // requiresVirials 
+              false,
               false,            // requiresCharges
               1                 // applyEvery
              ), frequency(1.0 / timeConstant_),

@@ -2,6 +2,7 @@
 #include "cutils_func.h"
 #include "State.h"
 
+using namespace MD_ENGINE;
 
 IntegratorRelax::IntegratorRelax(SHARED(State) state_)
     : Integrator(state_.get())
@@ -118,12 +119,13 @@ double IntegratorRelax::run(int numTurns, double fTol) {
 
     //neighborlist build
     state->gridGPU.periodicBoundaryConditions(-1, true);
-    bool computeVirialsInForce = state->dataManager.computeVirialsInForce;
+    DataManager &dataManager = state->dataManager;
     for (int i=0; i<numTurns; i++) {
         //init to 0 on cpu and gpu
         VDotV.memsetByVal(0.0);
         VDotF.memsetByVal(0.0);
         FDotF.memsetByVal(0.0);
+        bool computeVirialsInForce = dataManager.virialTurns.find(state->turn) != dataManager.virialTurns.end();
 
         //vdotF calc
         if (! ((remainder + i) % periodicInterval)) {
@@ -257,6 +259,7 @@ double IntegratorRelax::run(int numTurns, double fTol) {
                       << " " << (int) (100 * (state->turn - turnInit) / (double) numTurns)
                       << " percent done" << std::endl;
         }
+        dataManager.clearVirialTurn(state->turn);
         state->turn++;
 
     }

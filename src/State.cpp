@@ -49,7 +49,6 @@ State::State() {
     verbose = true;
     readConfig = SHARED(ReadConfig) (new ReadConfig(this));
     atomParams = AtomParams(this);
-    dataManager.computeVirialsInForce = false; //will be set to true if a fix needs it (like barostat).  Is max of fixes computesVirials bool
     requiresCharges = false; //will be set to true if a fix needs it (like ewald sum).  Is max of fixes requiresCharges bool
     dataManager = DataManager(this);
     integUtil = IntegratorUtil(this);
@@ -372,18 +371,6 @@ bool State::prepareForRun() {
         requiresPostNVE_V = *std::max_element(requirePostNVE_V.begin(), requirePostNVE_V.end());
     }
 
-    dataManager.computeVirialsInForce = false;
-    std::vector<bool> requireVirialsFixes = LISTMAP(Fix *, bool, fix, fixes, fix->requiresVirials);
-    std::vector<bool> requireVirialsDataSets = LISTMAP(boost::shared_ptr<DataSetUser>, bool, ds, dataManager.dataSets, ds->requiresVirials());
-    //okay, so current behavior is if any data set or fix requires virials, they are recorded every timestep. 
-    //Data set may not require them that often, so could lead to sub-optimal performance.  
-    //In future, could be tricky about if I actually set require virials or just let data set ask data manager to compute virials in the rare event that they are needed
-    requireVirialsFixes.insert(requireVirialsFixes.end(), requireVirialsDataSets.begin(), requireVirialsDataSets.end());
-    if (!requireVirialsFixes.empty()) {
-        dataManager.computeVirialsInForce = *std::max_element(requireVirialsFixes.begin(), requireVirialsFixes.end());
-    }
-
-
 
     int nAtoms = atoms.size();
 
@@ -648,7 +635,6 @@ void State::zeroVelocities() {
         a.vel.zero();
     }
 }
-
 
 void State::destroy() {
     //if (bounds) {  //UNCOMMENT
