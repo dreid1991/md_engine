@@ -107,7 +107,7 @@ class FixBond : public Fix, public TypedItemHolder {
         }
 
 
-        bool prepareForRun() {
+        virtual bool prepareForRun() {
             std::vector<Atom> &atoms = state->atoms;
 
             int maxExistingType = -1;

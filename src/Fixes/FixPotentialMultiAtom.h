@@ -37,7 +37,7 @@ class FixPotentialMultiAtom : public Fix, public TypedItemHolder {
         int sharedMemSizeForParams;
         bool usingSharedMemForParams;
         int maxForcersPerBlock;
-        bool prepareForRun() {
+        virtual bool prepareForRun() {
             int maxExistingType = -1;
             std::unordered_map<ForcerTypeHolder, int> reverseMap;
             for (auto it=forcerTypes.begin(); it!=forcerTypes.end(); it++) {

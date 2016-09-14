@@ -1,13 +1,14 @@
 #pragma once
-#ifndef DATACOMPUTERENERGY_H
-#define DATACOMPUTERENERGY_H
+#ifndef DATACOMPUTERBOUNDS_H
+#define DATACOMPUTERBOUNDS_H
 
 #include "DataComputer.h"
 #include "GPUArrayGlobal.h"
 #include "Virial.h"
+#include "Bounds.h"
 
 namespace MD_ENGINE {
-    class DataComputerEnergy : public DataComputer {
+    class DataComputerBounds: public DataComputer {
         public:
 
             void computeScalar_GPU(bool, uint32_t);
@@ -16,14 +17,13 @@ namespace MD_ENGINE {
             void computeScalar_CPU();
             void computeTensor_CPU(){};
 
-            DataComputerEnergy(State *);
+            DataComputerBounds(State *);
             void prepareForRun();
-            double engScalar;
             //so these are just length 2 arrays.  First value is used for the result of the sum.  Second value is bit-cast to an int and used to cound how many values are present.
-            GPUArrayGlobal<float> engGPUScalar;
 
             void appendScalar(boost::python::list &);
             void appendTensor(boost::python::list &){};
+            Bounds storedBounds;
 
 
     };
