@@ -3,7 +3,7 @@
 #include "FixHelpers.h"
 #include "GPUData.h"
 #include "State.h"
-
+#include "xml_func.h"
 namespace py = boost::python;
 
 const std::string springStaticType = "SpringStatic";
@@ -15,6 +15,8 @@ FixSpringStatic::FixSpringStatic(boost::shared_ptr<State> state_,
     k(k_), tetherFunc(tetherFunc_), multiplier(multiplier_)
 {
     updateTethers();
+    readFromRestart();
+    mdAssert(k!=-1, "spring k value not assigned");
 }
 
 void FixSpringStatic::updateTethers() {
@@ -63,18 +65,77 @@ void __global__ compute_cu(int nTethers, float4 *tethers, float4 *xs, float4 *fs
 void FixSpringStatic::compute(bool computeVirials) {
     GPUData &gpd = state->gpd;
     int activeIdx = state->gpd.activeIdx();
-    SAFECALL((compute_cu<<<NBLOCK(tethers.h_data.size()), PERBLOCK>>>(
+    compute_cu<<<NBLOCK(tethers.h_data.size()), PERBLOCK>>>(
                     tethers.h_data.size(), tethers.getDevData(),
                     gpd.xs(activeIdx), gpd.fs(activeIdx), gpd.idToIdxs.d_data.data(),
-                    k, state->boundsGPU, multiplier.asFloat3())));
+                    k, state->boundsGPU, multiplier.asFloat3());
 }
 
+std::string FixSpringStatic::restartChunk(std::string format) {
+    std::stringstream ss;
+    ss << "<multiplier>\n";
+    for (int i=0; i<3; i++) {
+        ss << multiplier[i] << "\n";
+    }
+    ss << "</multiplier>\n";
+    ss << "<k>" << k << "</k>>\n";
+    ss << "<tethers n=\"" << tethers.h_data.size() << "\">\n";
+    for (float4 &tether : tethers.h_data) {
+        ss << tether.x << " " << tether.y << " " << tether.z << " " << * (int *) &tether.w << "\n"; 
+    }
+    ss << "</tethers>\n";
+    return ss.str();
+}
+
+bool FixSpringStatic::readFromRestart() {
+    pugi::xml_node restData = getRestartNode();
+    //params must be already initialized at this point (in constructor)
+    if (restData) {
+
+        auto curr_param = restData.first_child();
+        while (curr_param) {
+            curr_param = curr_param.next_sibling();
+            std::string tag = curr_param.name();
+            if (tag == "multiplier") {
+                auto curr_pcnode = curr_param.first_child();
+                int i=0;
+                while (curr_pcnode) {
+                    std::string data = curr_pcnode.value();
+                    float x = atof(data.c_str());
+                    multiplier[i] = x;
+                    curr_pcnode = curr_pcnode.next_sibling();
+                    i++;
+                }
+
+            } else if (tag == "k") {
+                auto curr_pcnode = curr_param.first_child();
+                std::string data = curr_pcnode.value();
+                k = atof(data.c_str());
+            } else if (tag == "tethers") {
+                
+                int n = boost::lexical_cast<int>(curr_param.attribute("n").value());
+                std::vector<float4> tethers_loc(n);
+                xml_assignValues<double, 4>(curr_param, [&] (int i, double *vals) { //doing as double to preserve precision for ids in w value
+                                            int id = vals[3];
+                                            float idAsFloat = *(float *) &id;
+                                            tethers_loc[i] = make_float4(float(vals[0]), float(vals[1]), float(vals[2]), idAsFloat);
+                                            });
+
+                tethers = tethers_loc;
+
+            }
+        }
+
+    }
+    return true;
+
+}
 
 void export_FixSpringStatic() {
     py::class_<FixSpringStatic, boost::shared_ptr<FixSpringStatic>, py::bases<Fix> > (
             "FixSpringStatic",
             py::init<boost::shared_ptr<State>, std::string, std::string,
-                     double, py::optional<py::object, Vector>
+                     py::optional<double, py::object, Vector>
                     >(
                 py::args("state", "handle", "groupHandle",
                          "k", "tetherFunc", "multiplier")

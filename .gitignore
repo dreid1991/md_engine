@@ -22,3 +22,8 @@ doc/html/
 doc/latex/
 # Build directory:
 build/
+src/Makefile
+Makefile
+benchmark/*nvprof
+examples/readLammpsInput/chlorobenzene
+examples/readLammpsInput/chlorobenzene_small

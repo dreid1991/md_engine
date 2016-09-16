@@ -41,7 +41,7 @@ public:
     boost::python::object pyFunc;
     PyObject *pyFuncRaw;
     int interval;
-    void setNextTurn(int64_t currentTurn); //called externally 
+    int64_t setNextTurn(int64_t currentTurn); //called externally 
 };
 
 }

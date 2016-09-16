@@ -8,7 +8,7 @@
 #include "cutils_func.h"
 #include "Logging.h"
 #include "State.h"
-
+enum PRESSMODE {ISO, ANISO};
 namespace py = boost::python;
 
 std::string NoseHooverType = "NoseHoover";
@@ -16,41 +16,41 @@ std::string NoseHooverType = "NoseHoover";
 // CUDA function to calculate the total kinetic energy
 
 // CUDA function to rescale particle velocities
-__global__ void rescale_cu(int nAtoms, uint groupTag, float4 *vs, float4 *fs, float scale)
+__global__ void rescale_cu(int nAtoms, uint groupTag, float4 *vs, float4 *fs, float3 scale)
 {
     int idx = GETIDX();
     if (idx < nAtoms) {
         uint groupTagAtom = ((uint *) (fs+idx))[3];
         if (groupTag & groupTagAtom) {
             float4 vel = vs[idx];
-            float invmass = vel.w;
-            vel *= scale;
-            vel.w = invmass;
+            vel.x *= scale.x;
+            vel.y *= scale.y;
+            vel.z *= scale.z;
             vs[idx] = vel;
         }
     }
 }
-__global__ void rescale_no_tags_cu(int nAtoms, float4 *vs, float scale)
+__global__ void rescale_no_tags_cu(int nAtoms, float4 *vs, float3 scale)
 {
     int idx = GETIDX();
     if (idx < nAtoms) {
         float4 vel = vs[idx];
-        float invmass = vel.w;
-        vel *= scale;
-        vel.w = invmass;
+        vel.x *= scale.x;
+        vel.y *= scale.y;
+        vel.z *= scale.z;
         vs[idx] = vel;
     }
 }
 
 FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state_, std::string handle_,
                              std::string groupHandle_, double temp_, double timeConstant_)
-        : FixThermostatBase(temp_),
+        : tempInterpolator(temp_),
           Fix(state_,
               handle_,           // Fix handle
               groupHandle_,      // Group handle
               NoseHooverType,   // Fix name
               false,            // forceSingle
-              false,            // requiresVirials 
+              false,
               false,            // requiresCharges
               1                 // applyEvery
              ), frequency(1.0 / timeConstant_),
@@ -62,19 +62,31 @@ FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state_, std::string handle
                 thermVel(std::vector<double>(chainLength,0.0)),
                 thermForce(std::vector<double>(chainLength,0.0)),
                 thermMass(std::vector<double>(chainLength,0.0)),
-                scale(1.0f)
+                scale(make_float3(1.0f, 1.0f, 1.0f)),
+                omega(std::vector<double>(6)),
+                omegaVel(std::vector<double>(6)),
+                omegaMass(std::vector<double>(6)),
+                pressFreq(6, 0),
+                pressCurrent(6, 0),
+                pFlags(6, false),
+                tempComputer(state, true, false), 
+                pressComputer(state, true, false), 
+                pressMode(PRESSMODE::ISO),
+                thermostatting(true),
+                barostatting(false)
 {
+    pressComputer.usingExternalTemperature = true;
 }
 
 FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state_, std::string handle_,
                              std::string groupHandle_, py::object tempFunc_, double timeConstant_)
-        : FixThermostatBase(tempFunc_),
+        : tempInterpolator(tempFunc_),
           Fix(state_,
               handle_,           // Fix handle
               groupHandle_,      // Group handle
               NoseHooverType,   // Fix name
               false,            // forceSingle
-              false,            // requiresVirials 
+              false,
               false,            // requiresCharges
               1                 // applyEvery
              ), frequency(1.0 / timeConstant_),
@@ -86,20 +98,33 @@ FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state_, std::string handle
                 thermVel(std::vector<double>(chainLength,0.0)),
                 thermForce(std::vector<double>(chainLength,0.0)),
                 thermMass(std::vector<double>(chainLength,0.0)),
-                scale(1.0f)
+                omega(std::vector<double>(6)),
+                omegaVel(std::vector<double>(6)),
+                omegaMass(std::vector<double>(6)),
+                pressFreq(6, 0),
+                pressCurrent(6, 0),
+                pFlags(6, false),
+                scale(make_float3(1.0f, 1.0f, 1.0f)),
+                tempComputer(state, true, false), 
+                pressComputer(state, true, false), 
+                pressMode(PRESSMODE::ISO),
+                thermostatting(true),
+                barostatting(false)
+
 {
+    pressComputer.usingExternalTemperature = true;
 }
 
 
 FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state_, std::string handle_,
                              std::string groupHandle_, py::list intervals_, py::list temps_, double timeConstant_)
-        : FixThermostatBase(intervals_, temps_),
+        : tempInterpolator(intervals_, temps_),
           Fix(state_,
               handle_,           // Fix handle
               groupHandle_,      // Group handle
               NoseHooverType,   // Fix name
               false,            // forceSingle
-              false,            // requiresVirials 
+              false,
               false,            // requiresCharges
               1                 // applyEvery
              ), frequency(1.0 / timeConstant_),
@@ -111,24 +136,44 @@ FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state_, std::string handle
                 thermVel(std::vector<double>(chainLength,0.0)),
                 thermForce(std::vector<double>(chainLength,0.0)),
                 thermMass(std::vector<double>(chainLength,0.0)),
-                scale(1.0f)
+                omega(std::vector<double>(6)),
+                omegaVel(std::vector<double>(6)),
+                omegaMass(std::vector<double>(6)),
+                pressFreq(6, 0),
+                pressCurrent(6, 0),
+                pFlags(6, false),
+                scale(make_float3(1.0f, 1.0f, 1.0f)),
+                tempComputer(state, true, false), 
+                pressComputer(state, true, false), 
+                pressMode(PRESSMODE::ISO),
+                thermostatting(true),
+                barostatting(false)
+
 {
+    pressComputer.usingExternalTemperature = true;
+}
+void FixNoseHoover::setPressure(double press) {
+    pressInterpolator = Interpolator(press);
 }
 
 
 bool FixNoseHoover::prepareForRun()
 {
     // Calculate current kinetic energy
-    turnBeginRun = state->runInit;
-    turnFinishRun = state->runInit + state->runningFor;
+    tempInterpolator.turnBeginRun = state->runInit;
+    tempInterpolator.turnFinishRun = state->runInit + state->runningFor;
+    tempComputer.prepareForRun();
+    if (barostatting) {
+        pressComputer.prepareForRun();
+    }
 
     calculateKineticEnergy();
-    computeCurrentTemp(state->runInit);
+    tempInterpolator.computeCurrentVal(state->runInit);
     updateMasses();
 
     // Update thermostat forces
     double boltz = 1.0;
-    double temp = getCurrentTemp();
+    double temp = tempInterpolator.getCurrentVal();
     thermForce.at(0) = (ke_current - ndf * boltz * temp) / thermMass.at(0);
     for (size_t k = 1; k < chainLength; ++k) {
         thermForce.at(k) = (
@@ -137,13 +182,19 @@ bool FixNoseHoover::prepareForRun()
                 thermVel.at(k-1) - boltz*temp
             ) / thermMass.at(k);
     }
+    if (barostatting) {
+        for (int i=0; i<6; i++) {
+            omega[i] = 0;
+            omegaVel[i] = 0;
+            omegaMass[i] = temp * boltz * state->atoms.size() / (pressFreq[i] * pressFreq[i]); //
+        }
+    }
 
     return true;
 }
-
 bool FixNoseHoover::postRun()
 {
-    finishRun();
+    tempInterpolator.finishRun();
     rescale();
 
     return true;
@@ -159,38 +210,9 @@ bool FixNoseHoover::stepFinal()
     return halfStep(false);
 }
 
-bool FixNoseHoover::halfStep(bool firstHalfStep)
-{
-    if (chainLength == 0) {
-        mdWarning("Call of FixNoseHoover with zero thermostats in "
-                  "the Nose-Hoover chain.");
-        return false;
-    }
 
-    //! \todo Until now, we assume Boltzmann-constant = 1.0. Consider allowing
-    //!       other units.
-    double boltz = 1.0;
-
-    // Update the desired temperature
-    double temp;
-    if (firstHalfStep) {
-        double currentTemp = getCurrentTemp();
-        computeCurrentTemp(state->turn);
-        temp = getCurrentTemp();
-        if (currentTemp != temp) {
-            updateMasses();
-        }
-    }
-
-    // Get the total kinetic energy
-    if (!firstHalfStep) {
-        //! \todo This optimization assumes that the velocities are not changed
-        //!       between stepFinal() and stepInit(). Can we add a check to make
-        //!       sure this is indeed the case?
-        temp = getCurrentTemp();
-        calculateKineticEnergy();
-    }
-    // Equipartition at desired temperature
+void FixNoseHoover::thermostatIntegrate(double temp, double boltz, bool firstHalfStep) {
+ // Equipartition at desired temperature
     double nkt = ndf * boltz * temp;
 
     if (!firstHalfStep) {
@@ -258,22 +280,147 @@ bool FixNoseHoover::halfStep(bool firstHalfStep)
         }
     }
 
+}
+
+void FixNoseHoover::omegaIntegrate() {
+    /*
+    double timestep2 = 0.5 * state->dt;
+    double forceOmega;
+    double boltz = 1.0;
+    double volume = state->boundsGPU.volume();
+    int nDims = 0;
+    for (int i=0; i<3; i++) {
+        nDims += (int) pFlags[i];
+    }
+    if (pressMode == PRESSMODE::ISO) {
+        mtkTerm1 = scale.x * scale.x * tempComputer * ndf * boltz / (state->atoms.size() * nDims); 
+    } else {
+        Virial mvSqr = tempComputer.tempTensor;
+        for (int i=0; i<3; i++) {
+            if (pFlags[i]) {
+                mtkTerm1 += mvSqr[i];
+            }
+            mktTerm1 /= nDims * state->atoms.size();
+        }
+    }
+    mtkTerm2 = 0;
+    for (int i=0; i<3; i++) {
+        if (pFlags[i]) {
+            mtkTerm2 += omegaVel[i];
+        }
+    }
+    mtkTerm2 /= nDims * state->atoms.size();
+    //ignoring triclinic for now
+
+    */
+
+
+    
+}
+
+void FixNoseHoover::scaleVelocitiesOmega() {
+    float timestep4 = state->dt * 0.25;
+    //so... if we're going to do triclinic this is going to get worse, b/c can't just lump all scale factors together into one number.  
+    //see nh_v_press in LAMMPS
+    float vals[3];
+    for (int i=0; i<3; i++) {
+        vals[i] = std::exp(-timestep4*(omegaVel[i] + mtkTerm2));
+    }
+    scale.x *= vals[0]*vals[0];
+    scale.y *= vals[1]*vals[1];
+    scale.z *= vals[2]*vals[2];
+
+}
+
+bool FixNoseHoover::halfStep(bool firstHalfStep)
+{
+    if (chainLength == 0) {
+        mdWarning("Call of FixNoseHoover with zero thermostats in "
+                  "the Nose-Hoover chain.");
+        return false;
+    }
+
+    //! \todo Until now, we assume Boltzmann-constant = 1.0. Consider allowing
+    //!       other units.
+    double boltz = 1.0;
+
+    // Update the desired temperature
+    double temp;
+    if (firstHalfStep) {
+        double currentTemp = tempInterpolator.getCurrentVal();
+        tempInterpolator.computeCurrentVal(state->turn);
+        temp = tempInterpolator.getCurrentVal();
+        if (currentTemp != temp) {
+            updateMasses();
+        }
+    }
+
+    // Get the total kinetic energy
+    if (!firstHalfStep) {
+        //! \todo This optimization assumes that the velocities are not changed
+        //!       between stepFinal() and stepInit(). Can we add a check to make
+        //!       sure this is indeed the case?
+        temp = tempInterpolator.getCurrentVal();
+        calculateKineticEnergy();
+    }
+    thermostatIntegrate(temp, boltz, firstHalfStep);
+
+    if (barostatting) {
+        //THIS WILL HAVE TO BE CHANGED FOR ANISO
+        //if iso, all the pressure stuff is the same in every dimension
+        /*
+        if (pressMode == PRESSMODE::ISO) {
+            double scaledTemp = tempScalar_current * scale.x;//keeping track of it for barostat so I don't have to re-sum
+            pressComputer.tempNDF = ndf;
+            pressComputer.tempScalar = scaledTemp;
+            pressComputer.computeScalar_GPU(true, groupTag);
+        } else if (pressMode == PRESSMODE::ANISO) {
+            //not worrying about cross-terms for now
+            Virial scaledTemp = Virial(tempTensor_current[0] * scale.x, tempTensor_current[1] * scale.y, tempTensor_current[2] * scale.z, 0, 0, 0);
+            pressComputer.tempNDF = ndf;
+            pressComputer.tempTensor = scaledTemp;
+            pressComputer.computeScalar_GPU(true, groupTag);
+
+        }
+            */
+        pressInterpolator.computeCurrentVal(state->turn);
+        cudaDeviceSynchronize();
+        if (pressMode == PRESSMODE::ISO) {
+            pressComputer.computeScalar_CPU();
+        } else if (pressMode == PRESSMODE::ANISO) {
+            pressComputer.computeTensor_CPU();
+        }
+        setPressCurrent();
+        omegaIntegrate();
+        scaleVelocitiesOmega();
+    }
+
+    if (firstHalfStep) { 
+        rescale();
+    }
+   
     // Update particle velocites
     //! \todo In this optimization, I assume that velocities are not accessed
     //!       between stepFinal() and stepInitial(). Can we ensure that this is
     //!       indeed the case?
-    if (firstHalfStep) {
-        rescale();
-    }
 
     return true;
 }
 
 
+void FixNoseHoover::setPressCurrent() {
+    for (int i=0; i<3; i++) {
+        pressCurrent[i] = pressComputer.pressureScalar;
+    }
+    for (int i=3; i<6; i++) {
+        pressCurrent[0] = pressComputer.pressureScalar;
+    }
+
+}
 void FixNoseHoover::updateMasses()
 {
     double boltz = 1.0;
-    double temp = getCurrentTemp();
+    double temp = tempInterpolator.getCurrentVal();
     thermMass.at(0) = ndf * boltz * temp / (frequency*frequency);
     for (size_t i = 1; i < chainLength; ++i) {
         thermMass.at(i) = boltz*temp / (frequency*frequency);
@@ -283,60 +430,36 @@ void FixNoseHoover::updateMasses()
 
 void FixNoseHoover::calculateKineticEnergy()
 {
-    size_t nAtoms = state->atoms.size();
-    kineticEnergy.d_data.memset(0);
-    if (groupTag == 1) { //if is all atoms
-        accumulate_gpu<float, float4, SumVectorSqr3DOverW, N_DATA_PER_THREAD> <<<NBLOCK(nAtoms / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*PERBLOCK*sizeof(float)>>>
-            (
-             kineticEnergy.d_data.data(),
-             state->gpd.vs.getDevData(),
-             nAtoms,
-             state->devManager.prop.warpSize,
-             SumVectorSqr3DOverW()
-            );
-       //std::cout << " calling tag-less sum " << std::endl;
-       kineticEnergy.dataToHost();
-       cudaDeviceSynchronize();
-       ndf = state->atoms.size();
-
-    } else {
-        accumulate_gpu_if<float, float4, SumVectorSqr3DOverWIf, N_DATA_PER_THREAD> <<<NBLOCK(nAtoms / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*PERBLOCK*sizeof(float)>>>
-            (
-             kineticEnergy.d_data.data(),
-             state->gpd.vs.getDevData(),
-             nAtoms,
-             state->devManager.prop.warpSize,
-             SumVectorSqr3DOverWIf(state->gpd.fs.getDevData(), groupTag)
-            );
-        /*
-        sumVectorSqr3DTagsOverW<float, float4, 2>
-            <<<NBLOCK(nAtoms / (double) 2), PERBLOCK, 2*PERBLOCK*sizeof(float)>>>(
-                    kineticEnergy.d_data.data(),
-                    state->gpd.vs.getDevData(),
-                    nAtoms,
-                    groupTag,
-                    state->gpd.fs.getDevData(),
-                    state->devManager.prop.warpSize
-            );
-            */
-        kineticEnergy.dataToHost();
+    if (not barostatting) {
+        tempComputer.computeScalar_GPU(true, groupTag);
         cudaDeviceSynchronize();
-        ndf = *((int *) (kineticEnergy.h_data.data()+1));
-    }
+        tempComputer.computeScalar_CPU();
+        ndf = tempComputer.ndf;
+        ke_current = tempComputer.totalKEScalar;
+    } else if (pressMode == PRESSMODE::ISO) {
+        tempComputer.computeScalar_GPU(true, groupTag);
+        cudaDeviceSynchronize();
+        tempComputer.computeScalar_CPU();
+        ndf = tempComputer.ndf;
+        ke_current = tempComputer.totalKEScalar;
+        //tempComputer.tempScalar;
 
-    ke_current = kineticEnergy.h_data[0];
-  //  std::cout << "current " << ke_current << std::endl;
-    if (state->is2d) {
-        ndf *= 2;
-    } else {
-        ndf *= 3;
+       // tempComputer.computeTensorFromScalar();
+    } else if (pressMode == PRESSMODE::ANISO) {
+        tempComputer.computeTensor_GPU(true, groupTag);
+        cudaDeviceSynchronize();
+        tempComputer.computeTensor_CPU();
+
+        tempComputer.computeScalarFromTensor(); 
+        ndf = tempComputer.ndf;
+        ke_current = tempComputer.totalKEScalar;
+        //need this for temp biz
     }
-//    std::cout << "temp is " << ke_current / ndf << std::endl;
 }
 
 void FixNoseHoover::rescale()
 {
-    if (scale == 1.0f) {
+    if (scale == make_float3(1.0f, 1.0f, 1.0f)) {
         return;
     }
 
@@ -354,7 +477,7 @@ void FixNoseHoover::rescale()
                                                  scale);
     }
 
-    scale = 1.0f;
+    scale = make_float3(1.0f, 1.0f, 1.0f);
 }
 
 void export_FixNoseHoover()

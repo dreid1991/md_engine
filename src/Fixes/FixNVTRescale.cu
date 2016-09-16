@@ -4,6 +4,25 @@
 #include "cutils_func.h"
 #include "State.h"
 
+class SumVectorSqr3DOverWIf_Bounds {
+public:
+    float4 *fs;
+    uint32_t groupTag;
+    BoundsGPU bounds;
+    SumVectorSqr3DOverWIf_Bounds(float4 *fs_, uint32_t groupTag_, BoundsGPU &bounds_) : fs(fs_), groupTag(groupTag_), bounds(bounds_) {}
+    inline __host__ __device__ float process (float4 &velocity ) {
+        return lengthSqrOverW(velocity);
+    }
+    inline __host__ __device__ float zero() {
+        return 0;
+    }
+    inline __host__ __device__ bool willProcess(float4 *src, int idx) {
+        float3 pos = make_float3(src[idx]);
+        uint32_t atomGroupTag = * (uint32_t *) &(fs[idx].w);
+        return (atomGroupTag & groupTag) && bounds.inBounds(pos);
+    }
+};
+
 namespace py=boost::python;
 
 using namespace std;
@@ -36,7 +55,7 @@ __global__ void sumKeInBounds (float *dest, float4 *src, int n, unsigned int gro
 */
 
 FixNVTRescale::FixNVTRescale(SHARED(State) state_, string handle_, string groupHandle_, py::list intervals_, py::list temps_, int applyEvery_, SHARED(Bounds) thermoBounds_)
-    : FixThermostatBase(intervals_, temps_), Fix(state_, handle_, groupHandle_, NVTRescaleType, false, false, false, applyEvery_),
+    : Interpolator(intervals_, temps_), Fix(state_, handle_, groupHandle_, NVTRescaleType, false, false, false, applyEvery_),
       curIdx(0), tempGPU(GPUArrayDeviceGlobal<float>(2))
 {
     thermoBounds = thermoBounds_;
@@ -45,7 +64,7 @@ FixNVTRescale::FixNVTRescale(SHARED(State) state_, string handle_, string groupH
 }
 
 FixNVTRescale::FixNVTRescale(SHARED(State) state_, string handle_, string groupHandle_, py::object tempFunc_, int applyEvery_, SHARED(Bounds) thermoBounds_)
-    : FixThermostatBase(tempFunc_), Fix(state_, handle_, groupHandle_, NVTRescaleType, false, false, false, applyEvery_),
+    : Interpolator(tempFunc_), Fix(state_, handle_, groupHandle_, NVTRescaleType, false, false, false, applyEvery_),
       curIdx(0), tempGPU(GPUArrayDeviceGlobal<float>(2))
 {
     thermoBounds = thermoBounds_;
@@ -54,7 +73,7 @@ FixNVTRescale::FixNVTRescale(SHARED(State) state_, string handle_, string groupH
 }
 
 FixNVTRescale::FixNVTRescale(SHARED(State) state_, string handle_, string groupHandle_, double constTemp_, int applyEvery_, SHARED(Bounds) thermoBounds_)
-    : FixThermostatBase(constTemp_), Fix(state_, handle_, groupHandle_, NVTRescaleType, false, false, false, applyEvery_),
+    : Interpolator(constTemp_), Fix(state_, handle_, groupHandle_, NVTRescaleType, false, false, false, applyEvery_),
       curIdx(0), tempGPU(GPUArrayDeviceGlobal<float>(2))
 {
     thermoBounds = thermoBounds_;
@@ -63,18 +82,7 @@ FixNVTRescale::FixNVTRescale(SHARED(State) state_, string handle_, string groupH
 }
 
 
-//this one is for testing on the C++ side
-FixNVTRescale::FixNVTRescale(SHARED(State) state_, string handle_, string groupHandle_,
-                             vector<double> intervals_, vector<double> temps_, int applyEvery_,
-                             SHARED(Bounds) thermoBounds_)
-    : Fix(state_, handle_, groupHandle_, NVTRescaleType, false, false, false, applyEvery_),
-      curIdx(0), tempGPU(GPUArrayDeviceGlobal<float>(2))
-{
-    assert(intervals.size() == temps.size());
-    intervals = intervals_;
-    temps = temps_;
-    thermoBounds = thermoBounds_;
-}
+
 
 bool FixNVTRescale::prepareForRun() {
     usingBounds = thermoBounds != SHARED(Bounds) (NULL);
@@ -166,8 +174,8 @@ void FixNVTRescale::compute(bool computeVirials) {
     tempGPU.memset(0);
     int nAtoms = state->atoms.size();
     int64_t turn = state->turn;
-    computeCurrentTemp(turn);
-    double temp = getCurrentTemp();
+    computeCurrentVal(turn);
+    double temp = getCurrentVal();
     GPUData &gpd = state->gpd;
     int activeIdx = gpd.activeIdx();
     int warpSize = state->devManager.prop.warpSize;

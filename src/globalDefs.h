@@ -9,8 +9,8 @@
 #include "cuda_runtime.h"
 #include "Logging.h"
 
-typedef double num;
 
+#define EXCL_MASK (~(3<<30));
 #define GPUMEMBER __host__ __device__
 #define SHARED(X) boost::shared_ptr<X>
 

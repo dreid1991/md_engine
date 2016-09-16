@@ -18,7 +18,7 @@ public:
             "all",       // groupHandle
             _2dType,     // type
             true,        // forceSingle
-            false,       // requiresVirials
+            false,       // virials
             false,       // requiresCharges
             applyEvery_, // applyEvery
             999)         // orderPreference

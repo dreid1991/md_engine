@@ -49,7 +49,6 @@ State::State() {
     verbose = true;
     readConfig = SHARED(ReadConfig) (new ReadConfig(this));
     atomParams = AtomParams(this);
-    dataManager.computeVirialsInForce = false; //will be set to true if a fix needs it (like barostat).  Is max of fixes computesVirials bool
     requiresCharges = false; //will be set to true if a fix needs it (like ewald sum).  Is max of fixes requiresCharges bool
     dataManager = DataManager(this);
     integUtil = IntegratorUtil(this);
@@ -103,7 +102,6 @@ bool State::addAtomDirect(Atom a) {
         std::cout << "Bad atom type " << a.type << std::endl;
         return false;
     }
-
     if (a.mass == -1 or a.mass == 0) {
         a.mass = atomParams.masses[a.type];
     }
@@ -208,8 +206,10 @@ void State::duplicateMolecule(Molecule &molec) {
     std::vector<int> newIds;
     for (int id : molec.ids) {
         Atom &a = atoms[idToIdx[id]];
+
         Atom &dup = duplicateAtom(a);
-        oldToNew[a.id] = dup.id;
+        //NOTE THAT REFERENCE TO A MAY BE INVALIDATE AFTER DUPLICATION B/C VECTOR COULD REALLOCATE
+        oldToNew[id] = dup.id;
         newIds.push_back(dup.id);
     }
     for (Fix *fix : fixes) {
@@ -365,18 +365,11 @@ bool State::prepareForRun() {
     if (!requireCharges.empty()) {
         requiresCharges = *std::max_element(requireCharges.begin(), requireCharges.end());
     }
-
-    dataManager.computeVirialsInForce = false;
-    std::vector<bool> requireVirialsFixes = LISTMAP(Fix *, bool, fix, fixes, fix->requiresVirials);
-    std::vector<bool> requireVirialsDataSets = LISTMAP(boost::shared_ptr<DataSetUser>, bool, ds, dataManager.dataSets, ds->requiresVirials());
-    //okay, so current behavior is if any data set or fix requires virials, they are recorded every timestep. 
-    //Data set may not require them that often, so could lead to sub-optimal performance.  
-    //In future, could be tricky about if I actually set require virials or just let data set ask data manager to compute virials in the rare event that they are needed
-    requireVirialsFixes.insert(requireVirialsFixes.end(), requireVirialsDataSets.begin(), requireVirialsDataSets.end());
-    if (!requireVirialsFixes.empty()) {
-        dataManager.computeVirialsInForce = *std::max_element(requireVirialsFixes.begin(), requireVirialsFixes.end());
+    requiresPostNVE_V = false;
+    std::vector<bool> requirePostNVE_V = LISTMAP(Fix *, bool, fix, fixes, fix->requiresPostNVE_V);
+    if (!requirePostNVE_V.empty()) {
+        requiresPostNVE_V = *std::max_element(requirePostNVE_V.begin(), requirePostNVE_V.end());
     }
-
 
 
     int nAtoms = atoms.size();
@@ -424,6 +417,7 @@ bool State::prepareForRun() {
 
     gpd.idToIdxsOnCopy = idToIdxs_vec;
     gpd.idToIdxs.set(idToIdxs_vec);
+    bounds.handle2d();
     boundsGPU = bounds.makeGPU();
     float maxRCut = getMaxRCut();
     initializeGrid();
@@ -433,10 +427,24 @@ bool State::prepareForRun() {
     gpd.vsBuffer = GPUArrayGlobal<float4>(nAtoms);
     gpd.fsBuffer = GPUArrayGlobal<float4>(nAtoms);
     gpd.idsBuffer = GPUArrayGlobal<uint>(nAtoms);
+    handleChargeOffloading();
 
     return true;
 }
-
+void State::handleChargeOffloading() {
+    for (Fix *f : fixes) {
+        if (f->canOffloadChargePairCalc) {
+            for (Fix *g : fixes) {
+                if (g->canAcceptChargePairCalc and not g->hasAcceptedChargePairCalc) {
+                    g->acceptChargePairCalc(f); 
+                    f->hasOffloadedChargePairCalc = true;
+                    g->hasAcceptedChargePairCalc = true;
+                }
+            }
+        }
+    }
+    printf("FIN\n");
+}
 void copyAsyncWithInstruc(State *state, std::function<void (int64_t )> cb, int64_t turn) {
     cudaStream_t stream;
     CUCHECK(cudaStreamCreate(&stream));
@@ -503,17 +511,22 @@ bool State::downloadFromRun() {
         atoms[idxWriteTo].vel = vs[i];
         atoms[idxWriteTo].force = fs[i];
     }
+    bounds.set(boundsGPU);
     return true;
 }
 
-
+void State::finish() {
+    for (Fix *f : fixes) {
+        f->resetChargePairFlags();
+    }
+}
 
 bool State::addToGroupPy(std::string handle, py::list toAdd) {//list of atom ids
     uint32_t tagBit = groupTagFromHandle(handle);  //if I remove asserts from this, could return things other than true, like if handle already exists
     int len = py::len(toAdd);
     for (int i=0; i<len; i++) {
         py::extract<int> idPy(toAdd[i]);
-        mdAssert(idPy.check(), "Invalid atom found when trying to add to group");
+        mdAssert(idPy.check(), "Tried to add atom to group, but numerical value (atom id) was not given");
         int id = idPy;
         mdAssert(id>=0 and id <= idToIdx.size(), "Invalid atom found when trying to add to group");
         int idx = idToIdx[id];
@@ -622,7 +635,6 @@ void State::zeroVelocities() {
         a.vel.zero();
     }
 }
-
 
 void State::destroy() {
     //if (bounds) {  //UNCOMMENT

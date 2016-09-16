@@ -226,8 +226,10 @@ class LAMMPS_Reader:
             sig = float(line[4]) / self.unitLen
             self.nonbondFix.setParameter('sig', handleA=handleA, handleB=handleB, val=sig)
             self.nonbondFix.setParameter('eps', handleA=handleA, handleB=handleB, val=eps)
-            if len(line) > 4:
-                rCut = float(line[4]) / self.unitLen
+            print line
+
+            if len(line) > 5:
+                rCut = float(line[5]) / self.unitLen
                 self.nonbondFix.setParameter('rCut', handleA=handleA, handleB=handleB, val=rCut)
 
 
@@ -447,7 +449,10 @@ def dihedralOPLS_data(reader, args):
     coefs = [args[-1], args[-2], args[-3], args[-4]]
     coefs.reverse()
 
+    print 'HEY'
+    print coefs
     coefs = [float(x) / reader.unitEng for x in coefs]
+    print coefs
     return [type, coefs]
 
 def dihedralOPLS_input(reader, args):

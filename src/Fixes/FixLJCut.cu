@@ -3,10 +3,13 @@
 #include "BoundsGPU.h"
 #include "GridGPU.h"
 #include "list_macro.h"
-#include "PairEvaluateIso.h"
 #include "State.h"
 #include "cutils_func.h"
 #include "ReadConfig.h"
+#include "EvaluatorWrapper.h"
+#include "PairEvaluatorLJ.h"
+#include "EvaluatorWrapper.h"
+//#include "ChargeEvaluatorEwald.h"
 using namespace std;
 namespace py = boost::python;
 const string LJCutType = "LJCut";
@@ -14,22 +17,16 @@ const string LJCutType = "LJCut";
 
 
 FixLJCut::FixLJCut(boost::shared_ptr<State> state_, string handle_)
-  : FixPair(state_, handle_, "all", LJCutType, true, false, 1),
+    : FixPair(state_, handle_, "all", LJCutType, true, false, 1),
     epsHandle("eps"), sigHandle("sig"), rCutHandle("rCut")
 {
-  
+
     initializeParameters(epsHandle, epsilons);
     initializeParameters(sigHandle, sigmas);
     initializeParameters(rCutHandle, rCuts);
     paramOrder = {rCutHandle, epsHandle, sigHandle};
-  
-    if (state->readConfig->fileOpen) {
-      auto restData = state->readConfig->readFix(type, handle);
-      if (restData) {
-	std::cout << "Reading restart data for fix " << handle << std::endl;
-	readFromRestart(restData);
-      }
-    }
+    readFromRestart();
+    canAcceptChargePairCalc = true;
 }
 
 void FixLJCut::compute(bool computeVirials) {
@@ -40,19 +37,12 @@ void FixLJCut::compute(bool computeVirials) {
     int activeIdx = gpd.activeIdx();
     uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
     float *neighborCoefs = state->specialNeighborCoefs;
-    if (computeVirials) {
-        compute_force_iso<EvaluatorLJ, 3, true> <<<NBLOCK(nAtoms), PERBLOCK, 3*numTypes*numTypes*sizeof(float)>>>(
-                nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx),
-                neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(),
-                state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU,
-                neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.virials.d_data.data(), evaluator);
-    } else {
-        compute_force_iso<EvaluatorLJ, 3, false> <<<NBLOCK(nAtoms), PERBLOCK, 3*numTypes*numTypes*sizeof(float)>>>(
-                nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx),
-                neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(),
-                state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU,
-                neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.virials.d_data.data(), evaluator);
-    }
+
+    evalWrap->compute(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx),
+                      neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(),
+                      state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU,
+                      neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.virials.d_data.data(), gpd.qs(activeIdx), chargeRCut, computeVirials);
+
 
 }
 
@@ -64,11 +54,16 @@ void FixLJCut::singlePointEng(float *perParticleEng) {
     int activeIdx = gpd.activeIdx();
     uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
     float *neighborCoefs = state->specialNeighborCoefs;
-
-    compute_energy_iso<EvaluatorLJ, 3><<<NBLOCK(nAtoms), PERBLOCK, 3*numTypes*numTypes*sizeof(float)>>>(nAtoms, gpd.xs(activeIdx), perParticleEng, 
-                                                                                                        neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], evaluator);
+    evalWrap->energy(nAtoms, gpd.xs(activeIdx), perParticleEng, neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.qs(activeIdx), chargeRCut);
 
 
+
+
+}
+
+void FixLJCut::setEvalWrapper() {
+    EvaluatorLJ eval;
+    evalWrap = pickEvaluator<EvaluatorLJ, 3>(eval, chargeCalcFix);
 
 }
 
@@ -102,7 +97,9 @@ bool FixLJCut::prepareForRun() {
     prepareParameters(epsHandle, fillEps, processEps, false);
     prepareParameters(sigHandle, fillSig, processSig, false);
     prepareParameters(rCutHandle, fillRCut, processRCut, true, fillRCutDiag);
+
     sendAllToDevice();
+    setEvalWrapper();
     return true;
 }
 
@@ -110,47 +107,6 @@ string FixLJCut::restartChunk(string format) {
     stringstream ss;
     ss << restartChunkPairParams(format);
     return ss.str();
-}
-
-bool FixLJCut::readFromRestart(pugi::xml_node restData) {
-  auto curr_param = restData.first_child();
-  while (curr_param) {
-    std::string tag = curr_param.name();
-    if (tag == "parameter") {
-      std::vector<float> val;
-      std::string paramHandle = curr_param.attribute("handle").value();
-      auto curr_pcnode = curr_param.first_child();
-      while (curr_pcnode) {
-	string data = curr_pcnode.value();
-	val.push_back(atof(data.c_str()));
-	curr_pcnode = curr_pcnode.next_sibling();
-      }
-      if (paramHandle == epsHandle) {
-	epsilons = val;
-      } else if (paramHandle == sigHandle) {
-	sigmas = val;
-      } else if (paramHandle == rCutHandle) {
-	rCuts = val;
-      } else {
-	std::cout << "Error: Invalid FixLJCut parameter handle, " << paramHandle << std::endl;
-	return false;
-      }
-    }
-    curr_param = curr_param.next_sibling();
-  }
-  initializeParameters(epsHandle, epsilons);
-  initializeParameters(sigHandle, sigmas);
-  initializeParameters(rCutHandle, rCuts);
-  int count = 0;
-  for (int i = 0; i < state->atomParams.handles.size(); i++) {
-    for (int j = 0; j < state->atomParams.handles.size(); j++) {
-      setParameter(epsHandle, state->atomParams.handles[i], state->atomParams.handles[j], epsilons[count]);
-      setParameter(sigHandle, state->atomParams.handles[i], state->atomParams.handles[j], sigmas[count]);
-      setParameter(rCutHandle, state->atomParams.handles[i], state->atomParams.handles[j], rCuts[count]);
-      count++;
-    }
-  }
-  return true;
 }
 
 
@@ -185,9 +141,6 @@ void export_FixLJCut() {
         "FixLJCut",
         py::init<boost::shared_ptr<State>, string> (py::args("state", "handle"))
     )
-      .def("output", &FixLJCut::restartChunk,
-	   (py::arg("format")="xml")
-	   )
       ;
 
 }

@@ -50,13 +50,6 @@ class FixLJCutFS : public FixPair {
          */
         std::string restartChunk(std::string format);
 
-        //! Read parameters from restart file
-        /*!
-         * \return Always True
-         *
-         * \param restData XML node containing the restart data.
-         */
-        bool readFromRestart(pugi::xml_node restData);
 
         //! Add new type of atoms
         /*!
@@ -78,7 +71,7 @@ class FixLJCutFS : public FixPair {
         std::vector<float> rCuts; //!< vector storing cutoff distance values
         std::vector<float> FCuts; //!< vector storing force at cutoff distance
 
-        EvaluatorLJFS evaluator; //!< Evaluator for generic pair interactions
+        void setEvalWrapper();
 };
 
 #endif

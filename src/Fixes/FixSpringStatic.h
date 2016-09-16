@@ -43,7 +43,10 @@ public:
     bool dataToDevice();
     bool prepareForRun();
     FixSpringStatic(boost::shared_ptr<State>, std::string handle_, std::string groupHandle_,
-                    double k_, boost::python::object tetherFunc_ = boost::python::object(), Vector multiplier = Vector(1, 1, 1));
+                    double k_=-1, boost::python::object tetherFunc_ = boost::python::object(), Vector multiplier = Vector(1, 1, 1));
+
+    bool readFromRestart();
+    std::string restartChunk(std::string format);
 
 };
 

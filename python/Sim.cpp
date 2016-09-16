@@ -57,6 +57,7 @@ BOOST_PYTHON_MODULE(Sim) {
     export_FixImproperHarmonic();
     export_Impropers();
     export_FixDihedralOPLS();
+    export_FixDihedralCHARMM();
     export_Dihedrals();
     export_FixWall();
     export_FixWallHarmonic();
@@ -78,6 +79,8 @@ BOOST_PYTHON_MODULE(Sim) {
     export_FixNVTRescale();
     export_FixLangevin();
     export_FixRigid();
+
+    export_FixPressureBerendsen();
 
     export_AtomParams();
     export_DataManager();

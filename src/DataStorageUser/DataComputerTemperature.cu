@@ -35,11 +35,11 @@ void DataComputerTemperature::computeTensor_GPU(bool transferToCPU, uint32_t gro
     lastGroupTag = groupTag;
     int nAtoms = state->atoms.size();
     if (groupTag == 1) {
-        accumulate_gpu<Virial, float4, SumVectorToVirial, N_DATA_PER_THREAD>  <<<NBLOCK(nAtoms / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*PERBLOCK*sizeof(Virial)>>>
-            (tempGPUTensor.getDevData(), gpd.vs.getDevData(), nAtoms, state->devManager.prop.warpSize, SumVectorToVirial());    
+        accumulate_gpu<Virial, float4, SumVectorToVirialOverW, N_DATA_PER_THREAD>  <<<NBLOCK(nAtoms / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*PERBLOCK*sizeof(Virial)>>>
+            (tempGPUTensor.getDevData(), gpd.vs.getDevData(), nAtoms, state->devManager.prop.warpSize, SumVectorToVirialOverW());    
     } else {
-        accumulate_gpu_if<Virial, float4, SumVectorToVirialIf, N_DATA_PER_THREAD> <<<NBLOCK(nAtoms / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*PERBLOCK*sizeof(Virial)>>>
-            (tempGPUTensor.getDevData(), gpd.vs.getDevData(), nAtoms, state->devManager.prop.warpSize, SumVectorToVirialIf(gpd.fs.getDevData(), groupTag));
+        accumulate_gpu_if<Virial, float4, SumVectorToVirialOverWIf, N_DATA_PER_THREAD> <<<NBLOCK(nAtoms / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*PERBLOCK*sizeof(Virial)>>>
+            (tempGPUTensor.getDevData(), gpd.vs.getDevData(), nAtoms, state->devManager.prop.warpSize, SumVectorToVirialOverWIf(gpd.fs.getDevData(), groupTag));
     } 
     if (transferToCPU) {
         //does NOT sync
@@ -56,24 +56,57 @@ void DataComputerTemperature::computeScalar_CPU() {
         n = * (int *) &tempGPUScalar.h_data[1];
     }
     if (state->is2d) {
-        ndf = 2*n;
+        ndf = 2*(n-1); //-1 is analagous to extra_dof in lammps
     } else {
-        ndf = 3*n;
+        ndf = 3*(n-1);
     }
     totalKEScalar = total;
     tempScalar = total / ndf; 
 }
 
 void DataComputerTemperature::computeTensor_CPU() {
-    int n;
     Virial total = tempGPUTensor.h_data[0];
+    /*
+    int n;
     if (lastGroupTag == 1) {
         n = state->atoms.size();
     } else {
         n = * (int *) &tempGPUTensor.h_data[1];
     }
-    total /= n;
+    */
     tempTensor = total;
+}
+
+void DataComputerTemperature::computeTensorFromScalar() {
+    int zeroDim = 3;
+    if (state->is2d) {
+        zeroDim = 2;
+        tempTensor[0] = tempTensor[1] = totalKEScalar / 2.0;
+    } else {
+        tempTensor[0] = tempTensor[1] = tempTensor[2] = totalKEScalar / 3.0;
+    }
+    for (int i=zeroDim; i<6; i++) {
+        tempTensor[i] = 0;
+    }
+
+}
+
+void DataComputerTemperature::computeScalarFromTensor() {
+    int n;
+    if (lastGroupTag == 1) {
+        n = state->atoms.size();//* (int *) &tempGPUScalar.h_data[1];
+    } else {
+        n = * (int *) &tempGPUScalar.h_data[1];
+    }
+    if (state->is2d) {
+        ndf = 2*(n-1); //-1 is analagous to extra_dof in lammps
+    } else {
+        ndf = 3*(n-1);
+    }
+    totalKEScalar = tempTensor[0] + tempTensor[1] + tempTensor[2];
+    tempScalar = totalKEScalar / ndf;
+
+
 }
 
 void DataComputerTemperature::appendScalar(boost::python::list &vals) {

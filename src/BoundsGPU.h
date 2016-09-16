@@ -24,9 +24,10 @@ public:
      *                  z-direction
      */
     BoundsGPU(float3 lo_, float3 rectComponents_, float3 periodic_) {
+        //consider calcing invrectcomponents using doubles
         lo = lo_;
         rectComponents = rectComponents_;
-        invRectLen = 1.0f / rectComponents;
+        invRectComponents = 1.0f / rectComponents;
         periodic = periodic_;
     }
 
@@ -34,7 +35,7 @@ public:
     BoundsGPU() {};
 
     float3 rectComponents; //!< 3 sides - xx, yy, zz
-    float3 invRectLen; //!< Inverse of the box expansion in standard
+    float3 invRectComponents; //!< Inverse of the box expansion in standard
                        //!< coordinates
     float3 lo; //!< Point of origin
     float3 periodic; //!< Stores whether box is periodic in x-, y-, and
@@ -62,7 +63,7 @@ public:
      *
      * Will be updated to handle box shearing
      */
-    GPUMEMBER float3 trace() {
+    __host__ __device__ float3 trace() {
         return rectComponents;
         //return make_float3(sides[0].x, sides[1].y, sides[2].z);
     }
@@ -72,12 +73,12 @@ public:
      * \param v %Vector to be wrapped
      * \return Copy of the vector, wrapped into main simulation box
      */
-    GPUMEMBER float3 minImage(float3 v) {
-        float3 img = make_float3(rintf(v.x * invRectLen.x), rintf(v.y * invRectLen.y), rintf(v.z * invRectLen.z));
+    __host__ __device__ float3 minImage(float3 v) {
+        float3 img = make_float3(rintf(v.x * invRectComponents.x), rintf(v.y * invRectComponents.y), rintf(v.z * invRectComponents.z));
         v -= rectComponents * img * periodic;
         return v;
     }
-    GPUMEMBER float volume() {
+    __host__ __device__ float volume() {
         return rectComponents.x * rectComponents.y * rectComponents.z;
     }
 
@@ -86,13 +87,29 @@ public:
      * \param v Point to test
      * \return True if inside simulation box
      */
-    GPUMEMBER bool inBounds(float3 v) {
+    __host__ __device__ bool inBounds(float3 v) {
         float3 diff = v - lo;
         return diff.x < rectComponents.x and diff.y < rectComponents.y and diff.z < rectComponents.z and diff.x >= 0 and diff.y >= 0 and diff.z >= 0;
     }
     bool isSkewed() {
         //dummy function until skewing added
         return false;
+    }
+
+    //around center
+    __host__ void scale(float scaleBy) {
+        float3 old = rectComponents;
+        rectComponents *= scaleBy;
+        float3 diff = rectComponents - old;
+        lo -= diff / 2.0f;
+        invRectComponents = 1 / rectComponents;
+
+    }
+    bool operator ==(BoundsGPU &other) {
+        return lo==other.lo and rectComponents==other.rectComponents and periodic==other.periodic;
+    }
+    bool operator !=(BoundsGPU &other) {
+        return not (other == *this);
     }
 };
 

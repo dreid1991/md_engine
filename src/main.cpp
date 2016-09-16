@@ -518,7 +518,7 @@ void hoomdBench() {
     state->activateFix(nonbond);
     vector<double> intervals = {0, 1};
     vector<double> temps = {1.2, 1.2};
-    SHARED(FixNVTRescale) thermo = SHARED(FixNVTRescale) (new FixNVTRescale(state, "thermo", "all", intervals, temps, 100));
+    //SHARED(FixNVTRescale) thermo = SHARED(FixNVTRescale) (new FixNVTRescale(state, "thermo", "all", intervals, temps, 100));
     //state->activateFix(thermo);
     FILE *input = fopen("/home/daniel/Documents/hoomd_benchmarks/hoomd-benchmarks/lj-liquid/stripped.xml", "r");
     char buf[150];
@@ -567,8 +567,8 @@ void testLJ() {
     vector<double> intervals = {0, 1};
     vector<double> temps = {1.2, 1.2};
 
-    SHARED(FixNVTRescale) thermo = SHARED(FixNVTRescale) (new FixNVTRescale(state, "thermo", "all", intervals, temps, 100));
-    state->activateFix(thermo);
+    //SHARED(FixNVTRescale) thermo = SHARED(FixNVTRescale) (new FixNVTRescale(state, "thermo", "all", intervals, temps, 100));
+    //state->activateFix(thermo);
     //state->is2d = true;
     //state->periodic[2] = false;
    // for (int i=0; i<32; i++) {

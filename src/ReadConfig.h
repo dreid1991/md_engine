@@ -35,13 +35,13 @@ public:
     {   }
     ReadConfig(State *state_);
 
-    pugi::xml_node readFix(std::string type, std::string handle);
     pugi::xml_node readNode(std::string nodeTag);
 
     void loadFile(std::string);  // change to bool or something to give feedback about if it's a file or not
     bool next();
     bool prev();
     bool moveBy(int);
+    pugi::xml_node readFix(std::string type, std::string handle);
     //bool readConfig(boost::shared_ptr<State>, std::string, int configIdx=0);
 
 };

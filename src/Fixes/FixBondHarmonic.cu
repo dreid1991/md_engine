@@ -11,13 +11,7 @@ const std::string bondHarmonicType = "BondHarmonic";
 
 FixBondHarmonic::FixBondHarmonic(SHARED(State) state_, string handle)
     : FixBond(state_, handle, string("None"), bondHarmonicType, true, 1) {
-        if (state->readConfig->fileOpen) {
-            auto restData = state->readConfig->readFix(type, handle);
-            if (restData) {
-                std::cout << "Reading restart data for fix " << handle << std::endl;
-                readFromRestart(restData);
-            }
-        }
+        readFromRestart();
     }
 
 
@@ -42,15 +36,20 @@ void FixBondHarmonic::setBondTypeCoefs(int type, double k, double r0) {
 void FixBondHarmonic::compute(bool computeVirials) {
     int nAtoms = state->atoms.size();
     int activeIdx = state->gpd.activeIdx();
+    GPUData &gpd = state->gpd;
     //cout << "Max bonds per block is " << maxBondsPerBlock << endl;
-    compute_force_bond<<<NBLOCK(nAtoms), PERBLOCK, sizeof(BondGPU) * maxBondsPerBlock + sizeof(BondHarmonicType) * parameters.size()>>>(nAtoms, state->gpd.xs(activeIdx), state->gpd.fs(activeIdx), state->gpd.idToIdxs.d_data.data(), bondsGPU.data(), bondIdxs.data(), parameters.data(), parameters.size(), state->boundsGPU, evaluator);
+    if (computeVirials) {
+        compute_force_bond<BondHarmonicType, BondEvaluatorHarmonic, true> <<<NBLOCK(nAtoms), PERBLOCK, sizeof(BondGPU) * maxBondsPerBlock + sharedMemSizeForParams>>>(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx), gpd.idToIdxs.d_data.data(), bondsGPU.data(), bondIdxs.data(), parameters.data(), parameters.size(), state->boundsGPU, gpd.virials.d_data.data(), usingSharedMemForParams, evaluator);
+    } else {
+        compute_force_bond<BondHarmonicType, BondEvaluatorHarmonic, false> <<<NBLOCK(nAtoms), PERBLOCK, sizeof(BondGPU) * maxBondsPerBlock + sharedMemSizeForParams>>>(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx), gpd.idToIdxs.d_data.data(), bondsGPU.data(), bondIdxs.data(), parameters.data(), parameters.size(), state->boundsGPU, gpd.virials.d_data.data(), usingSharedMemForParams, evaluator);
+    }
 }
 
 void FixBondHarmonic::singlePointEng(float *perParticleEng) {
     int nAtoms = state->atoms.size();
     int activeIdx = state->gpd.activeIdx();
     //cout << "Max bonds per block is " << maxBondsPerBlock << endl;
-    compute_energy_bond<<<NBLOCK(nAtoms), PERBLOCK, sizeof(BondGPU) * maxBondsPerBlock + sizeof(BondHarmonicType) * parameters.size()>>>(nAtoms, state->gpd.xs(activeIdx), perParticleEng, state->gpd.idToIdxs.d_data.data(), bondsGPU.data(), bondIdxs.data(), parameters.data(), parameters.size(), state->boundsGPU, evaluator);
+    compute_energy_bond<<<NBLOCK(nAtoms), PERBLOCK, sizeof(BondGPU) * maxBondsPerBlock + sharedMemSizeForParams>>>(nAtoms, state->gpd.xs(activeIdx), perParticleEng, state->gpd.idToIdxs.d_data.data(), bondsGPU.data(), bondIdxs.data(), parameters.data(), parameters.size(), state->boundsGPU, usingSharedMemForParams, evaluator);
 }
 
 string FixBondHarmonic::restartChunk(string format) {
@@ -70,47 +69,50 @@ string FixBondHarmonic::restartChunk(string format) {
     return ss.str();
 }
 
-bool FixBondHarmonic::readFromRestart(pugi::xml_node restData) {
-    auto curr_node = restData.first_child();
-    while (curr_node) {
-        std::string tag = curr_node.name();
-        if (tag == "types") {
-            for (auto type_node = curr_node.first_child(); type_node; type_node = type_node.next_sibling()) {
-                int type;
-                double k;
-                double r0;
-                std::string type_ = type_node.attribute("id").value();
-                type = atoi(type_.c_str());
-                std::string k_ = type_node.attribute("k").value();
-                std::string r0_ = type_node.attribute("r0").value();
-                k = atof(k_.c_str());
-                r0 = atof(r0_.c_str());
+bool FixBondHarmonic::readFromRestart() {
+    auto restData = getRestartNode();
+    if (restData) {
+        auto curr_node = restData.first_child();
+        while (curr_node) {
+            std::string tag = curr_node.name();
+            if (tag == "types") {
+                for (auto type_node = curr_node.first_child(); type_node; type_node = type_node.next_sibling()) {
+                    int type;
+                    double k;
+                    double r0;
+                    std::string type_ = type_node.attribute("id").value();
+                    type = atoi(type_.c_str());
+                    std::string k_ = type_node.attribute("k").value();
+                    std::string r0_ = type_node.attribute("r0").value();
+                    k = atof(k_.c_str());
+                    r0 = atof(r0_.c_str());
 
-                setBondTypeCoefs(type, k, r0);
-            }
-        } else if (tag == "members") {
-            for (auto member_node = curr_node.first_child(); member_node; member_node = member_node.next_sibling()) {
-                int type;
-                double k;
-                double r0;
-                int ids[2];
-                std::string type_ = member_node.attribute("type").value();
-                std::string atom_a = member_node.attribute("atom_a").value();
-                std::string atom_b = member_node.attribute("atom_b").value();
-                std::string k_ = member_node.attribute("k").value();
-                std::string r0_ = member_node.attribute("r0").value();
-                type = atoi(type_.c_str());
-                ids[0] = atoi(atom_a.c_str());
-                ids[1] = atoi(atom_b.c_str());
-                Atom * a = &state->idToAtom(ids[0]);
-                Atom * b = &state->idToAtom(ids[1]);
-                k = atof(k_.c_str());
-                r0 = atof(r0_.c_str());
+                    setBondTypeCoefs(type, k, r0);
+                }
+            } else if (tag == "members") {
+                for (auto member_node = curr_node.first_child(); member_node; member_node = member_node.next_sibling()) {
+                    int type;
+                    double k;
+                    double r0;
+                    int ids[2];
+                    std::string type_ = member_node.attribute("type").value();
+                    std::string atom_a = member_node.attribute("atom_a").value();
+                    std::string atom_b = member_node.attribute("atom_b").value();
+                    std::string k_ = member_node.attribute("k").value();
+                    std::string r0_ = member_node.attribute("r0").value();
+                    type = atoi(type_.c_str());
+                    ids[0] = atoi(atom_a.c_str());
+                    ids[1] = atoi(atom_b.c_str());
+                    Atom * a = &state->idToAtom(ids[0]);
+                    Atom * b = &state->idToAtom(ids[1]);
+                    k = atof(k_.c_str());
+                    r0 = atof(r0_.c_str());
 
-                createBond(a, b, k, r0, type);
+                    createBond(a, b, k, r0, type);
+                }
             }
+            curr_node = curr_node.next_sibling();
         }
-        curr_node = curr_node.next_sibling();
     }
     return true;
 }

@@ -49,13 +49,6 @@ class FixTICG : public FixPair {
          */
         std::string restartChunk(std::string format);
 
-        //! Read parameters from restart file
-        /*!
-         * \return Always True
-         *
-         * \param restData XML node containing the restart data.
-         */
-        bool readFromRestart(pugi::xml_node restData);
 
         //! Add new type of atoms
         /*!
@@ -74,7 +67,7 @@ class FixTICG : public FixPair {
         std::vector<float> Cs; //!< vector storing epsilon values
         std::vector<float> rCuts; //!< vector storing cutoff distance values
 
-        EvaluatorTICG evaluator; //!< Evaluator for generic pair interactions
+        void setEvalWrapper();
 };
 
 #endif

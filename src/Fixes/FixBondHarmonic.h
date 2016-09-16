@@ -21,7 +21,7 @@ public:
     void compute(bool);
     void singlePointEng(float *);
     std::string restartChunk(std::string format);
-    bool readFromRestart(pugi::xml_node restData);
+    bool readFromRestart();
     BondEvaluatorHarmonic evaluator;
 
     // HEY - NEED TO IMPLEMENT REFRESHATOMS

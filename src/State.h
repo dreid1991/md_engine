@@ -12,6 +12,7 @@
 #include <map>
 #include <tuple>
 #include <vector>
+#include <set>
 #include <functional>
 #include <random>
 #include <thread>
@@ -45,7 +46,6 @@ void export_State();
 class PythonOperation;
 class ReadConfig;
 class Fix;
-//class DataManager;
 class WriteConfig;
 
 //! Simulation state
@@ -115,6 +115,7 @@ public:
     int periodicInterval; //!< Periodicity to wrap atoms and rebuild neighbor
                           //!< list
     bool requiresCharges; //!< Charges will be stored 
+    bool requiresPostNVE_V;//!< If any of the need a step between post nve_v and nve_x.  If not, combine steps and do not call it.  If so, call it for all fixes
 
     //! Cutoff parameter for pair interactions
     /*!
@@ -125,6 +126,7 @@ public:
      */
     double rCut;
     double padding; //!< Added to rCut for cutoff distance of neighbor building
+
 
     //! Set the coefficients for bonded neighbor interactions
     /*!
@@ -444,6 +446,8 @@ public:
      * Copy data from the GPU Data class back to the atoms vectors.
      */
     bool downloadFromRun();
+//!resets various flags for fixes
+    void finish(); 
 
     //! Set all Atom velocities to zero
     void zeroVelocities();
@@ -499,6 +503,7 @@ public:
      * seed is 0, the RNG is initialized with a random seed.
      */
     void seedRNG(unsigned int seed = 0);
+    void handleChargeOffloading();
 
 private:
     std::mt19937 randomNumberGenerator; //!< Random number generator

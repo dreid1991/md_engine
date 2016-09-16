@@ -86,6 +86,9 @@ class FixBond : public Fix, public TypedItemHolder {
         std::vector<BondVariant> bonds;
         boost::python::list pyBonds;
         VariantPyListInterface<BondVariant, CPUMember> pyListInterface;
+        int sharedMemSizeForParams;
+        bool usingSharedMemForParams;
+
         int maxBondsPerBlock;
         std::unordered_map<int, BONDTYPEHOLDER> bondTypes;
         
@@ -104,7 +107,7 @@ class FixBond : public Fix, public TypedItemHolder {
         }
 
 
-        bool prepareForRun() {
+        virtual bool prepareForRun() {
             std::vector<Atom> &atoms = state->atoms;
 
             int maxExistingType = -1;
@@ -137,7 +140,7 @@ class FixBond : public Fix, public TypedItemHolder {
             maxBondsPerBlock = copyBondsToGPU<CPUMember, GPUMember, BONDTYPEHOLDER>(
                     atoms, bonds, state->idToIdx, &bondsGPU, &bondIdxs, &parameters, maxExistingType, bondTypes);
            // maxbondsPerBlock = copyMultiAtomToGPU<CPUVariant, CPUBase, CPUMember, GPUMember, ForcerTypeHolder, N>(state->atoms.size(), forcers, state->idToIdx, &forcersGPU, &forcerIdxs, &forcerTypes, &parameters, maxExistingType);
-
+            setSharedMemForParams();
             return true;
         } 
 
@@ -178,6 +181,17 @@ class FixBond : public Fix, public TypedItemHolder {
         }
 
 
+        void setSharedMemForParams() {
+            int size = parameters.size() * sizeof(BONDTYPEHOLDER);
+            if (size + maxBondsPerBlock * sizeof(GPUMember) > state->devManager.prop.sharedMemPerBlock) {
+                usingSharedMemForParams = false;
+                sharedMemSizeForParams = 0;
+            } else {
+                usingSharedMemForParams = true;
+                sharedMemSizeForParams = size;
+            }
+
+        }
 };
 
 #endif

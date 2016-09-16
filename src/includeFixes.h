@@ -8,6 +8,7 @@
 #include "FixAngleCosineDelta.h"
 #include "FixImproperHarmonic.h"
 #include "FixDihedralOPLS.h"
+#include "FixDihedralCHARMM.h"
 #include "FixLJCut.h"
 #include "FixLJCutFS.h"
 #include "FixTICG.h"
@@ -23,5 +24,6 @@
 #include "FixChargePairDSF.h"
 #include "FixChargeEwald.h"
 #include "FixWCA.h"
+#include "FixPressureBerendsen.h"
 
 #endif

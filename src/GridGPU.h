@@ -8,9 +8,10 @@
 #include "GPUArrayGlobal.h"
 #include "GPUArrayDeviceGlobal.h"
 
+#include "BoundsGPU.h"
 class State;
 
-#define EXCL_MASK (~(3<<30));
+#include "globalDefs.h"
 //okay, this is going to contain all the kernels needed to do gridding
 //can also have it contain the 3d grid for neighbor int2 s
 
@@ -70,7 +71,6 @@ public:
     GPUArrayGlobal<int> buildFlag;  //!< If buildFlag[0] == true, neighbor list
                                     //!< will be rebuilt
     float3 ds;      //!< Grid spacing in x-, y-, and z-dimension
-    float3 dsOrig;  //!< Grid spacing at the time of construction
     float3 os;      //!< Point of origin (lower value for all bounds)
     int3 ns;        //!< Number of grid points in each dimension
     GPUArrayDeviceGlobal<uint> neighborlist;    //!< List of atoms within cutoff radius of atom at GPU idx
@@ -180,7 +180,9 @@ public:
                                         //!< rebuild.
     cudaStream_t rebuildCheckStream;    //!< Cuda Stream for asynchronous data
                                         //!< transfer.
-
+    BoundsGPU boundsLastBuild;
+    void setBounds(BoundsGPU &newBounds);
+    float3 minGridDim;
     /*! \brief Copy atom positions to xsLastBuild
      *
      * Copies data from state->gpd.xs to xsLastBuild.

@@ -8,7 +8,7 @@
 
 #include <string>
 
-#include "FixThermostatBase.h"
+#include "Interpolator.h"
 #include "Fix.h"
 #include "GPUArrayDeviceGlobal.h"
 
@@ -18,7 +18,7 @@ void export_FixLangevin();
 
 class State;
 
-class FixLangevin : public FixThermostatBase, public Fix {
+class FixLangevin : public Interpolator, public Fix {
 private:
     int seed;
     float gamma;
