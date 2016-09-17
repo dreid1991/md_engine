@@ -17,12 +17,17 @@ class EvaluatorLJ {
             return dr * forceScalar;
         }
         inline __device__ float energy(float params[3], float lenSqr, float multiplier) {
-            float epstimes24 = params[1];
+            float eps = params[1] / 24.0f;
             float sig6 = params[2];
             float r2inv = 1/lenSqr;
             float r6inv = r2inv*r2inv*r2inv;
             float sig6r6inv = sig6 * r6inv;
-            return 0.5f * 4*(epstimes24 / 24)*sig6r6inv*(sig6r6inv-1.0f) * multiplier; //0.5 b/c we need to half-count energy b/c pairs are redundant
+            float rCutSqr = params[0];
+            float rCut6 = rCutSqr*rCutSqr*rCutSqr;
+
+            float sig6InvRCut6 = sig6 / rCut6;
+            float offsetOver4Eps = sig6InvRCut6*(sig6InvRCut6-1.0f);
+            return 0.5f * 4*eps*(sig6r6inv*(sig6r6inv-1.0f) - offsetOver4Eps) * multiplier; //0.5 b/c we need to half-count energy b/c pairs are redundant
         }
 
 };

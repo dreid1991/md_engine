@@ -58,7 +58,6 @@ void FixLJCut::singlePointEng(float *perParticleEng) {
 
 
 
-
 }
 
 void FixLJCut::setEvalWrapper() {

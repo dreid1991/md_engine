@@ -427,7 +427,6 @@ bool State::prepareForRun() {
     gpd.vsBuffer = GPUArrayGlobal<float4>(nAtoms);
     gpd.fsBuffer = GPUArrayGlobal<float4>(nAtoms);
     gpd.idsBuffer = GPUArrayGlobal<uint>(nAtoms);
-    handleChargeOffloading();
 
     return true;
 }
@@ -443,7 +442,6 @@ void State::handleChargeOffloading() {
             }
         }
     }
-    printf("FIN\n");
 }
 void copyAsyncWithInstruc(State *state, std::function<void (int64_t )> cb, int64_t turn) {
     cudaStream_t stream;
