@@ -36,6 +36,8 @@ class LAMMPS_Reader:
         self.inFileLines = [f.readlines() for f in self.inputFiles]
         self.allFileLines = [self.dataFileLines] + self.inFileLines
         self.isMolecular = len(self.readSection(self.dataFileLines, re.compile('Bonds'))) #this is slow, should write something to test if section exists
+        self.isMolecular = True
+        print 'OVERRIDING IS MOLECULAR'
 
         self.readAtomTypes()
         self.atomIdToIdx = {}
@@ -128,10 +130,14 @@ class LAMMPS_Reader:
             pos[0] = float(atomLine[atomBitIdx]) / self.unitLen
             pos[1] = float(atomLine[atomBitIdx+1]) / self.unitLen
             pos[2] = float(atomLine[atomBitIdx+2]) / self.unitLen
+            print pos
             atomType = -1
             charge = 0
             if areCharges:
-                charge = float(atomLine[chargeIdx])
+                print atomLine
+                charge = float(atomLine[chargeIdx]) / (math.sqrt(self.unitLen) * math.sqrt(self.unitEng))
+                print 'CHARGE'
+                print charge
             atomType = int(atomLine[atomTypeIdx])
 
             handle = self.myAtomHandles[atomType-1] #b/c lammps starts at 1

@@ -104,7 +104,7 @@ __global__ void compute_force_dihedral(int nDihedrals, float4 *xs, float4 *fs, i
         // printf("phi is %f\n", phi);
 
         //printf("no force\n");
-        float dPotential = evaluator.dPotential(dihedralType, phi);
+        float dPotential = -1.0f * evaluator.dPotential(dihedralType, phi);
         float sinPhi = sinf(phi);
         float absSinPhi = sinPhi < 0 ? -sinPhi : sinPhi;
         if (absSinPhi < EPSILON) {
@@ -150,7 +150,7 @@ __global__ void compute_force_dihedral(int nDihedrals, float4 *xs, float4 *fs, i
             atomicAdd(&(fs[idxs[i]].x), (forces[i].x));
             atomicAdd(&(fs[idxs[i]].y), (forces[i].y));
             atomicAdd(&(fs[idxs[i]].z), (forces[i].z));
-            //printf("f %d is %f %f %f\n", i, forces[i].x, forces[i].y, forces[i].z);
+        //    printf("f %d is %f %f %f\n", i, forces[i].x, forces[i].y, forces[i].z);
         }
 
 

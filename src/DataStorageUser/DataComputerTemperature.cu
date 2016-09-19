@@ -61,11 +61,12 @@ void DataComputerTemperature::computeScalar_CPU() {
         ndf = 3*(n-1);
     }
     totalKEScalar = total;
-    tempScalar = total / ndf; 
+    tempScalar = state->units.mvv_to_eng * total / (state->units.boltz * ndf); 
 }
 
 void DataComputerTemperature::computeTensor_CPU() {
     Virial total = tempGPUTensor.h_data[0];
+    total *= (state->units.mvv_to_eng / state->units.boltz);
     /*
     int n;
     if (lastGroupTag == 1) {

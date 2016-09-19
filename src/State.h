@@ -39,6 +39,7 @@
 #include "DeviceManager.h"
 //basic integrator functions state may need access to (computing engs, for examples)
 #include "IntegratorUtil.h"
+#include "Units.h"
 
 
 void export_State();
@@ -504,6 +505,8 @@ public:
      */
     void seedRNG(unsigned int seed = 0);
     void handleChargeOffloading();
+
+    Units units;
 
 private:
     std::mt19937 randomNumberGenerator; //!< Random number generator
