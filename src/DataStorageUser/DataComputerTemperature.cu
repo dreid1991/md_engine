@@ -60,9 +60,8 @@ void DataComputerTemperature::computeScalar_CPU() {
     } else {
         ndf = 3*(n-1);
     }
-    totalKEScalar = total;
+    totalKEScalar = total * state->units.mvv_to_eng; 
     tempScalar = state->units.mvv_to_eng * total / (state->units.boltz * ndf); 
-    printf("tempScalar %f\n", tempScalar);
 }
 
 void DataComputerTemperature::computeTensor_CPU() {

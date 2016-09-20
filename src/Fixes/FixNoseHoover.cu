@@ -217,8 +217,10 @@ void FixNoseHoover::thermostatIntegrate(double temp, double boltz, bool firstHal
 
     if (!firstHalfStep) {
         thermForce.at(0) = (ke_current - nkt) / thermMass.at(0);
+      //  printf("ke_current %f, nkt %f\n", ke_current, nkt);
     }
 
+    //printf("temp %f boltz %f ndf %d\n", temp, boltz, int(ndf));
     // Multiple timestep procedure
     for (size_t i = 0; i < nTimesteps; ++i) {
         for (size_t j = 0; j < n_ys; ++j) {
@@ -244,7 +246,7 @@ void FixNoseHoover::thermostatIntegrate(double temp, double boltz, bool firstHal
             // Update particle velocities
             double scaleFactor = std::exp( -timestep2*thermVel.at(0) );
             scale *= scaleFactor;
-            printf("factor %f %f\n", scale.x, scaleFactor);
+            //printf("factor %f %f\n", scale.x, scaleFactor);
 
             ke_current *= scaleFactor*scaleFactor;
 
@@ -429,21 +431,18 @@ void FixNoseHoover::updateMasses()
 
 void FixNoseHoover::calculateKineticEnergy()
 {
-    float boltz = state->units.boltz;
     if (not barostatting) {
         tempComputer.computeScalar_GPU(true, groupTag);
         cudaDeviceSynchronize();
         tempComputer.computeScalar_CPU();
         ndf = tempComputer.ndf;
-        printf("units boltz %f\n", boltz);
-        ke_current = tempComputer.totalKEScalar * boltz;
+        ke_current = tempComputer.totalKEScalar;
     } else if (pressMode == PRESSMODE::ISO) {
         tempComputer.computeScalar_GPU(true, groupTag);
         cudaDeviceSynchronize();
         tempComputer.computeScalar_CPU();
         ndf = tempComputer.ndf;
-        ke_current = tempComputer.totalKEScalar * boltz;
-        //tempComputer.tempScalar;
+        ke_current = tempComputer.totalKEScalar;
 
        // tempComputer.computeTensorFromScalar();
     } else if (pressMode == PRESSMODE::ANISO) {
@@ -453,7 +452,7 @@ void FixNoseHoover::calculateKineticEnergy()
 
         tempComputer.computeScalarFromTensor(); 
         ndf = tempComputer.ndf;
-        ke_current = tempComputer.totalKEScalar * boltz;
+        ke_current = tempComputer.totalKEScalar;
         //need this for temp biz
     }
 }
