@@ -22,14 +22,14 @@ const std::string chargeEwaldType = "ChargeEwald";
 //TODO template
 //order 1 nearest point
 __global__ void map_charge_to_grid_order_1_cu(int nAtoms, float4 *xs,  float *qs,  BoundsGPU bounds,
-                                      int3 sz,float *grid/*convert to float for cufffComplex*/) {
+                                      int3 sz,float *grid/*convert to float for cufffComplex*/,float  Qunit) {
 
     int idx = GETIDX();
     if (idx < nAtoms) {
         float4 posWhole = xs[idx];
         float3 pos = make_float3(posWhole)-bounds.lo;
 
-        float qi = qs[idx];
+        float qi = Qunit*qs[idx];
         
         //find nearest grid point
         float3 h=bounds.trace()/make_float3(sz);
@@ -54,14 +54,14 @@ inline __host__ __device__ float W_p_3(int i,float x){
 
 
 __global__ void map_charge_to_grid_order_3_cu(int nAtoms, float4 *xs,  float *qs,  BoundsGPU bounds,
-                                      int3 sz,float *grid/*convert to float for cufffComplex*/) {
+                                      int3 sz,float *grid/*convert to float for cufffComplex*/,float  Qunit) {
 
     int idx = GETIDX();
     if (idx < nAtoms) {
         float4 posWhole = xs[idx];
         float3 pos = make_float3(posWhole)-bounds.lo;
 
-        float qi = qs[idx];
+        float qi = Qunit*qs[idx];
         
         //find nearest grid point
         float3 h=bounds.trace()/make_float3(sz);
@@ -218,8 +218,7 @@ __global__ void E_field_cu(BoundsGPU bounds, int3 sz,float *Green_function, cuff
 __global__ void Ewald_long_range_forces_order_1_cu(int nAtoms, float4 *xs, float4 *fs, 
                                                    float *qs, BoundsGPU bounds,
                                                    int3 sz, cufftComplex *FFT_Ex,
-                                                    cufftComplex *FFT_Ey,cufftComplex *FFT_Ez,
-                                                    float conversion){
+                                                    cufftComplex *FFT_Ey,cufftComplex *FFT_Ez,float  Qunit){
     int idx = GETIDX();
     if (idx < nAtoms) {
         float4 posWhole = xs[idx];
@@ -246,7 +245,7 @@ __global__ void Ewald_long_range_forces_order_1_cu(int nAtoms, float4 *xs, float
         E.y= -FFT_Ey[p.x*sz.y*sz.z+p.y*sz.z+p.z].x/volume;
         E.z= -FFT_Ez[p.x*sz.y*sz.z+p.y*sz.z+p.z].x/volume;
         
-        float3 force=qi*E * conversion;
+        float3 force= Qunit*qi*E;
         fs[idx] += force;
     }
 }
@@ -255,8 +254,7 @@ __global__ void Ewald_long_range_forces_order_1_cu(int nAtoms, float4 *xs, float
 __global__ void Ewald_long_range_forces_order_3_cu(int nAtoms, float4 *xs, float4 *fs, 
                                                    float *qs, BoundsGPU bounds,
                                                    int3 sz, cufftComplex *FFT_Ex,
-                                                    cufftComplex *FFT_Ey,cufftComplex *FFT_Ez,
-                                                    float conversion){
+                                                    cufftComplex *FFT_Ey,cufftComplex *FFT_Ez,float  Qunit){
     int idx = GETIDX();
     if (idx < nAtoms) {
         float4 posWhole = xs[idx];
@@ -299,7 +297,7 @@ __global__ void Ewald_long_range_forces_order_3_cu(int nAtoms, float4 *xs, float
           }
         }
                
-        float3 force=qi*E*conversion;
+        float3 force= Qunit*qi*E;
         fs[idx] += force;
     }
 }
@@ -420,7 +418,7 @@ __global__ void sum_virials_cu(Virial *dest, Virial *src, int n, int warpSize){
 }
 
 template < bool COMPUTE_VIRIALS>
-__global__ void compute_short_range_forces_cu(int nAtoms, float4 *xs, float4 *fs, uint16_t *neighborCounts, uint *neighborlist, uint32_t *cumulSumMaxPerBlock, float *qs, float alpha, float rCut, BoundsGPU bounds, int warpSize, float onetwoStr, float onethreeStr, float onefourStr, Virial *__restrict__ virials, Virial *virialField, float volume) {
+__global__ void compute_short_range_forces_cu(int nAtoms, float4 *xs, float4 *fs, uint16_t *neighborCounts, uint *neighborlist, uint32_t *cumulSumMaxPerBlock, float *qs, float alpha, float rCut, BoundsGPU bounds, int warpSize, float onetwoStr, float onethreeStr, float onefourStr, Virial *__restrict__ virials, Virial *virialField, float volume,float  conversion) {
 
     float multipliers[4] = {1, onetwoStr, onethreeStr, onefourStr};
 
@@ -453,7 +451,7 @@ __global__ void compute_short_range_forces_cu(int nAtoms, float4 *xs, float4 *fs
 
                     float r2inv = 1.0f/lenSqr;
                     float rinv = 1.0f/len;                                   //1/Sqrt(Pi)
-                    float forceScalar = qi*qj*(erfcf((alpha*len))*rinv+(2.0*0.5641895835477563*alpha)*exp(-alpha*alpha*lenSqr))*r2inv* multiplier;
+                    float forceScalar = conversion*qi*qj*(erfcf((alpha*len))*rinv+(2.0*0.5641895835477563*alpha)*exp(-alpha*alpha*lenSqr))*r2inv* multiplier;
 
                     
                     float3 forceVec = dr * forceScalar;
@@ -479,7 +477,7 @@ __global__ void compute_short_range_forces_cu(int nAtoms, float4 *xs, float4 *fs
 
 }
 
-__global__ void compute_short_range_energies_cu(int nAtoms, float4 *xs, uint16_t *neighborCounts, uint *neighborlist, uint32_t *cumulSumMaxPerBlock, float *qs, float alpha, float rCut, BoundsGPU bounds, int warpSize, float onetwoStr, float onethreeStr, float onefourStr,float *perParticleEng, float field_energy_per_particle) {
+__global__ void compute_short_range_energies_cu(int nAtoms, float4 *xs, uint16_t *neighborCounts, uint *neighborlist, uint32_t *cumulSumMaxPerBlock, float *qs, float alpha, float rCut, BoundsGPU bounds, int warpSize, float onetwoStr, float onethreeStr, float onefourStr,float *perParticleEng, float field_energy_per_particle,float  conversion) {
 
     float multipliers[4] = {1, onetwoStr, onethreeStr, onefourStr};
     int idx = GETIDX();
@@ -510,7 +508,7 @@ __global__ void compute_short_range_energies_cu(int nAtoms, float4 *xs, uint16_t
 
 //                     float r2inv = 1.0f/lenSqr;
                     float rinv = 1.0f/len;                 
-                    float eng = 0.5*qi*qj*(erfcf((alpha*len))*rinv)*multiplier;
+                    float eng = conversion*0.5*qi*qj*(erfcf((alpha*len))*rinv)*multiplier;
                     
                     EngSum += eng;
    
@@ -588,6 +586,7 @@ void FixChargeEwald::setTotalQ2() {
     int nAtoms = state->atoms.size();    
     GPUArrayGlobal<float>tmp(1);
     tmp.memsetByVal(0.0);
+    float conversion = state->units.qqr_to_eng;
 
 
     accumulate_gpu<float,float, SumSqr, N_DATA_PER_THREAD> <<<NBLOCK(nAtoms/(double)N_DATA_PER_THREAD),PERBLOCK,N_DATA_PER_THREAD*sizeof(float)*PERBLOCK>>>
@@ -598,7 +597,7 @@ void FixChargeEwald::setTotalQ2() {
          state->devManager.prop.warpSize,
          SumSqr());
     tmp.dataToHost();   
-    total_Q2=tmp.h_data[0];
+    total_Q2=conversion*tmp.h_data[0];
 
     tmp.memsetByVal(0.0);
 
@@ -611,7 +610,7 @@ void FixChargeEwald::setTotalQ2() {
          SumSingle());
 
     tmp.dataToHost();   
-    total_Q=tmp.h_data[0];   
+    total_Q=sqrt(conversion)*tmp.h_data[0];   
     
     cout<<"total_Q "<<total_Q<<'\n';
     cout<<"total_Q2 "<<total_Q2<<'\n';
@@ -789,6 +788,7 @@ void FixChargeEwald::compute(bool computeVirials) {
     }
     
  
+    float Qconversion = sqrt(state->units.qqr_to_eng);
 
     //first update grid from atoms positions
     //set qs to 0
@@ -804,7 +804,8 @@ void FixChargeEwald::compute(bool computeVirials) {
                                               gpd.qs(activeIdx),
                                               state->boundsGPU,
                                               sz,
-                                              (float *)FFT_Qs);
+                                              (float *)FFT_Qs,
+                                              Qconversion);
               break;}
       case 3:{map_charge_to_grid_order_3_cu
               <<<NBLOCK(nAtoms), PERBLOCK>>>( nAtoms,
@@ -812,7 +813,8 @@ void FixChargeEwald::compute(bool computeVirials) {
                                               gpd.qs(activeIdx),
                                               state->boundsGPU,
                                               sz,
-                                              (float *)FFT_Qs);
+                                              (float *)FFT_Qs,
+                                              Qconversion);
               break;}
     }    
    // CUT_CHECK_ERROR("map_charge_to_grid_cu kernel execution failed");
@@ -901,7 +903,6 @@ void FixChargeEwald::compute(bool computeVirials) {
     
     //calc forces
     //printf("Forces!\n");
-    float conversion = state->units.qqr_to_eng;
     switch (interpolation_order){
       case 1:{Ewald_long_range_forces_order_1_cu<<<NBLOCK(nAtoms), PERBLOCK>>>( nAtoms,
                                               gpd.xs(activeIdx),                                                      
@@ -909,8 +910,7 @@ void FixChargeEwald::compute(bool computeVirials) {
                                               gpd.qs(activeIdx),
                                               state->boundsGPU,
                                               sz,
-                                              FFT_Ex,FFT_Ey,FFT_Ez,
-                                              conversion);
+                                              FFT_Ex,FFT_Ey,FFT_Ez,Qconversion);
               break;}
       case 3:{Ewald_long_range_forces_order_3_cu<<<NBLOCK(nAtoms), PERBLOCK>>>( nAtoms,
                                               gpd.xs(activeIdx),                                                      
@@ -918,8 +918,7 @@ void FixChargeEwald::compute(bool computeVirials) {
                                               gpd.qs(activeIdx),
                                               state->boundsGPU,
                                               sz,
-                                              FFT_Ex,FFT_Ey,FFT_Ez,
-                                              conversion);
+                                              FFT_Ex,FFT_Ey,FFT_Ez,Qconversion);
                break;}
     }
     CUT_CHECK_ERROR("Ewald_long_range_forces_cu  execution failed");
@@ -956,7 +955,7 @@ void FixChargeEwald::compute(bool computeVirials) {
                                                                                  r_cut,
                                                                                  state->boundsGPU,
                                                                                  state->devManager.prop.warpSize, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2],
-                                                                                 gpd.virials.d_data.data(), virialField.data(), volume);
+                                                                                 gpd.virials.d_data.data(), virialField.data(), volume,state->units.qqr_to_eng);
           }
     } else {
         if (not hasOffloadedChargePairCalc) {
@@ -971,7 +970,7 @@ void FixChargeEwald::compute(bool computeVirials) {
                                                                                 r_cut,
                                                                                 state->boundsGPU,
                                                                                 state->devManager.prop.warpSize, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2],
-                                                                                gpd.virials.d_data.data(), virialField.data(), 0);
+                                                                                gpd.virials.d_data.data(), virialField.data(), 0,state->units.qqr_to_eng);
         }
     }
     CUT_CHECK_ERROR("Ewald_short_range_forces_cu  execution failed");
@@ -994,6 +993,7 @@ void FixChargeEwald::singlePointEng(float * perParticleEng) {
     
     
      
+    float Qconversion = sqrt(state->units.qqr_to_eng);
 
 
     //first update grid from atoms positions
@@ -1010,7 +1010,7 @@ void FixChargeEwald::singlePointEng(float * perParticleEng) {
                                               gpd.qs(activeIdx),
                                               state->boundsGPU,
                                               sz,
-                                              (float *)FFT_Qs);
+                                              (float *)FFT_Qs,Qconversion);
               break;}
       case 3:{map_charge_to_grid_order_3_cu
               <<<NBLOCK(nAtoms), PERBLOCK>>>( nAtoms,
@@ -1018,7 +1018,7 @@ void FixChargeEwald::singlePointEng(float * perParticleEng) {
                                               gpd.qs(activeIdx),
                                               state->boundsGPU,
                                               sz,
-                                              (float *)FFT_Qs);
+                                              (float *)FFT_Qs,Qconversion);
               break;}
     }    
     CUT_CHECK_ERROR("map_charge_to_grid_cu kernel execution failed");
@@ -1060,7 +1060,6 @@ void FixChargeEwald::singlePointEng(float * perParticleEng) {
 //         cout<<"field_E "<<field_E.h_data[0]<<'\n';
 
     field_energy_per_particle-=alpha/sqrt(M_PI)*total_Q2/nAtoms;
-    field_energy_per_particle *= state->units.qqr_to_eng;
 //      cout<<"self correction "<<alpha/sqrt(M_PI)*total_Q2<<'\n';
 
     //pair energies
@@ -1077,7 +1076,7 @@ void FixChargeEwald::singlePointEng(float * perParticleEng) {
                                                   alpha,
                                                   r_cut,
                                                   state->boundsGPU,
-                                                  state->devManager.prop.warpSize, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2],perParticleEng,field_energy_per_particle);
+                                                  state->devManager.prop.warpSize, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2],perParticleEng,field_energy_per_particle,state->units.qqr_to_eng);
         CUT_CHECK_ERROR("Ewald_short_range_forces_cu  execution failed");
     } 
     
