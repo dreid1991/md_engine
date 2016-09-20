@@ -81,9 +81,7 @@ public:
         res.push_back(r_cut);
         return res;
     }    
-    ChargeEvaluatorEwald generateEvaluator() {
-        return ChargeEvaluatorEwald(alpha);
-    }
+    ChargeEvaluatorEwald generateEvaluator(); 
 };
 
 #endif

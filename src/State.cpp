@@ -56,6 +56,7 @@ State::State() {
     specialNeighborCoefs[1] = 0;
     specialNeighborCoefs[2] = 0.5;
     rng_is_seeded = false;
+    units.setLJ();//default units are lj
 
 
 }
@@ -726,6 +727,7 @@ BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(State_seedRNG_overloads,State::seedRNG,0,
                 .def_readwrite("shoutEvery", &State::shoutEvery)
                 .def_readwrite("verbose", &State::verbose)
                 .def_readonly("deviceManager", &State::devManager)
+                .def_readonly("units", &State::units)
                 //helper for reader funcs
                 .def("Vector", &generateVector)
 

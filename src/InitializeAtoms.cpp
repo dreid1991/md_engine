@@ -101,7 +101,7 @@ void InitializeAtoms::populateRand(SHARED(State) state, Bounds &bounds,
 
 void InitializeAtoms::initTemp(SHARED(State) state, string groupHandle,
                                double temp) {
-    //boltzmann const is 1 for reduced lj units
+    temp *= state->units.boltz / state->units.mvv_to_eng;
     std::mt19937 generator = state->getRNG();
     int groupTag = state->groupTagFromHandle(groupHandle);
 
