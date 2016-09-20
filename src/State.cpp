@@ -56,6 +56,7 @@ State::State() {
     specialNeighborCoefs[1] = 0;
     specialNeighborCoefs[2] = 0.5;
     rng_is_seeded = false;
+    units.setLJ();//default units are lj
 
 
 }

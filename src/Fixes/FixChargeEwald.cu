@@ -2,6 +2,7 @@
 
 #include "BoundsGPU.h"
 #include "cutils_func.h"
+#include "cutils_math.h"
 #include "GridGPU.h"
 #include "State.h"
 #include <cufft.h>
@@ -245,8 +246,8 @@ __global__ void Ewald_long_range_forces_order_1_cu(int nAtoms, float4 *xs, float
         E.y= -FFT_Ey[p.x*sz.y*sz.z+p.y*sz.z+p.z].x/volume;
         E.z= -FFT_Ez[p.x*sz.y*sz.z+p.y*sz.z+p.z].x/volume;
         
-        float3 force=qi*E;
-        fs[idx] += (force * conversion);
+        float3 force=qi*E * conversion;
+        fs[idx] += force;
     }
 }
 
@@ -298,8 +299,8 @@ __global__ void Ewald_long_range_forces_order_3_cu(int nAtoms, float4 *xs, float
           }
         }
                
-        float3 force=qi*E;
-        fs[idx] += conversion * force;
+        float3 force=qi*E*conversion;
+        fs[idx] += force;
     }
 }
 
@@ -1064,7 +1065,7 @@ void FixChargeEwald::singlePointEng(float * perParticleEng) {
 
     //pair energies
     if (hasOffloadedChargePairCalc) {
-        mapEngToParticlesr<<NBLOCK(nAtoms), PERBLOCK>>>(nAtoms, double(field_energy_per_particle) / nAtoms, perParticleEng) {
+        mapEngToParticles<<<NBLOCK(nAtoms), PERBLOCK>>>(nAtoms, double(field_energy_per_particle) / nAtoms, perParticleEng);
     } else {
         float *neighborCoefs = state->specialNeighborCoefs;
         compute_short_range_energies_cu<<<NBLOCK(nAtoms), PERBLOCK>>>( nAtoms,

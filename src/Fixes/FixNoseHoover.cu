@@ -172,7 +172,7 @@ bool FixNoseHoover::prepareForRun()
     updateMasses();
 
     // Update thermostat forces
-    double boltz = 1.0;
+    double boltz = state->units.boltz;
     double temp = tempInterpolator.getCurrentVal();
     thermForce.at(0) = (ke_current - ndf * boltz * temp) / thermMass.at(0);
     for (size_t k = 1; k < chainLength; ++k) {
@@ -244,6 +244,7 @@ void FixNoseHoover::thermostatIntegrate(double temp, double boltz, bool firstHal
             // Update particle velocities
             double scaleFactor = std::exp( -timestep2*thermVel.at(0) );
             scale *= scaleFactor;
+            printf("factor %f %f\n", scale.x, scaleFactor);
 
             ke_current *= scaleFactor*scaleFactor;
 
@@ -340,9 +341,7 @@ bool FixNoseHoover::halfStep(bool firstHalfStep)
         return false;
     }
 
-    //! \todo Until now, we assume Boltzmann-constant = 1.0. Consider allowing
-    //!       other units.
-    double boltz = 1.0;
+    double boltz = state->units.boltz;
 
     // Update the desired temperature
     double temp;
@@ -419,7 +418,7 @@ void FixNoseHoover::setPressCurrent() {
 }
 void FixNoseHoover::updateMasses()
 {
-    double boltz = 1.0;
+    double boltz = state->units.boltz;
     double temp = tempInterpolator.getCurrentVal();
     thermMass.at(0) = ndf * boltz * temp / (frequency*frequency);
     for (size_t i = 1; i < chainLength; ++i) {
@@ -430,18 +429,20 @@ void FixNoseHoover::updateMasses()
 
 void FixNoseHoover::calculateKineticEnergy()
 {
+    float boltz = state->units.boltz;
     if (not barostatting) {
         tempComputer.computeScalar_GPU(true, groupTag);
         cudaDeviceSynchronize();
         tempComputer.computeScalar_CPU();
         ndf = tempComputer.ndf;
-        ke_current = tempComputer.totalKEScalar;
+        printf("units boltz %f\n", boltz);
+        ke_current = tempComputer.totalKEScalar * boltz;
     } else if (pressMode == PRESSMODE::ISO) {
         tempComputer.computeScalar_GPU(true, groupTag);
         cudaDeviceSynchronize();
         tempComputer.computeScalar_CPU();
         ndf = tempComputer.ndf;
-        ke_current = tempComputer.totalKEScalar;
+        ke_current = tempComputer.totalKEScalar * boltz;
         //tempComputer.tempScalar;
 
        // tempComputer.computeTensorFromScalar();
@@ -452,7 +453,7 @@ void FixNoseHoover::calculateKineticEnergy()
 
         tempComputer.computeScalarFromTensor(); 
         ndf = tempComputer.ndf;
-        ke_current = tempComputer.totalKEScalar;
+        ke_current = tempComputer.totalKEScalar * boltz;
         //need this for temp biz
     }
 }

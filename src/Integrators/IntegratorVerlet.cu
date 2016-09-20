@@ -10,7 +10,7 @@ using namespace MD_ENGINE;
 
 namespace py = boost::python;
 
-__global__ void nve_v_cu(int nAtoms, float4 *vs, float4 *fs, float dt) {
+__global__ void nve_v_cu(int nAtoms, float4 *vs, float4 *fs, float dtf) {
     int idx = GETIDX();
     if (idx < nAtoms) {
         // Update velocity by a half timestep
@@ -19,7 +19,7 @@ __global__ void nve_v_cu(int nAtoms, float4 *vs, float4 *fs, float dt) {
 
         float4 force = fs[idx];
 
-        float3 dv = 0.5f * dt * invmass * make_float3(force);
+        float3 dv = dtf * invmass * make_float3(force);
         vel += dv;
         vs[idx] = vel;
         fs[idx] = make_float4(0.0f, 0.0f, 0.0f, force.w);
@@ -42,7 +42,7 @@ __global__ void nve_x_cu(int nAtoms, float4 *xs, float4 *vs, float dt) {
 }
 //so preForce_cu is split into two steps (nve_v, nve_x) if any of the fixes (barostat, for example), need to throw a step in there (as determined by requiresPostNVE_V flag)
 __global__ void preForce_cu(int nAtoms, float4 *xs, float4 *vs, float4 *fs,
-                            float dt)
+                            float dt, float dtf)
 {
     int idx = GETIDX();
     if (idx < nAtoms) {
@@ -52,7 +52,7 @@ __global__ void preForce_cu(int nAtoms, float4 *xs, float4 *vs, float4 *fs,
 
         float4 force = fs[idx];
 
-        float3 dv = 0.5f * dt * invmass * make_float3(force);
+        float3 dv = dtf * invmass * make_float3(force);
         vel += dv;
         vs[idx] = vel;
 
@@ -69,7 +69,7 @@ __global__ void preForce_cu(int nAtoms, float4 *xs, float4 *vs, float4 *fs,
     }
 }
 
-__global__ void postForce_cu(int nAtoms, float4 *vs, float4 *fs, float dt)
+__global__ void postForce_cu(int nAtoms, float4 *vs, float4 *fs, float dtf)
 {
     int idx = GETIDX();
     if (idx < nAtoms) {
@@ -79,7 +79,7 @@ __global__ void postForce_cu(int nAtoms, float4 *vs, float4 *fs, float dt)
 
         float4 force = fs[idx];
 
-        float3 dv = 0.5f * dt * invmass * make_float3(force);
+        float3 dv = dtf * invmass * make_float3(force);
         vel += dv;
         vs[idx] = vel;
     }
@@ -100,6 +100,7 @@ void IntegratorVerlet::run(int numTurns)
 
     auto start = std::chrono::high_resolution_clock::now();
     DataManager &dataManager = state->dataManager;
+    dtf = 0.5 * state->dt * state->units.ftm_to_v;
     for (int i=0; i<numTurns; ++i) {
         if (state->turn % periodicInterval == 0) {
             state->gridGPU.periodicBoundaryConditions();
@@ -155,7 +156,7 @@ void IntegratorVerlet::nve_v() {
             state->atoms.size(),
             state->gpd.vs.getDevData(),
             state->gpd.fs.getDevData(),
-            state->dt);
+            dtf);
 }
 
 void IntegratorVerlet::nve_x() {
@@ -174,7 +175,8 @@ void IntegratorVerlet::preForce()
             state->gpd.xs.getDevData(),
             state->gpd.vs.getDevData(),
             state->gpd.fs.getDevData(),
-            state->dt);
+            state->dt,
+            dtf);
 }
 
 void IntegratorVerlet::postForce()
@@ -184,7 +186,7 @@ void IntegratorVerlet::postForce()
             state->atoms.size(),
             state->gpd.vs.getDevData(),
             state->gpd.fs.getDevData(),
-            state->dt);
+            dtf);
 }
 
 void export_IntegratorVerlet()

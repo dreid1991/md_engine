@@ -76,6 +76,7 @@ void DataComputerPressure::computeScalar_CPU() {
     double volume = state->boundsGPU.volume();
     //printf("dof %f temp %f\n", ndf_loc, tempScalar_loc);
     pressureScalar = (tempScalar_loc * ndf_loc + sumVirial) / (dim * volume) * state->units.nktv_to_press;
+    printf("heyo, scalar %f conv %f\n", pressureScalar, state->units.nktv_to_press);
 }
 
 void DataComputerPressure::computeTensor_CPU() {

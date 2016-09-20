@@ -101,7 +101,7 @@ void InitializeAtoms::populateRand(SHARED(State) state, Bounds &bounds,
 
 void InitializeAtoms::initTemp(SHARED(State) state, string groupHandle,
                                double temp) {
-    temp *= state->units.boltz / state->units.mmv_to_eng;
+    temp *= state->units.boltz / state->units.mvv_to_eng;
     std::mt19937 generator = state->getRNG();
     int groupTag = state->groupTagFromHandle(groupHandle);
 
