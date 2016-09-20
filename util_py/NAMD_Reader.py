@@ -38,7 +38,7 @@ class NAMD_Bonded_Forcer:
 
 
 class NAMD_Reader:
-    def __init__(self, state=None, nonbondFix=None, bondFix=None, angleFix=None, dihedralFix=None, improperFix=None, unitLen = 0, unitEng = 0, unitMass = 0, atomTypePrefix = '', setBounds=True):
+    def __init__(self, state=None, nonbondFix=None, bondFix=None, angleFix=None, dihedralFix=None, improperFix=None, atomTypePrefix = '', setBounds=True):
         assert(state != None)
         self.state = state
         self.nonbondFix = nonbondFix
@@ -46,10 +46,6 @@ class NAMD_Reader:
         self.angleFix = angleFix
         self.dihedralFix = dihedralFix
         self.improperFix = improperFix
-        assert(unitLen != 0 and unitEng != 0 and unitMass != 0)
-        self.unitLen = unitLen
-        self.unitEng = unitEng
-        self.unitMass = unitMass
         self.myAtomTypeIds = []
         self.myAtomHandles = []
         self.atomTypePrefix = atomTypePrefix
@@ -124,9 +120,9 @@ class NAMD_Reader:
         for i in range(1, nAtoms+1):
 #deposit.rcsb.org/adit/docs/pdb_atom_format.html
             line = self.coordinateFileLines[i]
-            self.state.atoms[i-1].pos[0] = float(line[31:39]) / self.unitLen
-            self.state.atoms[i-1].pos[1] = float(line[39:47]) / self.unitLen
-            self.state.atoms[i-1].pos[2] = float(line[47:55]) / self.unitLen
+            self.state.atoms[i-1].pos[0] = float(line[31:39])
+            self.state.atoms[i-1].pos[1] = float(line[39:47])
+            self.state.atoms[i-1].pos[2] = float(line[47:55])
 
     def readInMultiAtom(self, tag, forcerTypes, nAtomsPerForcer, createMember):
         nItems = 0
@@ -181,12 +177,8 @@ class NAMD_Reader:
                 handle = self.atomTypePrefix + bits[0]
                 epsInput = float(bits[2])
                 rMinInput = float(bits[3])
-                eps = -epsInput / self.unitEng
-<<<<<<< HEAD
-                sigma = 2*(rMinInput) / (pow(2.0, 1.0 / 6.0) * self.unitLen)#IS THE X2 CORRECT?  ASK AMIN
-=======
-                sigma = (rMinInput) / (pow(2.0, 1.0 / 6.0) * self.unitLen)#IS THE X2 CORRECT?  ASK AMIN
->>>>>>> cb01712e7ecd665b9dbc5b81e599e7ee02c37f1b
+                eps = -epsInput
+                sigma = 2*(rMinInput) / pow(2.0, 1.0 / 6.0) #IS THE X2 CORRECT?  ASK AMIN
                 print sigma
                # sigma = (rMinInput) / pow(2.0, 1.0 / 6.0)#IS THE X2 CORRECT?  ASK AMIN
                 self.nonbondFix.setParameter('sig', handle, handle, sigma)
@@ -206,8 +198,8 @@ class NAMD_Reader:
             if len(bits):
                 atomTypes = [self.atomTypePrefix + b for b in bits[:2]]
 
-                k = self.unitLen * self.unitLen * 2 * float(bits[2]) / self.unitEng
-                r0 = float(bits[3]) / self.unitLen
+                k = 2 * float(bits[2])
+                r0 = float(bits[3])
                 type = len(self.bondTypes)
                 self.bondFix.setBondTypeCoefs(type, k, r0)
                 self.bondTypes.append(NAMD_Bonded_Forcer(type, atomTypes))
@@ -224,7 +216,7 @@ class NAMD_Reader:
             bits = self.stripComments(self.parameterFileLines[i]).split()
             if len(bits):
                 atomTypes = [self.atomTypePrefix + b for b in bits[:3]]
-                k = float(bits[3]) * 2 / self.unitEng #2 because LAMMPS includes the 1/2 in its k
+                k = float(bits[3]) * 2 #2 because LAMMPS includes the 1/2 in its k
 
                 theta0 = float(bits[4]) * DEGREES_TO_RADIANS
                 type = len(self.angleTypes)
@@ -244,7 +236,7 @@ class NAMD_Reader:
             bits = self.stripComments(self.parameterFileLines[i]).split()
             if len(bits):
                 atomTypes = [self.atomTypePrefix + b for b in bits[:4]]
-                k = float(bits[4]) / self.unitEng #2 because LAMMPS includes the 1/2 in its k
+                k = float(bits[4]) #2 because LAMMPS includes the 1/2 in its k
 
                 n = int(bits[5])
                 d = float(bits[6]) * DEGREES_TO_RADIANS
