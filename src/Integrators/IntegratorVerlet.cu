@@ -123,13 +123,14 @@ void IntegratorVerlet::run(int numTurns)
 
         // Recalculate forces
         force(computeVirialsInForce);
-        asyncOperations();
-        doDataComputation();
 
         // Perform second half of velocity-Verlet step
         postForce();
 
         stepFinal();
+
+        asyncOperations();
+        doDataComputation();
         doDataAppending();
         dataManager.clearVirialTurn(state->turn);
 
