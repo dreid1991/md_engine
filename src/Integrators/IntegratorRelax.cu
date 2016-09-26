@@ -64,7 +64,7 @@ __global__ void zero_vel_cu(int nAtoms, float4 *vs) {
 }
 
 //MD step
-__global__ void FIRE_preForce_cu(int nAtoms, float4 *xs, float4 *vs, float4 *fs, float dt) {
+__global__ void FIRE_preForce_cu(int nAtoms, float4 *xs, float4 *vs, float4 *fs, float dt, float dtf) {
     int idx = GETIDX();
     if (idx < nAtoms) {
 
@@ -75,7 +75,7 @@ __global__ void FIRE_preForce_cu(int nAtoms, float4 *xs, float4 *vs, float4 *fs,
         float invmass = vel.w;
         float groupTag = force.w;
         xs[idx] = xs[idx] + make_float3(vel) * dt;
-        float3 newVel = make_float3(force) * dt * invmass;
+        float3 newVel = make_float3(force) * dtf * invmass;
         vs[idx] = vel + newVel;
         fs[idx] = make_float4(0, 0, 0, groupTag);
     }
@@ -218,7 +218,7 @@ double IntegratorRelax::run(int numTurns, double fTol) {
                             state->gpd.xs.getDevData(),
                             state->gpd.vs.getDevData(),
                             state->gpd.fs.getDevData(),
-                            dt);
+                            dt, dt*state->units.ftm_to_v);
         CUT_CHECK_ERROR("FIRE_preForce_cu kernel execution failed");
 
         Integrator::forceSingle(computeVirialsInForce);

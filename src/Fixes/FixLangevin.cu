@@ -121,5 +121,8 @@ void export_FixLangevin() {
             py::args("state", "handle", "groupHandle", "temp")
                 )
             )
+    .def("setParameters", &FixLangevin::setParams, 
+         (py::arg("seed") = INVALID_VAL, py::arg("gamma")=INVALID_VAL)
+        )
     ;
 }
