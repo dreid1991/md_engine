@@ -131,6 +131,7 @@ void IntegratorVerlet::run(int numTurns)
 
         asyncOperations();
         doDataComputation();
+        //HEY - MAKE DATA APPENDING HAPPEN WHILE SOMETHING IS GOING ON THE GPU.  
         doDataAppending();
         dataManager.clearVirialTurn(state->turn);
 

@@ -185,6 +185,7 @@ double IntegratorRelax::run(int numTurns, double fTol) {
 
             float scale1 = 1 - alpha;
             float scale2 = 0;
+            cudaDeviceSynchronize();
             if (FDotF.h_data[0] != 0) {
                 scale2 = alpha * sqrt(VDotV.h_data[0] / FDotF.h_data[0]);
             }
@@ -244,8 +245,9 @@ double IntegratorRelax::run(int numTurns, double fTol) {
 
             force.dataToHost();
             //std::cout<<"Fire relax: force="<<force<<"; turns="<<i<<'\n';
+            cudaDeviceSynchronize();
 
-            if (force.h_data[0] / (atomssize * atomssize) < fTol*fTol) {//tolerance achived, exting
+            if (force.h_data[0] < fTol*fTol) {//tolerance achived, exting
                 basicFinish();
                 float finalForce = sqrt(force.h_data[0]);
                 std::cout<<"FIRE relax done: force="<< finalForce <<"; turns="<<i+1<<'\n';
@@ -283,7 +285,7 @@ double IntegratorRelax::run(int numTurns, double fTol) {
     CUT_CHECK_ERROR("kernel execution failed"); //Debug feature, check error code
 
     basicFinish();
-
+    cudaDeviceSynchronize();
     float finalForce = sqrt(force.h_data[0]) / atomssize;
     std::cout << "FIRE relax done: force=" << finalForce 
               << "; turns=" << numTurns << std::endl;
