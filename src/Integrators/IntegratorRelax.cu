@@ -10,7 +10,7 @@ IntegratorRelax::IntegratorRelax(SHARED(State) state_)
     //FIRE parameters
     alphaInit = 0.1;
     alphaShrink = 0.99;
-    dtGrow = 1.1;
+    dtGrow = 1.01;
     dtShrink = 0.5;
     delay = 5;
     dtMax_mult = 10;
@@ -152,14 +152,6 @@ double IntegratorRelax::run(int numTurns, double fTol) {
                  SumVectorSqr3D()
                 );
 
-
-            /*
-            sumVectorSqr3D<float,float4, N_DATA_PER_THREAD> <<<NBLOCK(atomssize/(double)N_DATA_PER_THREAD),PERBLOCK,N_DATA_PER_THREAD*sizeof(float)*PERBLOCK>>>(
-                                            VDotV.getDevData(),
-                                            state->gpd.vs.getDevData(),
-                                            atomssize,
-                                            warpSize);
-                                            */
             CUT_CHECK_ERROR("vdotV_cu kernel execution failed");
             VDotV.dataToHost();
 
@@ -173,19 +165,23 @@ double IntegratorRelax::run(int numTurns, double fTol) {
                  SumVectorSqr3D()
                 );
 
-            /*
-            sumVectorSqr3D<float,float4, N_DATA_PER_THREAD> <<<NBLOCK(atomssize/(double)N_DATA_PER_THREAD),PERBLOCK,N_DATA_PER_THREAD*sizeof(float)*PERBLOCK>>>(
-                                            FDotF.getDevData(),
-                                            state->gpd.fs.getDevData(),
-                                            atomssize,
-                                            warpSize);
-                                            */
+
             CUT_CHECK_ERROR("fdotF_cu kernel execution failed");
             FDotF.dataToHost();
 
             float scale1 = 1 - alpha;
             float scale2 = 0;
+            //state->gpd.fs.dataToHost();
             cudaDeviceSynchronize();
+            /*
+            double ss = 0;
+            for (float4 x : state->gpd.fs.h_data) {
+                float3 v = make_float3(x);
+                ss += lengthSqr(v);
+            }
+            printf("cpu %f gpu %f\n", ss, FDotF.h_data[0]);
+            */
+
             if (FDotF.h_data[0] != 0) {
                 scale2 = alpha * sqrt(VDotV.h_data[0] / FDotF.h_data[0]);
             }
@@ -198,6 +194,7 @@ double IntegratorRelax::run(int numTurns, double fTol) {
                                 scale1,scale2);
             //check number of steps since negative 
             if (i - lastNegative > delay) {
+                printf("Growing dt\n");
                 dt = fmin(dt*dtGrow, dtMax);
                 alpha *= alphaShrink;
 
@@ -207,7 +204,6 @@ double IntegratorRelax::run(int numTurns, double fTol) {
             dt *= dtShrink;
             alpha = alphaInit;
             //set velocity to 0
-            //state->gpd.vs.memsetByVal(make_float3(0.0f,0.0f,0.0f);
             zero_vel_cu <<<nblock, PERBLOCK>>>(atomssize, state->gpd.vs.getDevData());
             CUT_CHECK_ERROR("zero_vel_cu kernel execution failed");
 
@@ -234,19 +230,13 @@ double IntegratorRelax::run(int numTurns, double fTol) {
                  warpSize,
                  SumVectorSqr3D()
                 );
-            /*
-            sumVectorSqr3D<float,float4, N_DATA_PER_THREAD> <<<NBLOCK(atomssize/(double)N_DATA_PER_THREAD),PERBLOCK,N_DATA_PER_THREAD*sizeof(float)*PERBLOCK>>>(
-                                        force.getDevData(),
-                                        state->gpd.fs.getDevData(),
-                                        atomssize,
-                                        warpSize);
-                                        */
+
             CUT_CHECK_ERROR("kernel execution failed");//Debug feature, check error code
 
             force.dataToHost();
             //std::cout<<"Fire relax: force="<<force<<"; turns="<<i<<'\n';
             cudaDeviceSynchronize();
-
+            printf("fDotFSum %f \n", force.h_data[0]);
             if (force.h_data[0] < fTol*fTol) {//tolerance achived, exting
                 basicFinish();
                 float finalForce = sqrt(force.h_data[0]);
