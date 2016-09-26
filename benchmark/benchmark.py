@@ -27,8 +27,8 @@ for i in range(len(f)):
 InitializeAtoms.initTemp(state, 'all', 1.2)
 
 #fixNVT = FixLangevin(state, 'temp', 'all', 1.2)
-#fixNVT = FixNoseHoover(state, 'temp', 'all', 1.2, 0.1)
-fixNVT = FixNVTRescale(state, 'temp', 'all', 1.2)
+fixNVT = FixNoseHoover(state, 'temp', 'all', 1.2, 0.1)
+#fixNVT = FixNVTRescale(state, 'temp', 'all', 1.2)
 
 state.activateFix(fixNVT)
 
