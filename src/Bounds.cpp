@@ -38,14 +38,17 @@ BoundsGPU Bounds::makeGPU() {
     return BoundsGPU(lo.asFloat3(), rectComponents.asFloat3(), make_float3((int) periodic[0], (int) periodic[1], (int) periodic[2]));
 }
 
-bool Bounds::atomInBounds(Atom &a) {
+bool Bounds::vectorInBounds(Vector &v) {
     Vector hi = lo + rectComponents;
     for (int i=0; i<3; i++) {
-        if (not (a.pos[i] >= lo[i] and a.pos[i] <= hi[i])) {
+        if (not (v[i] >= lo[i] and v[i] <= hi[i])) {
             return false;
         }
     }
     return true;
+}
+bool Bounds::atomInBounds(Atom &a) {
+    return vectorInBounds(a.pos);
 }
 
 double Bounds::volume() {
@@ -123,6 +126,8 @@ void export_Bounds() {
             boost::python::args("state", "lo", "hi")
         )
     )
+    .def("vectorInBounds", &Bounds::vectorInBounds)
+    .def("atomInBounds", &Bounds::atomInBounds)
     .def("copy", &Bounds::copy)
     .def("set", &Bounds::setPython)
     .def("minImage", &Bounds::minImage)

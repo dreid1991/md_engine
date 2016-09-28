@@ -186,7 +186,7 @@ void State::createMolecule(std::vector<int> &ids) {
     molecules.append(Molecule(this, ids));
 }
 
-void State::createMoleculePy(py::list idsPy) {
+py::object State::createMoleculePy(py::list idsPy) {
     int len = py::len(idsPy);
     std::vector<int> ids(len);
     for (int i=0; i<len; i++) {
@@ -198,11 +198,12 @@ void State::createMoleculePy(py::list idsPy) {
         ids[i] = id;
     }
     createMolecule(ids);
+    return molecules[py::len(molecules)-1];
 }
 
 
 
-void State::duplicateMolecule(Molecule &molec) {
+py::object State::duplicateMolecule(Molecule &molec) {
     std::map<int, int> oldToNew;
     std::vector<int> newIds;
     for (int id : molec.ids) {
@@ -217,6 +218,7 @@ void State::duplicateMolecule(Molecule &molec) {
         fix->duplicateMolecule(oldToNew);
     }
     createMolecule(newIds);
+    return molecules[py::len(molecules)-1];
 
 
 }

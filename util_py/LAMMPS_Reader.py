@@ -93,13 +93,14 @@ class LAMMPS_Reader:
 
     def readBounds(self):
         #reBase = '^\s+[\-\.\d]+\s+[\-\.\d]\s+%s\s+%s\s$'
-        reBase = '^\s*[\-\.\d\e]+[\s]+[\-\.\d\e]+[\s]+%s[\s]+%s'
+        reBase = '^\s*[\-\.\d\e\+]+[\s]+[\-\.\d\e\+]+[\s]+%s[\s]+%s'
         bits = [('xlo', 'xhi'), ('ylo', 'yhi'), ('zlo', 'zhi')]
         lo = self.state.Vector()
         hi = self.state.Vector()
         for i, bit in enumerate(bits):
             dimRe = re.compile(reBase % bit)
             lines = self.scanFilesForOccurance(dimRe, [self.dataFileLines])
+            print lines
             assert(len(lines) == 1)
             lineSplit = lines[0]
             lo[i] = float(lineSplit[0])
@@ -126,7 +127,6 @@ class LAMMPS_Reader:
             pos[0] = float(atomLine[atomBitIdx])
             pos[1] = float(atomLine[atomBitIdx+1])
             pos[2] = float(atomLine[atomBitIdx+2])
-            print pos
             atomType = -1
             charge = 0
             if areCharges:

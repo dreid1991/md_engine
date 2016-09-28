@@ -309,9 +309,9 @@ public:
     bool removeAtom(Atom *a);
 
     void createMolecule(std::vector<int> &ids);
-    void createMoleculePy(boost::python::list ids);
+    boost::python::object createMoleculePy(boost::python::list ids);
 
-    void duplicateMolecule(Molecule &);
+    boost::python::object duplicateMolecule(Molecule &);
     Atom &duplicateAtom(Atom);
     void refreshIdToIdx();
     
