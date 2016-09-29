@@ -24,5 +24,6 @@
 #include "FixChargeEwald.h"
 #include "FixWCA.h"
 #include "FixPressureBerendsen.h"
+#include "FixLinearMomentum.h"
 
 #endif

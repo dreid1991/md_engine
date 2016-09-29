@@ -1231,8 +1231,9 @@ inline __host__ __device__ float lengthSqrOverW(float4 v)
 }
 inline __host__ __device__ float4 xyzOverW(float4 v) 
 {
-    float3 v3 = make_float3(v);
-    return make_float4(v3 / v.w);
+    float invW = 1.0f / v.w;
+    float3 v3 = make_float3(v) * invW;
+    return make_float4(v3.x, v3.y, v3.z, invW);
 }
 inline __host__ __device__ float Sqr(float v)
 {

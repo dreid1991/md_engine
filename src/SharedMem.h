@@ -187,4 +187,13 @@ struct SharedMemory <Virial>
     }
 };
 
+template <>
+struct SharedMemory <float4>
+{
+    __device__ float4 *getPointer()
+    {
+        extern __shared__ float4 s_float4[];
+        return s_float4;
+    }
+};
 #endif //_SHAREDMEM_H_

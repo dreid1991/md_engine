@@ -166,6 +166,8 @@ class FixPotentialMultiAtom : public Fix, public TypedItemHolder {
                 }
                 if (deleteForcer) {
                     forcers.erase(forcers.begin()+i, forcers.begin()+i+1);
+                    pyListInterface.removeMember(i);
+                    pyListInterface.requestRefreshPyList();
                 }
             }
         }

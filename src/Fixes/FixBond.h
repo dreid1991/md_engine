@@ -205,6 +205,8 @@ class FixBond : public Fix, public TypedItemHolder {
                 }
                 if (deleteForcer) {
                     bonds.erase(bonds.begin()+i, bonds.begin()+i+1);
+                    pyListInterface.removeMember(i);
+                    pyListInterface.requestRefreshPyList();
                 }
             }
         }
