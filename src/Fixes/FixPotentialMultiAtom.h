@@ -153,6 +153,22 @@ class FixPotentialMultiAtom : public Fix, public TypedItemHolder {
             }
 
         }
+        void deleteAtom(Atom *a) {
+            int deleteId = a->id;
+            for (int i=forcers.size()-1; i>=0; i--) {
+                CPUMember &forcer= boost::get<CPUMember>(forcers[i]);
+                bool deleteForcer = false;
+                for (int id : forcer.ids) {
+                    if (id == deleteId) {
+                        deleteForcer = true;
+                        break;
+                    }
+                }
+                if (deleteForcer) {
+                    forcers.erase(forcers.begin()+i, forcers.begin()+i+1);
+                }
+            }
+        }
 };
 
 #endif

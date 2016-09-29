@@ -42,7 +42,6 @@ void InitializeAtoms::populateOnGrid(SHARED(State) state, Bounds &bounds,
             }
         }
     }
-    state->changedAtoms = true;
 }
 
 void InitializeAtoms::populateRand(SHARED(State) state, Bounds &bounds,
@@ -96,7 +95,6 @@ void InitializeAtoms::populateRand(SHARED(State) state, Bounds &bounds,
             a.pos[2]=0;
         }
     }
-    state->changedAtoms = true;
 }
 
 void InitializeAtoms::initTemp(SHARED(State) state, string groupHandle,

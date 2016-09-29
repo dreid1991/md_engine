@@ -17,7 +17,7 @@ void export_Fix();
 /*!
  * Fixes modify the dynamics in the system. They are called by the Integrator
  * at regular intervals and they can modify the Atom forces, positions and
- * velocities. Note that as Fixes themselves depend on the current forces,
+ * velocities. Note that as some Fixes depend on the current forces,
  * positions and velocities, the order in which the Fixes are defined and
  * called is important.
  *
@@ -161,6 +161,7 @@ public:
      */
     virtual void duplicateMolecule(std::map<int, int> &oldToNew) {};
 
+    virtual void deleteAtom(Atom *a) {};
     //! Write restart data
     /*!
      * \param format Format for restart data

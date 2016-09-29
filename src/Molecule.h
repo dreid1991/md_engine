@@ -17,6 +17,9 @@ public:
     void translate(Vector &);
     void rotate(Vector &around, Vector &axis, double theta);
     Vector COM();
+    bool operator==(const Molecule &other) {
+        return ids == other.ids;
+    }
 };
 
 
