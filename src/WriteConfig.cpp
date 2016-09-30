@@ -1,6 +1,7 @@
+#define __STDC_FORMAT_MACROS 1
+#include <inttypes.h>
 #include "WriteConfig.h"
 #include "includeFixes.h"
-#include <inttypes.h>
 
 #define BUFFERLEN 700
 

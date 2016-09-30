@@ -81,7 +81,7 @@ bool FixLJCutFS::prepareForRun() {
         return a*a;
     };
     
-    auto fillFCut = [this] (int a, int b) {
+	std::function<float(int, int)>fillFCut = [this] (int a, int b) {
         int numTypes = state->atomParams.numTypes;
         float epstimes24=24*squareVectorRef<float>(paramMap[epsHandle]->data(),numTypes,a,b);
         float rCutSqr = pow(squareVectorRef<float>(paramMap[rCutHandle]->data(),numTypes,a,b),2);

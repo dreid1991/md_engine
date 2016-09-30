@@ -27,3 +27,4 @@ Makefile
 benchmark/*nvprof
 examples/readLammpsInput/chlorobenzene
 examples/readLammpsInput/chlorobenzene_small
+CMakeLists.txt
