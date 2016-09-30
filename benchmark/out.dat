@@ -1,4 +1,0 @@
-Traceback (most recent call last):
-  File "benchmark.py", line 5, in <module>
-    from Sim import *
-ImportError: /home/danielreid/md_engine/core/build/src/libSim.so: undefined symbol: _ZTI14GPUArrayDevice
