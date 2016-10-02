@@ -84,8 +84,6 @@ void DataComputerPressure::computeScalar_CPU() {
     double sumVirial = pressureGPUScalar.h_data[0];
     double dim = state->is2d ? 2 : 3;
     double volume = state->boundsGPU.volume();
-    printf("dof %f temp %f\n", ndf_loc, tempScalar_loc);
-    printf("sumVirial %f\n", sumVirial);
     pressureScalar = (tempScalar_loc * ndf_loc * boltz + sumVirial) / (dim * volume) * state->units.nktv_to_press;
     //printf("heyo, scalar %f conv %f\n", pressureScalar, state->units.nktv_to_press);
 }

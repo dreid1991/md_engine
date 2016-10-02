@@ -18,12 +18,10 @@ class ChargeEvaluatorEwald {
             float forceScalar = qqr_to_eng * qi*qj*(erfcf((alpha*len))*rinv+(2.0f*0.5641895835477563f*alpha)*exp(-alpha*alpha*lenSqr));
             if (multiplier < 1.0f) {
                 float correctionVal = qqr_to_eng * qi * qj * rinv;
-                printf("correction VAL IS %f\n", correctionVal);
                 forceScalar -= (1.0f - multiplier) * correctionVal;
             }
 
             forceScalar *= r2inv;
-            printf("EVALUATOR force scalar in eval is %f\n", forceScalar);
             return dr * forceScalar;
         }
         inline __device__ float energy(float lenSqr, float qi, float qj, float multiplier) {
@@ -32,12 +30,11 @@ class ChargeEvaluatorEwald {
             }
             float len=sqrtf(lenSqr);
             float rinv = 1.0f/len;                 
-            float prefactor = qqr_to_eng * qi*qj*(erfcf((alpha*len))*rinv);
-            float eng = multiplier * prefactor;
+            float prefactor = qqr_to_eng * qi * qj * rinv;
+            float eng = prefactor * erfcf(alpha*len);
             if (multiplier < 1.0f) {
-                eng -= 2.0f * (1.0f - multiplier) * prefactor;//gets multiplied by 0.5 further down, and need total coef on this to be 1
+                eng -= (1 - multiplier) * prefactor;
             }
-            printf("ENG EVAL prefactor %f, mult %f, final %f\n", prefactor, multiplier, eng);
             return 0.5f * eng;
 
         }

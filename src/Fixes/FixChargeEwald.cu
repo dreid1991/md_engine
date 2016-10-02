@@ -654,8 +654,6 @@ void FixChargeEwald::find_optimal_parameters(bool printError){
     if (n_iter==max_iter) cout<<"Ewald RMS Root finder failed, max_iter "<<max_iter<<" reached\n";
     alpha=x_b;
     //alpha = 1.0;
-    cout << "HARDCODED ALPHA" << endl;
-    alpha = 0.342239;
     if (printError) {
         cout<<"Ewald alpha="<<alpha<<'\n';
         cout<<"Ewald RMS error is  "<<DeltaF_k(alpha)+DeltaF_real(alpha)<<'\n';
@@ -948,7 +946,6 @@ void FixChargeEwald::compute(bool computeVirials) {
           } 
           if (hasOffloadedChargePairCalc) {
               if (calcLongRange) {
-                  printf("WOULD LIKE TO MAP\n");
                   mapVirialToSingleAtom<<<1, 6>>>(gpd.virials.d_data.data(), virialField.data(), volume);
               }
           } else {
@@ -1070,14 +1067,12 @@ void FixChargeEwald::singlePointEng(float * perParticleEng) {
     //         cout<<"field_E "<<field_E.h_data[0]<<'\n';
 
         field_energy_per_particle-=alpha/sqrt(M_PI)*total_Q2/nAtoms;
-        printf("FIELD ENG IS %f\n", field_energy_per_particle);
 //      cout<<"self correction "<<alpha/sqrt(M_PI)*total_Q2<<'\n';
     }
 
     //pair energies
     if (hasOffloadedChargePairCalc) {
         if (calcLongRange) {
-            printf("MAPPING!\n");
             mapEngToParticles<<<NBLOCK(nAtoms), PERBLOCK>>>(nAtoms, field_energy_per_particle, perParticleEng);
         }
     } else {
