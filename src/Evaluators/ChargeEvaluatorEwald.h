@@ -13,6 +13,7 @@ class ChargeEvaluatorEwald {
             float rinv = sqrtf(r2inv);
             float len = sqrtf(lenSqr);
             float forceScalar = qqr_to_eng * qi*qj*(erfcf((alpha*len))*rinv+(2.0f*0.5641895835477563f*alpha)*exp(-alpha*alpha*lenSqr))*r2inv* multiplier;
+            printf("force scalar in eval is %f\n", forceScalar);
             return dr * forceScalar;
         }
         inline __device__ float energy(float lenSqr, float qi, float qj, float multiplier) {

@@ -61,7 +61,6 @@ __global__ void compute_force_iso(int nAtoms, const float4 *__restrict__ xs, flo
                 }
                 if (COMP_CHARGES && lenSqr < qCutoffSqr) {
                     float qj = qs[otherIdx];
-
                     force += chargeEval.force(dr, lenSqr, qi, qj, multiplier);
                     computedForce = true;
                 }
@@ -82,6 +81,7 @@ __global__ void compute_force_iso(int nAtoms, const float4 *__restrict__ xs, flo
         fs[idx] = forceCur;
         if (COMP_VIRIALS) {
             virialsSum *= 0.5f;
+            printf("virials %f %f %f %f %f %f\n", virialsSum[0], virialsSum[1], virialsSum[2], virialsSum[3], virialsSum[4], virialsSum[5]);
             virials[idx] += virialsSum;
         }
     

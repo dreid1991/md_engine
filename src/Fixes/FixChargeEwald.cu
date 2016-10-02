@@ -944,8 +944,10 @@ void FixChargeEwald::compute(bool computeVirials) {
         //      cout << virial_per_particle.vals[i] << endl;
         //  }
           } 
-          if (hasOffloadedChargePairCalc && calcLongRange) {
-              mapVirialToSingleAtom<<<1, 6>>>(gpd.virials.d_data.data(), virialField.data(), volume);
+          if (hasOffloadedChargePairCalc) {
+              if (calcLongRange) {
+                  mapVirialToSingleAtom<<<1, 6>>>(gpd.virials.d_data.data(), virialField.data(), volume);
+              }
           } else {
               compute_short_range_forces_cu<true><<<NBLOCK(nAtoms), PERBLOCK>>>( nAtoms,
                                                                                  gpd.xs(activeIdx),                                                      
