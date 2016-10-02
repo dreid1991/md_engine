@@ -19,7 +19,7 @@ class ChargeEvaluatorEwald {
              float len=sqrtf(lenSqr);
              float rinv = 1.0f/len;                 
              float eng = qqr_to_eng * 0.5*qi*qj*(erfcf((alpha*len))*rinv)*multiplier;
-             //printf("alpha %f len %f product %f over r %f\n", alpha, len, alpha*len, erfcf((alpha*len))*rinv);
+             //printf("alpha %f len %f product %f eng_table %f\n", alpha, len, alpha*len, qqr_to_eng * (erfcf((alpha*len))*rinv));
              return eng;
                    
         }

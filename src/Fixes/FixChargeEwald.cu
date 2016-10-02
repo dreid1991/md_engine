@@ -538,6 +538,7 @@ __global__ void mapEngToParticles(int nAtoms, float eng, float *engs) {
 FixChargeEwald::FixChargeEwald(SHARED(State) state_, string handle_, string groupHandle_): FixCharge(state_, handle_, groupHandle_, chargeEwaldType, true){
   cufftCreate(&plan);
   canOffloadChargePairCalc = true;
+  calcLongRange = true;
 }
 
 
@@ -794,154 +795,156 @@ void FixChargeEwald::compute(bool computeVirials) {
     //set qs to 0
     dim3 dimBlock(8,8,8);
     dim3 dimGrid((sz.x + dimBlock.x - 1) / dimBlock.x,(sz.y + dimBlock.y - 1) / dimBlock.y,(sz.z + dimBlock.z - 1) / dimBlock.z);    
-    map_charge_set_to_zero_cu<<<dimGrid, dimBlock>>>(sz,FFT_Qs);
-  //  CUT_CHECK_ERROR("map_charge_set_to_zero_cu kernel execution failed");
+    if (calcLongRange) {
+        map_charge_set_to_zero_cu<<<dimGrid, dimBlock>>>(sz,FFT_Qs);
+        //  CUT_CHECK_ERROR("map_charge_set_to_zero_cu kernel execution failed");
 
-      switch (interpolation_order){
-      case 1:{map_charge_to_grid_order_1_cu
-              <<<NBLOCK(nAtoms), PERBLOCK>>>( nAtoms,
-                                              gpd.xs(activeIdx),                                                      
-                                              gpd.qs(activeIdx),
-                                              state->boundsGPU,
-                                              sz,
-                                              (float *)FFT_Qs,
-                                              Qconversion);
-              break;}
-      case 3:{map_charge_to_grid_order_3_cu
-              <<<NBLOCK(nAtoms), PERBLOCK>>>( nAtoms,
-                                              gpd.xs(activeIdx),                                                      
-                                              gpd.qs(activeIdx),
-                                              state->boundsGPU,
-                                              sz,
-                                              (float *)FFT_Qs,
-                                              Qconversion);
-              break;}
-    }    
-   // CUT_CHECK_ERROR("map_charge_to_grid_cu kernel execution failed");
+        switch (interpolation_order){
+        case 1:{map_charge_to_grid_order_1_cu
+            <<<NBLOCK(nAtoms), PERBLOCK>>>( nAtoms,
+                                            gpd.xs(activeIdx),                                                      
+                                            gpd.qs(activeIdx),
+                                            state->boundsGPU,
+                                            sz,
+                                            (float *)FFT_Qs,
+                                            Qconversion);
+            break;}
+        case 3:{map_charge_to_grid_order_3_cu
+            <<<NBLOCK(nAtoms), PERBLOCK>>>( nAtoms,
+                                            gpd.xs(activeIdx),                                                      
+                                            gpd.qs(activeIdx),
+                                            state->boundsGPU,
+                                            sz,
+                                            (float *)FFT_Qs,
+                                            Qconversion);
+            break;}
+        }    
+        // CUT_CHECK_ERROR("map_charge_to_grid_cu kernel execution failed");
 
-    cufftExecC2C(plan, FFT_Qs, FFT_Qs, CUFFT_FORWARD);
-   // cudaDeviceSynchronize();
-  //  CUT_CHECK_ERROR("cufftExecC2C Qs execution failed");
-
-    
-//     //test area
-//     float buf[sz.x*sz.y*sz.z*2];
-//     cudaMemcpy(buf,FFT_Qs,sizeof(cufftComplex)*sz.x*sz.y*sz.z,cudaMemcpyDeviceToHost );
-//     ofstream ofs;
-//     ofs.open("test_FFT.dat",ios::out );
-//     for(int i=0;i<sz.x;i++)
-//             for(int j=0;j<sz.y;j++){
-//                 for(int k=0;k<sz.z;k++){
-//                     cout<<buf[i*sz.y*sz.z*2+j*sz.z*2+k*2]<<'\t';
-//                     ofs <<buf[i*sz.y*sz.z*2+j*sz.z*2+k*2]<<'\t';
-//                 }
-//                 ofs<<'\n';
-//                 cout<<'\n';
-//             }
-
-    
-    //next potential calculation: just going to use Ex to store it for now
-//       calc_potential(FFT_Ex);
-
-    //calc E field
-    E_field_cu<<<dimGrid, dimBlock>>>(state->boundsGPU,sz,Green_function.getDevData(), FFT_Qs,FFT_Ex,FFT_Ey,FFT_Ez);
-    CUT_CHECK_ERROR("E_field_cu kernel execution failed");    
+        cufftExecC2C(plan, FFT_Qs, FFT_Qs, CUFFT_FORWARD);
+        // cudaDeviceSynchronize();
+        //  CUT_CHECK_ERROR("cufftExecC2C Qs execution failed");
 
 
-    cufftExecC2C(plan, FFT_Ex, FFT_Ex,  CUFFT_INVERSE);
-    cufftExecC2C(plan, FFT_Ey, FFT_Ey,  CUFFT_INVERSE);
-    cufftExecC2C(plan, FFT_Ez, FFT_Ez,  CUFFT_INVERSE);
-  //  cudaDeviceSynchronize();
-   // CUT_CHECK_ERROR("cufftExecC2C  E_field execution failed");
-    
-    
-    /*//test area
-     Bounds b=state->bounds;
-    float volume=b.trace[0]*b.trace[1]*b.trace[2];    
-    float *buf=new float[sz.x*sz.y*sz.z*2];
-    cudaMemcpy((void *)buf,FFT_Ex,sizeof(cufftComplex)*sz.x*sz.y*sz.z,cudaMemcpyDeviceToHost );
-    ofstream ofs;
-    ofs.open("test_Ex.dat",ios::out );
-    for(int i=0;i<sz.x;i++)
-            for(int j=0;j<sz.y;j++){
-                for(int k=0;k<sz.z;k++){
-                    cout<<-buf[i*sz.y*sz.z*2+j*sz.z*2+k*2]/volume<<'\t';
-                    ofs<<-buf[i*sz.y*sz.z*2+j*sz.z*2+k*2]/volume<<'\t';
-                }
-                ofs<<'\n';
-                cout<<'\n';
-            }
-    ofs.close();
-    cudaMemcpy((void *)buf,FFT_Ey,sizeof(cufftComplex)*sz.x*sz.y*sz.z,cudaMemcpyDeviceToHost );
-    ofs.open("test_Ey.dat",ios::out );
-    for(int i=0;i<sz.x;i++)
-            for(int j=0;j<sz.y;j++){
-                for(int k=0;k<sz.z;k++){
-                    cout<<-buf[i*sz.y*sz.z*2+j*sz.z*2+k*2]/volume<<'\t';
-                    ofs<<-buf[i*sz.y*sz.z*2+j*sz.z*2+k*2]/volume<<'\t';
-                }
-                ofs<<'\n';
-                cout<<'\n';
-            }
-    ofs.close();    
-    cudaMemcpy((void *)buf,FFT_Ez,sizeof(cufftComplex)*sz.x*sz.y*sz.z,cudaMemcpyDeviceToHost );
-    ofs.open("test_Ez.dat",ios::out );
-    for(int i=0;i<sz.x;i++)
-            for(int j=0;j<sz.y;j++){
-                for(int k=0;k<sz.z;k++){
-                    cout<<-buf[i*sz.y*sz.z*2+j*sz.z*2+k*2]/volume<<'\t';
-                    ofs<<-buf[i*sz.y*sz.z*2+j*sz.z*2+k*2]/volume<<'\t';
-                }
-                ofs<<'\n';
-                cout<<'\n';
-            }
-    ofs.close();    
-    delete []buf;   */ 
+        //     //test area
+        //     float buf[sz.x*sz.y*sz.z*2];
+        //     cudaMemcpy(buf,FFT_Qs,sizeof(cufftComplex)*sz.x*sz.y*sz.z,cudaMemcpyDeviceToHost );
+        //     ofstream ofs;
+        //     ofs.open("test_FFT.dat",ios::out );
+        //     for(int i=0;i<sz.x;i++)
+        //             for(int j=0;j<sz.y;j++){
+        //                 for(int k=0;k<sz.z;k++){
+        //                     cout<<buf[i*sz.y*sz.z*2+j*sz.z*2+k*2]<<'\t';
+        //                     ofs <<buf[i*sz.y*sz.z*2+j*sz.z*2+k*2]<<'\t';
+        //                 }
+        //                 ofs<<'\n';
+        //                 cout<<'\n';
+        //             }
 
-   
-    
-    
-    //calc forces
-    //printf("Forces!\n");
-    switch (interpolation_order){
-      case 1:{Ewald_long_range_forces_order_1_cu<<<NBLOCK(nAtoms), PERBLOCK>>>( nAtoms,
-                                              gpd.xs(activeIdx),                                                      
-                                              gpd.fs(activeIdx),
-                                              gpd.qs(activeIdx),
-                                              state->boundsGPU,
-                                              sz,
-                                              FFT_Ex,FFT_Ey,FFT_Ez,Qconversion);
-              break;}
-      case 3:{Ewald_long_range_forces_order_3_cu<<<NBLOCK(nAtoms), PERBLOCK>>>( nAtoms,
-                                              gpd.xs(activeIdx),                                                      
-                                              gpd.fs(activeIdx),
-                                              gpd.qs(activeIdx),
-                                              state->boundsGPU,
-                                              sz,
-                                              FFT_Ex,FFT_Ey,FFT_Ez,Qconversion);
-               break;}
+
+        //next potential calculation: just going to use Ex to store it for now
+        //       calc_potential(FFT_Ex);
+
+        //calc E field
+        E_field_cu<<<dimGrid, dimBlock>>>(state->boundsGPU,sz,Green_function.getDevData(), FFT_Qs,FFT_Ex,FFT_Ey,FFT_Ez);
+        CUT_CHECK_ERROR("E_field_cu kernel execution failed");    
+
+
+        cufftExecC2C(plan, FFT_Ex, FFT_Ex,  CUFFT_INVERSE);
+        cufftExecC2C(plan, FFT_Ey, FFT_Ey,  CUFFT_INVERSE);
+        cufftExecC2C(plan, FFT_Ez, FFT_Ez,  CUFFT_INVERSE);
+        //  cudaDeviceSynchronize();
+        // CUT_CHECK_ERROR("cufftExecC2C  E_field execution failed");
+
+
+        /*//test area
+          Bounds b=state->bounds;
+          float volume=b.trace[0]*b.trace[1]*b.trace[2];    
+          float *buf=new float[sz.x*sz.y*sz.z*2];
+          cudaMemcpy((void *)buf,FFT_Ex,sizeof(cufftComplex)*sz.x*sz.y*sz.z,cudaMemcpyDeviceToHost );
+          ofstream ofs;
+          ofs.open("test_Ex.dat",ios::out );
+          for(int i=0;i<sz.x;i++)
+          for(int j=0;j<sz.y;j++){
+          for(int k=0;k<sz.z;k++){
+          cout<<-buf[i*sz.y*sz.z*2+j*sz.z*2+k*2]/volume<<'\t';
+          ofs<<-buf[i*sz.y*sz.z*2+j*sz.z*2+k*2]/volume<<'\t';
+          }
+          ofs<<'\n';
+          cout<<'\n';
+          }
+          ofs.close();
+          cudaMemcpy((void *)buf,FFT_Ey,sizeof(cufftComplex)*sz.x*sz.y*sz.z,cudaMemcpyDeviceToHost );
+          ofs.open("test_Ey.dat",ios::out );
+          for(int i=0;i<sz.x;i++)
+          for(int j=0;j<sz.y;j++){
+          for(int k=0;k<sz.z;k++){
+          cout<<-buf[i*sz.y*sz.z*2+j*sz.z*2+k*2]/volume<<'\t';
+          ofs<<-buf[i*sz.y*sz.z*2+j*sz.z*2+k*2]/volume<<'\t';
+          }
+          ofs<<'\n';
+          cout<<'\n';
+          }
+          ofs.close();    
+          cudaMemcpy((void *)buf,FFT_Ez,sizeof(cufftComplex)*sz.x*sz.y*sz.z,cudaMemcpyDeviceToHost );
+          ofs.open("test_Ez.dat",ios::out );
+          for(int i=0;i<sz.x;i++)
+          for(int j=0;j<sz.y;j++){
+          for(int k=0;k<sz.z;k++){
+          cout<<-buf[i*sz.y*sz.z*2+j*sz.z*2+k*2]/volume<<'\t';
+          ofs<<-buf[i*sz.y*sz.z*2+j*sz.z*2+k*2]/volume<<'\t';
+          }
+          ofs<<'\n';
+          cout<<'\n';
+          }
+          ofs.close();    
+          delete []buf;   */ 
+
+
+
+
+        //calc forces
+        //printf("Forces!\n");
+        switch (interpolation_order){
+        case 1:{Ewald_long_range_forces_order_1_cu<<<NBLOCK(nAtoms), PERBLOCK>>>( nAtoms,
+                                                                                  gpd.xs(activeIdx),                                                      
+                                                                                  gpd.fs(activeIdx),
+                                                                                  gpd.qs(activeIdx),
+                                                                                  state->boundsGPU,
+                                                                                  sz,
+                                                                                  FFT_Ex,FFT_Ey,FFT_Ez,Qconversion);
+            break;}
+        case 3:{Ewald_long_range_forces_order_3_cu<<<NBLOCK(nAtoms), PERBLOCK>>>( nAtoms,
+                                                                                  gpd.xs(activeIdx),                                                      
+                                                                                  gpd.fs(activeIdx),
+                                                                                  gpd.qs(activeIdx),
+                                                                                  state->boundsGPU,
+                                                                                  sz,
+                                                                                  FFT_Ex,FFT_Ey,FFT_Ez,Qconversion);
+            break;}
+        }
+        CUT_CHECK_ERROR("Ewald_long_range_forces_cu  execution failed");
     }
-    CUT_CHECK_ERROR("Ewald_long_range_forces_cu  execution failed");
-
     float *neighborCoefs = state->specialNeighborCoefs;
     //SHORT RANGE
      if (computeVirials) {
           int warpSize = state->devManager.prop.warpSize;
-            virialField.memset(0); 
-          virials_cu<<<dimGrid, dimBlock,sizeof(Virial)*dimBlock.x*dimBlock.y*dimBlock.z>>>(state->boundsGPU,sz,virialField.data(),alpha,Green_function.getDevData(), FFT_Qs, warpSize); 
-          CUT_CHECK_ERROR("virials_cu kernel execution failed");    
+          BoundsGPU &b=state->boundsGPU;
+          float volume=b.volume();          
+          virialField.memset(0); 
+          if (calcLongRange) {
+              virials_cu<<<dimGrid, dimBlock,sizeof(Virial)*dimBlock.x*dimBlock.y*dimBlock.z>>>(state->boundsGPU,sz,virialField.data(),alpha,Green_function.getDevData(), FFT_Qs, warpSize); 
+              CUT_CHECK_ERROR("virials_cu kernel execution failed");    
           
 
 
-          BoundsGPU &b=state->boundsGPU;
-          float volume=b.volume();          
         //  Virial virial_per_particle = Virial(0, 0, 0, 0, 0, 0);  
         //  for (int i=0; i<6; i++) {
         //      virial_per_particle.vals[i] = virial.h_data[0][i]/volume/nAtoms;
         //      cout << virial_per_particle.vals[i] << endl;
         //  }
-      
-          if (hasOffloadedChargePairCalc) {
+          } 
+          if (hasOffloadedChargePairCalc && calcLongRange) {
               mapVirialToSingleAtom<<<1, 6>>>(gpd.virials.d_data.data(), virialField.data(), volume);
           } else {
               compute_short_range_forces_cu<true><<<NBLOCK(nAtoms), PERBLOCK>>>( nAtoms,
@@ -998,73 +1001,80 @@ void FixChargeEwald::singlePointEng(float * perParticleEng) {
 
     //first update grid from atoms positions
     //set qs to 0
-    dim3 dimBlock(8,8,8);
-    dim3 dimGrid((sz.x + dimBlock.x - 1) / dimBlock.x,(sz.y + dimBlock.y - 1) / dimBlock.y,(sz.z + dimBlock.z - 1) / dimBlock.z);    
-    map_charge_set_to_zero_cu<<<dimGrid, dimBlock>>>(sz,FFT_Qs);
-    CUT_CHECK_ERROR("map_charge_set_to_zero_cu kernel execution failed");
+    float field_energy_per_particle = 0;
+    if (calcLongRange) {
+        dim3 dimBlock(8,8,8);
+        dim3 dimGrid((sz.x + dimBlock.x - 1) / dimBlock.x,(sz.y + dimBlock.y - 1) / dimBlock.y,(sz.z + dimBlock.z - 1) / dimBlock.z);    
+        map_charge_set_to_zero_cu<<<dimGrid, dimBlock>>>(sz,FFT_Qs);
+        CUT_CHECK_ERROR("map_charge_set_to_zero_cu kernel execution failed");
 
-      switch (interpolation_order){
-      case 1:{map_charge_to_grid_order_1_cu
-              <<<NBLOCK(nAtoms), PERBLOCK>>>( nAtoms,
-                                              gpd.xs(activeIdx),                                                      
-                                              gpd.qs(activeIdx),
-                                              state->boundsGPU,
-                                              sz,
-                                              (float *)FFT_Qs,Qconversion);
-              break;}
-      case 3:{map_charge_to_grid_order_3_cu
-              <<<NBLOCK(nAtoms), PERBLOCK>>>( nAtoms,
-                                              gpd.xs(activeIdx),                                                      
-                                              gpd.qs(activeIdx),
-                                              state->boundsGPU,
-                                              sz,
-                                              (float *)FFT_Qs,Qconversion);
-              break;}
-    }    
-    CUT_CHECK_ERROR("map_charge_to_grid_cu kernel execution failed");
+          switch (interpolation_order){
+          case 1:{map_charge_to_grid_order_1_cu
+                  <<<NBLOCK(nAtoms), PERBLOCK>>>( nAtoms,
+                                                  gpd.xs(activeIdx),                                                      
+                                                  gpd.qs(activeIdx),
+                                                  state->boundsGPU,
+                                                  sz,
+                                                  (float *)FFT_Qs,Qconversion);
+                  break;}
+          case 3:{map_charge_to_grid_order_3_cu
+                  <<<NBLOCK(nAtoms), PERBLOCK>>>( nAtoms,
+                                                  gpd.xs(activeIdx),                                                      
+                                                  gpd.qs(activeIdx),
+                                                  state->boundsGPU,
+                                                  sz,
+                                                  (float *)FFT_Qs,Qconversion);
+                  break;}
+        }    
+        CUT_CHECK_ERROR("map_charge_to_grid_cu kernel execution failed");
 
-    cufftExecC2C(plan, FFT_Qs, FFT_Qs, CUFFT_FORWARD);
-    cudaDeviceSynchronize();
-    CUT_CHECK_ERROR("cufftExecC2C Qs execution failed");
+        cufftExecC2C(plan, FFT_Qs, FFT_Qs, CUFFT_FORWARD);
+        cudaDeviceSynchronize();
+        CUT_CHECK_ERROR("cufftExecC2C Qs execution failed");
 
-    
+        
 
-    //calc field energy 
-    BoundsGPU &b=state->boundsGPU;
-    float volume=b.volume();
-    
-    Energy_cu<<<dimGrid, dimBlock>>>(sz,Green_function.getDevData(), FFT_Qs,FFT_Ex);//use Ex as buffer
-    CUT_CHECK_ERROR("Energy_cu kernel execution failed");    
-  
-    GPUArrayGlobal<float>field_E(1);
-    field_E.memsetByVal(0.0);
-    int warpSize = state->devManager.prop.warpSize;
-    accumulate_gpu<float,float, SumSingle, N_DATA_PER_THREAD> <<<NBLOCK(2*sz.x*sz.y*sz.z/(double)N_DATA_PER_THREAD),PERBLOCK,N_DATA_PER_THREAD*sizeof(float)*PERBLOCK>>>
-        (
-         field_E.getDevData(),
-         (float *)FFT_Ex,
-         2*sz.x*sz.y*sz.z,
-         warpSize,
-         SumSingle()
-         );   
-/*
-    sumSingle<float,float, N_DATA_PER_THREAD> <<<NBLOCK(2*sz.x*sz.y*sz.z/(double)N_DATA_PER_THREAD),PERBLOCK,N_DATA_PER_THREAD*sizeof(float)*PERBLOCK>>>(
-                                            field_E.getDevData(),
-                                            (float *)FFT_Ex,
-                                            2*sz.x*sz.y*sz.z,
-                                            warpSize);   
-                                            */
-    field_E.dataToHost();
+        //calc field energy 
+        BoundsGPU &b=state->boundsGPU;
+        float volume=b.volume();
+        
+        Energy_cu<<<dimGrid, dimBlock>>>(sz,Green_function.getDevData(), FFT_Qs,FFT_Ex);//use Ex as buffer
+        CUT_CHECK_ERROR("Energy_cu kernel execution failed");    
+      
+        GPUArrayGlobal<float>field_E(1);
+        field_E.memsetByVal(0.0);
+        int warpSize = state->devManager.prop.warpSize;
+        accumulate_gpu<float,float, SumSingle, N_DATA_PER_THREAD> <<<NBLOCK(2*sz.x*sz.y*sz.z/(double)N_DATA_PER_THREAD),PERBLOCK,N_DATA_PER_THREAD*sizeof(float)*PERBLOCK>>>
+            (
+             field_E.getDevData(),
+             (float *)FFT_Ex,
+             2*sz.x*sz.y*sz.z,
+             warpSize,
+             SumSingle()
+             );   
+    /*
+        sumSingle<float,float, N_DATA_PER_THREAD> <<<NBLOCK(2*sz.x*sz.y*sz.z/(double)N_DATA_PER_THREAD),PERBLOCK,N_DATA_PER_THREAD*sizeof(float)*PERBLOCK>>>(
+                                                field_E.getDevData(),
+                                                (float *)FFT_Ex,
+                                                2*sz.x*sz.y*sz.z,
+                                                warpSize);   
+                                                */
+        field_E.dataToHost();
 
-    float field_energy_per_particle=0.5*field_E.h_data[0]/volume/nAtoms;
-//         cout<<"field_E "<<field_E.h_data[0]<<'\n';
+        field_energy_per_particle=0.5*field_E.h_data[0]/volume/nAtoms;
+    //         cout<<"field_E "<<field_E.h_data[0]<<'\n';
 
-    field_energy_per_particle-=alpha/sqrt(M_PI)*total_Q2/nAtoms;
+        field_energy_per_particle-=alpha/sqrt(M_PI)*total_Q2/nAtoms;
+        printf("FIELD ENG IS %f\n", field_energy_per_particle);
 //      cout<<"self correction "<<alpha/sqrt(M_PI)*total_Q2<<'\n';
+    }
 
     //pair energies
     if (hasOffloadedChargePairCalc) {
-        mapEngToParticles<<<NBLOCK(nAtoms), PERBLOCK>>>(nAtoms, double(field_energy_per_particle) / nAtoms, perParticleEng);
+        if (calcLongRange) {
+            printf("MAPPING!\n");
+            mapEngToParticles<<<NBLOCK(nAtoms), PERBLOCK>>>(nAtoms, field_energy_per_particle, perParticleEng);
+        }
     } else {
         float *neighborCoefs = state->specialNeighborCoefs;
         compute_short_range_energies_cu<<<NBLOCK(nAtoms), PERBLOCK>>>( nAtoms,
@@ -1103,6 +1113,7 @@ void export_FixChargeEwald() {
         .def("setParameters", setParameters_xxx,
                 (boost::python::arg("sz"),boost::python::arg("r_cut"),boost::python::arg("interpolation_order"))
             )        
+        .def_readwrite("calcLongRange", &FixChargeEwald::calcLongRange)
         ;
 }
 
