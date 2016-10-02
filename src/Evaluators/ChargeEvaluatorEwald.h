@@ -12,16 +12,26 @@ class ChargeEvaluatorEwald {
             float r2inv = 1.0f/lenSqr;
             float rinv = sqrtf(r2inv);
             float len = sqrtf(lenSqr);
-            float forceScalar = qqr_to_eng * qi*qj*(erfcf((alpha*len))*rinv+(2.0f*0.5641895835477563f*alpha)*exp(-alpha*alpha*lenSqr))*r2inv* multiplier;
-            printf("force scalar in eval is %f\n", forceScalar);
+            float prefactor = qqr_to_eng * qi*qj*(erfcf((alpha*len))*rinv+(2.0f*0.5641895835477563f*alpha)*exp(-alpha*alpha*lenSqr));
+            float forceScalar = prefactor * multiplier;
+            if (multiplier < 1.0f) {
+                forceScalar -= (1.0f - multiplier) * prefactor;
+            }
+
+            forceScalar *= r2inv;
+            printf("EVALUATOR force scalar in eval is %f\n", forceScalar);
             return dr * forceScalar;
         }
         inline __device__ float energy(float lenSqr, float qi, float qj, float multiplier) {
              float len=sqrtf(lenSqr);
              float rinv = 1.0f/len;                 
-             float eng = qqr_to_eng * 0.5*qi*qj*(erfcf((alpha*len))*rinv)*multiplier;
-             //printf("alpha %f len %f product %f eng_table %f\n", alpha, len, alpha*len, qqr_to_eng * (erfcf((alpha*len))*rinv));
-             return eng;
+             float prefactor = qqr_to_eng * qi*qj*(erfcf((alpha*len))*rinv);
+             float eng = multiplier * prefactor;
+             if (multiplier < 1.0f) {
+                 eng -= 2.0f * (1.0f - multiplier) * prefactor;//gets multiplied by 0.5 further down, and need total coef on this to be 1
+             }
+             printf("ENG EVAL prefactor %f, mult %f, final %f\n", prefactor, multiplier, eng);
+             return 0.5f * eng;
                    
         }
         ChargeEvaluatorEwald(float alpha_, float qqr_to_eng_) : alpha(alpha_), qqr_to_eng(qqr_to_eng_) {};

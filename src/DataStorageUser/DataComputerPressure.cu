@@ -20,12 +20,14 @@ void DataComputerPressure::computeScalar_GPU(bool transferToCPU, uint32_t groupT
     lastGroupTag = groupTag;
     int nAtoms = state->atoms.size();
     if (groupTag == 1) {
+        /*
         printf("DOING STUFF IN COMPUTE SCALAR GPU PRESSURE\n");
         gpd.virials.dataToHost();
         cudaDeviceSynchronize();
         for (Virial v : gpd.virials.h_data) {
             printf("CPU virials %f %f %f %f %f %f\n", v[0], v[1], v[2], v[3], v[4], v[5]);
         }
+        */
          accumulate_gpu<float, Virial, SumVirialToScalar, N_DATA_PER_THREAD> <<<NBLOCK(nAtoms / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*PERBLOCK*sizeof(float)>>>
             (pressureGPUScalar.getDevData(), gpd.virials.getDevData(), nAtoms, state->devManager.prop.warpSize, SumVirialToScalar());
     } else {

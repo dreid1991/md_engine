@@ -524,7 +524,7 @@ __global__ void compute_short_range_energies_cu(int nAtoms, float4 *xs, uint16_t
 
 __global__ void mapVirialToSingleAtom(Virial *atomVirials, Virial *fieldVirial, float volume) {
     //just mapping to one atom for now.  If we're looking at per-atom properties, should change to mapping to all atoms evenly
-    fieldVirial[0][threadIdx.x] += atomVirials[0][threadIdx.x] / volume;
+    atomVirials[0][threadIdx.x] += fieldVirial[0][threadIdx.x] / volume;
 }
 
 
@@ -654,6 +654,8 @@ void FixChargeEwald::find_optimal_parameters(bool printError){
     if (n_iter==max_iter) cout<<"Ewald RMS Root finder failed, max_iter "<<max_iter<<" reached\n";
     alpha=x_b;
     //alpha = 1.0;
+    cout << "HARDCODED ALPHA" << endl;
+    alpha = 0.342239;
     if (printError) {
         cout<<"Ewald alpha="<<alpha<<'\n';
         cout<<"Ewald RMS error is  "<<DeltaF_k(alpha)+DeltaF_real(alpha)<<'\n';
@@ -946,6 +948,7 @@ void FixChargeEwald::compute(bool computeVirials) {
           } 
           if (hasOffloadedChargePairCalc) {
               if (calcLongRange) {
+                  printf("WOULD LIKE TO MAP\n");
                   mapVirialToSingleAtom<<<1, 6>>>(gpd.virials.d_data.data(), virialField.data(), volume);
               }
           } else {
