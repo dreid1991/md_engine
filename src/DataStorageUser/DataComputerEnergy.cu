@@ -15,6 +15,12 @@ void DataComputerEnergy::computeScalar_GPU(bool transferToCPU, uint32_t groupTag
     lastGroupTag = groupTag;
     int nAtoms = state->atoms.size();
     GPUArrayGlobal<float> &perParticleEng = gpd.perParticleEng;
+    //printf("COPYING STUFF IN DATA COMPUTE ENG\n");
+    //perParticleEng.dataToHost();
+    //cudaDeviceSynchronize();
+    //for (float x : perParticleEng.h_data) {
+    //    printf("PARTICLE ENG %f\n", x);
+   // }
     if (groupTag == 1) {
          accumulate_gpu<float, float, SumSingle, N_DATA_PER_THREAD> <<<NBLOCK(nAtoms / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*PERBLOCK*sizeof(float)>>>
             (engGPUScalar.getDevData(), perParticleEng.getDevData(), nAtoms, state->devManager.prop.warpSize, SumSingle());

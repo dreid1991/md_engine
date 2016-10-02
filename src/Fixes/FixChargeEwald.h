@@ -82,6 +82,8 @@ public:
         return res;
     }    
     ChargeEvaluatorEwald generateEvaluator(); 
+
+    bool calcLongRange;
 };
 
 #endif
