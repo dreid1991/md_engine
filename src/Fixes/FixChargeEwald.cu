@@ -337,11 +337,11 @@ __global__ void virials_cu(BoundsGPU bounds,int3 sz,Virial *dest,float alpha, fl
           
           Virial virialstmp = Virial(0, 0, 0, 0, 0, 0);   
           virialstmp[0]=(1.0+differential*k.x*k.x)*E; //xx
-          virialstmp[2]=(1.0+differential*k.y*k.y)*E; //yy
-          virialstmp[5]=(1.0+differential*k.z*k.z)*E; //zz
-          virialstmp[1]=(differential*k.x*k.y)*E; //xy
-          virialstmp[3]=(differential*k.x*k.z)*E; //xz
-          virialstmp[4]=(differential*k.x*k.z)*E; //yz
+          virialstmp[1]=(1.0+differential*k.y*k.y)*E; //yy
+          virialstmp[2]=(1.0+differential*k.z*k.z)*E; //zz
+          virialstmp[3]=(differential*k.x*k.y)*E; //xy
+          virialstmp[4]=(differential*k.x*k.z)*E; //xz
+          virialstmp[5]=(differential*k.y*k.z)*E; //yz
 
 //           virials[id.x*sz.y*sz.z+id.y*sz.z+id.z]=virialstmp;
 //           __syncthreads();
@@ -524,7 +524,7 @@ __global__ void compute_short_range_energies_cu(int nAtoms, float4 *xs, uint16_t
 
 __global__ void mapVirialToSingleAtom(Virial *atomVirials, Virial *fieldVirial, float volume) {
     //just mapping to one atom for now.  If we're looking at per-atom properties, should change to mapping to all atoms evenly
-    atomVirials[0][threadIdx.x] += fieldVirial[0][threadIdx.x] / volume;
+    atomVirials[0][threadIdx.x] += 0.5 * fieldVirial[0][threadIdx.x] / volume;
 }
 
 
