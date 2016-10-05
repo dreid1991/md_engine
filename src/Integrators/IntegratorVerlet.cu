@@ -120,6 +120,7 @@ void IntegratorVerlet::run(int numTurns)
         postNVE_X();
         //printf("preForce IS COMMENTED OUT\n");
 
+        handleBoundsChange();
 
         // Recalculate forces
         force(computeVirialsInForce);

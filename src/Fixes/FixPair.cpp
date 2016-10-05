@@ -195,6 +195,8 @@ bool FixPair::readFromRestart() {
     
 }
 
+
+
 std::string FixPair::restartChunkPairParams(std::string format) {
     std::stringstream ss;
     //char buffer[128];
@@ -219,6 +221,13 @@ std::string FixPair::restartChunkPairParams(std::string format) {
     return ss.str();
 }    
 
+void FixPair::handleBoundsChange() {
+    if (hasAcceptedChargePairCalc && state->boundsGPU != boundsLast) {
+        boundsLast = state->boundsGPU;
+        chargeCalcFix->handleBoundsChange();
+        setEvalWrapper();
+    }
+}
 void export_FixPair() {
     py::class_<FixPair,
     boost::noncopyable,

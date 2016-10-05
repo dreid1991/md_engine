@@ -763,18 +763,25 @@ bool FixChargeEwald::prepareForRun() {
     virialField = GPUArrayDeviceGlobal<Virial>(1);
     setTotalQ2();
     if ((state->boundsGPU != boundsLastOptimize)||(total_Q2!=total_Q2LastOptimize)) {
-        handleChangedBounds(true);
+        handleBoundsChangeInternal(true);
     }
     return true;
 }
 
-void FixChargeEwald::handleChangedBounds(bool printError) {
-   // printf("DOING BOUNDS");
-    find_optimal_parameters(printError);
-    calc_Green_function();
-    boundsLastOptimize = state->boundsGPU;
-    total_Q2LastOptimize=total_Q2;
+void FixChargeEwald::handleBoundsChange() {
+    handleBoundsChangeInternal(false);
 }
+
+void FixChargeEwald::handleBoundsChangeInternal(bool printError) {
+
+    if ((state->boundsGPU != boundsLastOptimize)||(total_Q2!=total_Q2LastOptimize)) {
+        find_optimal_parameters(printError);
+        calc_Green_function();
+        boundsLastOptimize = state->boundsGPU;
+        total_Q2LastOptimize=total_Q2;
+    }
+}
+
 void FixChargeEwald::compute(bool computeVirials) {
  //   CUT_CHECK_ERROR("before FixChargeEwald kernel execution failed");
 
@@ -784,9 +791,6 @@ void FixChargeEwald::compute(bool computeVirials) {
     GridGPU &grid = state->gridGPU;
     int activeIdx = gpd.activeIdx();
     uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
-    if ((state->boundsGPU != boundsLastOptimize)||(total_Q2!=total_Q2LastOptimize)) {
-        handleChangedBounds(false);
-    }
     
  
     float Qconversion = sqrt(state->units.qqr_to_eng);
@@ -987,7 +991,7 @@ void FixChargeEwald::singlePointEng(float * perParticleEng) {
     CUT_CHECK_ERROR("before FixChargeEwald kernel execution failed");
 
     if (state->boundsGPU != boundsLastOptimize) {
-        handleChangedBounds(false);
+        handleBoundsChange();
     }
 //     cout<<"FixChargeEwald::compute..\n";
     int nAtoms = state->atoms.size();

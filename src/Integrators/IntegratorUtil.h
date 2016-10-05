@@ -38,6 +38,7 @@ public:
      *
      */
     void forceSingle(bool computeVirials);
+    void handleBoundsChange();
 };
 
 #endif

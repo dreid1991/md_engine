@@ -54,10 +54,11 @@ private:
     GPUArrayDeviceGlobal<Virial> virialField;
     BoundsGPU boundsLastOptimize;
     float total_Q2LastOptimize;    
-    void handleChangedBounds(bool);
+    void handleBoundsChangeInternal(bool);
         
 
 public:
+    void handleBoundsChange();
     FixChargeEwald(boost::shared_ptr<State> state_,
                    std::string handle_, std::string groupHandle_);
     ~FixChargeEwald();
