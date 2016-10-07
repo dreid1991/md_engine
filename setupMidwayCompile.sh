@@ -1,4 +1,4 @@
-mv CMakeLists_midway.txt CMakeLists.txt
+cp CMakeLists_midway.txt CMakeLists.txt
 rm -r build
 mkdir build
 

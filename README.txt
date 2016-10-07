@@ -1,7 +1,7 @@
 
 Compiling on midway:
 ------------
-Run the compileOnMidway.sh script
+Run the setupMidwayCompile.sh script
 This replaces the standard CMakeLists.txt with a midway-specific one.
 
 cd build
