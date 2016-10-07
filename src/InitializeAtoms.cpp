@@ -128,7 +128,6 @@ void InitializeAtoms::initTemp(SHARED(State) state, string groupHandle,
         }
     }
     double sumKe = 0;
-    printf("SUM MOMS %f %f %f\n", sumMoms[0], sumMoms[1], sumMoms[2]);
     for (Atom *a : atoms) {
         if (state->is2d) {
             a->vel[2] = 0;

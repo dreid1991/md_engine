@@ -33,7 +33,7 @@ __global__ void rescale_group(int nAtoms, float4 *vs, float4 *fs, uint32_t group
         if (tag & groupTag) {
             float4 v = vs[idx];
             float4 sum = sumData[0];
-            int invMassTotal = 1.0f / v.w;
+            int invMassTotal = 1.0f / sum.w;
             v.x -= sum.x * invMassTotal * dims.x;
             v.y -= sum.y * invMassTotal * dims.y;
             v.z -= sum.z * invMassTotal * dims.z;
