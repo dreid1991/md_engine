@@ -43,7 +43,6 @@ void FixLJCut::compute(bool computeVirials) {
                       state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU,
                       neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.virials.d_data.data(), gpd.qs(activeIdx), chargeRCut, computeVirials);
 
-
 }
 
 void FixLJCut::singlePointEng(float *perParticleEng) {

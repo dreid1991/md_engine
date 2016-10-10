@@ -47,7 +47,7 @@ bool ImproperHarmonicType::operator==(const ImproperHarmonicType &other) const {
 std::string ImproperHarmonic::getInfoString() {
   std::stringstream ss;
   ss << "<member type='" << type << "' k='" << k << "' thetaEq='" << thetaEq << "' atomID_a='" << ids[0] << "' atomID_b='" << ids[1] << "' atomID\
-_c='" << ids[2] << "' atom_d='" << ids[3] << "'/>\n";
+_c='" << ids[2] << "' atomID_d='" << ids[3] << "'/>\n";
   return ss.str();
 }
 

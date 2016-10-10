@@ -79,10 +79,10 @@ bool FixImproperHarmonic::readFromRestart() {
                     double thetaEq;
                     int ids[4];
                     std::string type_ = member_node.attribute("type").value();
-                    std::string atom_a = member_node.attribute("atom_a").value();
-                    std::string atom_b = member_node.attribute("atom_b").value();
-                    std::string atom_c = member_node.attribute("atom_c").value();
-                    std::string atom_d = member_node.attribute("atom_d").value();
+                    std::string atom_a = member_node.attribute("atomID_a").value();
+                    std::string atom_b = member_node.attribute("atomID_b").value();
+                    std::string atom_c = member_node.attribute("atomID_c").value();
+                    std::string atom_d = member_node.attribute("atomID_d").value();
                     std::string k_ = member_node.attribute("k").value();
                     std::string thetaEq_ = member_node.attribute("thetaEq").value();
                     type = atoi(type_.c_str());
@@ -127,7 +127,10 @@ void export_FixImproperHarmonic() {
              boost::python::arg("thetaEq")=COEF_DEFAULT
              )
         )
+
+    .def_readonly("impropers", &FixImproperHarmonic::pyForcers)    
     ;
+
 
 }
 

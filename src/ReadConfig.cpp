@@ -243,6 +243,13 @@ bool ReadConfig::read() {
                             }
                            ))
           ) ;
+    assert(
+            (xml_assign<double, 1>(*config, "q", [&] (int i, double *vals) {
+                            readAtoms[i].q = *vals;
+                            }
+                           ))
+          ) ;
+
 
 	loadAtomParams(*config, state);
 	loadBounds(*config, state);
@@ -250,7 +257,6 @@ bool ReadConfig::read() {
 	for (Atom &a : readAtoms) {
 		state->addAtomDirect(a);
 	}
-//	buildBonds(*config, state.get(), "bond", numBonds);
 	return true;
 
 }

@@ -124,6 +124,10 @@ void writeXMLfileBase64(State *state, string fnFinal, int64_t turn, bool oneFile
             return a.id;
             }
             );
+    writeXMLChunkBase64<Atom, double>(outFile, atoms, "q", [] (Atom &a) {
+            return a.q;
+            }
+            );
 
     outputGroups(outFile, state);
     sprintf(buffer, "</configuration>\n");
@@ -235,6 +239,10 @@ void writeXMLfile(State *state, string fnFinal, int64_t turn, bool oneFilePerWri
             );
     writeXMLChunk<Atom>(outFile, atoms, "id", [] (Atom &a, char buffer[BUFFERLEN]) {
             sprintf(buffer, "%d\n", a.id);
+            }
+            );
+    writeXMLChunk<Atom>(outFile, atoms, "q", [] (Atom &a, char buffer[BUFFERLEN]) {
+            sprintf(buffer, "%f\n", a.q);
             }
             );
     outputGroups(outFile, state);

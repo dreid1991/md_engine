@@ -181,8 +181,9 @@ bool FixPair::readFromRestart() {
                 }
                 mdAssert(it != paramOrder.end(), "Invalid restart data for fix");
                 std::vector<float> *params = paramMap[paramHandle];
+                ensureParamSize(*params);
                 std::vector<float> src = xml_readNums<float>(curr_param);
-                assert(params->size() == src.size());
+                assert(params->size() >= src.size());
                 for (int i=0; i<src.size(); i++) {
                     (*params)[i] = src[i];
                 }

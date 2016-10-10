@@ -105,8 +105,8 @@ bool FixBondFENE::readFromRestart() {
                     double sig;
                     int ids[2];
                     std::string type_ = member_node.attribute("type").value();
-                    std::string atom_a = member_node.attribute("atom_a").value();
-                    std::string atom_b = member_node.attribute("atom_b").value();
+                    std::string atom_a = member_node.attribute("atomID_a").value();
+                    std::string atom_b = member_node.attribute("atomID_b").value();
                     std::string k_ = member_node.attribute("k").value();
                     std::string r0_ = member_node.attribute("r0").value();
                     std::string eps_ = member_node.attribute("eps").value();
