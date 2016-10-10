@@ -20,6 +20,8 @@ public:
     bool operator==(const Molecule &other) {
         return ids == other.ids;
     }
+    double dist(Molecule &);
+    Vector size();
 };
 
 
