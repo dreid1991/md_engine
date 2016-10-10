@@ -307,7 +307,7 @@ public:
     void createMolecule(std::vector<int> &ids);
     boost::python::object createMoleculePy(boost::python::list ids);
 
-    boost::python::object duplicateMolecule(Molecule &);
+    boost::python::object duplicateMolecule(Molecule &, int n);
     Atom &duplicateAtom(Atom);
     void refreshIdToIdx();
     

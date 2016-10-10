@@ -12,7 +12,7 @@
 #include "helpers.h"
 // #include <cmath>
 using namespace std;
-
+namespace py = boost::python;
 const std::string chargeEwaldType = "ChargeEwald";
 
 // #define THREADS_PER_BLOCK_
@@ -539,6 +539,9 @@ FixChargeEwald::FixChargeEwald(SHARED(State) state_, string handle_, string grou
   cufftCreate(&plan);
   canOffloadChargePairCalc = true;
   calcLongRange = true;
+  modeIsError = false;
+  sz = make_int3(32, 32, 32);
+  malloced = false;
 }
 
 
@@ -616,7 +619,7 @@ void FixChargeEwald::setTotalQ2() {
     cout<<"total_Q "<<total_Q<<'\n';
     cout<<"total_Q2 "<<total_Q2<<'\n';
 }
-void FixChargeEwald::find_optimal_parameters(bool printError){
+double FixChargeEwald::find_optimal_parameters(bool printError){
 
     int nAtoms = state->atoms.size();    
     L=state->boundsGPU.trace();
@@ -654,10 +657,13 @@ void FixChargeEwald::find_optimal_parameters(bool printError){
     if (n_iter==max_iter) cout<<"Ewald RMS Root finder failed, max_iter "<<max_iter<<" reached\n";
     alpha=x_b;
     //alpha = 1.0;
+    double error = DeltaF_k(alpha)+DeltaF_real(alpha);
     if (printError) {
+
         cout<<"Ewald alpha="<<alpha<<'\n';
-        cout<<"Ewald RMS error is  "<<DeltaF_k(alpha)+DeltaF_real(alpha)<<'\n';
+        cout<<"Ewald RMS error is  "<<error<<'\n';
     }
+    return error;
     
     
 }
@@ -695,9 +701,69 @@ void FixChargeEwald::setParameters(int szx_,int szy_,int szz_,float rcut_,int in
 
     interpolation_order=interpolation_order_;
 
+    malloced = true;
 
 }
 
+
+void FixChargeEwald::setGridToErrorTolerance(bool printMsg) {
+    int3 szOld = sz;
+    int nTries = 0;
+    double error = find_optimal_parameters(false);
+    //Vector trace = state->bounds.rectComponents;
+    while (nTries < 100 and (error > errorTolerance or error!=error or error < 0)) { //<0 tests for -inf
+        /*
+        Vector sVec = Vector(make_float3(sz));
+        Vector ratio = sVec / trace;
+        double minRatio = ratio[0];
+        int minIdx = 0;
+        for (int i=0; i<3; i++) {
+            if (ratio[i] < minRatio) {
+                minRatio = ratio[i];
+                minIdx = i;
+            }
+        }
+        sVec[minIdx] *= 2;
+        */
+        sz *= 2;//make_int3(sVec.asFloat3());
+        error = find_optimal_parameters(false);
+        nTries++;
+    }
+    if (printMsg) {
+        printf("Using ewald grid of %d %d %d with error %f\n", sz.x, sz.y, sz.z, error);
+    }
+
+    if (!malloced or szOld != sz) {
+        if (malloced) {
+            cufftDestroy(plan);
+            cudaFree(FFT_Qs);
+            cudaFree(FFT_Ex);
+            cudaFree(FFT_Ey);
+            cudaFree(FFT_Ez);
+        }
+        cudaMalloc((void**)&FFT_Qs, sizeof(cufftComplex)*sz.x*sz.y*sz.z);
+
+        cufftPlan3d(&plan, sz.x,sz.y, sz.z, CUFFT_C2C);
+
+
+        cudaMalloc((void**)&FFT_Ex, sizeof(cufftComplex)*sz.x*sz.y*sz.z);
+        cudaMalloc((void**)&FFT_Ey, sizeof(cufftComplex)*sz.x*sz.y*sz.z);
+        cudaMalloc((void**)&FFT_Ez, sizeof(cufftComplex)*sz.x*sz.y*sz.z);
+
+        Green_function=GPUArrayGlobal<float>(sz.x*sz.y*sz.z);
+        malloced = true;
+    }
+
+
+}
+void FixChargeEwald::setError(double targetError, float rcut_, int interpolation_order_) {
+    printf("HEY HERE\n");
+    r_cut=rcut_;
+    interpolation_order=interpolation_order_;
+    errorTolerance = targetError;
+    modeIsError = true;
+
+    }
 
 void FixChargeEwald::calc_Green_function(){
 
@@ -775,7 +841,11 @@ void FixChargeEwald::handleBoundsChange() {
 void FixChargeEwald::handleBoundsChangeInternal(bool printError) {
 
     if ((state->boundsGPU != boundsLastOptimize)||(total_Q2!=total_Q2LastOptimize)) {
-        find_optimal_parameters(printError);
+        if (modeIsError) {
+            setGridToErrorTolerance(printError);
+        } else {
+            find_optimal_parameters(printError);
+        }
         calc_Green_function();
         boundsLastOptimize = state->boundsGPU;
         total_Q2LastOptimize=total_Q2;
@@ -1103,21 +1173,22 @@ ChargeEvaluatorEwald FixChargeEwald::generateEvaluator() {
 void (FixChargeEwald::*setParameters_xyz)(int ,int ,int ,float ,int) = &FixChargeEwald::setParameters;
 void (FixChargeEwald::*setParameters_xxx)(int ,float ,int) = &FixChargeEwald::setParameters;
 void export_FixChargeEwald() {
-    boost::python::class_<FixChargeEwald,
+    py::class_<FixChargeEwald,
                           SHARED(FixChargeEwald),
-                          boost::python::bases<FixCharge> > (
+                          py::bases<FixCharge> > (
          "FixChargeEwald", 
-         boost::python::init<SHARED(State), string, string> (
-              boost::python::args("state", "handle", "groupHandle"))
+         py::init<SHARED(State), string, string> (
+              py::args("state", "handle", "groupHandle"))
         )
         .def("setParameters", setParameters_xyz,
-                (boost::python::arg("szx"),boost::python::arg("szy"),boost::python::arg("szz"), boost::python::arg("r_cut"),boost::python::arg("interpolation_order"))
+                (py::arg("szx"),py::arg("szy"),py::arg("szz"), py::arg("r_cut"),py::arg("interpolation_order"))
           
             )
         .def("setParameters", setParameters_xxx,
-                (boost::python::arg("sz"),boost::python::arg("r_cut"),boost::python::arg("interpolation_order"))
+                (py::arg("sz"),py::arg("r_cut"),py::arg("interpolation_order"))
             )        
-        .def_readwrite("calcLongRange", &FixChargeEwald::calcLongRange)
+        .def("setError", &FixChargeEwald::setError, (py::arg("error"), py::arg("rCut"), py::arg("interpolation_order"))
+            )
         ;
 }
 

@@ -155,6 +155,36 @@ class FixBond : public Fix, public TypedItemHolder {
             }
             return ids;
         }
+        void duplicateMolecule(std::vector<int> &oldIds, std::vector<std::vector<int> > &newIds) {
+            int ii = bonds.size();
+            std::vector<CPUMember> belongingToOld;
+            for (int i=0; i<ii; i++) {
+                CPUMember &b= boost::get<CPUMember>(bonds[i]);
+                std::array<int, 2> &ids = b.ids;
+                for (int j=0; j<2; j++) {
+                    if (find(oldIds.begin(), oldIds.end(), ids[j]) != oldIds.end()) {
+                        belongingToOld.push_back(b);
+                    }
+                }
+            }
+            for (int i=0; i<newIds.size(); i++) {
+                for (int j=0; j<belongingToOld.size(); j++) {
+                    CPUMember copy = belongingToOld[j];
+                    std::array<int, 2> idsNew = copy.ids;
+                    for (int k=0; k<2; k++) {
+                        auto it = find(oldIds.begin(), oldIds.end(), idsNew[k]);
+                        if (it != oldIds.end()) {
+                            idsNew[k] = newIds[i][it - oldIds.begin()];
+                        }
+                    }
+                    copy.ids = idsNew;
+                    bonds.push_back(copy);
+                    pyListInterface.updateAppendedMember(false);
+                }
+            }
+            pyListInterface.requestRefreshPyList();
+        }
+        /*
         void duplicateMolecule(std::map<int, int> &oldToNew) {
             int ii = bonds.size();
             for (int i=0; i<ii; i++) {
@@ -179,6 +209,7 @@ class FixBond : public Fix, public TypedItemHolder {
 
             
         }
+        */
 
 
         void setSharedMemForParams() {

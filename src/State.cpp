@@ -218,21 +218,44 @@ py::object State::createMoleculePy(py::list idsPy) {
 
 
 
-py::object State::duplicateMolecule(Molecule &molec) {
-    std::map<int, int> oldToNew;
-    std::vector<int> newIds;
+py::object State::duplicateMolecule(Molecule &molec, int n) {
+    //std::map<int, int> oldToNew;
+    //std::vector<int> newIds;
+    int molecsOrig = py::len(molecules);
+    std::vector<int> oldIds;
+    std::vector< std::vector<int> > newIdss;
     for (int id : molec.ids) {
-        Atom &a = atoms[idToIdx[id]];
+        oldIds.push_back(id);
 
-        Atom &dup = duplicateAtom(a);
+    //    Atom &a = atoms[idToIdx[id]];
+
+     //   Atom &dup = duplicateAtom(a);
         //NOTE THAT REFERENCE TO A MAY BE INVALIDATE AFTER DUPLICATION B/C VECTOR COULD REALLOCATE
-        oldToNew[id] = dup.id;
-        newIds.push_back(dup.id);
+     //   oldToNew[id] = dup.id;
+     //   newIds.push_back(dup.id);
     }
+    for (int i=0; i<n; i++) {
+        std::vector<int> newIds(oldIds.size());
+        for (int j=0; j<oldIds.size(); j++) {
+            int oldId = oldIds[j];
+            Atom &a = atoms[idToIdx[oldId]];
+            Atom &dup = duplicateAtom(a);
+            newIds[j] = dup.id;
+        }
+        newIdss.push_back(newIds);
+    }
+
     for (Fix *fix : fixes) {
-        fix->duplicateMolecule(oldToNew);
+        fix->duplicateMolecule(oldIds, newIdss);
     }
-    createMolecule(newIds);
+    py::list newMolecs;
+    for (std::vector<int> &newIds : newIdss) {
+        createMolecule(newIds);
+        newMolecs.append(molecules[py::len(molecules)-1]);
+    }
+    if (n>1) {
+        return newMolecs;
+    }
     return molecules[py::len(molecules)-1];
 
 
@@ -706,7 +729,7 @@ BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(State_seedRNG_overloads,State::seedRNG,0,
                          py::arg("atoms") = py::list())
                     )
                 .def("createMolecule", &State::createMoleculePy, (py::arg("ids")))
-                .def("duplicateMolecule", &State::duplicateMolecule)
+                .def("duplicateMolecule", &State::duplicateMolecule, (py::arg("molecule"), py::arg("n")=1))
                 .def("selectGroup", &State::selectGroup)
                 .def("copyAtoms", &State::copyAtoms)
                 .def("idToIdx", &State::idToIdxPy)

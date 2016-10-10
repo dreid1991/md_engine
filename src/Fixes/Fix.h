@@ -159,7 +159,7 @@ public:
      * \return void
      *
      */
-    virtual void duplicateMolecule(std::map<int, int> &oldToNew) {};
+    virtual void duplicateMolecule(std::vector<int> &oldIds, std::vector<std::vector<int> > &newIds) {};
 
     virtual void deleteAtom(Atom *a) {};
 
