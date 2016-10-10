@@ -56,7 +56,7 @@ Vector Molecule::size() {
         Vector pos = firstPos + bounds.minImage(a.pos - firstPos);
         for (int i=0; i<3; i++) {
             lo[i] = fmin(lo[i], pos[i]);
-            hi[i] = fmax(lo[i], pos[i]);
+            hi[i] = fmax(hi[i], pos[i]);
         }
     }
     return hi - lo;
