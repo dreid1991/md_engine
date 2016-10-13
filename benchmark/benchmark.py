@@ -41,8 +41,8 @@ integVerlet = IntegratorVerlet(state)
 #pressure = FixPressureBerendsen(state, "constP", 0.2, 5, 1);
 #state.activateFix(pressure);
 
-#writeconfig = WriteConfig(state, fn='test_out', writeEvery=1, format='xyz', handle='writer')
-#state.activateWriteConfig(writeconfig)
+writeconfig = WriteConfig(state, fn='test_out', writeEvery=100, format='xyz', handle='writer')
+state.activateWriteConfig(writeconfig)
 integVerlet.run(10000)
 sumV = 0.
 for a in state.atoms:

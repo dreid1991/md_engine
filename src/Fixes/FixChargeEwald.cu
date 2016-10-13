@@ -104,7 +104,7 @@ __global__ void map_charge_set_to_zero_cu(int3 sz,cufftComplex *grid) {
                           blockIdx.y*blockDim.y + threadIdx.y,
                           blockIdx.z*blockDim.z + threadIdx.z);
 
-      if ((id.x<sz.x)&&(id.x<sz.y)&&(id.x<sz.z))                  
+      if ((id.x<sz.x)&&(id.y<sz.y)&&(id.z<sz.z))                  
          grid[id.x*sz.y*sz.z+id.y*sz.z+id.z]=make_cuComplex (0.0f, 0.0f);    
 }
 
@@ -123,7 +123,7 @@ __global__ void Green_function_cu(BoundsGPU bounds, int3 sz,float *Green_functio
                           blockIdx.y*blockDim.y + threadIdx.y,
                           blockIdx.z*blockDim.z + threadIdx.z);
 
-      if ((id.x<sz.x)&&(id.x<sz.y)&&(id.x<sz.z)){
+      if ((id.x<sz.x)&&(id.y<sz.y)&&(id.z<sz.z)){
           float3 h =bounds.trace()/make_float3(sz);
           
           //         2*PI
@@ -176,7 +176,7 @@ __global__ void potential_cu(int3 sz,float *Green_function,
                           blockIdx.y*blockDim.y + threadIdx.y,
                           blockIdx.z*blockDim.z + threadIdx.z);
 
-      if ((id.x<sz.x)&&(id.x<sz.y)&&(id.x<sz.z)){
+      if ((id.x<sz.x)&&(id.y<sz.y)&&(id.z<sz.z)){
         FFT_phi[id.x*sz.y*sz.z+id.y*sz.z+id.z]=FFT_qs[id.x*sz.y*sz.z+id.y*sz.z+id.z]*Green_function[id.x*sz.y*sz.z+id.y*sz.z+id.z];
 //TODO after Inverse FFT divide by volume
       }
@@ -188,7 +188,7 @@ __global__ void E_field_cu(BoundsGPU bounds, int3 sz,float *Green_function, cuff
                           blockIdx.y*blockDim.y + threadIdx.y,
                           blockIdx.z*blockDim.z + threadIdx.z);
 
-      if ((id.x<sz.x)&&(id.x<sz.y)&&(id.x<sz.z)){
+      if ((id.x<sz.x)&&(id.y<sz.y)&&(id.z<sz.z)){
           //K vector
           float3 k= 6.28318530717958647693f*make_float3(id)/bounds.trace();
           if (id.x>sz.x/2) k.x= 6.28318530717958647693f*(id.x-sz.x)/bounds.trace().x;
@@ -309,7 +309,7 @@ __global__ void Energy_cu(int3 sz,float *Green_function,
                           blockIdx.y*blockDim.y + threadIdx.y,
                           blockIdx.z*blockDim.z + threadIdx.z);
 
-      if ((id.x<sz.x)&&(id.x<sz.y)&&(id.x<sz.z)){
+      if ((id.x<sz.x)&&(id.y<sz.y)&&(id.z<sz.z)){
         cufftComplex qi=FFT_qs[id.x*sz.y*sz.z+id.y*sz.z+id.z];
         E_grid[id.x*sz.y*sz.z+id.y*sz.z+id.z]
             =make_cuComplex((qi.x*qi.x+qi.y*qi.y)*Green_function[id.x*sz.y*sz.z+id.y*sz.z+id.z],0.0);
@@ -323,7 +323,7 @@ __global__ void virials_cu(BoundsGPU bounds,int3 sz,Virial *dest,float alpha, fl
                           blockIdx.y*blockDim.y + threadIdx.y,
                           blockIdx.z*blockDim.z + threadIdx.z);
 
-      if ((id.x<sz.x)&&(id.x<sz.y)&&(id.x<sz.z)){
+      if ((id.x<sz.x)&&(id.y<sz.y)&&(id.z<sz.z)){
           float3 k= 6.28318530717958647693f*make_float3(id)/bounds.trace();
           if (id.x>sz.x/2) k.x= 6.28318530717958647693f*(id.x-sz.x)/bounds.trace().x;
           if (id.y>sz.y/2) k.y= 6.28318530717958647693f*(id.y-sz.y)/bounds.trace().y;
@@ -421,7 +421,7 @@ template < bool COMPUTE_VIRIALS>
 __global__ void compute_short_range_forces_cu(int nAtoms, float4 *xs, float4 *fs, uint16_t *neighborCounts, uint *neighborlist, uint32_t *cumulSumMaxPerBlock, float *qs, float alpha, float rCut, BoundsGPU bounds, int warpSize, float onetwoStr, float onethreeStr, float onefourStr, Virial *__restrict__ virials, Virial *virialField, float volume,float  conversion) {
 
     float multipliers[4] = {1, onetwoStr, onethreeStr, onefourStr};
-
+    printf("USING SHORT RANGE FORCES IN VIRIAL.  THIS KERNEL IS INCORRECT\n");
     Virial virialsSum = Virial(0, 0, 0, 0, 0, 0);   
     int idx = GETIDX();
     if (idx < nAtoms) {
