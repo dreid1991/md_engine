@@ -421,7 +421,7 @@ template < bool COMPUTE_VIRIALS>
 __global__ void compute_short_range_forces_cu(int nAtoms, float4 *xs, float4 *fs, uint16_t *neighborCounts, uint *neighborlist, uint32_t *cumulSumMaxPerBlock, float *qs, float alpha, float rCut, BoundsGPU bounds, int warpSize, float onetwoStr, float onethreeStr, float onefourStr, Virial *__restrict__ virials, Virial *virialField, float volume,float  conversion) {
 
     float multipliers[4] = {1, onetwoStr, onethreeStr, onefourStr};
-    printf("USING SHORT RANGE FORCES IN VIRIAL.  THIS KERNEL IS INCORRECT\n");
+ //   printf("USING SHORT RANGE FORCES IN VIRIAL.  THIS KERNEL IS INCORRECT\n");
     Virial virialsSum = Virial(0, 0, 0, 0, 0, 0);   
     int idx = GETIDX();
     if (idx < nAtoms) {

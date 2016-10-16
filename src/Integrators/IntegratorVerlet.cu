@@ -145,6 +145,7 @@ void IntegratorVerlet::run(int numTurns)
 
     //! \todo These parts could be moved to basicFinish()
     cudaDeviceSynchronize();
+    CUT_CHECK_ERROR("after run\n");
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> duration = end - start;
     mdMessage("runtime %f\n%e particle timesteps per second\n",

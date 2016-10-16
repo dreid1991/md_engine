@@ -159,12 +159,17 @@ class FixBond : public Fix, public TypedItemHolder {
             int ii = bonds.size();
             std::vector<CPUMember> belongingToOld;
             for (int i=0; i<ii; i++) {
-                CPUMember &b= boost::get<CPUMember>(bonds[i]);
+                CPUMember &b = boost::get<CPUMember>(bonds[i]);
                 std::array<int, 2> &ids = b.ids;
+                bool found = false;
                 for (int j=0; j<2; j++) {
                     if (find(oldIds.begin(), oldIds.end(), ids[j]) != oldIds.end()) {
-                        belongingToOld.push_back(b);
+                        found = true;
+                        break;
                     }
+                }
+                if (found) {
+                    belongingToOld.push_back(b);
                 }
             }
             for (int i=0; i<newIds.size(); i++) {
