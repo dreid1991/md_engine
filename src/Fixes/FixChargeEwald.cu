@@ -710,9 +710,8 @@ void FixChargeEwald::setGridToErrorTolerance(bool printMsg) {
     int3 szOld = sz;
     int nTries = 0;
     double error = find_optimal_parameters(false);
-    //Vector trace = state->bounds.rectComponents;
+    Vector trace = state->bounds.rectComponents;
     while (nTries < 100 and (error > errorTolerance or error!=error or error < 0)) { //<0 tests for -inf
-        /*
         Vector sVec = Vector(make_float3(sz));
         Vector ratio = sVec / trace;
         double minRatio = ratio[0];
@@ -724,11 +723,12 @@ void FixChargeEwald::setGridToErrorTolerance(bool printMsg) {
             }
         }
         sVec[minIdx] *= 2;
-        */
-        sz *= 2;//make_int3(sVec.asFloat3());
+        //sz *= 2;//make_int3(sVec.asFloat3());
+        sz = make_int3(sVec.asFloat3());
         error = find_optimal_parameters(false);
         nTries++;
     }
+    //DOESN'T REDUCE GRID SIZE EVER
     if (printMsg) {
         printf("Using ewald grid of %d %d %d with error %f\n", sz.x, sz.y, sz.z, error);
     }
@@ -763,7 +763,7 @@ void FixChargeEwald::setError(double targetError, float rcut_, int interpolation
     errorTolerance = targetError;
     modeIsError = true;
 
-    }
+}
 
 void FixChargeEwald::calc_Green_function(){
 
