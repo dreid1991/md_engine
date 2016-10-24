@@ -82,14 +82,13 @@ void loadBounds(pugi::xml_node &config, State *state) {
         lo[2] = processRaw(bounds_xml.attribute("zlo").value());
 		auto xhi = bounds_xml.attribute("xhi").value();
 		auto sxx = bounds_xml.attribute("sxx").value();
-        Vector rectComponents;
         //ignoring skew of now
 		if (strcmp(xhi, "") != 0) { //using square box
-			rectComponents[0] = processRaw(xhi) - lo[0];
-			rectComponents[1] = processRaw(bounds_xml.attribute("yhi").value()) - lo[1];
-			rectComponents[2] = processRaw(bounds_xml.attribute("zhi").value()) - lo[2];
-            state->bounds = Bounds(state, lo, rectComponents);
-		} else if (strcmp(sxx, "") != 0) {
+			hi[0] = processRaw(xhi);
+			hi[1] = processRaw(bounds_xml.attribute("yhi").value());
+			hi[2] = processRaw(bounds_xml.attribute("zhi").value());
+            state->bounds = Bounds(state, lo, hi);
+		} /*else if (strcmp(sxx, "") != 0) {
 			rectComponents[0] = processRaw(sxx);
 			rectComponents[1] = processRaw(bounds_xml.attribute("syy").value());
 			rectComponents[2] = processRaw(bounds_xml.attribute("szz").value());
@@ -103,7 +102,7 @@ void loadBounds(pugi::xml_node &config, State *state) {
 			//sides[2][2] = processRaw(bounds_xml.attribute("szz").value());
 			state->bounds = Bounds(state, lo, rectComponents);
            
-		} else {
+		}*/ else {
 			assert(strcmp("Tried to load bad bounds data", ""));
 		}
 

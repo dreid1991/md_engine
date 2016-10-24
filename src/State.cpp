@@ -84,14 +84,16 @@ int State::addAtom(std::string handle, Vector pos, double q) {
 }
 
 bool State::addAtomDirect(Atom a) {
-    // id of atom a WILL be overridden
-    if (idBuffer.size()) {
-        a.id = idBuffer.back();
-        idBuffer.pop_back();
-    } else {
-        maxIdExisting++;
-        a.id = maxIdExisting;
-    }
+	//overwriting atom id if it's set to the default, -1
+	if (a.id == -1) {
+		if (idBuffer.size()) {
+			a.id = idBuffer.back();
+			idBuffer.pop_back();
+		} else {
+			maxIdExisting++;
+			a.id = maxIdExisting;
+		}
+	}
     while (idToIdx.size() <= a.id) {
         idToIdx.push_back(0);
     }
