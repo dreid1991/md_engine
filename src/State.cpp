@@ -119,7 +119,8 @@ bool State::addAtomDirect(Atom a) {
 }
 
 Atom &State::duplicateAtom(Atom a) {
-    addAtomDirect(a); //really just reassigns id (and mass, but will be unchanged)
+	a.id = -1; //will assign id if id == -1
+    addAtomDirect(a); 
     return atoms.back();
 }
 
