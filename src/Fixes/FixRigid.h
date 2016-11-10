@@ -26,6 +26,8 @@ class FixRigid : public Fix {
   std::vector<int4> waterIds;
   std::vector<BondVariant> bonds;
   std::vector<float4> invMassSums;
+  bool fourSet = false;
+  bool fourSite;
 
  public:
   FixRigid(SHARED(State), std::string handle_, std::string groupHandle_);
@@ -33,7 +35,7 @@ class FixRigid : public Fix {
   bool stepFinal();
   bool prepareForRun();
   void createRigid(int, int, int);
-  void createTIP4P(int, int, int);
+  //void createRigidTIP4P(int, int, int, int);
 
   std::vector<BondVariant> *getBonds() {
     return &bonds;
