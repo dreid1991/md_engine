@@ -1,10 +1,12 @@
+#define __STDC_FORMAT_MACROS 1
+#include <inttypes.h>
 #include "WriteConfig.h"
 #include "includeFixes.h"
-#include <inttypes.h>
 
 #define BUFFERLEN 700
 
 using namespace std;
+namespace py = boost::python;
 
 template <typename T>
 void writeXMLChunk(ofstream &outFile, vector<T> &vals, string tag, std::function<void (T &, char [BUFFERLEN])> getLine) {
@@ -43,7 +45,7 @@ void writeAtomParams(ofstream &outFile, AtomParams &params) {
     outFile << "</handle>\n";
 
     outFile << "<mass>\n";
-    for (num mass : params.masses) {
+    for (double mass : params.masses) {
         outFile << mass << "\n";
     }
     outFile << "</mass>\n";
@@ -53,7 +55,21 @@ void writeAtomParams(ofstream &outFile, AtomParams &params) {
 
 }
 
-void writeXMLfileBase64(State *state, string fnFinal, int64_t turn, bool oneFilePerWrite, double unitLen) {
+void outputGroups(ofstream &outFile, State *state) {
+    outFile << "<groupInfo>\n";
+    outFile << "<groupHandles>\n";
+    for (auto it = state->groupTags.begin(); it != state->groupTags.end(); it++) {
+        outFile << it->first << "\n";
+    }
+    outFile << "</groupHandles>\n";
+    outFile << "<groupBits>\n";
+    for (auto it = state->groupTags.begin(); it != state->groupTags.end(); it++) {
+        outFile << it->second<< "\n";
+    }
+    outFile << "</groupBits>\n";
+    outFile << "</groupInfo>\n";
+}
+void writeXMLfileBase64(State *state, string fnFinal, int64_t turn, bool oneFilePerWrite, uint groupBit) {
     vector<Atom> &atoms = state->atoms;
     ofstream outFile;
     Bounds b = state->bounds;
@@ -77,7 +93,7 @@ void writeXMLfileBase64(State *state, string fnFinal, int64_t turn, bool oneFile
     for (int i=0; i<6; i++) {
         b64[i] = base64_encode((const unsigned char *) (dims + i), 8);
     }
-    sprintf(buffer, "<configuration turn=\"%" PRId64 "\" numAtoms=\"%d\" dimension=\"%d\" periodic=\"%d%d%d\">\n", turn, (int) atoms.size(), ndims, state->periodic[0], state->periodic[1], state->periodic[2]);
+    sprintf(buffer, "<configuration turn=\"%" PRId64 "\" numAtoms=\"%d\" dimension=\"%d\" periodic=\"%d%d%d\" rCut=\"%f\" padding=\"%f\" dt=\"%f\">\n", turn, (int) atoms.size(), ndims, state->periodic[0], state->periodic[1], state->periodic[2], state->rCut, state->padding, state->dt);
     outFile << buffer;
     //sprintf(buffer, "<bounds base64=\"1\" xlo=\"%s\" ylo=\"%s\" zlo=\"%s\" sxx=\"%s\" sxy=\"%s\" sxz=\"%s\" syx=\"%s\" syy=\"%s\" syz=\"%s\" szx=\"%s\" szy=\"%s\" szz=\"%s\"/>\n", b64[0].c_str(), b64[1].c_str(), b64[2].c_str(), b64[3].c_str(), b64[4].c_str(), b64[5].c_str(), b64[6].c_str(), b64[7].c_str(), b64[8].c_str(), b64[9].c_str(), b64[10].c_str(), b64[11].c_str());
     sprintf(buffer, "<bounds base64=\"1\" xlo=\"%s\" ylo=\"%s\" zlo=\"%s\" xhi=\"%s\" yhi=\"%s\" zhi=\"%s\" />\n", b64[0].c_str(), b64[1].c_str(), b64[2].c_str(), b64[3].c_str(), b64[4].c_str(), b64[5].c_str());
@@ -109,7 +125,12 @@ void writeXMLfileBase64(State *state, string fnFinal, int64_t turn, bool oneFile
             return a.id;
             }
             );
+    writeXMLChunkBase64<Atom, double>(outFile, atoms, "q", [] (Atom &a) {
+            return a.q;
+            }
+            );
 
+    outputGroups(outFile, state);
     sprintf(buffer, "</configuration>\n");
     outFile << buffer;
     if (oneFilePerWrite) {
@@ -121,7 +142,7 @@ void writeXMLfileBase64(State *state, string fnFinal, int64_t turn, bool oneFile
 }
 
 
-void writeXYZFile(State *state, string fn, int64_t turn, bool oneFilePerWrite, double unitLen) {
+void writeXYZFile(State *state, string fn, int64_t turn, bool oneFilePerWrite, uint groupBit) {
     vector<Atom> &atoms = state->atoms;
     AtomParams &params = state->atomParams;
     bool useAtomicNums = true;
@@ -136,21 +157,33 @@ void writeXYZFile(State *state, string fn, int64_t turn, bool oneFilePerWrite, d
     } else {
         outFile.open(fn.c_str(), ofstream::app);
     }
-    outFile << atoms.size() << endl;
+	if (groupBit == 1) {
+		outFile << atoms.size() << endl;
+	} else {
+		int count = 0;
+		for (Atom &a : atoms) {
+			if (a.groupTag & groupBit) {
+				count ++;
+			}
+		}
+		outFile << count << endl;
+	}
     for (Atom &a : atoms) {
-        int atomicNum;
-        if (useAtomicNums) {
-            atomicNum = params.atomicNums[a.type];
-        } else {
-            atomicNum = a.type;
-        }
-        outFile << endl << atomicNum << " " << (a.pos[0] / unitLen) << " " << (a.pos[1] / unitLen) << " " << (a.pos[2] / unitLen);
+		if (a.groupTag & groupBit) {
+			int atomicNum;
+			if (useAtomicNums) {
+				atomicNum = params.atomicNums[a.type];
+			} else {
+				atomicNum = a.type;
+			}
+			outFile << endl << atomicNum << " " << a.pos[0] << " " << a.pos[1] << " " << a.pos[2];
+		}
     }
     outFile << endl;
     outFile.close();
 }
 
-void writeXMLfile(State *state, string fnFinal, int64_t turn, bool oneFilePerWrite, double unitLen) {
+void writeXMLfile(State *state, string fnFinal, int64_t turn, bool oneFilePerWrite, uint groupBit) {
     vector<Atom> &atoms = state->atoms;
     ofstream outFile;
     Bounds b = state->bounds;
@@ -168,7 +201,7 @@ void writeXMLfile(State *state, string fnFinal, int64_t turn, bool oneFilePerWri
   //          s[i*3 + j] = (double) b.sides[i][j];
   //      }
   //  }
-    sprintf(buffer, "<configuration turn=\"%" PRId64 "\" numAtoms=\"%d\" dimension=\"%d\" periodic=\"%d%d%d\">\n", turn, (int) atoms.size(), ndims, state->periodic[0], state->periodic[1], state->periodic[2]);
+    sprintf(buffer, "<configuration turn=\"%" PRId64 "\" numAtoms=\"%d\" dimension=\"%d\" periodic=\"%d%d%d\" rCut=\"%f\" padding=\"%f\" dt=\"%f\">\n", turn, (int) atoms.size(), ndims, state->periodic[0], state->periodic[1], state->periodic[2], state->rCut, state->padding, state->dt);
     outFile << buffer;
     Vector hi = b.lo + b.rectComponents;
   //  sprintf(buffer, "<bounds base64=\"0\" xlo=\"%f\" ylo=\"%f\" zlo=\"%f\" sxx=\"%f\" sxy=\"%f\" sxz=\"%f\" syx=\"%f\" syy=\"%f\" syz=\"%f\" szx=\"%f\" szy=\"%f\" szz=\"%f\"/>\n", (double) b.lo[0], (double) b.lo[1], (double) b.lo[2], s[0], s[1], s[2], s[3], s[4], s[5], s[6], s[7], s[8]);
@@ -221,6 +254,11 @@ void writeXMLfile(State *state, string fnFinal, int64_t turn, bool oneFilePerWri
             sprintf(buffer, "%d\n", a.id);
             }
             );
+    writeXMLChunk<Atom>(outFile, atoms, "q", [] (Atom &a, char buffer[BUFFERLEN]) {
+            sprintf(buffer, "%f\n", a.q);
+            }
+            );
+    outputGroups(outFile, state);
     sprintf(buffer, "</configuration>\n");
     outFile << buffer;
     if (oneFilePerWrite) {
@@ -275,7 +313,8 @@ string WriteConfig::getCurrentFn(int64_t turn) {
     return string(buffer);
 }
 
-WriteConfig::WriteConfig(SHARED(State) state_, string fn_, string handle_, string format_, int writeEvery_) : state(state_.get()), fn(fn_), handle(handle_), format(format_), writeEvery(writeEvery_), unitLen(1) {
+WriteConfig::WriteConfig(SHARED(State) state_, string fn_, string handle_, string format_, int writeEvery_, string groupHandle_) : state(state_.get()), fn(fn_), handle(handle_), format(format_), writeEvery(writeEvery_), groupHandle(groupHandle_) {
+	groupBit = state->groupTagFromHandle(groupHandle);
     if (format == "base64") {
         writeFormat = &writeXMLfileBase64;
         isXML = true;
@@ -286,7 +325,6 @@ WriteConfig::WriteConfig(SHARED(State) state_, string fn_, string handle_, strin
         writeFormat = &writeXMLfile;
         isXML = true;
     }
-
     if (fn.find("*") != string::npos) {
         oneFilePerWrite = true;
     } else {
@@ -309,16 +347,19 @@ void WriteConfig::finish() {
     }
 }
 void WriteConfig::write(int64_t turn) {
-    writeFormat(state, getCurrentFn(turn), turn, oneFilePerWrite, unitLen);
+    writeFormat(state, getCurrentFn(turn), turn, oneFilePerWrite, groupBit);
+}
+void WriteConfig::writePy() {
+    writeFormat(state, getCurrentFn(state->turn), state->turn, oneFilePerWrite, groupBit);
 }
 
 
 void export_WriteConfig() {
-    boost::python::class_<WriteConfig,
-                          SHARED(WriteConfig) >("WriteConfig", boost::python::init<SHARED(State), string, string, string, int>(boost::python::args("fn", "handle", "format", "writeEvery"))
+    py::class_<WriteConfig,
+                          SHARED(WriteConfig) >("WriteConfig", py::init<SHARED(State), string, string, string, int, py::optional<string> >(py::args("fn", "handle", "format", "writeEvery", "groupHandle"))
     )
     .def_readwrite("writeEvery", &WriteConfig::writeEvery)
     .def_readonly("handle", &WriteConfig::handle)
-    .def_readwrite("unitLen", &WriteConfig::unitLen);
+    .def("write", &WriteConfig::writePy)
     ;
 }

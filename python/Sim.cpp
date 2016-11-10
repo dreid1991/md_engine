@@ -19,14 +19,12 @@ using namespace std;
 #include "includeFixes.h"
 #include "IntegratorVerlet.h"
 #include "IntegratorRelax.h"
+#include "IntegratorGradientDescent.h"
 #include "FixLangevin.h"
 #include "boost_stls.h"
 #include "PythonOperation.h"
 //#include "DataManager.h"
-#include "DataSet.h"
-#include "DataSetTemperature.h"
-#include "DataSetEnergy.h"
-#include "DataSetBounds.h"
+#include "DataSetUser.h"
 #include "ReadConfig.h"
 #include "TypedItemHolder.h"
 #include "Angle.h"
@@ -45,6 +43,7 @@ BOOST_PYTHON_MODULE(Sim) {
     export_Integrator();
     export_IntegratorVerlet();
     export_IntegratorRelax();
+    export_IntegratorGradientDescent();
     export_TypedItemHolder();
     export_Fix();
     export_FixBondHarmonic();
@@ -60,12 +59,14 @@ BOOST_PYTHON_MODULE(Sim) {
     export_FixImproperHarmonic();
     export_Impropers();
     export_FixDihedralOPLS();
+    export_FixDihedralCHARMM();
     export_Dihedrals();
     export_FixWall();
     export_FixWallHarmonic();
     export_FixWallLJ126();
     export_FixSpringStatic();
     export_Fix2d();
+    export_FixLinearMomentum();
 
     export_FixPair();
     export_FixLJCut(); //make there be a pair base class in boost!
@@ -81,6 +82,8 @@ BOOST_PYTHON_MODULE(Sim) {
     export_FixNVTRescale();
     export_FixLangevin();
 
+    export_FixPressureBerendsen();
+
     export_AtomParams();
     export_DataManager();
     export_ReadConfig();
@@ -89,12 +92,10 @@ BOOST_PYTHON_MODULE(Sim) {
     export_WriteConfig();
     export_InitializeAtoms();
         
+    export_Units();
 
     export_State(); 	
     export_DeviceManager();
-    export_DataSet();
-    export_DataSetTemperature();
-    export_DataSetEnergy();
-    export_DataSetBounds();
+    export_DataSetUser();
 
 }

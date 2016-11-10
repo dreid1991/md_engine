@@ -25,6 +25,7 @@ __global__ void compute_wall_iso(int nAtoms,float4 *xs, float4 *fs,float3 origin
             if (projection >= 0) {
                 f = f + force;
             } else {
+                printf("Atom pos %f %f %f wall origin %f %f %f\n", pos.x, pos.y, pos.z, origin.x, origin.y, origin.z);
                 assert(projection>0); // projection should be greater than 0, otherwise
                 // the wall is ill-defined (forceDir pointing out of box)
                 //

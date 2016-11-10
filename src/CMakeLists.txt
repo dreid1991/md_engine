@@ -16,11 +16,13 @@ configure_file (
     "${PROJECT_SOURCE_DIR}/Config.h.in"
     "${PROJECT_BINARY_DIR}/Config.h"
 )
-
+MESSAGE(STATUS ${PYTHON_LIBRARIES})
+MESSAGE(STATUS ${CUDA_LIBRARIES})
 cuda_add_library (${MD_ENGINE_LIB_NAME} ${SOURCES} SHARED)
+#PYTHON_LIBRARIES IS NO VALUE
 target_link_libraries (${MD_ENGINE_LIB_NAME} ${PYTHON_LIBRARIES}
-                                             ${Boost_LIBRARIES}
-                                             ${PugiXML_LIBRARIES}
+                                            ${Boost_LIBRARIES}
+											 #${PugiXML_LIBRARIES}
                                              ${CUDA_LIBRARIES}
                                              ${CUDA_CUFFT_LIBRARIES})
 
@@ -29,5 +31,8 @@ target_link_libraries (${MD_ENGINE_LIB_NAME} ${PYTHON_LIBRARIES}
 install(FILES ${CMAKE_BINARY_DIR}/lib${MD_ENGINE_LIB_NAME}.so DESTINATION ${CMAKE_INSTALL_PREFIX}/lib)
 
 cuda_add_executable (testing main.cpp)
-target_link_libraries (testing ${MD_ENGINE_LIB_NAME})
+target_link_libraries(testing ${MD_ENGINE_LIB_NAME})
+
+#cuda_add_executable (testing main.cpp)
+#target_link_libraries (testing ${MD_ENGINE_LIB_NAME})
 

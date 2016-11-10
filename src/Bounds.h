@@ -55,6 +55,8 @@ public:
     }
     bool isInitialized();
     void set(BoundsGPU &b) {
+        lo = Vector(b.lo);
+        rectComponents = Vector(b.rectComponents);
         /*
         lo = Vector(b.lo);
         //hi = lo;
@@ -67,6 +69,8 @@ public:
         */
     }
     void set(Bounds &b) {
+        lo = b.lo;
+        rectComponents = b.rectComponents;
         /*
         lo = b.lo;
         hi = b.hi;
@@ -94,6 +98,7 @@ public:
 
     void handle2d();
     BoundsGPU makeGPU();
+    bool vectorInBounds(Vector &);
     bool atomInBounds(Atom &);
     double volume();
 

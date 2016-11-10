@@ -26,7 +26,7 @@ protected:
 
 public:
     //! Destructor
-    virtual ~GPUArrayDevice() = default;
+    virtual ~GPUArrayDevice(){};
 
     //! Get the size of the array
     /*!

@@ -6,6 +6,7 @@
 #include "PairEvaluateIso.h"
 #include "State.h"
 #include "cutils_func.h"
+#include "EvaluatorWrapper.h"
 
 const std::string LJCutType = "LJCutFS";
 
@@ -26,16 +27,10 @@ void FixLJCutFS::compute(bool computeVirials) {
     int activeIdx = gpd.activeIdx();
     uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
     float *neighborCoefs = state->specialNeighborCoefs;
-
-    if (computeVirials) {
-        compute_force_iso<EvaluatorLJFS, 4, true>  <<<NBLOCK(nAtoms), PERBLOCK, 4*numTypes*numTypes*sizeof(float)>>>(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx), 
-                neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU, 
-                neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.virials.d_data.data(), evaluator);
-    } else {
-        compute_force_iso<EvaluatorLJFS, 4, false>  <<<NBLOCK(nAtoms), PERBLOCK, 4*numTypes*numTypes*sizeof(float)>>>(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx), 
-                neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU, 
-                neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.virials.d_data.data(), evaluator);
-    }
+    evalWrap->compute(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx),
+                      neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(),
+                      state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU,
+                      neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.virials.d_data.data(), gpd.qs(activeIdx), chargeRCut, computeVirials);
 
 
 
@@ -50,9 +45,9 @@ void FixLJCutFS::singlePointEng(float *perParticleEng) {
     uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
     float *neighborCoefs = state->specialNeighborCoefs;
 
-    compute_energy_iso<EvaluatorLJFS, 4><<<NBLOCK(nAtoms), PERBLOCK, 4*numTypes*numTypes*sizeof(float)>>>(nAtoms, gpd.xs(activeIdx), perParticleEng, neighbor\
-Counts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU, ne\
-ighborCoefs[0], neighborCoefs[1], neighborCoefs[2], evaluator);
+    evalWrap->energy(nAtoms, gpd.xs(activeIdx), perParticleEng, neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.qs(activeIdx), chargeRCut);
+
+
 
 
 
@@ -86,7 +81,7 @@ bool FixLJCutFS::prepareForRun() {
         return a*a;
     };
     
-    auto fillFCut = [this] (int a, int b) {
+	std::function<float(int, int)>fillFCut = [this] (int a, int b) {
         int numTypes = state->atomParams.numTypes;
         float epstimes24=24*squareVectorRef<float>(paramMap[epsHandle]->data(),numTypes,a,b);
         float rCutSqr = pow(squareVectorRef<float>(paramMap[rCutHandle]->data(),numTypes,a,b),2);
@@ -104,7 +99,13 @@ bool FixLJCutFS::prepareForRun() {
     prepareParameters(rCutHandle, fillRCut, processRCut, true, fillRCutDiag);
     prepareParameters("FCutHandle", fillFCut);
     sendAllToDevice();
+    setEvalWrapper();
     return true;
+}
+
+void FixLJCutFS::setEvalWrapper() {
+    EvaluatorLJFS eval;
+    evalWrap = pickEvaluator<EvaluatorLJFS, 3>(eval, chargeCalcFix);
 }
 
 std::string FixLJCutFS::restartChunk(std::string format) {
@@ -113,25 +114,6 @@ std::string FixLJCutFS::restartChunk(std::string format) {
     return ss.str();
 }
 
-bool FixLJCutFS::readFromRestart(pugi::xml_node restData) {
-    std::cout << "Reading form restart" << std::endl;
-    auto curr_param = restData.first_child();
-    while (curr_param) {
-        if (curr_param.name() == "parameter") {
-           std::vector<float> val;
-           std::string paramHandle = curr_param.attribute("handle").value();
-           std::string s;
-           std::istringstream ss(curr_param.value());
-           while (ss >> s) {
-               val.push_back(atof(s.c_str()));
-           }
-           initializeParameters(paramHandle, val);
-        }
-        curr_param = curr_param.next_sibling();
-    }
-    std::cout << "Reading LJ parameters from restart\n";
-    return true;
-}
 
 bool FixLJCutFS::postRun() {
 

@@ -3,9 +3,9 @@
 #define FIXLJCUT_H
 
 #include "FixPair.h"
-#include "PairEvaluatorLJ.h"
 #include "xml_func.h"
 //! Make FixLJCut available to the pair base class in boost
+class EvaluatorWrapper;
 void export_FixLJCut();
 
 //! Fix for truncated Lennard-Jones interactions
@@ -30,6 +30,8 @@ void export_FixLJCut();
  * If \f$F(r_{ij}) < 0\f$, then the force is attractive. Otherwise, it is
  * repulsive.
  */
+
+extern const std::string LJCutType;
 class FixLJCut : public FixPair {
     public:
         //! Constructor
@@ -63,13 +65,6 @@ class FixLJCut : public FixPair {
          */
         std::string restartChunk(std::string format);
 
-        //! Read parameters from restart file
-        /*!
-         * \return Always True
-         *
-         * \param restData XML node containing the restart data.
-         */
-        bool readFromRestart(pugi::xml_node restData);
 
         //! Add new type of atoms
         /*!
@@ -81,6 +76,7 @@ class FixLJCut : public FixPair {
 
         //! Return list of cutoff values
         std::vector<float> getRCuts();
+        void setEvalWrapper();
     public:
         const std::string epsHandle; //!< Handle for parameter epsilon
         const std::string sigHandle; //!< Handle for parameter sigma
@@ -89,7 +85,8 @@ class FixLJCut : public FixPair {
         std::vector<float> sigmas; //!< vector storing sigma values
         std::vector<float> rCuts; //!< vector storing cutoff distance values
 
-        EvaluatorLJ evaluator; //!< Evaluator for generic pair interactions
+        //EvaluatorLJ evaluator; //!< Evaluator for generic pair interactions
+
 };
 
 #endif

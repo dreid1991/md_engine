@@ -1,14 +1,21 @@
 #define SMALL 0.0001f
-template <class ANGLETYPE, class EVALUATOR>
-__global__ void compute_force_angle(int nAtoms, float4 *xs, float4 *forces, int *idToIdxs, AngleGPU *angles, int *startstops, BoundsGPU bounds, ANGLETYPE *parameters, int nTypes, EVALUATOR evaluator) {
+template <class ANGLETYPE, class EVALUATOR, bool COMPUTEVIRIALS>
+__global__ void compute_force_angle(int nAtoms, float4 *xs, float4 *forces, int *idToIdxs, AngleGPU *angles, int *startstops, BoundsGPU bounds, ANGLETYPE *parameters_arg, int nParameters, Virial *__restrict__ virials, bool usingSharedMemForParams, EVALUATOR evaluator) {
+
     int idx = GETIDX();
-    extern __shared__ int all_shr[];
+    extern __shared__ char all_shr[];
     int idxBeginCopy = startstops[blockDim.x*blockIdx.x];
     int idxEndCopy = startstops[min(nAtoms, blockDim.x*(blockIdx.x+1))];
     AngleGPU *angles_shr = (AngleGPU *) all_shr;
-    ANGLETYPE *parameters_shr = (ANGLETYPE *) (angles_shr + (idxEndCopy - idxBeginCopy));
+    int sizeAngles = (idxEndCopy - idxBeginCopy) * sizeof(AngleGPU);
     copyToShared<AngleGPU>(angles + idxBeginCopy, angles_shr, idxEndCopy - idxBeginCopy);
-    copyToShared<ANGLETYPE>(parameters, parameters_shr, nTypes);
+    ANGLETYPE *parameters;
+    if (usingSharedMemForParams) {
+        parameters = (ANGLETYPE *) (all_shr + sizeAngles);
+        copyToShared<ANGLETYPE>(parameters_arg, parameters, nParameters);
+    } else {
+        parameters = parameters_arg;
+    }
     __syncthreads();
     if (idx < nAtoms) {
         //printf("going to compute %d\n", idx);
@@ -19,11 +26,13 @@ __global__ void compute_force_angle(int nAtoms, float4 *xs, float4 *forces, int 
         int shr_idx = startIdx - idxBeginCopy;
         int n = endIdx - startIdx;
         if (n>0) {
+            Virial virialSum(0, 0, 0, 0, 0, 0);
             int myIdxInAngle = angles_shr[shr_idx].type >> 29;
             int idSelf = angles_shr[shr_idx].ids[myIdxInAngle];
 
             int idxSelf = idToIdxs[idSelf];
             float3 pos = make_float3(xs[idxSelf]);
+            //printf("pos %f %f %f\n", 
             //float3 pos = make_float3(float4FromIndex(xs, idxSelf));
             float3 forceSum = make_float3(0, 0, 0);
             for (int i=0; i<n; i++) {
@@ -32,7 +41,8 @@ __global__ void compute_force_angle(int nAtoms, float4 *xs, float4 *forces, int 
                 uint32_t typeFull = angle.type;
                 myIdxInAngle = typeFull >> 29;
                 int type = static_cast<int>((typeFull << 3) >> 3);
-                ANGLETYPE angleType = parameters_shr[type];
+                //HERE
+                ANGLETYPE angleType = parameters[type];
                 float3 positions[3];
                 positions[myIdxInAngle] = pos;
                 int toGet[2];
@@ -81,12 +91,26 @@ __global__ void compute_force_angle(int nAtoms, float4 *xs, float4 *forces, int 
                 }
                 s = 1.0f / s;
                 float theta = acosf(c);
-                forceSum += evaluator.force(angleType, theta, s, c, distSqrs, directors, invDistProd, myIdxInAngle);
+                if (COMPUTEVIRIALS) {
+                    float3 allForces[3];
+                    evaluator.forcesAll(angleType, theta, s, c, distSqrs, directors, invDistProd, allForces);
+                    computeVirial(virialSum, allForces[0], directors[0]);
+                    computeVirial(virialSum, allForces[2], directors[1]);
+              
+                    forceSum += allForces[myIdxInAngle];
+                } else {
+                    forceSum += evaluator.force(angleType, theta, s, c, distSqrs, directors, invDistProd, myIdxInAngle);
+                }
+
 
             }
             float4 curForce = forces[idxSelf];
             curForce += forceSum;
             forces[idxSelf] = curForce;
+            if (COMPUTEVIRIALS) {
+                virialSum *= 1.0f / 3.0f;
+                virials[idx] += virialSum;
+            }
         }
     }
 }
@@ -97,15 +121,22 @@ __global__ void compute_force_angle(int nAtoms, float4 *xs, float4 *forces, int 
 
 
 template <class ANGLETYPE, class EVALUATOR>
-__global__ void compute_energy_angle(int nAtoms, float4 *xs, float *perParticleEng, int *idToIdxs, AngleGPU *angles, int *startstops, BoundsGPU bounds, ANGLETYPE *parameters, int nTypes, EVALUATOR evaluator) {
+__global__ void compute_energy_angle(int nAtoms, float4 *xs, float *perParticleEng, int *idToIdxs, AngleGPU *angles, int *startstops, BoundsGPU bounds, ANGLETYPE *parameters_arg, int nParameters, bool usingSharedMemForParams, EVALUATOR evaluator) {
+
     int idx = GETIDX();
-    extern __shared__ int all_shr[];
+    extern __shared__ char all_shr[];
     int idxBeginCopy = startstops[blockDim.x*blockIdx.x];
     int idxEndCopy = startstops[min(nAtoms, blockDim.x*(blockIdx.x+1))];
     AngleGPU *angles_shr = (AngleGPU *) all_shr;
-    ANGLETYPE *parameters_shr = (ANGLETYPE *) (angles_shr + (idxEndCopy - idxBeginCopy));
+    int sizeAngles = (idxEndCopy - idxBeginCopy) * sizeof(AngleGPU);
     copyToShared<AngleGPU>(angles + idxBeginCopy, angles_shr, idxEndCopy - idxBeginCopy);
-    copyToShared<ANGLETYPE>(parameters, parameters_shr, nTypes);
+    ANGLETYPE *parameters;
+    if (usingSharedMemForParams) {
+        parameters = (ANGLETYPE *) (all_shr + sizeAngles);
+        copyToShared<ANGLETYPE>(parameters_arg, parameters, nParameters);
+    } else {
+        parameters = parameters_arg;
+    }
     __syncthreads();
     if (idx < nAtoms) {
         //printf("going to compute %d\n", idx);
@@ -129,7 +160,7 @@ __global__ void compute_energy_angle(int nAtoms, float4 *xs, float *perParticleE
                 uint32_t typeFull = angle.type;
                 myIdxInAngle = typeFull >> 29;
                 int type = ((typeFull << 3) >> 3);
-                ANGLETYPE angleType = parameters_shr[type];
+                ANGLETYPE angleType = parameters[type];
                 float3 positions[3];
                 positions[myIdxInAngle] = pos;
                 int toGet[2];

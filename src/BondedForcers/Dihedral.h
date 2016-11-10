@@ -9,6 +9,7 @@
 #include <boost/functional/hash.hpp>
 #include <array>
 class DihedralOPLS;
+class DihedralCHARMM;
 void export_Dihedrals();
 class Dihedral{
     public:
@@ -26,9 +27,6 @@ class DihedralOPLSType {
         bool operator==(const DihedralOPLSType &) const;
 	std::string getInfoString();
 };
-
-
-
 class DihedralOPLS : public Dihedral, public DihedralOPLSType {
     public:
         DihedralOPLS(Atom *a, Atom *b, Atom *c, Atom *d, double coefs_[4], int type_);
@@ -36,6 +34,30 @@ class DihedralOPLS : public Dihedral, public DihedralOPLSType {
         DihedralOPLS(){};
 	std::string getInfoString();
 };
+
+
+
+class DihedralCHARMMType {
+    public:
+        float k;
+        int n;
+        float d;
+        DihedralCHARMMType(DihedralCHARMM *);
+        DihedralCHARMMType(){};
+        bool operator==(const DihedralCHARMMType &) const;
+        std::string getInfoString();
+};
+
+
+
+class DihedralCHARMM: public Dihedral, public DihedralCHARMMType {
+    public:
+        DihedralCHARMM(Atom *atomA, Atom *atomB, Atom *atomC, Atom *atomD, double k_, int n_, double d_, int type_);
+        DihedralCHARMM(double k, int n, double d, int type_);
+        DihedralCHARMM(){};
+        std::string getInfoString();
+};
+
 
 class DihedralGPU {
     public:
@@ -57,12 +79,20 @@ namespace std {
             return seed;
         }
     };
-
-
+    template<> struct hash<DihedralCHARMMType> {
+        size_t operator() (DihedralCHARMMType const& dih) const {
+            size_t seed = 0;
+            boost::hash_combine(seed, dih.k);
+            boost::hash_combine(seed, dih.n);
+            boost::hash_combine(seed, dih.d);
+            return seed;
+        }
+    };
 }
 
 typedef boost::variant<
 	DihedralOPLS, 
+    DihedralCHARMM,
     Dihedral	
 > DihedralVariant;
 #endif

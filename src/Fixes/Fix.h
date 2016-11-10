@@ -17,7 +17,7 @@ void export_Fix();
 /*!
  * Fixes modify the dynamics in the system. They are called by the Integrator
  * at regular intervals and they can modify the Atom forces, positions and
- * velocities. Note that as Fixes themselves depend on the current forces,
+ * velocities. Note that as some Fixes depend on the current forces,
  * positions and velocities, the order in which the Fixes are defined and
  * called is important.
  *
@@ -95,6 +95,8 @@ public:
      * simulation step.
      */
     virtual bool stepInit() { return true; }
+    virtual bool postNVE_V() {return true; }
+    virtual bool postNVE_X() {return true; } //postNVE_V and X are just called in first half step
 
     //! Perform operations at the end of a simulation step
     /*!
@@ -138,6 +140,7 @@ public:
 
     //! Recalculate group bitmask from a (possibly changed) handle
     void updateGroupTag();
+    bool willFire(int64_t);//<!True if a fix will operate for the turn in the argument.
 
     //! Restart Fix
     /*!
@@ -147,7 +150,8 @@ public:
      *
      * Setup Fix from restart data.
      */
-    virtual bool readFromRestart(pugi::xml_node restData){return true;};
+    virtual bool readFromRestart(){return true;};//pugi::xml_node restData){return true;};
+    pugi::xml_node getRestartNode();
    //! Makes copies of appropriate data to handle duplicating molecules
     /*!
      * \param map of ids - original to copied
@@ -155,8 +159,17 @@ public:
      * \return void
      *
      */
-    virtual void duplicateMolecule(std::map<int, int> &oldToNew) {};
+    virtual void duplicateMolecule(std::vector<int> &oldIds, std::vector<std::vector<int> > &newIds) {};
 
+    virtual void deleteAtom(Atom *a) {};
+
+    virtual void handleBoundsChange() {};
+    //! Adjust any parameters that might need to be changed before compute
+    /*!
+     *
+     *This would be used for interdependent fixes, like pair and charge.  Alpha parameter changes when bounds change, so evaluator that the pair fix has needs to be reset
+     *
+     */
     //! Write restart data
     /*!
      * \param format Format for restart data
@@ -206,6 +219,7 @@ public:
      * \todo Pass const reference. Make this function const.
      */
     void validAtoms(std::vector<Atom *> &atoms);
+    virtual void acceptChargePairCalc(Fix *){};
 
 public:
     State *state; //!< Pointer to the simulation state
@@ -215,17 +229,29 @@ public:
     int applyEvery; //!< Applyt this fix every this many timesteps
     unsigned int groupTag; //!< Bitmask for the group handle
     const bool forceSingle; //!< True if Fix contributes to single point energy.
-    const bool requiresVirials; //!< True if Fix needs virials.  Fixes will compute virials if any fix has this as true
-    const bool requiresCharges; //!< True if Fix needs charges.  Fixes will be stored if any fix has this as true
-    const bool isThermostat; //!< True if is a thermostat. Used for barostats.
+    bool requiresVirials; //!< True if Fix needs virials.  Fixes will compute virials if any fix has this as true
+    bool requiresCharges; //!< True if Fix needs charges.  Fixes will be stored if any fix has this as true
+    //these are 
+    bool isThermostat; //!< True if is a thermostat. Used for barostats.
+    bool requiresPostNVE_V;
+
+    bool canOffloadChargePairCalc;
+    bool canAcceptChargePairCalc;
+    
+    bool hasOffloadedChargePairCalc;
+    bool hasAcceptedChargePairCalc;
+    double chargeRCut;
+    void resetChargePairFlags();
+
     int orderPreference; //!< Fixes with a high order preference are calculated
                          //!< later.
 
     const std::string restartHandle; //!< Handle for restart string
+
+    void setVirialTurnPrepare();
+    void setVirialTurn();
+
+
 };
 
-/*
-do it with precompiler instructions, lol!
-nah, just do methods of state.  Might have to add other function calls later as fixes become more complicated
-*/
 #endif

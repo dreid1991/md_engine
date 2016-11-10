@@ -6,6 +6,7 @@
 #include "PairEvaluateIso.h"
 #include "State.h"
 #include "cutils_func.h"
+#include "EvaluatorWrapper.h"
 
 const std::string LJCutType = "LJCutWCA";
 
@@ -16,6 +17,7 @@ FixWCA::FixWCA(SHARED(State) state_, std::string handle_)
     initializeParameters(sigHandle, sigmas);
     initializeParameters(rCutHandle, rCuts);
     paramOrder = {rCutHandle, epsHandle, sigHandle};
+    readFromRestart();
 }
 void FixWCA::compute(bool computeVirials) {
     int nAtoms = state->atoms.size();
@@ -26,15 +28,11 @@ void FixWCA::compute(bool computeVirials) {
     uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
     float *neighborCoefs = state->specialNeighborCoefs;
 
-    if (computeVirials) {
-        compute_force_iso<EvaluatorWCA, 3, true>  <<<NBLOCK(nAtoms), PERBLOCK, 3*numTypes*numTypes*sizeof(float)>>>(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx), 
-                neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU, 
-                neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.virials.d_data.data(), evaluator);
-    } else {
-        compute_force_iso<EvaluatorWCA, 3, false>  <<<NBLOCK(nAtoms), PERBLOCK, 3*numTypes*numTypes*sizeof(float)>>>(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx), 
-                neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU, 
-                neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.virials.d_data.data(), evaluator);
-    }
+
+    evalWrap->compute(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx),
+                      neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(),
+                      state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU,
+                      neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.virials.d_data.data(), gpd.qs(activeIdx), chargeRCut, computeVirials);
 
 
 
@@ -49,9 +47,7 @@ void FixWCA::singlePointEng(float *perParticleEng) {
     uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
     float *neighborCoefs = state->specialNeighborCoefs;
 
-    compute_energy_iso<EvaluatorWCA, 3><<<NBLOCK(nAtoms), PERBLOCK, 3*numTypes*numTypes*sizeof(float)>>>(nAtoms, gpd.xs(activeIdx), perParticleEng, neighbor\
-Counts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU, ne\
-ighborCoefs[0], neighborCoefs[1], neighborCoefs[2], evaluator);
+    evalWrap->energy(nAtoms, gpd.xs(activeIdx), perParticleEng, neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.qs(activeIdx), chargeRCut);
 
 
 
@@ -88,7 +84,6 @@ bool FixWCA::prepareForRun() {
     auto fillRCut = [this] (int a, int b) {
         int numTypes = state->atomParams.numTypes;
         float sig = squareVectorRef<float>(paramMap[sigHandle]->data(),numTypes,a,b);
-        
         return sig*pow(2.0,1.0/6.0);
     };    
     prepareParameters(epsHandle, fillEps, processEps, false);
@@ -100,31 +95,17 @@ bool FixWCA::prepareForRun() {
     return true;
 }
 
+void FixWCA::setEvalWrapper() {
+    EvaluatorWCA eval;
+    evalWrap = pickEvaluator<EvaluatorWCA, 3>(eval, chargeCalcFix);
+}
+
 std::string FixWCA::restartChunk(std::string format) {
     std::stringstream ss;
     ss << restartChunkPairParams(format);
     return ss.str();
 }
 
-bool FixWCA::readFromRestart(pugi::xml_node restData) {
-    std::cout << "Reading form restart" << std::endl;
-    auto curr_param = restData.first_child();
-    while (curr_param) {
-        if (curr_param.name() == "parameter") {
-           std::vector<float> val;
-           std::string paramHandle = curr_param.attribute("handle").value();
-           std::string s;
-           std::istringstream ss(curr_param.value());
-           while (ss >> s) {
-               val.push_back(atof(s.c_str()));
-           }
-           initializeParameters(paramHandle, val);
-        }
-        curr_param = curr_param.next_sibling();
-    }
-    std::cout << "Reading LJ parameters from restart\n";
-    return true;
-}
 
 bool FixWCA::postRun() {
 
@@ -152,13 +133,28 @@ std::vector<float> FixWCA::getRCuts() {
     return res;
 }
 
+bool FixWCA::setParameter(std::string param,
+                           std::string handleA,
+                           std::string handleB,
+                           double val)
+{
+      if (param==sigHandle) FixPair::setParameter(rCutHandle, handleA,handleB,val*pow(2.0,1.0/6.0));
+      return FixPair::setParameter(param, handleA,handleB,val);
+      
+}
 void export_FixWCA() {
     boost::python::class_<FixWCA,
                           SHARED(FixWCA),
                           boost::python::bases<FixPair>, boost::noncopyable > (
         "FixWCA",
         boost::python::init<SHARED(State), std::string> (
-            boost::python::args("state", "handle"))
-    );
+            boost::python::args("state", "handle")))
+        .def("setParameter", &FixWCA::setParameter,
+                ( boost::python::arg("param"),
+                  boost::python::arg("handleA"),
+                  boost::python::arg("handleB"),
+                  boost::python::arg("val"))
+            )
+        ;
 
 }

@@ -1,15 +1,15 @@
 import sys
 sys.path = sys.path + [ '../../build/python/build/lib.linux-x86_64-2.7', '../../util_py' ]
+from Sim import *
 from math import *
 from random import random
 from LAMMPS_Reader import LAMMPS_Reader
-from Sim import *
 #import argparse
 
 state = State()
 #state.deviceManager.setDevice(0)
 state.periodicInterval = 7
-state.shoutEvery = 100 #how often is says % done
+state.shoutEvery = 10000 #how often is says % done
 state.rCut = 3.0
 state.padding = 0.6
 state.seedRNG()
@@ -166,7 +166,7 @@ for i in range(depositionRuns):
     #for a in state.atoms:
         #print a.vel
 
-    writer = WriteConfig(state, handle='writer', fn='pvd_test_%d' % i, format='xyz', writeEvery=1000)
+    writer = WriteConfig(state, handle='writer', fn='pvd_test_%d' % i, format='xyz', writeEvery=10000)
     writer.unitLen = 1/unitLen
     state.activateWriteConfig(writer)
     integrator.run(100000)

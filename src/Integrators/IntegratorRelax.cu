@@ -2,6 +2,7 @@
 #include "cutils_func.h"
 #include "State.h"
 
+using namespace MD_ENGINE;
 
 IntegratorRelax::IntegratorRelax(SHARED(State) state_)
     : Integrator(state_.get())
@@ -63,7 +64,7 @@ __global__ void zero_vel_cu(int nAtoms, float4 *vs) {
 }
 
 //MD step
-__global__ void FIRE_preForce_cu(int nAtoms, float4 *xs, float4 *vs, float4 *fs, float dt) {
+__global__ void FIRE_preForce_cu(int nAtoms, float4 *xs, float4 *vs, float4 *fs, float dt, float dtf) {
     int idx = GETIDX();
     if (idx < nAtoms) {
 
@@ -74,7 +75,7 @@ __global__ void FIRE_preForce_cu(int nAtoms, float4 *xs, float4 *vs, float4 *fs,
         float invmass = vel.w;
         float groupTag = force.w;
         xs[idx] = xs[idx] + make_float3(vel) * dt;
-        float3 newVel = make_float3(force) * dt * invmass;
+        float3 newVel = make_float3(force) * dtf * invmass;
         vs[idx] = vel + newVel;
         fs[idx] = make_float4(0, 0, 0, groupTag);
     }
@@ -83,7 +84,7 @@ __global__ void FIRE_preForce_cu(int nAtoms, float4 *xs, float4 *vs, float4 *fs,
 
 
 
-double IntegratorRelax::run(int numTurns, num fTol) {
+double IntegratorRelax::run(int numTurns, double fTol) {
     std::cout << "FIRE relaxation\n";
     basicPreRunChecks();  
     basicPrepare(numTurns);
@@ -118,12 +119,13 @@ double IntegratorRelax::run(int numTurns, num fTol) {
 
     //neighborlist build
     state->gridGPU.periodicBoundaryConditions(-1, true);
-
+    DataManager &dataManager = state->dataManager;
     for (int i=0; i<numTurns; i++) {
         //init to 0 on cpu and gpu
         VDotV.memsetByVal(0.0);
         VDotF.memsetByVal(0.0);
         FDotF.memsetByVal(0.0);
+        bool computeVirialsInForce = dataManager.virialTurns.find(state->turn) != dataManager.virialTurns.end();
 
         //vdotF calc
         if (! ((remainder + i) % periodicInterval)) {
@@ -183,6 +185,7 @@ double IntegratorRelax::run(int numTurns, num fTol) {
 
             float scale1 = 1 - alpha;
             float scale2 = 0;
+            cudaDeviceSynchronize();
             if (FDotF.h_data[0] != 0) {
                 scale2 = alpha * sqrt(VDotV.h_data[0] / FDotF.h_data[0]);
             }
@@ -215,10 +218,10 @@ double IntegratorRelax::run(int numTurns, num fTol) {
                             state->gpd.xs.getDevData(),
                             state->gpd.vs.getDevData(),
                             state->gpd.fs.getDevData(),
-                            dt);
+                            dt, dt*state->units.ftm_to_v);
         CUT_CHECK_ERROR("FIRE_preForce_cu kernel execution failed");
 
-        Integrator::forceSingle(state->computeVirials);
+        Integrator::forceSingle(computeVirialsInForce);
 
         if (fTol > 0 and i > delay and not (i%delay)) { //only check every so often
             //total force calc
@@ -242,6 +245,7 @@ double IntegratorRelax::run(int numTurns, num fTol) {
 
             force.dataToHost();
             //std::cout<<"Fire relax: force="<<force<<"; turns="<<i<<'\n';
+            cudaDeviceSynchronize();
 
             if (force.h_data[0] < fTol*fTol) {//tolerance achived, exting
                 basicFinish();
@@ -254,9 +258,10 @@ double IntegratorRelax::run(int numTurns, num fTol) {
         //shout status
         if (state->verbose and not ((state->turn - turnInit) % state->shoutEvery)) {
             std::cout << "Turn " << (int) state->turn 
-                      << " " << (int) (100 * (state->turn - turnInit) / (num) numTurns)
+                      << " " << (int) (100 * (state->turn - turnInit) / (double) numTurns)
                       << " percent done" << std::endl;
         }
+        dataManager.clearVirialTurn(state->turn);
         state->turn++;
 
     }
@@ -280,8 +285,8 @@ double IntegratorRelax::run(int numTurns, num fTol) {
     CUT_CHECK_ERROR("kernel execution failed"); //Debug feature, check error code
 
     basicFinish();
-
-    float finalForce = sqrt(force.h_data[0]);
+    cudaDeviceSynchronize();
+    float finalForce = sqrt(force.h_data[0]) / atomssize;
     std::cout << "FIRE relax done: force=" << finalForce 
               << "; turns=" << numTurns << std::endl;
 

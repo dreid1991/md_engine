@@ -50,6 +50,8 @@ typedef unsigned short ushort;
 // host implementations of CUDA functions
 ////////////////////////////////////////////////////////////////////////////////
 
+
+
 inline float fminf(float a, float b)
 {
   return a < b ? a : b;
@@ -1229,8 +1231,9 @@ inline __host__ __device__ float lengthSqrOverW(float4 v)
 }
 inline __host__ __device__ float4 xyzOverW(float4 v) 
 {
-    float3 v3 = make_float3(v);
-    return make_float4(v3 / v.w);
+    float invW = 1.0f / v.w;
+    float3 v3 = make_float3(v) * invW;
+    return make_float4(v3.x, v3.y, v3.z, invW);
 }
 inline __host__ __device__ float Sqr(float v)
 {
@@ -1390,5 +1393,13 @@ inline __device__ __host__ float4 smoothstep(float4 a, float4 b, float4 x)
 	return (y*y*(make_float4(3.0f) - (make_float4(2.0f)*y)));
 }
 
-
+inline __host__ __device__ bool operator == (float3 a, float3 b) { 
+    return a.x==b.x && a.y==b.y && a.z==b.z;
+}
+inline __host__ __device__ bool operator == (int3 a, int3 b) { 
+    return a.x==b.x && a.y==b.y && a.z==b.z;
+}
+inline __host__ __device__ bool operator != (int3 a, int3 b) { 
+    return a.x!=b.x || a.y!=b.y || a.z!=b.z;
+}
 #endif

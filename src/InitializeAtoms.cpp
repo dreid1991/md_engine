@@ -42,7 +42,6 @@ void InitializeAtoms::populateOnGrid(SHARED(State) state, Bounds &bounds,
             }
         }
     }
-    state->changedAtoms = true;
 }
 
 void InitializeAtoms::populateRand(SHARED(State) state, Bounds &bounds,
@@ -96,12 +95,10 @@ void InitializeAtoms::populateRand(SHARED(State) state, Bounds &bounds,
             a.pos[2]=0;
         }
     }
-    state->changedAtoms = true;
 }
 
 void InitializeAtoms::initTemp(SHARED(State) state, string groupHandle,
                                double temp) {
-    //boltzmann const is 1 for reduced lj units
     std::mt19937 generator = state->getRNG();
     int groupTag = state->groupTagFromHandle(groupHandle);
 
@@ -112,7 +109,7 @@ void InitializeAtoms::initTemp(SHARED(State) state, string groupHandle,
     map<double, normal_distribution<double> > dists;
     for (Atom *a : atoms) {
         if (dists.find(a->mass) == dists.end()) {
-            dists[a->mass] = normal_distribution<double>(0, sqrt(temp/a->mass));
+            dists[a->mass] = normal_distribution<double>(0, sqrt(1.0/a->mass));
         }
     }
     Vector sumMoms;
@@ -127,22 +124,28 @@ void InitializeAtoms::initTemp(SHARED(State) state, string groupHandle,
     if (atoms.size()>1) {
         sumMoms /= sumMass;
         for (Atom *a : atoms) {
-            a->vel -= sumMoms * a->mass;
+            a->vel -= sumMoms;
         }
     }
     double sumKe = 0;
     for (Atom *a : atoms) {
-        sumKe += a->kinetic();
+        if (state->is2d) {
+            a->vel[2] = 0;
+        }
+        sumKe += 2.0 * a->kinetic();
     }
-    double curTemp = sumKe / 1.5 / atoms.size();
+    double curTemp = (state->units.mvv_to_eng / state->units.boltz) * sumKe / ((state->is2d ? 2 : 3) * (atoms.size()-1));
     for (Atom *a : atoms) {
         a->vel *= sqrt(temp / curTemp);
     }
-    if (state->is2d) {
-        for (Atom *a : atoms) {
+    sumKe = 0;
+    for (Atom *a : atoms) {
+        if (state->is2d) {
             a->vel[2] = 0;
         }
+        sumKe += 2.0 * a->kinetic();
     }
+
 }
 
 void export_InitializeAtoms() {

@@ -6,10 +6,14 @@
 //#include "AtomParams.h"
 #include "FixCharge.h"
 #include "GPUArrayGlobal.h"
+#include "Virial.h"
+#include "BoundsGPU.h"
+#include "ChargeEvaluatorEwald.h"
 
 class State;
 
 void export_FixChargeEwald();
+extern const std::string chargeEwaldType;
 
 /*! \class FixChargeEwald
  * \brief Short and Long range Coulomb interaction
@@ -24,20 +28,20 @@ private:
     cufftHandle plan;
     cufftComplex *FFT_Qs;  // change to GPU arrays?
     cufftComplex *FFT_Ex, *FFT_Ey, *FFT_Ez;
-
+    
     GPUArrayGlobal<float> Green_function;  // Green function in k space
+
 
     int3 sz;
 
     float alpha;
     float r_cut;
-    bool first_run;
     
-    void find_optimal_parameters();
+    double find_optimal_parameters(bool);
     
     float total_Q;
     float total_Q2;
-
+    void setTotalQ2();
     void calc_Green_function();
     void calc_potential(cufftComplex *phi_buf);
 
@@ -47,14 +51,23 @@ private:
     double DeltaF_real(double t_alpha);
     float3 h;
     float3 L;
-    int nAtoms;
+    GPUArrayDeviceGlobal<Virial> virialField;
+    BoundsGPU boundsLastOptimize;
+    float total_Q2LastOptimize;    
+    void handleBoundsChangeInternal(bool);
+    void setGridToErrorTolerance(bool);
+    bool modeIsError;
+    double errorTolerance;
         
+    bool malloced;
 
 public:
+    void handleBoundsChange();
     FixChargeEwald(boost::shared_ptr<State> state_,
                    std::string handle_, std::string groupHandle_);
     ~FixChargeEwald();
 
+    void setError(double error, float rcut_, int interpolation_order_);
     void setParameters(int szx_, int szy_, int szz_, float rcut_, int interpolation_order_);
     void setParameters(int sz_, float rcut_, int interpolation_order_) {
         setParameters(sz_, sz_, sz_, rcut_, interpolation_order_);
@@ -66,6 +79,7 @@ public:
     //! Compute single point energy
     void singlePointEng(float *);
 
+    bool prepareForRun();
     
     //! Return list of cutoff values.
     std::vector<float> getRCuts() {
@@ -73,6 +87,9 @@ public:
         res.push_back(r_cut);
         return res;
     }    
+    ChargeEvaluatorEwald generateEvaluator(); 
+
+    bool calcLongRange;
 };
 
 #endif

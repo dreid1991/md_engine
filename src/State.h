@@ -12,6 +12,7 @@
 #include <map>
 #include <tuple>
 #include <vector>
+#include <set>
 #include <functional>
 #include <random>
 #include <thread>
@@ -36,6 +37,9 @@
 
 #include "boost_for_export.h"
 #include "DeviceManager.h"
+//basic integrator functions state may need access to (computing engs, for examples)
+#include "IntegratorUtil.h"
+#include "Units.h"
 
 
 void export_State();
@@ -43,7 +47,6 @@ void export_State();
 class PythonOperation;
 class ReadConfig;
 class Fix;
-//class DataManager;
 class WriteConfig;
 
 //! Simulation state
@@ -90,10 +93,11 @@ public:
     GPUData gpd; //!< All GPU data
     DeviceManager devManager; //!< GPU device manager
 
+    IntegratorUtil integUtil;
     Bounds bounds; //!< Bounds on the CPU
     std::vector<Fix *> fixes; //!< List of all fixes
     std::vector<boost::shared_ptr<Fix> > fixesShr; //!< List of shared pointers to fixes
-    DataManager dataManager; //!< Data manager
+    MD_ENGINE::DataManager dataManager; //!< Data manager
     std::vector<boost::shared_ptr<WriteConfig> > writeConfigs; //!< List of output writers
     std::vector<boost::shared_ptr<PythonOperation> > pythonOperations; //!< List of Python
                                                             //!< operations
@@ -111,8 +115,8 @@ public:
     int dangerousRebuilds; //!< Unused
     int periodicInterval; //!< Periodicity to wrap atoms and rebuild neighbor
                           //!< list
-    bool computeVirials; //!< Fixes should compute virials
     bool requiresCharges; //!< Charges will be stored 
+    bool requiresPostNVE_V;//!< If any of the need a step between post nve_v and nve_x.  If not, combine steps and do not call it.  If so, call it for all fixes
 
     //! Cutoff parameter for pair interactions
     /*!
@@ -123,6 +127,7 @@ public:
      */
     double rCut;
     double padding; //!< Added to rCut for cutoff distance of neighbor building
+
 
     //! Set the coefficients for bonded neighbor interactions
     /*!
@@ -186,11 +191,6 @@ public:
 
     //bool fixIsActive(boost::shared_ptr<Fix>);
 
-    bool changedAtoms; //!< True if change in atom vector is not yet accounted
-                       //!< for
-    bool changedGroups; //!< True if change in groups is not yet accounted for
-    bool redoNeighbors; //!< Neighbor list needs to be recreated. Currently
-                        //!< unused
 
     //! Add Atoms to a Group
     /*!
@@ -249,7 +249,7 @@ public:
      * Remove a group from the simulation. The group must exist. The group
      * "all" may not be removed.
      */
-    bool destroyGroup(std::string);
+    bool deleteGroup(std::string);
 
     //! Create a new atom group
     /*!
@@ -301,12 +301,13 @@ public:
     /*!
      * \param a Pointer to the Atom to be removed
      */
-    bool removeAtom(Atom *a);
+    bool deleteAtom(Atom *a);
+    bool deleteMolecule(Molecule &);
 
     void createMolecule(std::vector<int> &ids);
-    void createMoleculePy(boost::python::list ids);
+    boost::python::object createMoleculePy(boost::python::list ids);
 
-    void duplicateMolecule(Molecule &);
+    boost::python::object duplicateMolecule(Molecule &, int n);
     Atom &duplicateAtom(Atom);
     void refreshIdToIdx();
     
@@ -333,7 +334,6 @@ public:
      * Replace the current Atoms with a given list of Atoms. This could, for
      * example be all Atoms from a previous state saved via copyAtoms().
      */
-    void setAtoms(std::vector<Atom> &fromSave);
 
     //! Delete all Atoms
     void deleteAtoms();
@@ -442,6 +442,8 @@ public:
      * Copy data from the GPU Data class back to the atoms vectors.
      */
     bool downloadFromRun();
+//!resets various flags for fixes
+    void finish(); 
 
     //! Set all Atom velocities to zero
     void zeroVelocities();
@@ -497,6 +499,10 @@ public:
      * seed is 0, the RNG is initialized with a random seed.
      */
     void seedRNG(unsigned int seed = 0);
+    void handleChargeOffloading();
+
+    Units units;
+
 private:
     std::mt19937 randomNumberGenerator; //!< Random number generator
     bool rng_is_seeded; //!< True if seedRNG has been called

@@ -10,7 +10,7 @@ class GPUArray {
 
     public:
         //! Destructor
-        virtual ~GPUArray() = default;
+        virtual ~GPUArray(){};
 
         //! Send data from host to GPU device
         virtual void dataToDevice() = 0;

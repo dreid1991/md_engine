@@ -4,6 +4,8 @@
 
 #include "globalDefs.h"
 #include "cutils_math.h"
+#include "Virial.h"
+#include "SharedMem.h"
 #define N_DATA_PER_THREAD 4 //must be power of 2, 4 found to be fastest for a floats and float4s
 //tests show that N_DATA_PER_THREAD = 4 is fastest
 
@@ -89,20 +91,43 @@ public:\
     inline __host__ __device__ TO zero() {\
         return ( ZERO );\
     }\
+};\
+\
+class NAME ## If {\
+public:\
+    float4 *fs;\
+    uint32_t groupTag;\
+    NAME ## If (float4 *fs_, uint32_t groupTag_) : fs(fs_), groupTag(groupTag_) {}\
+    inline __host__ __device__ TO process (FROM & VARNAME_PROC ) {\
+        return ( PROC );\
+    }\
+    inline __host__ __device__ TO zero() {\
+        return ( ZERO );\
+    }\
+    inline __host__ __device__ bool willProcess(FROM *src, int idx) {\
+        uint32_t atomGroupTag = * (uint32_t *) &(fs[idx].w);\
+        return atomGroupTag & groupTag;\
+    }\
 };
 
 
+
 ACCUMULATION_CLASS(SumSingle, float, float, x, x, 0);
+ACCUMULATION_CLASS(SumVirial, Virial, Virial, vir, vir, Virial(0, 0, 0, 0, 0, 0));
 ACCUMULATION_CLASS(SumSqr, float, float, x, x*x, 0);
 ACCUMULATION_CLASS(SumVectorSqr3D, float, float4, v, lengthSqr(make_float3(v)), 0);
 ACCUMULATION_CLASS(SumVectorSqr3DOverW, float, float4, v, lengthSqrOverW(v), 0); //for temperature
 ACCUMULATION_CLASS(SumVectorXYZOverW, float4, float4, v, xyzOverW(v), make_float4(0, 0, 0, 0)); //for linear momentum
-
+//opt by precomputing 1/w.  probably trivial speedup
+ACCUMULATION_CLASS(SumVectorToVirial, Virial, float4, v, Virial(v.x*v.x, v.y*v.y, v.z*v.z, v.x*v.y, v.x*v.z, v.y*v.z), Virial(0, 0, 0, 0, 0, 0)); 
+ACCUMULATION_CLASS(SumVectorToVirialOverW, Virial, float4, v, Virial(v.x*v.x/v.w, v.y*v.y/v.w, v.z*v.z/v.w, v.x*v.y/v.w, v.x*v.z/v.w, v.y*v.z/v.w), Virial(0, 0, 0, 0, 0, 0)); 
+ACCUMULATION_CLASS(SumVirialToScalar, float, Virial, vir, (vir[0]+vir[1]+vir[2]), 0); 
 
 template <class K, class T, class C, int NPERTHREAD>
 __global__ void accumulate_gpu(K *dest, T *src, int n, int warpSize, C instance) {
-
-    extern __shared__ K tmp[]; 
+    SharedMemory<K> sharedMem;
+    K *tmp = sharedMem.getPointer();
+    
     const int copyBaseIdx = blockDim.x*blockIdx.x * NPERTHREAD + threadIdx.x;
     const int copyIncrement = blockDim.x;
     for (int i=0; i<NPERTHREAD; i++) {
@@ -138,35 +163,12 @@ __global__ void accumulate_gpu(K *dest, T *src, int n, int warpSize, C instance)
     }
 }
 //dealing with the common case of summing based on group tags
-#define ACCUMULATION_CLASS_IF(NAME, TO, FROM, VARNAME_PROC, PROC, ZERO)\
-class NAME {\
-public:\
-    float4 *fs;\
-    uint32_t groupTag;\
-    NAME(float4 *fs_, uint32_t groupTag_) : fs(fs_), groupTag(groupTag_) {}\
-    inline __host__ __device__ TO process (FROM & VARNAME_PROC ) {\
-        return ( PROC );\
-    }\
-    inline __host__ __device__ TO zero() {\
-        return ( ZERO );\
-    }\
-    inline __host__ __device__ bool willProcess(FROM *src, int idx) {\
-        uint32_t atomGroupTag = * (uint32_t *) &(fs[idx].w);\
-        return atomGroupTag & groupTag;\
-    }\
-};
-ACCUMULATION_CLASS_IF(SumSingleIf, float, float, x, x, 0);
-ACCUMULATION_CLASS_IF(SumSqrIf, float, float, x, x*x, 0);
-ACCUMULATION_CLASS_IF(SumVectorSqr3DIf, float, float4, v, lengthSqr(make_float3(v)), 0);
-ACCUMULATION_CLASS_IF(SumVectorSqr3DOverWIf, float, float4, v, lengthSqrOverW(v), 0); //for temperature
-ACCUMULATION_CLASS_IF(SumVectorXYZOverWIf, float4, float4, v, xyzOverW(v), make_float4(0, 0, 0, 0)); //for linear momentum
-
-
 
 template <class K, class T, class C, int NPERTHREAD>
 __global__ void accumulate_gpu_if(K *dest, T *src, int n, int warpSize, C instance) {
+    SharedMemory<K> sharedMem;
+    K *tmp = sharedMem.getPointer();
 
-    extern __shared__ K tmp[]; 
     int numAdded = 0;
     const int copyBaseIdx = blockDim.x*blockIdx.x * NPERTHREAD + threadIdx.x;
     const int copyIncrement = blockDim.x;

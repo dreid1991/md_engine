@@ -1,16 +1,24 @@
 #define SMALL 0.0001f
-template <class BONDTYPE, class EVALUATOR>
-__global__ void compute_force_bond(int nAtoms, float4 *xs, float4 *forces, int *idToIdxs, BondGPU *bonds, int *startstops, BONDTYPE *parameters, int nTypes, BoundsGPU bounds, EVALUATOR T) {
+template <class BONDTYPE, class EVALUATOR, bool COMPUTEVIRIALS>
+__global__ void compute_force_bond(int nAtoms, float4 *xs, float4 *forces, int *idToIdxs, BondGPU *bonds, int *startstops, BONDTYPE *parameters_arg, int nParameters, BoundsGPU bounds, Virial *__restrict__ virials, bool usingSharedMemForParams, EVALUATOR T) {
+
     int idx = GETIDX();
-    extern __shared__ int all_shr[];
+    extern __shared__ char all_shr[];
     int idxBeginCopy = startstops[blockDim.x*blockIdx.x];
     int idxEndCopy = startstops[min(nAtoms, blockDim.x*(blockIdx.x+1))];
     BondGPU *bonds_shr = (BondGPU *) all_shr;
-    BONDTYPE *parameters_shr = (BONDTYPE *) (bonds_shr + (idxEndCopy - idxBeginCopy));
+    int sizeBonds = (idxEndCopy - idxBeginCopy) * sizeof(BondGPU);
     copyToShared<BondGPU>(bonds + idxBeginCopy, bonds_shr, idxEndCopy - idxBeginCopy);
-    copyToShared<BONDTYPE>(parameters, parameters_shr, nTypes);
+    BONDTYPE *parameters;
+    if (usingSharedMemForParams) {
+        parameters = (BONDTYPE *) (all_shr + sizeBonds);
+        copyToShared<BONDTYPE>(parameters_arg, parameters, nParameters);
+    } else {
+        parameters = parameters_arg;
+    }
     __syncthreads();
     if (idx < nAtoms) {
+        Virial virialsSum = Virial(0, 0, 0, 0, 0, 0);
   //      printf("going to compute %d\n", idx);
         int startIdx = startstops[idx]; 
         int endIdx = startstops[idx+1];
@@ -29,7 +37,7 @@ __global__ void compute_force_bond(int nAtoms, float4 *xs, float4 *forces, int *
             for (int i=0; i<n; i++) {
                 BondGPU b = bonds_shr[shr_idx + i];
                 int type = b.type;
-                BONDTYPE bondType = parameters_shr[type];
+                BONDTYPE bondType = parameters[type];
 
                 int otherId = b.otherId;
                 int otherIdx = idToIdxs[otherId];
@@ -39,9 +47,20 @@ __global__ void compute_force_bond(int nAtoms, float4 *xs, float4 *forces, int *
                 // printf("xs %f %f\n", pos.x, posOther.x);
                 float3 bondVec  = bounds.minImage(pos - posOther);
                 float rSqr = lengthSqr(bondVec);
-                forceSum += T.force(bondVec, rSqr, bondType);
+                //printf("my pos %f %f %f rsqr %f\n", pos.x, pos.y, pos.y, rSqr);
+                float3 force = T.force(bondVec, rSqr, bondType);
+
+                forceSum += force;
+                if (COMPUTEVIRIALS) {
+                    computeVirial(virialsSum, force, bondVec);
+                }
             }
             forces[myIdx] += forceSum;
+
+            if (COMPUTEVIRIALS) {
+                virialsSum *= 0.5f;
+                virials[idx] += virialsSum;
+            }
         }
     }
 }
@@ -49,15 +68,21 @@ __global__ void compute_force_bond(int nAtoms, float4 *xs, float4 *forces, int *
 
 
 template <class BONDTYPE, class EVALUATOR>
-__global__ void compute_energy_bond(int nAtoms, float4 *xs, float *perParticleEng, int *idToIdxs, BondGPU *bonds, int *startstops, BONDTYPE *parameters, int nTypes, BoundsGPU bounds, EVALUATOR T) {
+__global__ void compute_energy_bond(int nAtoms, float4 *xs, float *perParticleEng, int *idToIdxs, BondGPU *bonds, int *startstops, BONDTYPE *parameters_arg, int nParameters, BoundsGPU bounds, bool usingSharedMemForParams, EVALUATOR T) {
     int idx = GETIDX();
-    extern __shared__ int all_shr[];
+    extern __shared__ char all_shr[];
     int idxBeginCopy = startstops[blockDim.x*blockIdx.x];
     int idxEndCopy = startstops[min(nAtoms, blockDim.x*(blockIdx.x+1))];
     BondGPU *bonds_shr = (BondGPU *) all_shr;
-    BONDTYPE *parameters_shr = (BONDTYPE *) (bonds_shr + (idxEndCopy - idxBeginCopy));
+    int sizeBonds = (idxEndCopy - idxBeginCopy) * sizeof(BondGPU);
     copyToShared<BondGPU>(bonds + idxBeginCopy, bonds_shr, idxEndCopy - idxBeginCopy);
-    copyToShared<BONDTYPE>(parameters, parameters_shr, nTypes);
+    BONDTYPE *parameters;
+    if (usingSharedMemForParams) {
+        parameters = (BONDTYPE *) (all_shr + sizeBonds);
+        copyToShared<BONDTYPE>(parameters_arg, parameters, nParameters);
+    } else {
+        parameters = parameters_arg;
+    }
     __syncthreads();
     if (idx < nAtoms) {
   //      printf("going to compute %d\n", idx);
@@ -78,7 +103,7 @@ __global__ void compute_energy_bond(int nAtoms, float4 *xs, float *perParticleEn
             for (int i=0; i<n; i++) {
                 BondGPU b = bonds_shr[shr_idx + i];
                 int type = b.type;
-                BONDTYPE bondType = parameters_shr[type];
+                BONDTYPE bondType = parameters[type];
 
                 int otherId = b.otherId;
                 int otherIdx = idToIdxs[otherId];

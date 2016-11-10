@@ -8,44 +8,37 @@ FixLinearMomentum::FixLinearMomentum(SHARED(State) state_, std::string handle_, 
   : Fix(state_, handle_, groupHandle_, linearMomentumType, false, false, false, applyEvery_), dimensions(dimensions_), sumMomentum(GPUArrayDeviceGlobal<float4>(2))
 {   }
 
-template <class K, class T>
-__global__ void NAME (K *dest, T *src, int n, unsigned int groupTag, float4 *fs, int warpSize) {
+bool FixLinearMomentum::prepareForRun() {
+    return true;
+}
 
-    extern __shared__ K tmp[];  /* should have length of # threads in a block (PERBLOCK) */
-    int potentialIdx = blockDim.x*blockIdx.x + threadIdx.x;
-    if (potentialIdx < n) {
-        unsigned int atomGroup = * (unsigned int *) &(fs[potentialIdx].w);
-        if (atomGroup & groupTag) {
-            tmp[threadIdx.x] = ( xyzOverW(src[blockDim.x*blockIdx.x + threadIdx.x]) ) ;
-            atomicAdd((int *) (dest+1), 1);  /* I TRIED DOING ATOMIC ADD IN SHARED MEMORY, BUT IT SET A BUNCH
-                                              * OF THE OTHER SHARED MEMORY VALUES TO ZERO.  VERY CONFUSING */
-        } else {
-            tmp[threadIdx.x] = K();
-        }
-    } else {
-        tmp[threadIdx.x] = K();
-    }
-    __syncthreads();
-    int curLookahead = 1;
-    int maxLookahead = log2f(blockDim.x-1);
-    for (int i=0; i<=maxLookahead; i++) {
-        if (! (threadIdx.x % (curLookahead*2))) {
-            tmp[threadIdx.x] += tmp[threadIdx.x + curLookahead];
-        }
-        curLookahead *= 2;
-        if (curLookahead >= warpSize) {
-            __syncthreads();
-        }
-    }
-    if (threadIdx.x == 0) {
-        atomicAdd(((float *) dest), tmp[0].x);
-        atomicAdd(((float *) dest) + 1, tmp[0].y);
-        atomicAdd(((float *) dest) + 2, tmp[0].z);
+
+__global__ void rescale_all(int nAtoms, float4 *vs, float4 *sumData, float3 dims) {
+    int idx = GETIDX();
+    if (idx < nAtoms) {
+        float4 v = vs[idx];
+        float4 sum = sumData[0];
+        int invMassTotal = 1.0f / v.w;
+        v.x -= sum.x * invMassTotal * dims.x;
+        v.y -= sum.y * invMassTotal * dims.y;
+        v.z -= sum.z * invMassTotal * dims.z;
     }
 }
 
-bool FixLinearMomentum::prepareForRun() {
-    return true;
+
+__global__ void rescale_group(int nAtoms, float4 *vs, float4 *fs, uint32_t groupTag, float4 *sumData, float3 dims) {
+    int idx = GETIDX();
+    if (idx < nAtoms) {
+        uint32_t tag = *(uint32_t *) &(fs[idx].w);
+        if (tag & groupTag) {
+            float4 v = vs[idx];
+            float4 sum = sumData[0];
+            int invMassTotal = 1.0f / sum.w;
+            v.x -= sum.x * invMassTotal * dims.x;
+            v.y -= sum.y * invMassTotal * dims.y;
+            v.z -= sum.z * invMassTotal * dims.z;
+        }
+    }
 }
 
 void FixLinearMomentum::compute(bool computeVirials) {
@@ -54,8 +47,30 @@ void FixLinearMomentum::compute(bool computeVirials) {
     float4 *vs = state->gpd.vs.getDevData();
     float4 *fs = state->gpd.vs.getDevData();
     int warpSize = state->devManager.prop.warpSize;
-    NAME<float4, float4> <<<NBLOCK(nAtoms), PERBLOCK, sizeof(float4) * PERBLOCK>>>(
-                                sumMomentum.data(), vs, groupTag, nAtoms, fs, warpSize);
+
+    if (groupHandle == "all") {
+        accumulate_gpu<float4, float4, SumVectorXYZOverW, N_DATA_PER_THREAD> <<<NBLOCK(nAtoms / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*PERBLOCK*sizeof(float4)>>>
+            (
+             sumMomentum.data(),
+             vs,
+             nAtoms,
+             warpSize,
+             SumVectorXYZOverW()
+            );
+        rescale_all<<<NBLOCK(nAtoms), PERBLOCK>>>(nAtoms, vs, sumMomentum.data(), dimsFloat3);
+
+
+    } else {
+        accumulate_gpu_if<float4, float4, SumVectorXYZOverWIf, N_DATA_PER_THREAD> <<<NBLOCK(nAtoms / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*PERBLOCK*sizeof(float4)>>>
+            (
+             sumMomentum.data(),
+             vs,
+             nAtoms,
+             warpSize,
+             SumVectorXYZOverWIf(fs, groupTag)
+            );
+        rescale_group<<<NBLOCK(nAtoms), PERBLOCK>>>(nAtoms, vs, fs, groupTag, sumMomentum.data(), dimsFloat3);
+    }
 }
 
 void export_FixLinearMomentum() {

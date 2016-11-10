@@ -8,7 +8,7 @@
 namespace py=boost::python;
 using namespace std;
 
-int AtomParams::addSpecies(std::string handle, double mass, double atomicNum) {
+int AtomParams::addSpecies(std::string handle, double mass, int atomicNum) {
     //this is wrapped by state b/c fixes may need to update to accomodate more
     //atom types
     if (find(handles.begin(), handles.end(), handle) != handles.end()) {

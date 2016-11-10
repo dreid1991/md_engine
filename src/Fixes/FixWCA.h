@@ -52,13 +52,6 @@ class FixWCA : public FixPair {
          */
         std::string restartChunk(std::string format);
 
-        //! Read parameters from restart file
-        /*!
-         * \return Always True
-         *
-         * \param restData XML node containing the restart data.
-         */
-        bool readFromRestart(pugi::xml_node restData);
 
         //! Add new type of atoms
         /*!
@@ -72,6 +65,13 @@ class FixWCA : public FixPair {
         std::vector<float> getRCuts();
 
     public:
+   
+        bool setParameter(std::string param,
+                          std::string handleA,
+                          std::string handleB,
+                          double val);
+
+      
         const std::string epsHandle; //!< Handle for parameter epsilon
         const std::string sigHandle; //!< Handle for parameter sigma
         const std::string rCutHandle; //!< Handle for parameter rCut
@@ -79,7 +79,7 @@ class FixWCA : public FixPair {
         std::vector<float> sigmas; //!< vector storing sigma values
         std::vector<float> rCuts; //!< vector storing cutoff distance values
 
-        EvaluatorWCA evaluator; //!< Evaluator for generic pair interactions
+        void setEvalWrapper();
 };
 
 #endif
