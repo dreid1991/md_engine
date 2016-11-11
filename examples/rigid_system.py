@@ -30,6 +30,17 @@ tSim = 300 * tempUnit
 # temp = ?, pressure = ?
 # real temp in units K, Boltzmann constant J/K, eps should be in J
 # pressure = sig^3/eps
+# length of OH bond / sig                                                                                                                                                                                
+offset1 = Vector(0.240255,-0.1859558,0)
+offset2 = Vector(0.240255,0.1859558,0)
+
+sig = 3.15061
+eps = 0.6364 # kJ/mol                                                                                                                                                                                    
+tempUnit = 1.38e-23/(.6364*1000/6.022*10e23)
+tSim = 300 * tempUnit
+
+# real temp in units K, Boltzmann constant J/K, eps should be in J                                                                                                                                      
+# pressure = sig^3/eps                                                                                                                                                                                   
 temp = tSim
 sigSI = sig*1e-10
 epsSI = eps*1000 / 6.022e23
@@ -46,6 +57,7 @@ nonbond.setParameter('eps', 'spc1', 'spc2', 0)
 nonbond.setParameter('sig', 'spc2', 'spc2', 0)
 nonbond.setParameter('eps', 'spc2', 'spc2', 0)
 
+<<<<<<< HEAD
 nonbond.setParameter('sig', 'spc3', 'spc3', 0)
 nonbond.setParameter('eps', 'spc3', 'spc3', 0)
 
@@ -58,12 +70,13 @@ nonbond.setParameter('eps', 'spc3', 'spc2', 0)
 state.activateFix(nonbond)
 
 positions = []
-for x in xrange(10):
+for x in xrange(28):
     for y in xrange(10):
-        for z in xrange(8):
-            pos = Vector(x*1.5+1,y*1.5+1,z*1.5+1)
+        for z in xrange(10):
+            pos = Vector(x*2+1,y*2+1,z*2+1)
             positions.append(pos)
 
+# initialize rigid fix
 rigid = FixRigid(state, 'rigid', 'all')
 
 for i in xrange(200):
@@ -124,11 +137,14 @@ density = masses / volumeMeters
 print "density: " + str(density)
 
 integVerlet = IntegratorVerlet(state)
-integVerlet.run(100000)
+
 
 # for computing density, change to real units
 # mult by sig^3 - A^3 units
 
+integVerlet.run(1000)
+
+# calc final density
 bounds = state.bounds.hi - state.bounds.lo
 volume = bounds[0] * bounds[1] * bounds[2]
 volume *= sig**3

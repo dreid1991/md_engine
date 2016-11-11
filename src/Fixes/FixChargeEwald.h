@@ -37,7 +37,7 @@ private:
     float alpha;
     float r_cut;
     
-    void find_optimal_parameters(bool);
+    double find_optimal_parameters(bool);
     
     float total_Q;
     float total_Q2;
@@ -54,14 +54,20 @@ private:
     GPUArrayDeviceGlobal<Virial> virialField;
     BoundsGPU boundsLastOptimize;
     float total_Q2LastOptimize;    
-    void handleChangedBounds(bool);
+    void handleBoundsChangeInternal(bool);
+    void setGridToErrorTolerance(bool);
+    bool modeIsError;
+    double errorTolerance;
         
+    bool malloced;
 
 public:
+    void handleBoundsChange();
     FixChargeEwald(boost::shared_ptr<State> state_,
                    std::string handle_, std::string groupHandle_);
     ~FixChargeEwald();
 
+    void setError(double error, float rcut_, int interpolation_order_);
     void setParameters(int szx_, int szy_, int szz_, float rcut_, int interpolation_order_);
     void setParameters(int sz_, float rcut_, int interpolation_order_) {
         setParameters(sz_, sz_, sz_, rcut_, interpolation_order_);
@@ -81,9 +87,9 @@ public:
         res.push_back(r_cut);
         return res;
     }    
-    ChargeEvaluatorEwald generateEvaluator() {
-        return ChargeEvaluatorEwald(alpha);
-    }
+    ChargeEvaluatorEwald generateEvaluator(); 
+
+    bool calcLongRange;
 };
 
 #endif

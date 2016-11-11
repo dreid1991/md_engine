@@ -14,7 +14,8 @@ FixBondHarmonic::FixBondHarmonic(SHARED(State) state_, string handle)
         readFromRestart();
     }
 
-
+//template <class BONDTYPE, class EVALUATOR, bool COMPUTEVIRIALS>
+__global__ void dummy(){};//int nAtoms, float4 *xs, float4 *forces){}//, int *idToIdxs, BondGPU *bonds, int *startstops, BONDTYPE *parameters_arg, int nParameters, BoundsGPU bounds, Virial *__restrict__ virials, bool usingSharedMemForParams, EVALUATOR T) {}
 
 void FixBondHarmonic::createBond(Atom *a, Atom *b, double k, double r0, int type) {
     vector<Atom *> atoms = {a, b};
@@ -96,8 +97,8 @@ bool FixBondHarmonic::readFromRestart() {
                     double r0;
                     int ids[2];
                     std::string type_ = member_node.attribute("type").value();
-                    std::string atom_a = member_node.attribute("atom_a").value();
-                    std::string atom_b = member_node.attribute("atom_b").value();
+                    std::string atom_a = member_node.attribute("atomID_a").value();
+                    std::string atom_b = member_node.attribute("atomID_b").value();
                     std::string k_ = member_node.attribute("k").value();
                     std::string r0_ = member_node.attribute("r0").value();
                     type = atoi(type_.c_str());

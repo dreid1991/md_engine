@@ -56,10 +56,10 @@ bool FixTICG::prepareForRun() {
     //loop through all params and fill with appropriate lambda function, then send all to device
     auto none = [] (float a){};
 
-    auto processCs = [] (float a) {
+	std::function<float(float)> processCs = [] (float a) {
         return a;
     };
-    auto processRCut = [] (float a) {
+	std::function<float(float)> processRCut = [] (float a) {
         return a*a;
     };
     prepareParameters(CHandle,  processCs);

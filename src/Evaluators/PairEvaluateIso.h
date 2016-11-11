@@ -37,39 +37,36 @@ __global__ void compute_force_iso(int nAtoms, const float4 *__restrict__ xs, flo
             uint otherIdxRaw = neighborlist[nlistIdx];
             uint neighDist = otherIdxRaw >> 30;
             float multiplier = multipliers[neighDist];
-            if (multiplier) {
-                uint otherIdx = otherIdxRaw & EXCL_MASK;
-                float4 otherPosWhole = xs[otherIdx];
-                int otherType = __float_as_int(otherPosWhole.w);
-                float3 otherPos = make_float3(otherPosWhole);
-                //then wrap and compute forces!
-                int sqrIdx = squareVectorIndex(numTypes, type, otherType);
-                float3 dr = bounds.minImage(pos - otherPos);
-                float lenSqr = lengthSqr(dr);
-                //printf("dr sqr pair is %f OMG UNCOMMENT IF MULT\n", lenSqr);
-                float params_pair[N_PARAM];
-                for (int pIdx=0; pIdx<N_PARAM; pIdx++) {
-                    params_pair[pIdx] = params_shr[pIdx][sqrIdx];
-                }
-                //evaluator.force(forceSum, dr, params_pair, lenSqr, multiplier);
-                float rCutSqr = params_pair[0];
-                float3 force = make_float3(0, 0, 0);
-                bool computedForce = false;
-                if (lenSqr < rCutSqr) {
-                    force += pairEval.force(dr, params_pair, lenSqr, multiplier);
-                    computedForce = true;
-                }
-                if (COMP_CHARGES && lenSqr < qCutoffSqr) {
-                    float qj = qs[otherIdx];
-
-                    force += chargeEval.force(dr, lenSqr, qi, qj, multiplier);
-                    computedForce = true;
-                }
-                if (computedForce) {
-                    forceSum += force;
-                    if (COMP_VIRIALS) {
-                        computeVirial(virialsSum, force, dr);
-                    }
+            uint otherIdx = otherIdxRaw & EXCL_MASK;
+            float4 otherPosWhole = xs[otherIdx];
+            int otherType = __float_as_int(otherPosWhole.w);
+            float3 otherPos = make_float3(otherPosWhole);
+            //then wrap and compute forces!
+            int sqrIdx = squareVectorIndex(numTypes, type, otherType);
+            float3 dr = bounds.minImage(pos - otherPos);
+            float lenSqr = lengthSqr(dr);
+            //printf("dr sqr pair is %f OMG UNCOMMENT IF MULT\n", lenSqr);
+            float params_pair[N_PARAM];
+            for (int pIdx=0; pIdx<N_PARAM; pIdx++) {
+                params_pair[pIdx] = params_shr[pIdx][sqrIdx];
+            }
+            //evaluator.force(forceSum, dr, params_pair, lenSqr, multiplier);
+            float rCutSqr = params_pair[0];
+            float3 force = make_float3(0, 0, 0);
+            bool computedForce = false;
+            if (lenSqr < rCutSqr) {
+                force += pairEval.force(dr, params_pair, lenSqr, multiplier);
+                computedForce = true;
+            }
+            if (COMP_CHARGES && lenSqr < qCutoffSqr) {
+                float qj = qs[otherIdx];
+                force += chargeEval.force(dr, lenSqr, qi, qj, multiplier);
+                computedForce = true;
+            }
+            if (computedForce) {
+                forceSum += force;
+                if (COMP_VIRIALS) {
+                    computeVirial(virialsSum, force, dr);
                 }
             }
 
@@ -82,6 +79,7 @@ __global__ void compute_force_iso(int nAtoms, const float4 *__restrict__ xs, flo
         fs[idx] = forceCur;
         if (COMP_VIRIALS) {
             virialsSum *= 0.5f;
+            //printf("virials %f %f %f %f %f %f\n", virialsSum[0], virialsSum[1], virialsSum[2], virialsSum[3], virialsSum[4], virialsSum[5]);
             virials[idx] += virialsSum;
         }
     
@@ -126,28 +124,31 @@ __global__ void compute_energy_iso(int nAtoms, float4 *xs, float *perParticleEng
             uint otherIdxRaw = neighborlist[nlistIdx];
             uint neighDist = otherIdxRaw >> 30;
             float multiplier = multipliers[neighDist];
-            if (multiplier) {
-                uint otherIdx = otherIdxRaw & EXCL_MASK;
-                float4 otherPosWhole = xs[otherIdx];
-                int otherType = __float_as_int(otherPosWhole.w);
-                float3 otherPos = make_float3(otherPosWhole);
-                float3 dr = bounds.minImage(pos - otherPos);
-                float lenSqr = lengthSqr(dr);
-                int sqrIdx = squareVectorIndex(numTypes, type, otherType);
-                float params_pair[N];
-                for (int pIdx=0; pIdx<N; pIdx++) {
-                    params_pair[pIdx] = params_shr[pIdx][sqrIdx];
-                }
-                float rCutSqr = params_pair[0];
-                if (lenSqr < rCutSqr) {
-                    sumEng += pairEval.energy(params_pair, lenSqr, multiplier);
-                }
-                if (COMP_CHARGES && lenSqr < qCutoffSqr) {
-                    float qj = qs[otherIdx];
-                    sumEng += chargeEval.energy(lenSqr, qi, qj, multiplier);
-                }
+            uint otherIdx = otherIdxRaw & EXCL_MASK;
+            float4 otherPosWhole = xs[otherIdx];
+            int otherType = __float_as_int(otherPosWhole.w);
+            float3 otherPos = make_float3(otherPosWhole);
+            float3 dr = bounds.minImage(pos - otherPos);
+            float lenSqr = lengthSqr(dr);
+            int sqrIdx = squareVectorIndex(numTypes, type, otherType);
+            float params_pair[N];
+            for (int pIdx=0; pIdx<N; pIdx++) {
+                params_pair[pIdx] = params_shr[pIdx][sqrIdx];
+            }
+            float rCutSqr = params_pair[0];
+            if (lenSqr < rCutSqr) {
+                sumEng += pairEval.energy(params_pair, lenSqr, multiplier);
+            }
+            if (COMP_CHARGES && lenSqr < qCutoffSqr) {
+                float qj = qs[otherIdx];
+                float eng = chargeEval.energy(lenSqr, qi, qj, multiplier);
+                //printf("len is %f\n", sqrtf(lenSqr));
+                //printf("qi qj %f %f\n", qi, qj);
+                //printf("eng is %f\n", eng);
+                sumEng += eng;
 
             }
+
 
         }   
         perParticleEng[idx] += sumEng;

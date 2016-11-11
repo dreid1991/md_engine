@@ -19,6 +19,7 @@ using namespace std;
 #include "includeFixes.h"
 #include "IntegratorVerlet.h"
 #include "IntegratorRelax.h"
+#include "IntegratorGradientDescent.h"
 #include "FixLangevin.h"
 #include "boost_stls.h"
 #include "PythonOperation.h"
@@ -42,6 +43,7 @@ BOOST_PYTHON_MODULE(Sim) {
     export_Integrator();
     export_IntegratorVerlet();
     export_IntegratorRelax();
+    export_IntegratorGradientDescent();
     export_TypedItemHolder();
     export_Fix();
     export_FixBondHarmonic();
@@ -64,6 +66,8 @@ BOOST_PYTHON_MODULE(Sim) {
     export_FixWallLJ126();
     export_FixSpringStatic();
     export_Fix2d();
+    export_FixLinearMomentum();
+    export_FixRigid();
 
     export_FixPair();
     export_FixLJCut(); //make there be a pair base class in boost!
@@ -90,6 +94,7 @@ BOOST_PYTHON_MODULE(Sim) {
     export_WriteConfig();
     export_InitializeAtoms();
         
+    export_Units();
 
     export_State(); 	
     export_DeviceManager();

@@ -41,15 +41,19 @@ angleHarm.setAngleTypeCoefs(type=0, k=1, theta0=pi/3);
 angleHarm.createAngle(state.atoms[0], state.atoms[1], state.atoms[2], type=0)#thetaEq=3*pi/4, k=3)
 angleHarm.createAngle(state.atoms[1], state.atoms[2], state.atoms[3], type=0)#thetaEq=3*pi/4, k=3)
 state.activateFix(angleHarm)
-dihedralOPLS = FixDihedralOPLS(state, 'dihedral')
-dihedralOPLS.setDihedralTypeCoefs(type=0, coefs=[2, 2, 2, 2])
+#dihedralOPLS = FixDihedralOPLS(state, 'dihedral')
+#dihedralOPLS.setDihedralTypeCoefs(type=0, coefs=[2, 2, 2, 2])
 
-state.activateFix(dihedralOPLS)
-#dihedralCHARMM = FixDihedralCHARMM(state, 'dihedral')
-#dihedralCHARMM.setDihedralTypeCoefs(type=0, k=30, n=1, d=1)
+#dihedralOPLS.createDihedral(state.atoms[0], state.atoms[1], state.atoms[2], state.atoms[3], type=0)
+#state.activateFix(dihedralOPLS)
+#
+
+dihedralCHARMM = FixDihedralCHARMM(state, 'dihedral')
+dihedralCHARMM.setDihedralTypeCoefs(type=0, k=30, n=1, d=0)
+dihedralCHARMM.createDihedral(state.atoms[0], state.atoms[1], state.atoms[2], state.atoms[3], type=0)
+state.activateFix(dihedralCHARMM)
 
 
-dihedralOPLS.createDihedral(state.atoms[0], state.atoms[1], state.atoms[2], state.atoms[3], type=0)
 
 
 
@@ -61,7 +65,6 @@ state.activateFix(improperHarmonic)
 
 
 
-#state.activateFix(dihedralCHARMM)
 integVerlet = IntegratorVerlet(state)
 state.setSpecialNeighborCoefs(0, 0, 0.5)
 #print 'energy %f' % (integVerlet.energyAverage('all') * len(state.atoms))

@@ -20,6 +20,14 @@ void DataComputerPressure::computeScalar_GPU(bool transferToCPU, uint32_t groupT
     lastGroupTag = groupTag;
     int nAtoms = state->atoms.size();
     if (groupTag == 1) {
+        /*
+        printf("DOING STUFF IN COMPUTE SCALAR GPU PRESSURE\n");
+        gpd.virials.dataToHost();
+        cudaDeviceSynchronize();
+        for (Virial v : gpd.virials.h_data) {
+            printf("CPU virials %f %f %f %f %f %f\n", v[0], v[1], v[2], v[3], v[4], v[5]);
+        }
+        */
          accumulate_gpu<float, Virial, SumVirialToScalar, N_DATA_PER_THREAD> <<<NBLOCK(nAtoms / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*PERBLOCK*sizeof(float)>>>
             (pressureGPUScalar.getDevData(), gpd.virials.getDevData(), nAtoms, state->devManager.prop.warpSize, SumVirialToScalar());
     } else {
@@ -48,6 +56,7 @@ void DataComputerPressure::computeTensor_GPU(bool transferToCPU, uint32_t groupT
     lastGroupTag = groupTag;
     int nAtoms = state->atoms.size();
     if (groupTag == 1) {
+        
         accumulate_gpu<Virial, Virial, SumVirial, N_DATA_PER_THREAD>  <<<NBLOCK(nAtoms / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*PERBLOCK*sizeof(Virial)>>>
             (pressureGPUTensor.getDevData(), gpd.virials.getDevData(), nAtoms, state->devManager.prop.warpSize, SumVirial());    
     } else {
@@ -62,6 +71,7 @@ void DataComputerPressure::computeTensor_GPU(bool transferToCPU, uint32_t groupT
 
 void DataComputerPressure::computeScalar_CPU() {
     //we are assuming that z component of virial is zero if sim is 2D
+    float boltz = state->units.boltz;
     double tempScalar_loc, ndf_loc;
     if (usingExternalTemperature) {
         tempScalar_loc = tempScalar;
@@ -74,8 +84,8 @@ void DataComputerPressure::computeScalar_CPU() {
     double sumVirial = pressureGPUScalar.h_data[0];
     double dim = state->is2d ? 2 : 3;
     double volume = state->boundsGPU.volume();
-    //printf("dof %f temp %f\n", ndf_loc, tempScalar_loc);
-    pressureScalar = (tempScalar_loc * ndf_loc + sumVirial) / (dim * volume);
+    pressureScalar = (tempScalar_loc * ndf_loc * boltz + sumVirial) / (dim * volume) * state->units.nktv_to_press;
+    //printf("heyo, scalar %f conv %f\n", pressureScalar, state->units.nktv_to_press);
 }
 
 void DataComputerPressure::computeTensor_CPU() {
@@ -90,7 +100,7 @@ void DataComputerPressure::computeTensor_CPU() {
     Virial sumVirial = pressureGPUTensor.h_data[0];
     double volume = state->boundsGPU.volume();
     for (int i=0; i<6; i++) {
-        pressureTensor[i] = (tempTensor_loc[i] + sumVirial[i]) / volume;
+        pressureTensor[i] = (tempTensor_loc[i] + sumVirial[i]) / volume * state->units.nktv_to_press;
     }
     if (state->is2d) {
         pressureTensor[2] = 0;

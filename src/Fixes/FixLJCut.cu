@@ -43,7 +43,6 @@ void FixLJCut::compute(bool computeVirials) {
                       state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU,
                       neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.virials.d_data.data(), gpd.qs(activeIdx), chargeRCut, computeVirials);
 
-
 }
 
 void FixLJCut::singlePointEng(float *perParticleEng) {
@@ -55,7 +54,6 @@ void FixLJCut::singlePointEng(float *perParticleEng) {
     uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
     float *neighborCoefs = state->specialNeighborCoefs;
     evalWrap->energy(nAtoms, gpd.xs(activeIdx), perParticleEng, neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.qs(activeIdx), chargeRCut);
-
 
 
 

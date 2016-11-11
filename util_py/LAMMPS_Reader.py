@@ -6,7 +6,7 @@ DEGREES_TO_RADIANS = math.pi / 180.
 
 
 class LAMMPS_Reader:
-    def __init__(self, state=None, nonbondFix=None, bondFix=None, angleFix=None, dihedralFix=None, improperFix=None, unitLen = 0, unitEng = 0, unitMass = 0, atomTypePrefix = '', setBounds=True):
+    def __init__(self, state=None, nonbondFix=None, bondFix=None, angleFix=None, dihedralFix=None, improperFix=None, atomTypePrefix = '', setBounds=True):
         assert(state != None)
         self.state = state
         self.nonbondFix = nonbondFix
@@ -14,10 +14,6 @@ class LAMMPS_Reader:
         self.angleFix = angleFix
         self.dihedralFix = dihedralFix
         self.improperFix = improperFix
-        assert(unitLen != 0 and unitEng != 0 and unitMass != 0)
-        self.unitLen = unitLen
-        self.unitEng = unitEng
-        self.unitMass = unitMass
         self.myAtomTypeIds = []
         self.myAtomHandles = []
         self.atomTypePrefix = atomTypePrefix
@@ -36,6 +32,8 @@ class LAMMPS_Reader:
         self.inFileLines = [f.readlines() for f in self.inputFiles]
         self.allFileLines = [self.dataFileLines] + self.inFileLines
         self.isMolecular = len(self.readSection(self.dataFileLines, re.compile('Bonds'))) #this is slow, should write something to test if section exists
+        self.isMolecular = True
+        print 'OVERRIDING IS MOLECULAR'
 
         self.readAtomTypes()
         self.atomIdToIdx = {}
@@ -89,23 +87,24 @@ class LAMMPS_Reader:
         masses = self.readSection(self.dataFileLines, re.compile('Mass'))
         for i, pair in enumerate(masses):
             typeIdx = self.myAtomTypeIds[i]
-            mass = float(pair[1]) / self.unitMass
+            mass = float(pair[1])
             self.state.atomParams.masses[typeIdx] = mass
 
 
     def readBounds(self):
         #reBase = '^\s+[\-\.\d]+\s+[\-\.\d]\s+%s\s+%s\s$'
-        reBase = '^\s*[\-\.\d\e]+[\s]+[\-\.\d\e]+[\s]+%s[\s]+%s'
+        reBase = '^\s*[\-\.\d\e\+]+[\s]+[\-\.\d\e\+]+[\s]+%s[\s]+%s'
         bits = [('xlo', 'xhi'), ('ylo', 'yhi'), ('zlo', 'zhi')]
         lo = self.state.Vector()
         hi = self.state.Vector()
         for i, bit in enumerate(bits):
             dimRe = re.compile(reBase % bit)
             lines = self.scanFilesForOccurance(dimRe, [self.dataFileLines])
+            print lines
             assert(len(lines) == 1)
             lineSplit = lines[0]
-            lo[i] = float(lineSplit[0]) / self.unitLen
-            hi[i] = float(lineSplit[1]) / self.unitLen
+            lo[i] = float(lineSplit[0])
+            hi[i] = float(lineSplit[1])
         self.state.bounds.lo = lo
         self.state.bounds.hi = hi
 #code SHOULD be in place to let one just change lo, hi like this.  please make sure
@@ -125,9 +124,9 @@ class LAMMPS_Reader:
         for atomLine in raw:
             pos = self.state.Vector()
 
-            pos[0] = float(atomLine[atomBitIdx]) / self.unitLen
-            pos[1] = float(atomLine[atomBitIdx+1]) / self.unitLen
-            pos[2] = float(atomLine[atomBitIdx+2]) / self.unitLen
+            pos[0] = float(atomLine[atomBitIdx])
+            pos[1] = float(atomLine[atomBitIdx+1])
+            pos[2] = float(atomLine[atomBitIdx+2])
             atomType = -1
             charge = 0
             if areCharges:
@@ -207,12 +206,12 @@ class LAMMPS_Reader:
         for line in rawData:
 #will have to generalize this at some point
             handle = self.myAtomHandles[int(line[0]) - 1]
-            eps = float(line[1]) / self.unitEng
-            sig = float(line[2]) / self.unitLen
+            eps = float(line[1])
+            sig = float(line[2])
             self.nonbondFix.setParameter('sig', handleA=handle, handleB=handle, val=sig)
             self.nonbondFix.setParameter('eps', handleA=handle, handleB=handle, val=eps)
             if len(line) > 3:
-                rCut = float(line[3]) / self.unitLen
+                rCut = float(line[3])
                 self.nonbondFix.setParameter('rCut', handleA=handle, handleB=handle, val=rCut)
 
 
@@ -222,14 +221,13 @@ class LAMMPS_Reader:
             handleIdxB = int(line[2]) - 1
             handleA = self.myAtomHandles[handleIdxA]
             handleB = self.myAtomHandles[handleIdxB]
-            eps = float(line[3]) / self.unitEng
-            sig = float(line[4]) / self.unitLen
+            eps = float(line[3])
+            sig = float(line[4])
             self.nonbondFix.setParameter('sig', handleA=handleA, handleB=handleB, val=sig)
             self.nonbondFix.setParameter('eps', handleA=handleA, handleB=handleB, val=eps)
-            print line
 
             if len(line) > 5:
-                rCut = float(line[5]) / self.unitLen
+                rCut = float(line[5])
                 self.nonbondFix.setParameter('rCut', handleA=handleA, handleB=handleB, val=rCut)
 
 
@@ -356,9 +354,9 @@ def bondHarmonic_data(reader, args):
         print 'Ignoring LAMMPS bond type %d from data file.  Bond not used in data file' % LMPType
         return False
     type = reader.LMPTypeToSimTypeBond[LMPType]
-    k =  reader.unitLen * reader.unitLen * 2 * float(args[1]) / reader.unitEng #2 because LAMMPS includes the 1/2 in its k
+    k =  2 * float(args[1]) #2 because LAMMPS includes the 1/2 in its k
 
-    rEq = float(args[2]) / reader.unitLen
+    rEq = float(args[2])
     return [type, k, rEq]
 
 
@@ -368,8 +366,8 @@ def bondHarmonic_input(reader, args):
         print 'Ignoring LAMMPS bond type %d from input script.  Bond not used in data file' % LMPType
         return False
     type = reader.LMPTypeToSimTypeBond[LMPType]
-    k = reader.unitLen * reader.unitLen * 2 * float(args[2]) / reader.unitEng #2 because LAMMPS includes the 1/2 in its k
-    rEq = float(args[3]) / reader.unitLen
+    k = 2 * float(args[2]) #2 because LAMMPS includes the 1/2 in its k
+    rEq = float(args[3])
     return [type, k, rEq]
 
 def bondFENE_data(reader, args):
@@ -378,10 +376,10 @@ def bondFENE_data(reader, args):
         print 'Ignoring LAMMPS bond type %d from data file.  Bond not used in data file' % LMPType
         return False
     type = reader.LMPTypeToSimTypeBond[LMPType]
-    k =  reader.unitLen * reader.unitLen * float(args[1]) / reader.unitEng #2 because LAMMPS includes the 1/2 in its k
-    rEq = float(args[2]) / reader.unitLen
-    eps = float(args[3]) / reader.unitEng
-    sig = float(args[4]) / reader.unitLen
+    k =  float(args[1])  #2 because LAMMPS includes the 1/2 in its k
+    rEq = float(args[2])
+    eps = float(args[3])
+    sig = float(args[4])
     return [type, k, rEq, eps, sig]
 
 def bondFENE_input(reader, args):
@@ -390,10 +388,10 @@ def bondFENE_input(reader, args):
         print 'Ignoring LAMMPS bond type %d from input script.  Bond not used in data file' % LMPType
         return False
     type = reader.LMPTypeToSimTypeBond[LMPType]
-    k = reader.unitLen * reader.unitLen * 2 * float(args[2]) / reader.unitEng #2 because LAMMPS includes the 1/2 in its k
-    rEq = float(args[3]) / reader.unitLen
-    eps = float(args[4]) / reader.unitEng
-    sig = float(args[5]) / reader.unitLen
+    k = 2 * float(args[2]) #2 because LAMMPS includes the 1/2 in its k
+    rEq = float(args[3])
+    eps = float(args[4])
+    sig = float(args[5])
     return [type, k, rEq, eps, sig]
 def angleHarmonic_data(reader, args):
     LMPType = int(args[0])
@@ -401,7 +399,7 @@ def angleHarmonic_data(reader, args):
         print 'Ignoring LAMMPS angle type %d from data file.  Angle not used in data file' % LMPType
         return False
     type = reader.LMPTypeToSimTypeAngle[LMPType]
-    k = float(args[1]) * 2 / reader.unitEng #2 because LAMMPS includes the 1/2 in its k
+    k = float(args[1]) * 2 #2 because LAMMPS includes the 1/2 in its k
 
     thetaEq = float(args[2]) * DEGREES_TO_RADIANS
     return [type, k, thetaEq]
@@ -412,7 +410,7 @@ def angleHarmonic_input(reader, args):
         print 'Ignoring LAMMPS angle type %d from input script.  Angle not used in data file' % LMPType
         return False
     type = reader.LMPTypeToSimTypeAngle[LMPType]
-    k = float(args[2]) * 2 / reader.unitEng #2 because LAMMPS includes the 1/2 in its k
+    k = float(args[2]) * 2  #2 because LAMMPS includes the 1/2 in its k
 
     thetaEq = float(args[3]) * DEGREES_TO_RADIANS
     return [type, k, thetaEq]
@@ -423,7 +421,7 @@ def angleCosineDelta_data(reader, args):
         print 'Ignoring LAMMPS angle type %d from data file.  Angle not used in data file' % LMPType
         return False
     type = reader.LMPTypeToSimTypeAngle[LMPType]
-    k = float(args[1]) / reader.unitEng
+    k = float(args[1])
 
     thetaEq = float(args[2]) * DEGREES_TO_RADIANS
     return [type, k, thetaEq]
@@ -434,7 +432,7 @@ def angleCosineDelta_input(reader, args):
         print 'Ignoring LAMMPS angle type %d from input script.  Angle not used in data file' % LMPType
         return False
     type = reader.LMPTypeToSimTypeAngle[LMPType]
-    k = float(args[2]) / reader.unitEng
+    k = float(args[2])
 
     thetaEq = float(args[3]) * DEGREES_TO_RADIANS
     return [type, k, thetaEq]
@@ -451,7 +449,7 @@ def dihedralOPLS_data(reader, args):
 
     print 'HEY'
     print coefs
-    coefs = [float(x) / reader.unitEng for x in coefs]
+    coefs = [float(x) for x in coefs]
     print coefs
     return [type, coefs]
 
@@ -461,7 +459,7 @@ def dihedralOPLS_input(reader, args):
         print 'Ignoring LAMMPS dihedral type %d from input script.  Dihedral not used in data file' % LMPType
         return False
     type = reader.LMPTypeToSimTypeDihedral[LMPType]
-    coefs = [float(x) / reader.unitEng for x in args[2:6]]
+    coefs = [float(x) for x in args[2:6]]
     return [type, coefs]
 
 
@@ -471,7 +469,7 @@ def improperHarmonic_data(reader, args):
         print 'Ignoring LAMMPS improper type %d from data file.  Improper not used in data file' % LMPType
         return False
     type = reader.LMPTypeToSimTypeImproper[LMPType]
-    k = float(args[1]) / reader.unitEng
+    k = float(args[1])
     thetaEq = float(args[2]) * DEGREES_TO_RADIANS
     return [type, k, thetaEq]
 
@@ -481,7 +479,7 @@ def improperHarmonic_input(reader, args):
         print 'Ignoring LAMMPS improper type %d from input script.  Improper not used in data file' % LMPType
         return False
     type = reader.LMPTypeToSimTypeImproper[LMPType]
-    k = float(args[2]) / reader.unitEng
+    k = float(args[2])
     thetaEq = float(args[3]) * DEGREES_TO_RADIANS
     return [type, k, thetaEq]
 

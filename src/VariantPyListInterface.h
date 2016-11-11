@@ -52,6 +52,9 @@ public:
         boost::shared_ptr<CPUMember> shrptr(member, deleter<CPUMember>);
         pyList->append(shrptr);
     }
+    void removeMember(int i) {
+        pyList->pop(i);
+    }
 
 };
 

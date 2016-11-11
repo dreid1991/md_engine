@@ -64,7 +64,7 @@ __global__ void zero_vel_cu(int nAtoms, float4 *vs) {
 }
 
 //MD step
-__global__ void FIRE_preForce_cu(int nAtoms, float4 *xs, float4 *vs, float4 *fs, float dt) {
+__global__ void FIRE_preForce_cu(int nAtoms, float4 *xs, float4 *vs, float4 *fs, float dt, float dtf) {
     int idx = GETIDX();
     if (idx < nAtoms) {
 
@@ -75,7 +75,7 @@ __global__ void FIRE_preForce_cu(int nAtoms, float4 *xs, float4 *vs, float4 *fs,
         float invmass = vel.w;
         float groupTag = force.w;
         xs[idx] = xs[idx] + make_float3(vel) * dt;
-        float3 newVel = make_float3(force) * dt * invmass;
+        float3 newVel = make_float3(force) * dtf * invmass;
         vs[idx] = vel + newVel;
         fs[idx] = make_float4(0, 0, 0, groupTag);
     }
@@ -185,6 +185,7 @@ double IntegratorRelax::run(int numTurns, double fTol) {
 
             float scale1 = 1 - alpha;
             float scale2 = 0;
+            cudaDeviceSynchronize();
             if (FDotF.h_data[0] != 0) {
                 scale2 = alpha * sqrt(VDotV.h_data[0] / FDotF.h_data[0]);
             }
@@ -217,7 +218,7 @@ double IntegratorRelax::run(int numTurns, double fTol) {
                             state->gpd.xs.getDevData(),
                             state->gpd.vs.getDevData(),
                             state->gpd.fs.getDevData(),
-                            dt);
+                            dt, dt*state->units.ftm_to_v);
         CUT_CHECK_ERROR("FIRE_preForce_cu kernel execution failed");
 
         Integrator::forceSingle(computeVirialsInForce);
@@ -244,8 +245,9 @@ double IntegratorRelax::run(int numTurns, double fTol) {
 
             force.dataToHost();
             //std::cout<<"Fire relax: force="<<force<<"; turns="<<i<<'\n';
+            cudaDeviceSynchronize();
 
-            if (force.h_data[0] / (atomssize * atomssize) < fTol*fTol) {//tolerance achived, exting
+            if (force.h_data[0] < fTol*fTol) {//tolerance achived, exting
                 basicFinish();
                 float finalForce = sqrt(force.h_data[0]);
                 std::cout<<"FIRE relax done: force="<< finalForce <<"; turns="<<i+1<<'\n';
@@ -283,7 +285,7 @@ double IntegratorRelax::run(int numTurns, double fTol) {
     CUT_CHECK_ERROR("kernel execution failed"); //Debug feature, check error code
 
     basicFinish();
-
+    cudaDeviceSynchronize();
     float finalForce = sqrt(force.h_data[0]) / atomssize;
     std::cout << "FIRE relax done: force=" << finalForce 
               << "; turns=" << numTurns << std::endl;

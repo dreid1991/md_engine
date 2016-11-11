@@ -17,7 +17,7 @@ void export_Fix();
 /*!
  * Fixes modify the dynamics in the system. They are called by the Integrator
  * at regular intervals and they can modify the Atom forces, positions and
- * velocities. Note that as Fixes themselves depend on the current forces,
+ * velocities. Note that as some Fixes depend on the current forces,
  * positions and velocities, the order in which the Fixes are defined and
  * called is important.
  *
@@ -159,8 +159,17 @@ public:
      * \return void
      *
      */
-    virtual void duplicateMolecule(std::map<int, int> &oldToNew) {};
+    virtual void duplicateMolecule(std::vector<int> &oldIds, std::vector<std::vector<int> > &newIds) {};
 
+    virtual void deleteAtom(Atom *a) {};
+
+    virtual void handleBoundsChange() {};
+    //! Adjust any parameters that might need to be changed before compute
+    /*!
+     *
+     *This would be used for interdependent fixes, like pair and charge.  Alpha parameter changes when bounds change, so evaluator that the pair fix has needs to be reset
+     *
+     */
     //! Write restart data
     /*!
      * \param format Format for restart data

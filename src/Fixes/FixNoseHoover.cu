@@ -172,7 +172,7 @@ bool FixNoseHoover::prepareForRun()
     updateMasses();
 
     // Update thermostat forces
-    double boltz = 1.0;
+    double boltz = state->units.boltz;
     double temp = tempInterpolator.getCurrentVal();
     thermForce.at(0) = (ke_current - ndf * boltz * temp) / thermMass.at(0);
     for (size_t k = 1; k < chainLength; ++k) {
@@ -217,8 +217,10 @@ void FixNoseHoover::thermostatIntegrate(double temp, double boltz, bool firstHal
 
     if (!firstHalfStep) {
         thermForce.at(0) = (ke_current - nkt) / thermMass.at(0);
+      //  printf("ke_current %f, nkt %f\n", ke_current, nkt);
     }
 
+    //printf("temp %f boltz %f ndf %d\n", temp, boltz, int(ndf));
     // Multiple timestep procedure
     for (size_t i = 0; i < nTimesteps; ++i) {
         for (size_t j = 0; j < n_ys; ++j) {
@@ -244,6 +246,7 @@ void FixNoseHoover::thermostatIntegrate(double temp, double boltz, bool firstHal
             // Update particle velocities
             double scaleFactor = std::exp( -timestep2*thermVel.at(0) );
             scale *= scaleFactor;
+            //printf("factor %f %f\n", scale.x, scaleFactor);
 
             ke_current *= scaleFactor*scaleFactor;
 
@@ -340,9 +343,7 @@ bool FixNoseHoover::halfStep(bool firstHalfStep)
         return false;
     }
 
-    //! \todo Until now, we assume Boltzmann-constant = 1.0. Consider allowing
-    //!       other units.
-    double boltz = 1.0;
+    double boltz = state->units.boltz;
 
     // Update the desired temperature
     double temp;
@@ -419,7 +420,7 @@ void FixNoseHoover::setPressCurrent() {
 }
 void FixNoseHoover::updateMasses()
 {
-    double boltz = 1.0;
+    double boltz = state->units.boltz;
     double temp = tempInterpolator.getCurrentVal();
     thermMass.at(0) = ndf * boltz * temp / (frequency*frequency);
     for (size_t i = 1; i < chainLength; ++i) {
@@ -442,7 +443,6 @@ void FixNoseHoover::calculateKineticEnergy()
         tempComputer.computeScalar_CPU();
         ndf = tempComputer.ndf;
         ke_current = tempComputer.totalKEScalar;
-        //tempComputer.tempScalar;
 
        // tempComputer.computeTensorFromScalar();
     } else if (pressMode == PRESSMODE::ANISO) {

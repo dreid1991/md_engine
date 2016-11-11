@@ -155,6 +155,41 @@ class FixBond : public Fix, public TypedItemHolder {
             }
             return ids;
         }
+        void duplicateMolecule(std::vector<int> &oldIds, std::vector<std::vector<int> > &newIds) {
+            int ii = bonds.size();
+            std::vector<CPUMember> belongingToOld;
+            for (int i=0; i<ii; i++) {
+                CPUMember &b = boost::get<CPUMember>(bonds[i]);
+                std::array<int, 2> &ids = b.ids;
+                bool found = false;
+                for (int j=0; j<2; j++) {
+                    if (find(oldIds.begin(), oldIds.end(), ids[j]) != oldIds.end()) {
+                        found = true;
+                        break;
+                    }
+                }
+                if (found) {
+                    belongingToOld.push_back(b);
+                }
+            }
+            for (int i=0; i<newIds.size(); i++) {
+                for (int j=0; j<belongingToOld.size(); j++) {
+                    CPUMember copy = belongingToOld[j];
+                    std::array<int, 2> idsNew = copy.ids;
+                    for (int k=0; k<2; k++) {
+                        auto it = find(oldIds.begin(), oldIds.end(), idsNew[k]);
+                        if (it != oldIds.end()) {
+                            idsNew[k] = newIds[i][it - oldIds.begin()];
+                        }
+                    }
+                    copy.ids = idsNew;
+                    bonds.push_back(copy);
+                    pyListInterface.updateAppendedMember(false);
+                }
+            }
+            pyListInterface.requestRefreshPyList();
+        }
+        /*
         void duplicateMolecule(std::map<int, int> &oldToNew) {
             int ii = bonds.size();
             for (int i=0; i<ii; i++) {
@@ -179,6 +214,7 @@ class FixBond : public Fix, public TypedItemHolder {
 
             
         }
+        */
 
 
         void setSharedMemForParams() {
@@ -191,6 +227,24 @@ class FixBond : public Fix, public TypedItemHolder {
                 sharedMemSizeForParams = size;
             }
 
+        }
+        void deleteAtom(Atom *a) {
+            int deleteId = a->id;
+            for (int i=bonds.size()-1; i>=0; i--) {
+                CPUMember &forcer= boost::get<CPUMember>(bonds[i]);
+                bool deleteForcer = false;
+                for (int id : forcer.ids) {
+                    if (id == deleteId) {
+                        deleteForcer = true;
+                        break;
+                    }
+                }
+                if (deleteForcer) {
+                    bonds.erase(bonds.begin()+i, bonds.begin()+i+1);
+                    pyListInterface.removeMember(i);
+                    pyListInterface.requestRefreshPyList();
+                }
+            }
         }
 };
 

@@ -39,6 +39,7 @@
 #include "DeviceManager.h"
 //basic integrator functions state may need access to (computing engs, for examples)
 #include "IntegratorUtil.h"
+#include "Units.h"
 
 
 void export_State();
@@ -190,11 +191,6 @@ public:
 
     //bool fixIsActive(boost::shared_ptr<Fix>);
 
-    bool changedAtoms; //!< True if change in atom vector is not yet accounted
-                       //!< for
-    bool changedGroups; //!< True if change in groups is not yet accounted for
-    bool redoNeighbors; //!< Neighbor list needs to be recreated. Currently
-                        //!< unused
 
     //! Add Atoms to a Group
     /*!
@@ -253,7 +249,7 @@ public:
      * Remove a group from the simulation. The group must exist. The group
      * "all" may not be removed.
      */
-    bool destroyGroup(std::string);
+    bool deleteGroup(std::string);
 
     //! Create a new atom group
     /*!
@@ -305,12 +301,13 @@ public:
     /*!
      * \param a Pointer to the Atom to be removed
      */
-    bool removeAtom(Atom *a);
+    bool deleteAtom(Atom *a);
+    bool deleteMolecule(Molecule &);
 
     void createMolecule(std::vector<int> &ids);
-    void createMoleculePy(boost::python::list ids);
+    boost::python::object createMoleculePy(boost::python::list ids);
 
-    void duplicateMolecule(Molecule &);
+    boost::python::object duplicateMolecule(Molecule &, int n);
     Atom &duplicateAtom(Atom);
     void refreshIdToIdx();
     
@@ -337,7 +334,6 @@ public:
      * Replace the current Atoms with a given list of Atoms. This could, for
      * example be all Atoms from a previous state saved via copyAtoms().
      */
-    void setAtoms(std::vector<Atom> &fromSave);
 
     //! Delete all Atoms
     void deleteAtoms();
@@ -504,6 +500,8 @@ public:
      */
     void seedRNG(unsigned int seed = 0);
     void handleChargeOffloading();
+
+    Units units;
 
 private:
     std::mt19937 randomNumberGenerator; //!< Random number generator

@@ -181,8 +181,9 @@ bool FixPair::readFromRestart() {
                 }
                 mdAssert(it != paramOrder.end(), "Invalid restart data for fix");
                 std::vector<float> *params = paramMap[paramHandle];
+                ensureParamSize(*params);
                 std::vector<float> src = xml_readNums<float>(curr_param);
-                assert(params->size() == src.size());
+                assert(params->size() >= src.size());
                 for (int i=0; i<src.size(); i++) {
                     (*params)[i] = src[i];
                 }
@@ -194,6 +195,8 @@ bool FixPair::readFromRestart() {
     return true;
     
 }
+
+
 
 std::string FixPair::restartChunkPairParams(std::string format) {
     std::stringstream ss;
@@ -219,6 +222,13 @@ std::string FixPair::restartChunkPairParams(std::string format) {
     return ss.str();
 }    
 
+void FixPair::handleBoundsChange() {
+    if (hasAcceptedChargePairCalc && state->boundsGPU != boundsLast) {
+        boundsLast = state->boundsGPU;
+        chargeCalcFix->handleBoundsChange();
+        setEvalWrapper();
+    }
+}
 void export_FixPair() {
     py::class_<FixPair,
     boost::noncopyable,

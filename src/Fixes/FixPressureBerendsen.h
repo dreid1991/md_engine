@@ -17,6 +17,9 @@ namespace MD_ENGINE {
         DataComputerPressure pressureComputer;
         double period;
         double bulkModulus;
+        double maxDilation;
+
+        void setParameters(double maxDilation_);
 
     };
 };

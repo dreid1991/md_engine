@@ -25,7 +25,6 @@ void FixDihedralCHARMM::compute(bool computeVirials) {
     } else {
         compute_force_dihedral<DihedralCHARMMType, DihedralEvaluatorCHARMM, false><<<NBLOCK(forcersGPU.size()), PERBLOCK, sharedMemSizeForParams>>>(forcersGPU.size(), gpd.xs(activeIdx), gpd.fs(activeIdx), gpd.idToIdxs.d_data.data(), forcersGPU.data(), state->boundsGPU, parameters.data(), parameters.size(), gpd.virials.d_data.data(), usingSharedMemForParams, evaluator);
     }
-        //compute_force_dihedral<DihedralCHARMMType, DihedralEvaluatorCHARMM, false><<<NBLOCK(forcersGPU.size()), PERBLOCK, sizeof(DihedralCHARMMType) * parameters.size() >>>(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx), gpd.idToIdxs.d_data.data(), forcersGPU.data(), forcersGPU.size(), state->boundsGPU, parameters.data(), parameters.size(), gpd.virials.d_data.data(), evaluator);
 
 }
 
@@ -34,7 +33,7 @@ void FixDihedralCHARMM::singlePointEng(float *perParticleEng) {
     int activeIdx = state->gpd.activeIdx();
 
     GPUData &gpd = state->gpd;
-   // compute_energy_dihedral<<<NBLOCK(nAtoms), PERBLOCK, sizeof(DihedralGPU) * maxForcersPerBlock + sharedMemSizeForParams>>>(nAtoms, gpd.xs(activeIdx), perParticleEng, gpd.idToIdxs.d_data.data(), forcersGPU.data(), forcerIdxs.data(), state->boundsGPU, parameters.data(), parameters.size(), usingSharedMemForParams, evaluator);
+    compute_energy_dihedral<<<NBLOCK(forcersGPU.size()), PERBLOCK, sizeof(DihedralGPU) * maxForcersPerBlock + sharedMemSizeForParams>>>(forcersGPU.size(), gpd.xs(activeIdx), perParticleEng, gpd.idToIdxs.d_data.data(), forcersGPU.data(), state->boundsGPU, parameters.data(), parameters.size(), usingSharedMemForParams, evaluator);
     
 
 }

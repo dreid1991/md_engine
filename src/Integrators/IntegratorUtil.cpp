@@ -94,5 +94,9 @@ void IntegratorUtil::doDataAppending() {
     }
 }
 
-
+void IntegratorUtil::handleBoundsChange() {
+    for (Fix *f : state->fixes) {
+        f->handleBoundsChange();
+    }
+}
 

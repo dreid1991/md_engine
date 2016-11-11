@@ -36,8 +36,6 @@ State::State() {
     dangerousRebuilds = 0;
     dt = .005;
     periodicInterval = 50;
-    changedAtoms = true;
-    changedGroups = true;
     shoutEvery = 5000;
     for (int i=0; i<3; i++) {
         periodic[i] = true;
@@ -56,6 +54,7 @@ State::State() {
     specialNeighborCoefs[1] = 0;
     specialNeighborCoefs[2] = 0.5;
     rng_is_seeded = false;
+    units.setLJ();//default units are lj
 
 
 }
@@ -85,14 +84,16 @@ int State::addAtom(std::string handle, Vector pos, double q) {
 }
 
 bool State::addAtomDirect(Atom a) {
-    // id of atom a WILL be overridden
-    if (idBuffer.size()) {
-        a.id = idBuffer.back();
-        idBuffer.pop_back();
-    } else {
-        maxIdExisting++;
-        a.id = maxIdExisting;
-    }
+	//overwriting atom id if it's set to the default, -1
+	if (a.id == -1) {
+		if (idBuffer.size()) {
+			a.id = idBuffer.back();
+			idBuffer.pop_back();
+		} else {
+			maxIdExisting++;
+			a.id = maxIdExisting;
+		}
+	}
     while (idToIdx.size() <= a.id) {
         idToIdx.push_back(0);
     }
@@ -114,12 +115,12 @@ bool State::addAtomDirect(Atom a) {
     }
 
     atoms.push_back(a);
-    changedAtoms = true;
     return true;
 }
 
 Atom &State::duplicateAtom(Atom a) {
-    addAtomDirect(a); //really just reassigns id (and mass, but will be unchanged)
+	a.id = -1; //will assign id if id == -1
+    addAtomDirect(a); 
     return atoms.back();
 }
 
@@ -151,9 +152,12 @@ bool State::addBond(Atom *a, Atom *b, double k, double rEq) {
 */
 
 
-bool State::removeAtom(Atom *a) {
+bool State::deleteAtom(Atom *a) {
     if (!(a >= &(*atoms.begin()) && a < &(*atoms.end()))) {
         return false;
+    }
+    for (Fix *f : fixes) {
+        f->deleteAtom(a);
     }
     int id = a->id;
     if (id == maxIdExisting) {
@@ -170,12 +174,27 @@ bool State::removeAtom(Atom *a) {
     }
     int idx = a - &atoms[0];
     atoms.erase(atoms.begin()+idx, atoms.begin()+idx+1);
-    refreshIdToIdx();
-
-
-    changedAtoms = true;
-    redoNeighbors = true;
+    refreshIdToIdx(); //hey, if deleting multiple atoms, this doesn't need to be done for every one
     return true;
+}
+
+bool State::deleteMolecule(Molecule &m) {
+    int len = py::len(molecules);
+    for (int i=0; i<len; i++) {
+        py::extract<Molecule &> molecPy(molecules[i]);
+        mdAssert(molecPy.check(), "Non-molecule found in list of molecules"); 
+        Molecule &molec = molecPy;
+        if (m == molec) {
+            for (int id : m.ids) {
+                Atom *a = &idToAtom(id);
+                deleteAtom(a);
+            }
+            molecules.pop(i);
+            return true;
+        }
+    }
+    mdAssert(false, "Could not find molecule to delete");
+    return false;
 }
 
 void State::createMolecule(std::vector<int> &ids) {
@@ -185,7 +204,7 @@ void State::createMolecule(std::vector<int> &ids) {
     molecules.append(Molecule(this, ids));
 }
 
-void State::createMoleculePy(py::list idsPy) {
+py::object State::createMoleculePy(py::list idsPy) {
     int len = py::len(idsPy);
     std::vector<int> ids(len);
     for (int i=0; i<len; i++) {
@@ -197,25 +216,50 @@ void State::createMoleculePy(py::list idsPy) {
         ids[i] = id;
     }
     createMolecule(ids);
+    return molecules[py::len(molecules)-1];
 }
 
 
 
-void State::duplicateMolecule(Molecule &molec) {
-    std::map<int, int> oldToNew;
-    std::vector<int> newIds;
+py::object State::duplicateMolecule(Molecule &molec, int n) {
+    //std::map<int, int> oldToNew;
+    //std::vector<int> newIds;
+    int molecsOrig = py::len(molecules);
+    std::vector<int> oldIds;
+    std::vector< std::vector<int> > newIdss;
     for (int id : molec.ids) {
-        Atom &a = atoms[idToIdx[id]];
+        oldIds.push_back(id);
 
-        Atom &dup = duplicateAtom(a);
+    //    Atom &a = atoms[idToIdx[id]];
+
+     //   Atom &dup = duplicateAtom(a);
         //NOTE THAT REFERENCE TO A MAY BE INVALIDATE AFTER DUPLICATION B/C VECTOR COULD REALLOCATE
-        oldToNew[id] = dup.id;
-        newIds.push_back(dup.id);
+     //   oldToNew[id] = dup.id;
+     //   newIds.push_back(dup.id);
     }
+    for (int i=0; i<n; i++) {
+        std::vector<int> newIds(oldIds.size());
+        for (int j=0; j<oldIds.size(); j++) {
+            int oldId = oldIds[j];
+            Atom &a = atoms[idToIdx[oldId]];
+            Atom &dup = duplicateAtom(a);
+            newIds[j] = dup.id;
+        }
+        newIdss.push_back(newIds);
+    }
+
     for (Fix *fix : fixes) {
-        fix->duplicateMolecule(oldToNew);
+        fix->duplicateMolecule(oldIds, newIdss);
     }
-    createMolecule(newIds);
+    py::list newMolecs;
+    for (std::vector<int> &newIds : newIdss) {
+        createMolecule(newIds);
+        newMolecs.append(molecules[py::len(molecules)-1]);
+    }
+    if (n>1) {
+        return newMolecs;
+    }
+    return molecules[py::len(molecules)-1];
 
 
 }
@@ -427,7 +471,6 @@ bool State::prepareForRun() {
     gpd.vsBuffer = GPUArrayGlobal<float4>(nAtoms);
     gpd.fsBuffer = GPUArrayGlobal<float4>(nAtoms);
     gpd.idsBuffer = GPUArrayGlobal<uint>(nAtoms);
-    handleChargeOffloading();
 
     return true;
 }
@@ -443,7 +486,6 @@ void State::handleChargeOffloading() {
             }
         }
     }
-    printf("FIN\n");
 }
 void copyAsyncWithInstruc(State *state, std::function<void (int64_t )> cb, int64_t turn) {
     cudaStream_t stream;
@@ -545,18 +587,20 @@ bool State::addToGroup(std::string handle, std::function<bool (Atom *)> testF) {
             a.groupTag |= tagBit;
         }
     }
-    changedGroups = true;
     return true;
 }
 
-bool State::destroyGroup(std::string handle) {
+
+
+
+
+bool State::deleteGroup(std::string handle) {
     uint tagBit = groupTagFromHandle(handle);
     assert(handle != "all");
     for (Atom &a : atoms) {
         a.groupTag &= ~tagBit;
     }
     removeGroupTag(handle);
-    changedGroups = true;
     return true;
 }
 
@@ -623,12 +667,6 @@ void State::deleteAtoms() {
     idToIdx.erase(idToIdx.begin(), idToIdx.end());
 }
 
-void State::setAtoms(std::vector<Atom> &fromSave) {
-    changedAtoms = true;
-    changedGroups = true;
-    atoms = fromSave;
-}
-
 
 void State::zeroVelocities() {
     for (Atom &a : atoms) {
@@ -683,20 +721,20 @@ BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(State_seedRNG_overloads,State::seedRNG,0,
                 .def_readonly("molecules", &State::molecules)
                 .def("setPeriodic", &State::setPeriodic)
                 .def("getPeriodic", &State::getPeriodic) //boost is grumpy about readwriting static arrays.  can readonly, but that's weird to only allow one w/ wrapper func for other.  doing wrapper funcs for both
-                .def("removeAtom", &State::removeAtom)
+                .def("deleteAtom", &State::deleteAtom)
+                .def("deleteMolecule", &State::deleteMolecule)
                 //.def("removeBond", &State::removeBond)
 
                 .def("addToGroup", &State::addToGroupPy)
-                .def("destroyGroup", &State::destroyGroup)
+                .def("deleteGroup", &State::deleteGroup)
                 .def("createGroup", &State::createGroup,
                         (py::arg("handle"),
                          py::arg("atoms") = py::list())
                     )
                 .def("createMolecule", &State::createMoleculePy, (py::arg("ids")))
-                .def("duplicateMolecule", &State::duplicateMolecule)
+                .def("duplicateMolecule", &State::duplicateMolecule, (py::arg("molecule"), py::arg("n")=1))
                 .def("selectGroup", &State::selectGroup)
                 .def("copyAtoms", &State::copyAtoms)
-                .def("setAtoms", &State::setAtoms)
                 .def("idToIdx", &State::idToIdxPy)
                 .def("setSpecialNeighborCoefs", &State::setSpecialNeighborCoefs)
 
@@ -710,8 +748,6 @@ BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(State_seedRNG_overloads,State::seedRNG,0,
                 .def("destroy", &State::destroy)
                 .def("seedRNG", &State::seedRNG, State_seedRNG_overloads())
                 .def_readwrite("is2d", &State::is2d)
-                .def_readonly("changedAtoms", &State::changedAtoms)
-                .def_readonly("changedGroups", &State::changedGroups)
                 .def_readwrite("turn", &State::turn)
                 .def_readwrite("periodicInterval", &State::periodicInterval)
                 .def_readwrite("rCut", &State::rCut)
@@ -728,6 +764,7 @@ BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(State_seedRNG_overloads,State::seedRNG,0,
                 .def_readwrite("shoutEvery", &State::shoutEvery)
                 .def_readwrite("verbose", &State::verbose)
                 .def_readonly("deviceManager", &State::devManager)
+                .def_readonly("units", &State::units)
                 //helper for reader funcs
                 .def("Vector", &generateVector)
 
