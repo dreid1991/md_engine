@@ -48,10 +48,8 @@ include_directories (${PYTHON_INCLUDE_DIRS})
 get_filename_component (PYTHON_LIBRARY_PATH ${PYTHON_LIBRARIES} DIRECTORY)
 
 # Find boost
-find_package (Boost COMPONENTS python REQUIRED)
+find_package (Boost 1.58 COMPONENTS python REQUIRED)
 
-# Find Pugi XML
-find_package (PugiXML REQUIRED)
 
 message (STATUS "Building MD_engine Version ${VERSION_MAJOR}.${VERSION_MINOR}")
 
@@ -64,7 +62,7 @@ configure_file (
 include_directories ("${PROJECT_BINARY_DIR}")
 
 set (MD_ENGINE_LIB_NAME Sim)
-
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}")
 add_subdirectory (src)
 #add src directory
 
