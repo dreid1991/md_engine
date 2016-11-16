@@ -41,21 +41,21 @@ get_filename_component (CUDA_CUFFT_LIBRARY_PATH ${CUDA_CUFFT_LIBRARIES} DIRECTOR
 # Find Python libraries
 
 #set (PYTHON_LIBRARY "/software/python-2.7-2014q1-el6-x86_64/lib")
-if (MIDWAY2)
-	set (PYTHON_INCLUDE_DIR "/software/python-2.7.12-el7-x86_64/include/python2.7")
-	set (PYTHON_LIBRARIES
-		"/software/python-2.7.12-el7-x86_64/lib/libpython2.7.so")
-else (MIDWAY2)
-	set (PYTHON_INCLUDE_DIR "/software/python-2.7-2014q1-el6-x86_64/include/python2.7")
-	set (PYTHON_LIBRARIES
-		"/software/python-2.7-2014q1-el6-x86_64/lib/libpython2.7.so")
-endif(MIDWAY2)
-#find_package (PythonLibs 2.7 REQUIRED)
+#if (MIDWAY2)
+#	set (PYTHON_INCLUDE_DIR "/software/python-2.7.12-el7-x86_64/include/python2.7")
+#	set (PYTHON_LIBRARIES
+#		"/software/python-2.7.12-el7-x86_64/lib/libpython2.7.so")
+#else (MIDWAY2)
+#	set (PYTHON_INCLUDE_DIR "/software/python-2.7-2014q1-el6-x86_64/include/python2.7")
+#	set (PYTHON_LIBRARIES
+#		"/software/python-2.7-2014q1-el6-x86_64/lib/libpython2.7.so")
+#endif(MIDWAY2)
+find_package (PythonLibs 2.7 REQUIRED)
 include_directories (${PYTHON_INCLUDE_DIR}) #removed an S here
 #get_filename_component (PYTHON_LIBRARY_PATH ${PYTHON_LIBRARIES} DIRECTORY)
 
 # Find boost
-find_package (Boost 1.55.0 COMPONENTS python REQUIRED)
+find_package (Boost 1.62.0 COMPONENTS python REQUIRED)
 
 
 message (STATUS "Building MD_engine Version ${VERSION_MAJOR}.${VERSION_MINOR}")
