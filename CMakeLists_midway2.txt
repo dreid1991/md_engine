@@ -21,10 +21,6 @@ if (DEBUG)
     set (CUDA_NVCC_DEBUG_FLAGS -Xcompiler -Wall;)
 endif (DEBUG)
 
-if (TEST)
-    find_package(GTest REQUIRED)
-    enable_testing()
-endif (TEST)
 
 if (CMAKE_BUILD_TYPE MATCHES "RELEASE")
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
@@ -43,12 +39,23 @@ list (APPEND CUDA_NVCC_FLAGS ${CUDA_NVCC_DEBUG_FLAGS})
 get_filename_component (CUDA_CUFFT_LIBRARY_PATH ${CUDA_CUFFT_LIBRARIES} DIRECTORY)
 
 # Find Python libraries
+
+#set (PYTHON_LIBRARY "/software/python-2.7-2014q1-el6-x86_64/lib")
+#if (MIDWAY2)
+#	set (PYTHON_INCLUDE_DIR "/software/python-2.7.12-el7-x86_64/include/python2.7")
+#	set (PYTHON_LIBRARIES
+#		"/software/python-2.7.12-el7-x86_64/lib/libpython2.7.so")
+#else (MIDWAY2)
+#	set (PYTHON_INCLUDE_DIR "/software/python-2.7-2014q1-el6-x86_64/include/python2.7")
+#	set (PYTHON_LIBRARIES
+#		"/software/python-2.7-2014q1-el6-x86_64/lib/libpython2.7.so")
+#endif(MIDWAY2)
 find_package (PythonLibs 2.7 REQUIRED)
-include_directories (${PYTHON_INCLUDE_DIRS})
-get_filename_component (PYTHON_LIBRARY_PATH ${PYTHON_LIBRARIES} DIRECTORY)
+include_directories (${PYTHON_INCLUDE_DIR}) #removed an S here
+#get_filename_component (PYTHON_LIBRARY_PATH ${PYTHON_LIBRARIES} DIRECTORY)
 
 # Find boost
-find_package (Boost 1.58 COMPONENTS python REQUIRED)
+find_package (Boost 1.62.0 COMPONENTS python REQUIRED)
 
 
 message (STATUS "Building MD_engine Version ${VERSION_MAJOR}.${VERSION_MINOR}")
@@ -62,7 +69,7 @@ configure_file (
 include_directories ("${PROJECT_BINARY_DIR}")
 
 set (MD_ENGINE_LIB_NAME Sim)
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}")
+
 add_subdirectory (src)
 #add src directory
 
@@ -74,8 +81,4 @@ if (PYTHON)
     #    COMMAND ${PYTHON_BIN} python/setup.py build
     #    COMMAND ${CMAKE_COMMAND} -E touch ${OUTPUT})
 endif (PYTHON)
-
 # Add tests
-if (TEST)
-    add_subdirectory (unit_test)
-endif (TEST)
