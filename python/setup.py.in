@@ -4,7 +4,7 @@ incDirsPy = '${PY_INC_DIRS}'.split(';')
 
 module1 = Extension('${MD_ENGINE_LIB_NAME}',
                     sources = ['${SIM_SOURCES}'],
-                    library_dirs = ["${CMAKE_BINARY_DIR}/src"],
+                    library_dirs = ["${CMAKE_BINARY_DIR}"],
                     libraries = ["${MD_ENGINE_LIB_NAME}"],
                     include_dirs = incDirsPy + 
                                     ["${CUDA_INCLUDE_DIRS}"],
