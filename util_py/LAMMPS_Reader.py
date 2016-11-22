@@ -447,10 +447,7 @@ def dihedralOPLS_data(reader, args):
     coefs = [args[-1], args[-2], args[-3], args[-4]]
     coefs.reverse()
 
-    print 'HEY'
-    print coefs
     coefs = [float(x) for x in coefs]
-    print coefs
     return [type, coefs]
 
 def dihedralOPLS_input(reader, args):
@@ -461,6 +458,31 @@ def dihedralOPLS_input(reader, args):
     type = reader.LMPTypeToSimTypeDihedral[LMPType]
     coefs = [float(x) for x in args[2:6]]
     return [type, coefs]
+
+
+def dihedralCHARMM_data(reader, args):
+    LMPType = int(args[0])
+    if not LMPType in reader.LMPTypeToSimTypeDihedral:
+        print 'Ignoring LAMMPS dihedral type %d from data file.  Dihedral not used in data file' % LMPType
+        return False
+    type = reader.LMPTypeToSimTypeDihedral[LMPType]
+    k = float(args[1])
+    n = int(args[2])
+    d = float(args[3])
+    return [type, k, n, d]
+
+def dihedralCHARMM_input(reader, args):
+    LMPType = int(args[1])
+    if not LMPType in reader.LMPTypeToSimTypeDihedral:
+        print 'Ignoring LAMMPS dihedral type %d from input script.  Dihedral not used in data file' % LMPType
+        return False
+    type = reader.LMPTypeToSimTypeDihedral[LMPType]
+    k = float(args[2])
+    n = int(args[3])
+    d = float(args[4])
+    return [type, k, n, d]
+
+
 
 
 def improperHarmonic_data(reader, args):
@@ -491,6 +513,7 @@ argumentConverters = {
             'AngleHarmonic': angleHarmonic_data,
             'AngleCosineDelta': angleCosineDelta_data,
             'DihedralOPLS': dihedralOPLS_data,
+            'DihedralCHARMM': dihedralCHARMM_data,
             'ImproperHarmonic': improperHarmonic_data
             },
         'input':
@@ -500,6 +523,7 @@ argumentConverters = {
             'AngleHarmonic': angleHarmonic_input,
             'AngleCosineDelta': angleCosineDelta_input,
             'DihedralOPLS': dihedralOPLS_input,
+            'DihedralCHARMM': dihedralCHARMM_input,
             'ImproperHarmonic': improperHarmonic_input
             }
         }
