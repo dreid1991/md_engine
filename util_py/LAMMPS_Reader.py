@@ -468,7 +468,7 @@ def dihedralCHARMM_data(reader, args):
     type = reader.LMPTypeToSimTypeDihedral[LMPType]
     k = float(args[1])
     n = int(args[2])
-    d = float(args[3])
+    d = float(args[3]) * DEGREES_TO_RADIANS
     return [type, k, n, d]
 
 def dihedralCHARMM_input(reader, args):
@@ -479,7 +479,7 @@ def dihedralCHARMM_input(reader, args):
     type = reader.LMPTypeToSimTypeDihedral[LMPType]
     k = float(args[2])
     n = int(args[3])
-    d = float(args[4])
+    d = float(args[4]) * DEGREES_TO_RADIANS
     return [type, k, n, d]
 
 
