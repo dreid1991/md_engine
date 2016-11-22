@@ -97,14 +97,15 @@ __global__ void compute_prev_val(int4 *waterIds, float4 *xs, float4 *xs_0, float
   }
 }
 
-__global__ void set_fixed_sides(int4 *waterIds, float4 *xs, float4 *com, float4 *fix_len, int nMols, int *idToIdxs) {
+__global__ void set_fixed_sides(int4 *waterIds, float4 *xs, float4 *com, float4 *fix_len, int nMols, int *idToIdxs, bool fourSite) {
   int idx = GETIDX();
   if (idx < nMols) {
-    int ids[3];
+    int ids[4];
     ids[0] = waterIds[idx].x;
     ids[1] = waterIds[idx].y;
     ids[2] = waterIds[idx].z;
-    float4 pts[3];
+    ids[3] = waterIds[idx].w;
+    float4 pts[4];
     //float side_ab = length(xs[idToIdxs[ids[1]]] - xs[idToIdxs[ids[0]]]);
     //float side_bc = length(xs[idToIdxs[ids[2]]] - xs[idToIdxs[ids[1]]]);
     //float side_ca = length(xs[idToIdxs[ids[0]]] - xs[idToIdxs[ids[2]]]);
@@ -112,14 +113,74 @@ __global__ void set_fixed_sides(int4 *waterIds, float4 *xs, float4 *com, float4 
       int myIdx = idToIdxs[ids[i]];
       pts[i] = xs[myIdx];
     }
+    if (fourSite) {
+      pts[3] = xs[idToIdxs[ids[3]]];
+    }
     float4 comCut = com[idx];
     comCut.w = 0.0f;
     float ra = fabs(length(comCut - pts[0]));
     float rc = fabs(length(pts[2] - pts[1])*0.5);
     float rb = sqrtf(length(pts[0]-pts[2])*length(pts[0]-pts[2]) - (rc*rc)) - ra;
-    fix_len[idx] = make_float4(ra, rb, rc, 0.0f);
+    if (fourSite) {
+      float rm = length(pts[3] - pts[0]);
+      fix_len[idx] = make_float4(ra, rb, rc, rm);
+    } else {
+      fix_len[idx] = make_float4(ra, rb, rc, 0.0f);
+    }
   }
 } 
+
+  /* ---- Based off of the algorithm used to redistribute lone pair forces in NAMD ---- */
+ 
+__global__ void distribute_electron_force(int4 *waterIds, float4 *xs, float4 *fs, int nMols, int *idToIdxs) {
+  int idx = GETIDX();
+  if (idx < nMols) {
+    int id_o = idToIdxs[waterIds[idx].x];
+    int id_h1 = idToIdxs[waterIds[idx].y];
+    int id_h2 = idToIdxs[waterIds[idx].z];
+    int id_e = idToIdxs[waterIds[idx].w];
+    float3 f_o, f_h1, f_h2, f_e;
+    f_o = make_float3(fs[id_o]);
+    f_h1 = make_float3(fs[id_h1]);
+    f_h2 = make_float3(fs[id_h2]);
+    f_e = make_float3(fs[id_e]);
+    float3 x_o, x_h1, x_h2, x_e;
+    x_o = make_float3(xs[id_o]);
+    x_h1 = make_float3(xs[id_h1]);
+    x_h2 = make_float3(xs[id_h2]);
+    x_e = make_float3(xs[id_e]);
+
+    float3 forceNet_old = f_o + f_h1 + f_h2 + f_e;
+    float3 torqueNet_old = cross(f_o,x_o) + cross(f_h1,x_h1) + cross(f_h2,x_h2) + cross(f_e,x_e);
+    printf("oldt = %f %f %f\n", torqueNet_old.x, torqueNet_old.y, torqueNet_old.z);
+    // OM direction vector
+    float3 vm = x_e - x_o;
+    float forceRadFactor = dot(f_e,vm) / lengthSqr(vm);
+    float3 forceAngular = vm * forceRadFactor;
+    forceAngular += f_e;
+
+    float3 va = x_o - ((x_h1 + x_h2) *0.5);
+    float inva = rsqrt(dot(va,va));
+    float co = (length(va) - length(vm));
+    co *= inva;
+    float ch = length(vm) * 0.5;
+    ch *= inva;
+
+    fs[id_e] = make_float4(0.0f,0.0f,0.0f,0.0f);
+    fs[id_o] += make_float4(forceAngular + forceAngular*co);
+    fs[id_h1] += make_float4(forceAngular*ch);
+    fs[id_h2] += make_float4(forceAngular*ch);
+
+    float3 forceNet_new = f_o + f_h1 + f_h2;
+    float3 torqueNet_new = cross(f_o,x_o) + cross(f_h1,x_h1) + cross(f_h2,x_h2);
+    printf("oldf = %f %f %f  newf = %f %f %f\n", forceNet_old.x, forceNet_old.y, forceNet_old.z, forceNet_new.x, forceNet_new.y, forceNet_new.z);
+    printf("oldt = %f %f %f  newt = %f %f %f\n", torqueNet_old.x, torqueNet_old.y, torqueNet_old.z, torqueNet_new.x, torqueNet_new.y, torqueNet_new.z);
+    float err = length(forceNet_new - forceNet_old);
+    assert(err <= 0.0001);
+    err = length(torqueNet_new - torqueNet_old);
+    assert(err <= 0.0001);
+  }
+}
 
 __global__ void set_init_vel_correction(int4 *waterIds, float4 *dvs_0, int nMols) {
   int idx = GETIDX();
@@ -137,7 +198,7 @@ __global__ void set_init_vel_correction(int4 *waterIds, float4 *dvs_0, int nMols
 /* ------- Based off of the SETTLE Algorithm outlined in ------------
    ------ Miyamoto et al., J Comput Chem. 13 (8): 952–962 (1992). ------ */
 
-__device__ void settle_xs(float timestep, float3 com, float3 com1, float3 *xs_0, float3 *xs, float3 fix_len) {
+__device__ void settle_xs(float timestep, float3 com, float3 com1, float3 *xs_0, float3 *xs, float4 fix_len, bool fourSite) {
   //printf("COM = %f %f %f  len = %f %f %f\n", com.x, com.y, com.x, fix_len.x, fix_len.y, fix_len.z);
   float3 a0 = xs_0[0];
   float3 b0 = xs_0[1];
@@ -370,6 +431,14 @@ __device__ void settle_xs(float timestep, float3 com, float3 com1, float3 *xs_0,
   b3 = rotateCoords(b3,tr);
   c3 = rotateCoords(c3,tr);
   
+  // place lone pair
+  if (fourSite) {
+    float rm = fix_len.w;
+    float3 adir = normalize(a3);
+    float3 m3 = adir*rm + a3;
+    xs[3] = m3 + com1;
+  }
+
   //a3 = rotateCoords(a3, trn);
   //b3 = rotateCoords(b3, trn);
   //c3 = rotateCoords(c3, trn);
@@ -535,26 +604,27 @@ __device__ void settle_vs(float timestep, float3 *vs_0, float3 *dvs_0, float3 *v
 
 
 
-__global__ void compute_SETTLE(int4 *waterIds, float4 *xs, float4 *xs_0, float4 *vs, float4 *vs_0, float4 *dvs_0, float4 *fs, float4 *fs_0, float4 *comOld, float4 *fix_len, int nMols, float dt, int *idToIdxs, BoundsGPU bounds) {
+__global__ void compute_SETTLE(int4 *waterIds, float4 *xs, float4 *xs_0, float4 *vs, float4 *vs_0, float4 *dvs_0, float4 *fs, float4 *fs_0, float4 *comOld, float4 *fix_len, int nMols, float dt, int *idToIdxs, BoundsGPU bounds, bool fourSite) {
   int idx = GETIDX();
   if (idx < nMols) {
     int ids[3];
     int idxs[3];
     float3 xs_0_mol[3];
-    float3 xs_mol[3];
+    float3 xs_mol[4];
     float3 vs_0_mol[3];
     float3 vs_mol[3];
     float3 dvs_0_mol[3];
     float3 fs_0_mol[3];
     float3 fs_mol[3];
     float mass[3];
-    float3 fix_len_mol = make_float3(fix_len[idx]);
-    int3 waterId_mol = make_int3(waterIds[idx]);
+    float4 fix_len_mol = fix_len[idx];
+    int4 waterId_mol = waterIds[idx];
     ids[0] = waterId_mol.x;
     ids[1] = waterId_mol.y;
     ids[2] = waterId_mol.z;
+    int myIdx;
     for (int i = 0; i < 3; i++) {
-      int myIdx = idToIdxs[ids[i]];
+      myIdx = idToIdxs[ids[i]];
       idxs[i] = myIdx;
       xs_0_mol[i] = make_float3(xs_0[idx*3+i]);
       float4 xWhole = xs[myIdx];
@@ -570,7 +640,13 @@ __global__ void compute_SETTLE(int4 *waterIds, float4 *xs, float4 *xs_0, float4 
       fs_mol[i] = make_float3(fWhole);
       //fix_len_mol[i] = make_float3(fix_len[idx*3+i]);
     }
-    for (int i=1; i<3; i++) {
+    int numAtoms = 3;
+    if (fourSite) {
+      numAtoms = 4;
+      myIdx = idToIdxs[waterId_mol.w];
+      xs_mol[3] = make_float3(xs[myIdx]);
+    }
+    for (int i=1; i<numAtoms; i++) {
       //printf("xs = %f %f %f\n", xs_mol[i].x, xs_mol[i].y, xs_mol[i].z);
       float3 delta = xs_mol[i] - xs_mol[0];
       delta = bounds.minImage(delta);
@@ -590,7 +666,7 @@ __global__ void compute_SETTLE(int4 *waterIds, float4 *xs, float4 *xs_0, float4 
     float3 comOldWrap = comNew + delta;
     //printf("comNew = %f %f %f  delta = %f %f %f  comOldWrap = %f %f %f\n", comNew.x, comNew.y, comNew.z, delta.x, delta.y, delta.z, comOldWrap.x*1000, comOldWrap.y*1000, comOldWrap.z*1000);
     //printf("xs_x=%f xs_y=%f xs_z=%f\n", xs_mol[0].x, xs_mol[0].y, xs_mol[0].z);
-    settle_xs(dt, comOldWrap, comNew, xs_0_mol, xs_mol, fix_len_mol);
+    settle_xs(dt, comOldWrap, comNew, xs_0_mol, xs_mol, fix_len_mol, fourSite);
     /*printf("Settle  positions: xs_x=%f xs_y=%f xs_z=%f\n", xs_mol[0].x, xs_mol[0].y, xs_mol[0].z);
     printf("                   xs_x=%f xs_y=%f xs_z=%f\n", xs_mol[1].x, xs_mol[1].y, xs_mol[1].z);
     printf("                   xs_x=%f xs_y=%f xs_z=%f\n", xs_mol[2].x, xs_mol[2].y, xs_mol[2].z);*/
@@ -599,7 +675,7 @@ __global__ void compute_SETTLE(int4 *waterIds, float4 *xs, float4 *xs_0, float4 
     /*printf("Settle velocities: vs_x=%f vs_y=%f vs_z=%f\n", vs_mol[0].x, vs_mol[0].y, vs_mol[0].z);
     printf("                   vs_x=%f vs_y=%f vs_z=%f\n", vs_mol[1].x, vs_mol[1].y, vs_mol[1].z);
     printf("                   vs_x=%f vs_y=%f vs_z=%f\n", vs_mol[2].x, vs_mol[2].y, vs_mol[2].z);*/
-    for (int i=0; i<3; i++) {
+    for (int i=0; i<numAtoms; i++) {
       xs[idxs[i]] = make_float4(xs_mol[i]);
     }
     for (int i=0; i<3; i++) {
@@ -611,6 +687,11 @@ __global__ void compute_SETTLE(int4 *waterIds, float4 *xs, float4 *xs_0, float4 
 }
 
 void FixRigid::createRigid(int id_a, int id_b, int id_c) {
+  if (fourSet) assert(!fourSite);
+  else {
+    fourSet = true;
+    fourSite = false;
+  }
   int4 waterMol = make_int4(0,0,0,0);
   Vector a = state->idToAtom(id_a).pos;
   Vector b = state->idToAtom(id_b).pos;
@@ -656,6 +737,61 @@ void FixRigid::createRigid(int id_a, int id_b, int id_c) {
   bonds.push_back(bondHH);
 }
 
+void FixRigid::createRigidTIP4P(int id_a, int id_b, int id_c, int id_m) {
+  if (fourSet) assert(fourSite);
+  else {
+    fourSet = true;
+    fourSite = true;
+  }
+  int4 waterMol = make_int4(0,0,0,0);
+  Vector a = state->idToAtom(id_a).pos;
+  Vector b = state->idToAtom(id_b).pos;
+  Vector c = state->idToAtom(id_c).pos;
+  Vector m = state->idToAtom(id_m).pos;
+
+  double ma = state->idToAtom(id_a).mass;
+  double mb = state->idToAtom(id_b).mass;
+  double mc = state->idToAtom(id_c).mass;
+  double mm = state->idToAtom(id_m).mass;
+  double ims = 1.0 / (ma + mb + mc + mm);
+  float4 ims4 = make_float4(0.0f, 0.0f, 0.0f, float(ims));
+  invMassSums.push_back(ims4);
+
+  float det = a[0]*b[1]*c[2] - a[0]*c[1]*b[2] - b[0]*a[1]*c[2] + b[0]*c[1]*a[2] + c[0]*a[1]*b[2] - c[0]*b[1]*a[2];
+  if (state->idToAtom(id_a).mass == state->idToAtom(id_b).mass) {
+    waterMol = make_int4(id_c,id_a,id_b,id_m);
+    if (det < 0) {
+      waterMol = make_int4(id_c,id_b,id_a,id_m);
+    }
+  }
+  else if (state->idToAtom(id_b).mass == state->idToAtom(id_c).mass) {
+    waterMol = make_int4(id_a,id_b,id_c,id_m);
+    if (det < 0) {
+      waterMol = make_int4(id_a,id_c,id_b,id_m);
+    }
+  }
+  else if (state->idToAtom(id_c).mass == state->idToAtom(id_a).mass) {
+    waterMol = make_int4(id_b,id_c,id_a,id_m);
+    if (det < 0) {
+      waterMol = make_int4(id_b,id_a,id_c,id_m);
+    }
+  } else {
+    assert("waterMol set" == "true");
+  }
+  waterIds.push_back(waterMol);
+  Bond bondOH1;
+  Bond bondOH2;
+  Bond bondHH;
+  Bond bondOM;
+  bondOH1.ids = {waterMol.x,waterMol.y};
+  bondOH2.ids = {waterMol.x,waterMol.z};
+  bondHH.ids = {waterMol.y,waterMol.z};
+  bondOM.ids = {waterMol.x,waterMol.w};
+  bonds.push_back(bondOH1);
+  bonds.push_back(bondOH2);
+  bonds.push_back(bondHH);
+  bonds.push_back(bondOM);
+}
 
 bool FixRigid::prepareForRun() {
   int n = waterIds.size();
@@ -673,7 +809,7 @@ bool FixRigid::prepareForRun() {
   int activeIdx = gpd.activeIdx();
   BoundsGPU &bounds = state->boundsGPU;
   compute_COM<<<NBLOCK(n), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), gpd.vs(activeIdx), gpd.idToIdxs.d_data.data(), n, com.data(), bounds);
-  set_fixed_sides<<<NBLOCK(n), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), com.data(), fix_len.data(), n, gpd.idToIdxs.d_data.data());
+  set_fixed_sides<<<NBLOCK(n), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), com.data(), fix_len.data(), n, gpd.idToIdxs.d_data.data(),fourSite);
   set_init_vel_correction<<<NBLOCK(n), PERBLOCK>>>(waterIdsGPU.data(), dvs_0.data(), n);
   return true;
 }
@@ -700,7 +836,8 @@ bool FixRigid::stepFinal() {
   //float4 cpu_xs[nMols*3];
   //gpd.xs.dataToHost(activeIdx);
   //std::cout << "before settle: " << cpu_xs[0] << "\n";
-  compute_SETTLE<<<NBLOCK(nMols), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), xs_0.data(), gpd.vs(activeIdx), vs_0.data(), dvs_0.data(), gpd.fs(activeIdx), fs_0.data(), com.data(), fix_len.data(), nMols, dt, gpd.idToIdxs.d_data.data(), bounds);
+  //distribute_electron_force<<<NBLOCK(nMols), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), gpd.fs(activeIdx), nMols, gpd.idToIdxs.d_data.data());
+  compute_SETTLE<<<NBLOCK(nMols), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), xs_0.data(), gpd.vs(activeIdx), vs_0.data(), dvs_0.data(), gpd.fs(activeIdx), fs_0.data(), com.data(), fix_len.data(), nMols, dt, gpd.idToIdxs.d_data.data(), bounds, fourSite);
   //xs_0.get(cpu_xs);
   //std::cout << cpu_xs[0] << "\n";
   return true;
@@ -716,7 +853,11 @@ void export_FixRigid() {
 								       ))
     .def("createRigid", &FixRigid::createRigid,
 	 (py::arg("id_a"), py::arg("id_b"), py::arg("id_c"))
+	 )
+    .def("createRigidTIP4P", &FixRigid::createRigidTIP4P,
+	 (py::arg("id_a"), py::arg("id_b"), py::arg("id_c"))
 	 );
+  
 }
     
 
