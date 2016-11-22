@@ -136,7 +136,7 @@ __global__ void compute_force_improper(int nImpropers, float4 *xs, float4 *fs, i
 
 
 template <class IMPROPERTYPE, class EVALUATOR> 
-__global__ void compute_energy_improper(int nImpropers, float4 *xs, float *perParticleEng, int *idToIdxs, ImproperGPU *impropers, int *startstops, BoundsGPU bounds, IMPROPERTYPE *parameters_arg, int nParameters, bool usingSharedMemForParams, EVALUATOR evaluator) {
+__global__ void compute_energy_improper(int nImpropers, float4 *xs, float *perParticleEng, int *idToIdxs, ImproperGPU *impropers, BoundsGPU bounds, IMPROPERTYPE *parameters_arg, int nParameters, bool usingSharedMemForParams, EVALUATOR evaluator) {
 
     int idx = GETIDX();
     extern __shared__ char all_shr[];
