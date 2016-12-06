@@ -10,6 +10,9 @@ void export_stls() {
     py::class_<std::map<std::string, int> >("stringInt")
         .def(py::map_indexing_suite<std::map<std::string, int> >())
         ;
+    py::class_<std::map<std::string, uint32_t> >("stringUInt")
+        .def(py::map_indexing_suite<std::map<std::string, uint32_t> >())
+        ;
     py::class_<std::vector<std::string> >("vecstring")
         .def(py::vector_indexing_suite<std::vector<std::string> >())
         ;
