@@ -93,7 +93,16 @@ bool State::addAtomDirect(Atom a) {
 			maxIdExisting++;
 			a.id = maxIdExisting;
 		}
-	}
+	} else {
+        auto it = find(idBuffer.begin(), idBuffer.end(), a.id);
+        if (it != idBuffer.end()) {
+            idBuffer.erase(it);
+        }
+        //not going to worry about populating id buffer, because presumably you are reading in from a system with well-packed ids
+        if (maxIdExisting < a.id) {
+            maxIdExisting = a.id;
+        }
+    }
     while (idToIdx.size() <= a.id) {
         idToIdx.push_back(0);
     }
