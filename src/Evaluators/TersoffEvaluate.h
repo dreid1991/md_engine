@@ -1,6 +1,6 @@
 #pragma once
-#ifndef PAIR_EVALUATOR_ISO_H
-#define PAIR_EVALUATOR_ISO_H
+#ifndef TERSOFF_EVALUATOR_H
+#define TERSOFF_EVALUATOR_H
 #include "BoundsGPU.h"
 #include "cutils_func.h"
 #include "Virial.h"

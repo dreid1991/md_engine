@@ -8,7 +8,7 @@
 #include <map>
 #include <string>
 #include <vector>
-#include <iostream>//makes it compile on my machine  (error: cout is not a member of std)
+#include <iostream>
 
 #include "AtomParams.h"
 #include "GPUArrayGlobal.h"
