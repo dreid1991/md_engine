@@ -57,6 +57,7 @@ BOOST_PYTHON_MODULE(Sim) {
     export_AngleCosineDelta();
 
     export_FixImproperHarmonic();
+    export_FixImproperCVFF();
     export_Impropers();
     export_FixDihedralOPLS();
     export_FixDihedralCHARMM();
