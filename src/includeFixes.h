@@ -5,6 +5,7 @@
 #include "FixBondHarmonic.h"
 #include "FixBondFENE.h"
 #include "FixAngleHarmonic.h"
+#include "FixAngleCHARMM.h"
 #include "FixAngleCosineDelta.h"
 #include "FixImproperHarmonic.h"
 #include "FixImproperCVFF.h"

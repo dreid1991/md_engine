@@ -8,8 +8,10 @@
 #include <boost/variant.hpp>
 #include <array>
 class AngleHarmonic;
+class AngleCHARMM;
 class AngleCosineDelta;
 void export_AngleHarmonic();
+void export_AngleCHARMM();
 void export_AngleCosineDelta();
 
 class Angle {
@@ -61,8 +63,41 @@ namespace std {
     };
 }
 
+//angle CHARMM
+class AngleCHARMMType {
+public:
+    float k;
+    float theta0;
+    float kub;
+    float rub;
+    AngleCHARMMType(AngleCHARMM *);
+    AngleCHARMMType(){};
+    bool operator==(const AngleCHARMMType &) const;
+	std::string getInfoString();
+};
 
+class AngleCHARMM : public Angle, public AngleCHARMMType {
+public:
+    AngleCHARMM(Atom *a, Atom *b, Atom *c, double k_  , double theta0_, double kub_, double rub_,int type_=-1);
+    AngleCHARMM(double k_, double theta0_, double kub_, double rub_, int type_=-1);
+    AngleCHARMM(){};
+    int type;
+	std::string getInfoString();
+};
 
+//for forcer maps
+namespace std {
+    template<> struct hash<AngleCHARMMType> {
+        size_t operator() (AngleCHARMMType const& ang) const {
+            size_t seed = 0;
+            boost::hash_combine(seed, ang.k);
+            boost::hash_combine(seed, ang.theta0);
+            boost::hash_combine(seed, ang.kub);
+            boost::hash_combine(seed, ang.rub);
+            return seed;
+        }
+    };
+}
 
 //angle cosine delta
 class AngleCosineDeltaType {
@@ -98,13 +133,10 @@ namespace std {
 
 
 
-
-
-
-
 // lets us store a list of vectors to any kind of angles we want
 typedef boost::variant<
 	AngleHarmonic, 
+	AngleCHARMM, 
     AngleCosineDelta,
     Angle	
 > AngleVariant;
