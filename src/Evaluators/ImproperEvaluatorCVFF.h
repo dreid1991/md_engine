@@ -4,16 +4,10 @@
 class ImproperEvaluatorCVFF {
 public:
     inline __device__ float dPotential(ImproperCVFFType improperType, float theta) {
-        //float dTheta = theta - improperType.thetaEq;
-
-        //float dp = improperType.k * dTheta;
-        //return dp;
-        return 0;
+        return -improperType.d * improperType.k * improperType.n * sinf(improperType.n * theta);
     }
     inline __device__ float potential(ImproperCVFFType improperType, float theta) {
-        //float dTheta = theta - improperType.thetaEq;
-        //return (1.0f/2.0f) * dTheta * dTheta * improperType.k;
-        return 0;
+        return improperType.k * (1.0f + improperType.d * cosf(improperType.n * theta));
 
     }
 

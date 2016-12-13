@@ -426,7 +426,7 @@ def angleCHARMM_data(reader, args):
 
     thetaEq = float(args[2]) * DEGREES_TO_RADIANS
     kub = float(args[2]) * 2 #2 because LAMMPS includes the 1/2 in its k
-    rub = float(args[3]) 
+    rub = float(args[3])
     return [k, thetaEq, kub, rub, type]
 
 def angleCHARMM_input(reader, args):
@@ -439,7 +439,7 @@ def angleCHARMM_input(reader, args):
 
     thetaEq = float(args[3]) * DEGREES_TO_RADIANS
     kub = float(args[4]) * 2 #2 because LAMMPS includes the 1/2 in its k
-    rub = float(args[5]) 
+    rub = float(args[5])
     return [k, thetaEq, kub, rub, type]
 
 def angleCosineDelta_data(reader, args):
@@ -528,9 +528,36 @@ def improperHarmonic_input(reader, args):
         print 'Ignoring LAMMPS improper type %d from input script.  Improper not used in data file' % LMPType
         return False
     type = reader.LMPTypeToSimTypeImproper[LMPType]
-    k = float(args[2])
+    k = float(args[2]) * 2
     thetaEq = float(args[3]) * DEGREES_TO_RADIANS
+    print 'k is %f' % k
     return [type, k, thetaEq]
+
+
+def improperCVFF_data(reader, args):
+    LMPType = int(args[0])
+    if not LMPType in reader.LMPTypeToSimTypeImproper:
+        print 'Ignoring LAMMPS improper type %d from data file.  Improper not used in data file' % LMPType
+        return False
+    type = reader.LMPTypeToSimTypeImproper[LMPType]
+
+    k = float(args[2])
+    d = int(args[3])
+    n = int(args[4])
+
+    return [type, k, d, n]
+
+def improperCVFF_input(reader, args):
+    LMPType = int(args[1])
+    if not LMPType in reader.LMPTypeToSimTypeImproper:
+        print 'Ignoring LAMMPS improper type %d from input script.  Improper not used in data file' % LMPType
+        return False
+    type = reader.LMPTypeToSimTypeImproper[LMPType]
+    k = float(args[2])
+    d = int(args[3])
+    n = int(args[4])
+    return [type, k, d, n]
+
 
 argumentConverters = {
         'data':
@@ -542,7 +569,8 @@ argumentConverters = {
             'AngleCosineDelta': angleCosineDelta_data,
             'DihedralOPLS'    : dihedralOPLS_data,
             'DihedralCHARMM'  : dihedralCHARMM_data,
-            'ImproperHarmonic': improperHarmonic_data
+            'ImproperHarmonic': improperHarmonic_data,
+            'ImproperCVFF': improperCVFF_data
             },
         'input':
         {
@@ -553,6 +581,7 @@ argumentConverters = {
             'AngleCosineDelta': angleCosineDelta_input,
             'DihedralOPLS'    : dihedralOPLS_input,
             'DihedralCHARMM'  : dihedralCHARMM_input,
-            'ImproperHarmonic': improperHarmonic_input
+            'ImproperHarmonic': improperHarmonic_input,
+            'ImproperCVFF': improperCVFF_input
             }
         }

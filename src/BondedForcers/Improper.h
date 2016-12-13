@@ -101,6 +101,7 @@ template<> struct hash<ImproperCVFFType> {
 }
 typedef boost::variant<
 ImproperHarmonic, 
+ImproperCVFF, 
     Improper	
     > ImproperVariant;
 
