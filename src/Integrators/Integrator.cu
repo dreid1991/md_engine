@@ -143,7 +143,6 @@ void Integrator::basicPrepare(int numTurns) {
     state->runInit = state->turn;
     //state->updateIdxFromIdCache();
     state->prepareForRun();
-    state->atomParams.guessAtomicNumbers();
     setActiveData();
     for (GPUArray *dat : activeData) {
         dat->dataToDevice();

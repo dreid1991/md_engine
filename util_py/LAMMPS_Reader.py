@@ -78,18 +78,19 @@ class LAMMPS_Reader:
         assert(len(numTypesLines) == 1)
 
         numTypes = int(numTypesLines[0][0])
-#adding atoms with mass not set
-        for i in range(numTypes):
-            self.myAtomHandles.append(str(self.atomTypePrefix) + str(i))
-            self.myAtomTypeIds.append(self.state.atomParams.addSpecies(self.myAtomHandles[-1], -1))
 
 #now getting / setting masses
-        masses = self.readSection(self.dataFileLines, re.compile('Mass'))
-        for i, pair in enumerate(masses):
-            typeIdx = self.myAtomTypeIds[i]
+        masses = []
+        massesStr = self.readSection(self.dataFileLines, re.compile('Mass'))
+        for i, pair in enumerate(massesStr):
             mass = float(pair[1])
-            self.state.atomParams.masses[typeIdx] = mass
+            masses.append(mass)
 
+
+#adding atoms with mass set
+        for i in range(numTypes):
+            self.myAtomHandles.append(str(self.atomTypePrefix) + str(i))
+            self.myAtomTypeIds.append(self.state.atomParams.addSpecies(self.myAtomHandles[-1], masses[i]))
 
     def readBounds(self):
         #reBase = '^\s+[\-\.\d]+\s+[\-\.\d]\s+%s\s+%s\s$'
