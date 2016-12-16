@@ -4,6 +4,7 @@
 
 #include <cmath>
 #include "xml_func.h"
+#include "Logging.h"
 namespace py = boost::python;
 
 void FixPair::prepareParameters(std::string handle,
@@ -154,10 +155,42 @@ bool FixPair::setParameter(std::string param,
         }
         squareVectorRef<float>(arr.data(), numTypes, i, j) = val;
         squareVectorRef<float>(arr.data(), numTypes, j, i) = val;
+        return true;
     } 
     return false;
 }
 
+
+double FixPair::getParameter(std::string param,
+                           std::string handleA,
+                           std::string handleB)
+{
+    int i = state->atomParams.typeFromHandle(handleA);
+    int j = state->atomParams.typeFromHandle(handleB);
+    if (i == -1 or j == -1) {
+        std::cout << "Tried to get parameter " << param << " for species " << handleA << " and " << handleB << ".  Invalid combination of parameter, species." << std::endl;
+        exit(1);
+        return -1;
+    }
+    if (paramMap.find(param) != paramMap.end()) {
+        int numTypes = state->atomParams.numTypes;
+        std::vector<float> &arr = *(paramMap[param]);
+        if (i>=numTypes or j>=numTypes or i<0 or j<0) {
+            std::cout << "Tried to get param " << param
+                      << " for invalid atom types " << handleA
+                      << " and " << handleB
+                      << " while there are " << numTypes
+                      << " species." << std::endl;
+            exit(1);
+            return -1;
+        }
+        return squareVectorItem<float>(arr.data(), numTypes, i, j);
+    } 
+    std::cout << "Tried to get parameter " << param << " for species " << handleA << " and " << handleB << ".  Invalid combination of parameter, species." << std::endl;
+    exit(1);
+    return -1;
+
+}
 void FixPair::initializeParameters(std::string paramHandle,
                                    std::vector<float> &params) {
     ensureParamSize(params);
@@ -238,8 +271,16 @@ void export_FixPair() {
                 (py::arg("param"),
                  py::arg("handleA"),
                  py::arg("handleB"),
-                 py::arg("val"))
+                 py::arg("val")
+                )
             )
+        .def("getParameter", &FixPair::getParameter,
+                (py::arg("param"),
+                 py::arg("handleA"),
+                 py::arg("handleB")
+                )
+            )
+
         ;
 }
 
