@@ -740,6 +740,7 @@ BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(State_seedRNG_overloads,State::seedRNG,0,
                         (py::arg("handle"),
                          py::arg("atoms") = py::list())
                     )
+				.def("atomInGroup", &State::atomInGroup)
                 .def("createMolecule", &State::createMoleculePy, (py::arg("ids")))
                 .def("duplicateMolecule", &State::duplicateMolecule, (py::arg("molecule"), py::arg("n")=1))
                 .def("selectGroup", &State::selectGroup)
