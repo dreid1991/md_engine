@@ -73,7 +73,7 @@ public:
     std::vector<double> masses; //!< List of masses, one for each atom type
     std::vector<int> atomicNums; //!< For each atom type, this vector stores
                                     //!< its number in the periodic table
-    int guessAtomicNumber(double mass);
+    void guessAtomicNumbers();
 };
 
 #endif

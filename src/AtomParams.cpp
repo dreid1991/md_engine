@@ -24,9 +24,6 @@ int AtomParams::addSpecies(std::string handle, double mass, int atomicNum) {
 	int id = numTypes;
 	numTypes ++;
 	masses.push_back(mass);
-    if (atomicNum == ARG_DEFAULT) {
-        atomicNum = guessAtomicNumber(mass);
-    }
     atomicNums.push_back(atomicNum);
 	return id;
 }
@@ -60,15 +57,23 @@ void AtomParams::setValues(string handle, double mass, double atomicNum) {
 
 
 
-int AtomParams::guessAtomicNumber(double mass) {
-    for (int i=0; i<masses.size(); i++) {
-        for (auto &p : massToNum) {
-            if (fabs(p.first - mass) / p.first < 0.01) {
-                return p.second;
+void AtomParams::guessAtomicNumbers() {
+    if (state->units.unitType == UNITS::REAL) {
+        for (int i=0; i<masses.size(); i++) {
+            bool isSet = false;
+            for (auto &p : massToNum) {
+                if (fabs(p.first-masses[i]) / p.first < 0.01) {
+                    atomicNums[i] = p.second;
+                    isSet = true;
+                    break;
+                }
+            }
+            if (not isSet) {
+                std::cout << "Warning: Could not set atomic number for species " << handles[i] << " based on mass " << masses[i] << std::endl;
+                atomicNums[i] = 0;
             }
         }
-    }
-    return ARG_DEFAULT;
+    } 
 }
 
 
