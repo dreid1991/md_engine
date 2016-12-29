@@ -3,9 +3,8 @@ module load cuda/7.5
 module load cmake
 
 #module load boost/1.55+python-2.7-2014q1
-module load boost/1.62.0
+module load boost/1.62.0+openmpi-1.6
 #module load gcc
-module load python
 gcc --version
 export CC=gcc
 export CXX=g++
