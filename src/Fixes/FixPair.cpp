@@ -22,7 +22,9 @@ void FixPair::prepareParameters(std::string handle,
     if (fillDiag) {
         SquareVector::populateDiagonal<float>(postProc, desiredSize, fillDiagFunction);
     }
+    //populate will fill off-diagonal terms
     SquareVector::populate<float>(postProc, desiredSize, fillFunction);
+    //process will perform unary operations on parameters, like converting rCut to rCut^2
     SquareVector::process<float>(postProc, desiredSize, processFunction);
     
     //okay, now ready to go to device!
@@ -32,11 +34,6 @@ void FixPair::prepareParameters(std::string handle,
 void FixPair::prepareParameters(std::string handle,
                                 std::function<float (float)> processFunction)
 {
-   // std::vector<float> &array = *paramMap[handle];
-   // std::vector<float> *preproc = &paramMapPreproc[handle];
-   // int desiredSize = state->atomParams.numTypes;
-    //ensureParamSize(array);
-   // *preproc = array;
     std::vector<float> &preProc = *paramMap[handle];
     std::vector<float> *postProc = &paramMapProcessed[handle];
     int desiredSize = state->atomParams.numTypes;
