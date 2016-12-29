@@ -92,7 +92,7 @@ void Fix::validAtoms(std::vector<Atom *> &atoms) {
 }
 
 void export_Fix() {
-    boost::python::class_<Fix, boost::noncopyable> (
+    boost::python::class_<Fix, SHARED(Fix), boost::noncopyable> (
         "Fix",
         boost::python::no_init
     )
