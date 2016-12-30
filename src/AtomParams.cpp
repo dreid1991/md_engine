@@ -70,7 +70,7 @@ void AtomParams::guessAtomicNumbers() {
             }
             if (not isSet) {
                 std::cout << "Warning: Could not set atomic number for species " << handles[i] << " based on mass " << masses[i] << std::endl;
-                atomicNums[i] = 0;
+                atomicNums[i] = -1;
             }
         }
     } 

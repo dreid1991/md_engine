@@ -350,6 +350,7 @@ void WriteConfig::write(int64_t turn) {
     writeFormat(state, getCurrentFn(turn), turn, oneFilePerWrite, groupBit);
 }
 void WriteConfig::writePy() {
+    state->atomParams.guessAtomicNumbers();
     writeFormat(state, getCurrentFn(state->turn), state->turn, oneFilePerWrite, groupBit);
 }
 

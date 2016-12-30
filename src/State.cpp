@@ -767,7 +767,7 @@ BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(State_seedRNG_overloads,State::seedRNG,0,
                 .def_readonly("dataManager", &State::dataManager)
                 //shared ptrs
                 .def_readwrite("bounds", &State::bounds)
-                .def_readwrite("fixes", &State::fixes)
+                .def_readwrite("fixes", &State::fixesShr)
                 .def_readwrite("atomParams", &State::atomParams)
                 .def_readwrite("writeConfigs", &State::writeConfigs)
                 .def_readonly("readConfig", &State::readConfig)
