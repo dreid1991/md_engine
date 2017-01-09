@@ -17,6 +17,15 @@ Fix::Fix(boost::shared_ptr<State> state_, std::string handle_, std::string group
       orderPreference(orderPreference_), restartHandle(type + "_" + handle)
 {
     updateGroupTag();
+    requiresPostNVE_V = false;
+
+    canOffloadChargePairCalc = false;
+    canAcceptChargePairCalc = false;
+    
+    hasOffloadedChargePairCalc = false;
+    hasAcceptedChargePairCalc = false;
+
+
     /*
      * implemented per-fix.  May need to initialize junk first
     if (state->readConfig->fileOpen) {
@@ -29,6 +38,27 @@ Fix::Fix(boost::shared_ptr<State> state_, std::string handle_, std::string group
     */
 }
 
+bool Fix::willFire(int64_t t) {
+    return ! (t % applyEvery);
+}
+
+void Fix::setVirialTurnPrepare() {
+    if (requiresVirials) {
+        double multiple = ceil(state->turn / applyEvery);
+        state->dataManager.addVirialTurn(multiple * applyEvery);
+    }
+}
+void Fix::setVirialTurn() {
+    if (requiresVirials) {
+        state->dataManager.addVirialTurn(state->turn + applyEvery);
+    }
+}
+
+void Fix::resetChargePairFlags() {
+
+    hasOffloadedChargePairCalc = false;
+    hasAcceptedChargePairCalc = false;
+}
 bool Fix::isEqual(Fix &f) {
     return f.handle == handle;
 }
@@ -62,7 +92,7 @@ void Fix::validAtoms(std::vector<Atom *> &atoms) {
 }
 
 void export_Fix() {
-    boost::python::class_<Fix, boost::noncopyable> (
+    boost::python::class_<Fix, SHARED(Fix), boost::noncopyable> (
         "Fix",
         boost::python::no_init
     )

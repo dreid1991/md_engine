@@ -21,18 +21,22 @@ void FixImproperHarmonic::compute(bool computeVirials) {
     int nAtoms = state->atoms.size();
     GPUData &gpd = state->gpd;
     int activeIdx = gpd.activeIdx();
+    //printf("HELLO\n");
+    if (forcersGPU.size()) {
+        if (computeVirials) {
+            compute_force_improper<ImproperHarmonicType, ImproperEvaluatorHarmonic, true> <<<NBLOCK(forcersGPU.size()), PERBLOCK, sharedMemSizeForParams>>>(forcersGPU.size(), gpd.xs(activeIdx), gpd.fs(activeIdx), gpd.idToIdxs.d_data.data(), forcersGPU.data(), state->boundsGPU, parameters.data(), parameters.size(), gpd.virials.d_data.data(), usingSharedMemForParams, evaluator);
 
-    if (computeVirials) {
-        compute_force_improper<ImproperHarmonicType, ImproperEvaluatorHarmonic, true> <<<NBLOCK(nAtoms), PERBLOCK, sizeof(ImproperGPU) * maxForcersPerBlock + forcers.size() * sizeof(ImproperHarmonicType)>>>(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx), gpd.idToIdxs.d_data.data(), forcersGPU.data(), forcerIdxs.data(), state->boundsGPU, parameters.data(), parameters.size(), gpd.virials.d_data.data(), evaluator);
-
-    } else {
-        compute_force_improper<ImproperHarmonicType, ImproperEvaluatorHarmonic, false> <<<NBLOCK(nAtoms), PERBLOCK, sizeof(ImproperGPU) * maxForcersPerBlock + forcers.size() * sizeof(ImproperHarmonicType)>>>(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx), gpd.idToIdxs.d_data.data(), forcersGPU.data(), forcerIdxs.data(), state->boundsGPU, parameters.data(), parameters.size(), gpd.virials.d_data.data(), evaluator);
+        } else {
+            compute_force_improper<ImproperHarmonicType, ImproperEvaluatorHarmonic, false> <<<NBLOCK(forcersGPU.size()), PERBLOCK, sharedMemSizeForParams>>>(forcersGPU.size(), gpd.xs(activeIdx), gpd.fs(activeIdx), gpd.idToIdxs.d_data.data(), forcersGPU.data(), state->boundsGPU, parameters.data(), parameters.size(), gpd.virials.d_data.data(), usingSharedMemForParams, evaluator);
+        }
     }
 }
 void FixImproperHarmonic::singlePointEng(float *perParticleEng) {
     int nAtoms = state->atoms.size();
     int activeIdx = state->gpd.activeIdx();
-    compute_energy_improper<<<NBLOCK(nAtoms), PERBLOCK, sizeof(ImproperGPU) * maxForcersPerBlock + forcers.size() * sizeof(ImproperHarmonicType)>>>(nAtoms, state->gpd.xs(activeIdx), perParticleEng, state->gpd.idToIdxs.d_data.data(), forcersGPU.data(), forcerIdxs.data(), state->boundsGPU, parameters.data(), parameters.size(), evaluator);
+    if (forcersGPU.size()) {
+        compute_energy_improper<<<NBLOCK(forcersGPU.size()), PERBLOCK, sharedMemSizeForParams>>>(forcersGPU.size(), state->gpd.xs(activeIdx), perParticleEng, state->gpd.idToIdxs.d_data.data(), forcersGPU.data(), state->boundsGPU, parameters.data(), parameters.size(), usingSharedMemForParams, evaluator);
+    }
 
 }
 
@@ -79,10 +83,10 @@ bool FixImproperHarmonic::readFromRestart() {
                     double thetaEq;
                     int ids[4];
                     std::string type_ = member_node.attribute("type").value();
-                    std::string atom_a = member_node.attribute("atom_a").value();
-                    std::string atom_b = member_node.attribute("atom_b").value();
-                    std::string atom_c = member_node.attribute("atom_c").value();
-                    std::string atom_d = member_node.attribute("atom_d").value();
+                    std::string atom_a = member_node.attribute("atomID_a").value();
+                    std::string atom_b = member_node.attribute("atomID_b").value();
+                    std::string atom_c = member_node.attribute("atomID_c").value();
+                    std::string atom_d = member_node.attribute("atomID_d").value();
                     std::string k_ = member_node.attribute("k").value();
                     std::string thetaEq_ = member_node.attribute("thetaEq").value();
                     type = atoi(type_.c_str());
@@ -127,7 +131,10 @@ void export_FixImproperHarmonic() {
              boost::python::arg("thetaEq")=COEF_DEFAULT
              )
         )
+
+    .def_readonly("impropers", &FixImproperHarmonic::pyForcers)    
     ;
+
 
 }
 

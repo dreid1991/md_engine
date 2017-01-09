@@ -34,9 +34,10 @@ class FixPotentialMultiAtom : public Fix, public TypedItemHolder {
         GPUArrayDeviceGlobal<int> forcerIdxs;
         GPUArrayDeviceGlobal<ForcerTypeHolder> parameters;
         VariantPyListInterface<CPUVariant, CPUMember> pyListInterface;
+        int sharedMemSizeForParams;
+        bool usingSharedMemForParams;
         int maxForcersPerBlock;
-
-        bool prepareForRun() {
+        virtual bool prepareForRun() {
             int maxExistingType = -1;
             std::unordered_map<ForcerTypeHolder, int> reverseMap;
             for (auto it=forcerTypes.begin(); it!=forcerTypes.end(); it++) {
@@ -69,6 +70,8 @@ class FixPotentialMultiAtom : public Fix, public TypedItemHolder {
             }
             maxForcersPerBlock = copyMultiAtomToGPU<CPUVariant, CPUBase, CPUMember, GPUMember, ForcerTypeHolder, N>(state->atoms.size(), forcers, state->idToIdx, &forcersGPU, &forcerIdxs, &forcerTypes, &parameters, maxExistingType);
 
+
+            setSharedMemForParams(); 
             return true;
         } 
         void setForcerType(int n, CPUMember &forcer) {
@@ -114,6 +117,41 @@ class FixPotentialMultiAtom : public Fix, public TypedItemHolder {
             }
             return types;
         }
+        void duplicateMolecule(std::vector<int> &oldIds, std::vector<std::vector<int> > &newIds) {
+            int ii = forcers.size();
+            std::vector<CPUMember> belongingToOld;
+            for (int i=0; i<ii; i++) {
+                CPUMember &forcer = boost::get<CPUMember>(forcers[i]);
+                std::array<int, N> &ids = forcer.ids;
+                bool found = false;
+                for (int j=0; j<N; j++) {
+                    if (find(oldIds.begin(), oldIds.end(), ids[j]) != oldIds.end()) {
+                        found = true;
+                        break;
+                    }
+                }
+                if (found) {
+                    belongingToOld.push_back(forcer);
+                }
+            }
+            for (int i=0; i<newIds.size(); i++) {
+                for (int j=0; j<belongingToOld.size(); j++) {
+                    CPUMember copy = belongingToOld[j];
+                    std::array<int, N> idsNew = copy.ids;
+                    for (int k=0; k<N; k++) {
+                        auto it = find(oldIds.begin(), oldIds.end(), idsNew[k]);
+                        if (it != oldIds.end()) {
+                            idsNew[k] = newIds[i][it - oldIds.begin()];
+                        }
+                    }
+                    copy.ids = idsNew;
+                    forcers.push_back(copy);
+                    pyListInterface.updateAppendedMember(false);
+                }
+            }
+            pyListInterface.requestRefreshPyList();
+        }
+        /*
         void duplicateMolecule(std::map<int, int> &oldToNew) {
             int ii = forcers.size();
             for (int i=0; i<ii; i++) {
@@ -138,6 +176,37 @@ class FixPotentialMultiAtom : public Fix, public TypedItemHolder {
             
         }
 
+        */
+        void setSharedMemForParams() {
+            int size = parameters.size() * sizeof(ForcerTypeHolder);
+            //<= 3 is b/c of threshold for using redundant calcs
+            if (size + int(N<=3) * maxForcersPerBlock*sizeof(GPUMember)> state->devManager.prop.sharedMemPerBlock) {
+                usingSharedMemForParams = false;
+                sharedMemSizeForParams = 0;
+            } else {
+                usingSharedMemForParams = true;
+                sharedMemSizeForParams = size;
+            }
+
+        }
+        void deleteAtom(Atom *a) {
+            int deleteId = a->id;
+            for (int i=forcers.size()-1; i>=0; i--) {
+                CPUMember &forcer= boost::get<CPUMember>(forcers[i]);
+                bool deleteForcer = false;
+                for (int id : forcer.ids) {
+                    if (id == deleteId) {
+                        deleteForcer = true;
+                        break;
+                    }
+                }
+                if (deleteForcer) {
+                    forcers.erase(forcers.begin()+i, forcers.begin()+i+1);
+                    pyListInterface.removeMember(i);
+                    pyListInterface.requestRefreshPyList();
+                }
+            }
+        }
 };
 
 #endif

@@ -71,7 +71,7 @@ class FixLJCutFS : public FixPair {
         std::vector<float> rCuts; //!< vector storing cutoff distance values
         std::vector<float> FCuts; //!< vector storing force at cutoff distance
 
-        EvaluatorLJFS evaluator; //!< Evaluator for generic pair interactions
+        void setEvalWrapper();
 };
 
 #endif

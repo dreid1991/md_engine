@@ -6,6 +6,7 @@
 #include "boost_for_export.h"
 #include <vector>
 #include <string>
+#include <set>
 class State;
 void export_DataManager();
 namespace MD_ENGINE {
@@ -22,6 +23,7 @@ class DataManager {
         boost::shared_ptr<MD_ENGINE::DataSetUser> recordTemperature(std::string groupHandle, int interval, boost::python::object collectGenerator); 
         boost::shared_ptr<MD_ENGINE::DataSetUser> recordEnergy(std::string groupHandle, int collectEvery, boost::python::object collectGenerator); 
         boost::shared_ptr<MD_ENGINE::DataSetUser> recordPressure(std::string groupHandle, int collectEvery, boost::python::object collectGenerator); 
+        boost::shared_ptr<MD_ENGINE::DataSetUser> recordBounds(int collectEvery, boost::python::object collectGenerator); 
 
         void stopRecord(boost::shared_ptr<MD_ENGINE::DataSetUser>);
 
@@ -35,9 +37,14 @@ class DataManager {
         int64_t turnLastEngs;
 
         void computeEnergy();
+
+        void addVirialTurn(int64_t);
+        void clearVirialTurn(int64_t);
+        std::set<int64_t> virialTurns;//!<Turns on which virial coefs will be calculated
+        int64_t turnVirialsComputed;//!<Turn virial coefs last computed
 //!flag for if fixes compute virials in the forst kernels or not.  Is true if any data or fixes need them
 
-        bool computeVirialsInForce; //is set in prepareForRun
+
 };
 
 }

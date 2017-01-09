@@ -6,6 +6,7 @@
 #include "PairEvaluateIso.h"
 #include "State.h"
 #include "cutils_func.h"
+#include "EvaluatorWrapper.h"
 
 const std::string TICGType = "TICG";
 
@@ -28,19 +29,10 @@ void FixTICG::compute(bool computeVirials) {
     int activeIdx = gpd.activeIdx();
     uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
     float *neighborCoefs = state->specialNeighborCoefs;
-    if (computeVirials) {
-        compute_force_iso<EvaluatorTICG, 2, true> <<<NBLOCK(nAtoms), PERBLOCK, 2*numTypes*numTypes*sizeof(float)>>>(
-                nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx),
-                neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(),
-                state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU,
-                neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.virials.d_data.data(), evaluator);
-    } else {
-        compute_force_iso<EvaluatorTICG, 2, false> <<<NBLOCK(nAtoms), PERBLOCK, 2*numTypes*numTypes*sizeof(float)>>>(
-                nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx),
-                neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(),
-                state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU,
-                neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.virials.d_data.data(), evaluator);
-    }
+    evalWrap->compute(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx),
+                      neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(),
+                      state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU,
+                      neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.virials.d_data.data(), gpd.qs(activeIdx), chargeRCut, computeVirials);
 
 }
 
@@ -52,10 +44,9 @@ void FixTICG::singlePointEng(float *perParticleEng) {
     int activeIdx = gpd.activeIdx();
     uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
     float *neighborCoefs = state->specialNeighborCoefs;
+    evalWrap->energy(nAtoms, gpd.xs(activeIdx), perParticleEng, neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.qs(activeIdx), chargeRCut);
 
-    compute_energy_iso<EvaluatorTICG, 2><<<NBLOCK(nAtoms), PERBLOCK, 2*numTypes*numTypes*sizeof(float)>>>(nAtoms, gpd.xs(activeIdx), perParticleEng, neighbor\
-Counts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU, ne\
-ighborCoefs[0], neighborCoefs[1], neighborCoefs[2], evaluator);
+
 
 
 
@@ -65,18 +56,23 @@ bool FixTICG::prepareForRun() {
     //loop through all params and fill with appropriate lambda function, then send all to device
     auto none = [] (float a){};
 
-    auto processCs = [] (float a) {
+	std::function<float(float)> processCs = [] (float a) {
         return a;
     };
-    auto processRCut = [] (float a) {
+	std::function<float(float)> processRCut = [] (float a) {
         return a*a;
     };
     prepareParameters(CHandle,  processCs);
     prepareParameters(rCutHandle, processRCut);
     sendAllToDevice();
+    setEvalWrapper();
     return true;
 }
 
+void FixTICG::setEvalWrapper() {
+    EvaluatorTICG eval;
+    evalWrap = pickEvaluator<EvaluatorTICG, 2>(eval, chargeCalcFix);
+}
 std::string FixTICG::restartChunk(std::string format) {
     std::stringstream ss;
     ss << restartChunkPairParams(format);

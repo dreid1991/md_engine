@@ -1,5 +1,5 @@
 import sys
-sys.path.append('..//build/python/build/lib.linux-x86_64-2.7')
+sys.path.append('../build/python/build/lib.linux-x86_64-2.7')
 from Sim import *
 from math import *
 import re
@@ -86,12 +86,12 @@ state.dt = 0.001
 integrator = IntegratorVerlet(state)
 #integrator.run(100) #letting substrate relax
 
-integratorRelax = IntegratorRelax(state)
+integratorRelax = IntegratorGradientDescept(state)
 #integratorRelax.set_params(dtMax_mult=1);
 #integratorRelax.run(250000, 1e-5)
-integratorRelax.run(250000, 1e-5)
+integratorRelax.run(250000, 1)
 fixSpring.k = 1.0
-integratorRelax.run(25000, 1e-5)
+integratorRelax.run(25000, 1)
 print 'FINISHED FIRST RUN'
 state.dt = 0.005
 
@@ -106,7 +106,6 @@ InitializeAtoms.initTemp(state, 'all', subTemp) #need to add keyword arguments
 writerXML = WriteConfig(state, handle='writerXML', fn='pvd', format='xml', writeEvery=10)
 writerXML.write()
 #state.activateWriteConfig(writerXML)
-exit()
 #okay, substrate is set up, going to do deposition
 
 wallDist = 10
@@ -178,11 +177,10 @@ for i in range(depositionRuns):
     curTemp = sum([a.vel.lenSqr()/2.0 for a in state.atoms]) / len(state.atoms)
     print 'cur temp %f ' % curTemp
     state.deactivateWriteConfig(writer)
+    writerXML.write()
     print 'avg eng %f' % integrator.energyAverage('film')
 
 #and we're done!
 
 state.dt = 0.001
-integratorRelax.run(20000, 1e-5)
-print('Average per particle energy: {}'.format(integratorRelax.energyAverage()))
 

@@ -18,10 +18,12 @@ void FixAngleHarmonic::compute(bool computeVirials) {
     int nAtoms = state->atoms.size();
     int activeIdx = state->gpd.activeIdx();
     GPUData &gpd = state->gpd;
-    if (computeVirials) {
-        compute_force_angle<AngleHarmonicType, AngleEvaluatorHarmonic, true> <<<NBLOCK(nAtoms), PERBLOCK, sizeof(AngleGPU) * maxForcersPerBlock + parameters.size() * sizeof(AngleHarmonicType)>>>(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx), gpd.idToIdxs.d_data.data(), forcersGPU.data(), forcerIdxs.data(), state->boundsGPU, parameters.data(), parameters.size(), gpd.virials.d_data.data(), evaluator);
-    } else {
-        compute_force_angle<AngleHarmonicType, AngleEvaluatorHarmonic, false> <<<NBLOCK(nAtoms), PERBLOCK, sizeof(AngleGPU) * maxForcersPerBlock + parameters.size() * sizeof(AngleHarmonicType)>>>(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx), gpd.idToIdxs.d_data.data(), forcersGPU.data(), forcerIdxs.data(), state->boundsGPU, parameters.data(), parameters.size(), gpd.virials.d_data.data(), evaluator);
+    if (forcersGPU.size()) {
+        if (computeVirials) {
+            compute_force_angle<AngleHarmonicType, AngleEvaluatorHarmonic, true> <<<NBLOCK(nAtoms), PERBLOCK, sizeof(AngleGPU) * maxForcersPerBlock + sharedMemSizeForParams>>>(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx), gpd.idToIdxs.d_data.data(), forcersGPU.data(), forcerIdxs.data(), state->boundsGPU, parameters.data(), parameters.size(), gpd.virials.d_data.data(), usingSharedMemForParams, evaluator);
+        } else {
+            compute_force_angle<AngleHarmonicType, AngleEvaluatorHarmonic, false> <<<NBLOCK(nAtoms), PERBLOCK, sizeof(AngleGPU) * maxForcersPerBlock + sharedMemSizeForParams>>>(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx), gpd.idToIdxs.d_data.data(), forcersGPU.data(), forcerIdxs.data(), state->boundsGPU, parameters.data(), parameters.size(), gpd.virials.d_data.data(), usingSharedMemForParams, evaluator);
+        }
     }
 
 }
@@ -29,11 +31,10 @@ void FixAngleHarmonic::compute(bool computeVirials) {
 void FixAngleHarmonic::singlePointEng(float *perParticleEng) {
     int nAtoms = state->atoms.size();
     int activeIdx = state->gpd.activeIdx();
-    compute_energy_angle<<<NBLOCK(nAtoms), PERBLOCK, sizeof(AngleGPU) * maxForcersPerBlock + parameters.size() * sizeof(AngleHarmonicType)>>>(nAtoms, state->gpd.xs(activeIdx), perParticleEng, state->gpd.idToIdxs.d_data.data(), forcersGPU.data(), forcerIdxs.data(), state->boundsGPU, parameters.data(), parameters.size(), evaluator);
+    if (forcersGPU.size()) {
+        compute_energy_angle<<<NBLOCK(nAtoms), PERBLOCK, sizeof(AngleGPU) * maxForcersPerBlock + sharedMemSizeForParams>>>(nAtoms, state->gpd.xs(activeIdx), perParticleEng, state->gpd.idToIdxs.d_data.data(), forcersGPU.data(), forcerIdxs.data(), state->boundsGPU, parameters.data(), parameters.size(), usingSharedMemForParams, evaluator);
+    }
 }
-//void cumulativeSum(int *data, int n);
-// okay, so the net result of this function is that two arrays (items, idxs of
-// items) are on the gpu and we know how many bonds are in bondiest block
 
 void FixAngleHarmonic::createAngle(Atom *a, Atom *b, Atom *c, double k, double theta0, int type) {
     vector<Atom *> atoms = {a, b, c};
@@ -80,9 +81,9 @@ bool FixAngleHarmonic::readFromRestart() {
                     double theta0;
                     int ids[3];
                     std::string type_ = member_node.attribute("type").value();
-                    std::string atom_a = member_node.attribute("atom_a").value();
-                    std::string atom_b = member_node.attribute("atom_b").value();
-                    std::string atom_c = member_node.attribute("atom_c").value();
+                    std::string atom_a = member_node.attribute("atomID_a").value();
+                    std::string atom_b = member_node.attribute("atomID_b").value();
+                    std::string atom_c = member_node.attribute("atomID_c").value();
                     std::string k_ = member_node.attribute("k").value();
                     std::string theta0_ = member_node.attribute("theta0").value();
                     type = atoi(type_.c_str());

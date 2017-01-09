@@ -8,31 +8,34 @@ namespace py = boost::python;
 
 
 
-__global__ void compute_cu(int nAtoms, float4 *vs, float4 *fs, curandState_t *randStates, float dt, float T, float gamma) {
+__global__ void compute_cu(int nAtoms, float4 *vs, float4 *fs, curandState_t *randStates, float dt, float T, float gamma, float boltz, float mvv_to_e, float ftm_to_v, bool useMass) {
 
     int idx = GETIDX();
     if (idx < nAtoms) {
 
-        //curandState_t localState;
-        //curand_init(timestep, idx, seed, &localState);
         curandState_t *randState = randStates + idx;
         curandState_t localState=*randState;
         float3 Wiener;
-        Wiener.x=curand_uniform(&localState)*2.0f-1.0f;
-        Wiener.y=curand_uniform(&localState)*2.0f-1.0f;
-        Wiener.z=curand_uniform(&localState)*2.0f-1.0f;
+        Wiener.x=curand_uniform(&localState)-0.5f;
+        Wiener.y=curand_uniform(&localState)-0.5f;
+        Wiener.z=curand_uniform(&localState)-0.5f;
         *randState=localState;
-        //if (idx==0 || idx == 1) {
-        //    printf("%d %f %f %f\n", idx, Wiener.x, Wiener.y, Wiener.z);
-       // }
+        float4 vel_whole = vs[idx];
+        float3 vel = make_float3(vel_whole);
 
-        float3 vel = make_float3(vs[idx]);
+        float invMass = vel_whole.w;
+        if (!useMass) {
+            invMass = 1.0f;
+        }
+        float dragFactor = gamma / (invMass * ftm_to_v);
+        float kickFactor = sqrtf((24.0f * boltz * gamma * T ) / (invMass * dt * mvv_to_e)) / ftm_to_v;
+
         float4 force = fs[idx];
 
-        float Bc = dt==0 ? 0 : sqrt(6.0*gamma*T/dt);
 
-        float3 dForce = Wiener * Bc - vel * gamma;
-    
+        float3 dForce = Wiener * kickFactor - vel * dragFactor;
+
+         
         force += dForce;
         fs[idx]=force;
     }
@@ -92,7 +95,7 @@ void FixLangevin::setParams(double seed_, double gamma_) {
 void FixLangevin::compute(bool computeVirials) {
     computeCurrentVal(state->turn);
     double temp = getCurrentVal();
-    compute_cu<<<NBLOCK(state->atoms.size()), PERBLOCK>>>(state->atoms.size(), state->gpd.vs.getDevData(), state->gpd.fs.getDevData(), randStates.data(), state->dt, temp, gamma);
+    compute_cu<<<NBLOCK(state->atoms.size()), PERBLOCK>>>(state->atoms.size(), state->gpd.vs.getDevData(), state->gpd.fs.getDevData(), randStates.data(), state->dt, temp, gamma, state->units.boltz, state->units.mvv_to_eng, state->units.ftm_to_v, true);
     
 }
 
@@ -118,5 +121,8 @@ void export_FixLangevin() {
             py::args("state", "handle", "groupHandle", "temp")
                 )
             )
+    .def("setParameters", &FixLangevin::setParams, 
+         (py::arg("seed") = INVALID_VAL, py::arg("gamma")=INVALID_VAL)
+        )
     ;
 }

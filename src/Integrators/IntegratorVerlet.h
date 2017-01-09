@@ -46,6 +46,8 @@ private:
      * and positions are in sync again.
      */
     void postForce();
+    void nve_v();
+    void nve_x();
 };
 
 #endif

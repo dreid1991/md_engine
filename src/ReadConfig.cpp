@@ -6,10 +6,10 @@
 #include "Logging.h"
 using namespace std;
 
-vector<vector<num> > mapTo2d(vector<num> &xs, const int dim) {
-	vector<vector<num> > mapped;
+vector<vector<double> > mapTo2d(vector<double> &xs, const int dim) {
+	vector<vector<double> > mapped;
 	for (int i=0; i<dim; i++) {
-		vector<num> bit;
+		vector<double> bit;
 		bit.reserve(dim);
 		for (int j=i*dim; j<(i+1)*dim; j++) {
 			bit.push_back(xs[j]);
@@ -82,14 +82,13 @@ void loadBounds(pugi::xml_node &config, State *state) {
         lo[2] = processRaw(bounds_xml.attribute("zlo").value());
 		auto xhi = bounds_xml.attribute("xhi").value();
 		auto sxx = bounds_xml.attribute("sxx").value();
-        Vector rectComponents;
         //ignoring skew of now
 		if (strcmp(xhi, "") != 0) { //using square box
-			rectComponents[0] = processRaw(xhi) - lo[0];
-			rectComponents[1] = processRaw(bounds_xml.attribute("yhi").value()) - lo[1];
-			rectComponents[2] = processRaw(bounds_xml.attribute("zhi").value()) - lo[2];
-            state->bounds = Bounds(state, lo, rectComponents);
-		} else if (strcmp(sxx, "") != 0) {
+			hi[0] = processRaw(xhi);
+			hi[1] = processRaw(bounds_xml.attribute("yhi").value());
+			hi[2] = processRaw(bounds_xml.attribute("zhi").value());
+            state->bounds = Bounds(state, lo, hi);
+		} /*else if (strcmp(sxx, "") != 0) {
 			rectComponents[0] = processRaw(sxx);
 			rectComponents[1] = processRaw(bounds_xml.attribute("syy").value());
 			rectComponents[2] = processRaw(bounds_xml.attribute("szz").value());
@@ -103,7 +102,7 @@ void loadBounds(pugi::xml_node &config, State *state) {
 			//sides[2][2] = processRaw(bounds_xml.attribute("szz").value());
 			state->bounds = Bounds(state, lo, rectComponents);
            
-		} else {
+		}*/ else {
 			assert(strcmp("Tried to load bad bounds data", ""));
 		}
 
@@ -151,9 +150,9 @@ vector<Bond> buildBonds(pugi::xml_node &config, State *state, string tag, int nu
 			ss >> line;
 			atoms[1] = state->atomFromId(atoi(line.c_str()));
 			ss >> line;
-			num k = atof(line.c_str());
+			double k = atof(line.c_str());
 			ss >> line;
-			num rEq = atof(line.c_str());
+			double rEq = atof(line.c_str());
 			assert(atoms[0] != (Atom *) NULL and atoms[1] != (Atom *) NULL);
 			state->addBond(atoms[0], atoms[1], k, rEq);
 		}
@@ -243,6 +242,13 @@ bool ReadConfig::read() {
                             }
                            ))
           ) ;
+    assert(
+            (xml_assign<double, 1>(*config, "q", [&] (int i, double *vals) {
+                            readAtoms[i].q = *vals;
+                            }
+                           ))
+          ) ;
+
 
 	loadAtomParams(*config, state);
 	loadBounds(*config, state);
@@ -250,7 +256,6 @@ bool ReadConfig::read() {
 	for (Atom &a : readAtoms) {
 		state->addAtomDirect(a);
 	}
-//	buildBonds(*config, state.get(), "bond", numBonds);
 	return true;
 
 }

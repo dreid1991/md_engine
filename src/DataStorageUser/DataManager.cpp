@@ -4,6 +4,7 @@
 #include "DataComputerTemperature.h"
 #include "DataComputerEnergy.h"
 #include "DataComputerPressure.h"
+#include "DataComputerBounds.h"
 #include "DataSetUser.h"
 using namespace MD_ENGINE;
 namespace py = boost::python;
@@ -73,6 +74,27 @@ boost::shared_ptr<DataSetUser> DataManager::recordPressure(std::string groupHand
 
 
 }
+boost::shared_ptr<DataSetUser> DataManager::recordBounds(int interval, py::object collectGenerator) {
+    int dataType = DATATYPE::BOUNDS;
+    boost::shared_ptr<DataComputer> comp = boost::shared_ptr<DataComputer>( (DataComputer *) new DataComputerBounds(state) );
+    uint32_t groupTag = 1;
+    boost::shared_ptr<DataSetUser> dataSet = createDataSet(comp, groupTag, DATAMODE::SCALAR, DATATYPE::BOUNDS, interval, collectGenerator);
+    dataSets.push_back(dataSet);
+    return dataSet;
+
+
+
+
+}
+void DataManager::addVirialTurn(int64_t t) {
+    virialTurns.insert(t);
+}
+void DataManager::clearVirialTurn(int64_t turn) {
+    auto it = virialTurns.find(turn);
+    if (it != virialTurns.end()) {
+        virialTurns.erase(it);
+    }
+}
 /*
 
 SHARED(DataSet) DataManager::getDataSet(string handle) {
@@ -113,11 +135,11 @@ void export_DataManager() {
              py::arg("interval") = 0,
              py::arg("collectGenerator") = py::object())
         )
-   /* 
     .def("recordBounds", &DataManager::recordBounds,
             (py::arg("interval") = 0,
              py::arg("collectGenerator") = py::object())
         )
+   /* 
     .def("stopRecordBounds", &DataManager::stopRecordBounds)
     */
  //   .def("getDataSet", &DataManager::getDataSet)

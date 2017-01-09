@@ -8,10 +8,12 @@
 #include "GPUArrayGlobal.h"
 #include "Virial.h"
 #include "BoundsGPU.h"
+#include "ChargeEvaluatorEwald.h"
 
 class State;
 
 void export_FixChargeEwald();
+extern const std::string chargeEwaldType;
 
 /*! \class FixChargeEwald
  * \brief Short and Long range Coulomb interaction
@@ -35,7 +37,7 @@ private:
     float alpha;
     float r_cut;
     
-    void find_optimal_parameters(bool);
+    double find_optimal_parameters(bool);
     
     float total_Q;
     float total_Q2;
@@ -50,15 +52,25 @@ private:
     float3 h;
     float3 L;
     GPUArrayDeviceGlobal<Virial> virialField;
+    GPUArrayDeviceGlobal<float4> storedForces;
     BoundsGPU boundsLastOptimize;
-    void handleChangedBounds(bool);
+    float total_Q2LastOptimize;    
+    void handleBoundsChangeInternal(bool);
+    void setGridToErrorTolerance(bool);
+    bool modeIsError;
+    double errorTolerance;
         
+    bool malloced;
 
 public:
+    int longRangeInterval;
+    int64_t turnInit;
+    void handleBoundsChange();
     FixChargeEwald(boost::shared_ptr<State> state_,
                    std::string handle_, std::string groupHandle_);
     ~FixChargeEwald();
 
+    void setError(double error, float rcut_, int interpolation_order_);
     void setParameters(int szx_, int szy_, int szz_, float rcut_, int interpolation_order_);
     void setParameters(int sz_, float rcut_, int interpolation_order_) {
         setParameters(sz_, sz_, sz_, rcut_, interpolation_order_);
@@ -66,6 +78,7 @@ public:
 
     //! Compute forces
     void compute(bool);
+    int setLongRangeInterval(int interval);
 
     //! Compute single point energy
     void singlePointEng(float *);
@@ -78,6 +91,8 @@ public:
         res.push_back(r_cut);
         return res;
     }    
+    ChargeEvaluatorEwald generateEvaluator(); 
+
 };
 
 #endif

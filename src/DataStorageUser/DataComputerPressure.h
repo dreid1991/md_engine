@@ -20,6 +20,10 @@ namespace MD_ENGINE {
             DataComputerPressure(State *, bool, bool);
             void prepareForRun();
             double pressureScalar;
+            bool usingExternalTemperature;
+            double tempScalar; //if using externaltemp, then these must be set each time you go to compute pressure
+            Virial tempTensor; //if using externaltemp, then these must be set each time you go to compute pressure
+            double tempNDF;
             Virial pressureTensor;
             //so these are just length 2 arrays.  First value is used for the result of the sum.  Second value is bit-cast to an int and used to cound how many values are present.
             GPUArrayGlobal<float> pressureGPUScalar;

@@ -25,7 +25,6 @@ namespace MD_ENGINE {
             void appendScalar(boost::python::list &);
             void appendTensor(boost::python::list &){};
 
-            double getScalar();
 
     };
 };

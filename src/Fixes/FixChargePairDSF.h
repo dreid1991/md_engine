@@ -5,11 +5,13 @@
 //#include "AtomParams.h"
 #include "GPUArrayTex.h"
 #include "FixCharge.h"
+#include "ChargeEvaluatorDSF.h"
 
 class State;
 
 void export_FixChargePairDSF();
 
+extern const std::string chargePairDSFType;
 class FixChargePairDSF : public FixCharge {
 
 private:
@@ -26,6 +28,9 @@ public:
 
     void setParameters(float alpha_, float r_cut_);
     void compute(bool);
+    ChargeEvaluatorDSF generateEvaluator() {
+        return ChargeEvaluatorDSF(alpha, A, shift);
+    }
 
 };
 

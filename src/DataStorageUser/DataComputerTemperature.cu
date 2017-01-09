@@ -60,20 +60,54 @@ void DataComputerTemperature::computeScalar_CPU() {
     } else {
         ndf = 3*(n-1);
     }
-    totalKEScalar = total;
-    tempScalar = total / ndf; 
+    totalKEScalar = total * state->units.mvv_to_eng; 
+    tempScalar = state->units.mvv_to_eng * total / (state->units.boltz * ndf); 
 }
 
 void DataComputerTemperature::computeTensor_CPU() {
-    int n;
     Virial total = tempGPUTensor.h_data[0];
+    total *= (state->units.mvv_to_eng / state->units.boltz);
+    /*
+    int n;
     if (lastGroupTag == 1) {
         n = state->atoms.size();
     } else {
         n = * (int *) &tempGPUTensor.h_data[1];
     }
-    total /= n;
+    */
     tempTensor = total;
+}
+
+void DataComputerTemperature::computeTensorFromScalar() {
+    int zeroDim = 3;
+    if (state->is2d) {
+        zeroDim = 2;
+        tempTensor[0] = tempTensor[1] = totalKEScalar / 2.0;
+    } else {
+        tempTensor[0] = tempTensor[1] = tempTensor[2] = totalKEScalar / 3.0;
+    }
+    for (int i=zeroDim; i<6; i++) {
+        tempTensor[i] = 0;
+    }
+
+}
+
+void DataComputerTemperature::computeScalarFromTensor() {
+    int n;
+    if (lastGroupTag == 1) {
+        n = state->atoms.size();//* (int *) &tempGPUScalar.h_data[1];
+    } else {
+        n = * (int *) &tempGPUScalar.h_data[1];
+    }
+    if (state->is2d) {
+        ndf = 2*(n-1); //-1 is analagous to extra_dof in lammps
+    } else {
+        ndf = 3*(n-1);
+    }
+    totalKEScalar = tempTensor[0] + tempTensor[1] + tempTensor[2];
+    tempScalar = totalKEScalar / ndf;
+
+
 }
 
 void DataComputerTemperature::appendScalar(boost::python::list &vals) {

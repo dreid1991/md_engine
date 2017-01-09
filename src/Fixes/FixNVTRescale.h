@@ -12,6 +12,7 @@
 #include "globalDefs.h"
 #include "GPUArrayDeviceGlobal.h"
 #include "Interpolator.h"
+#include "DataComputerTemperature.h"
 class Bounds;
 class State;
 
@@ -21,20 +22,18 @@ class FixNVTRescale : public Interpolator, public Fix {
 private:
     int curIdx;
 
-    bool usingBounds;
     BoundsGPU boundsGPU;
-    GPUArrayDeviceGlobal<float> tempGPU;  // length two - first is temp, second is # atoms in group
 
+    MD_ENGINE::DataComputerTemperature tempComputer;
     bool prepareForRun();
     void compute(bool);
     bool postRun();
 
 public:
     boost::shared_ptr<Bounds> thermoBounds;
-    FixNVTRescale() : Fix(boost::shared_ptr<State> (NULL), "a", "all", "st", false, false, false, 1){}; //remove this
-    FixNVTRescale(boost::shared_ptr<State>, std::string handle_, std::string groupHandle_, boost::python::list intervals, boost::python::list temps_, int applyEvery = 10, boost::shared_ptr<Bounds> thermoBounds_ = boost::shared_ptr<Bounds>(NULL));
-    FixNVTRescale(boost::shared_ptr<State>, std::string handle_, std::string groupHandle_, boost::python::object tempFunc_, int applyEvery = 10, boost::shared_ptr<Bounds> thermoBounds_ = boost::shared_ptr<Bounds>(NULL));
-    FixNVTRescale(boost::shared_ptr<State>, std::string handle_, std::string groupHandle_, double temp_, int applyEvery = 10, boost::shared_ptr<Bounds> thermoBounds_ = boost::shared_ptr<Bounds>(NULL));
+    FixNVTRescale(boost::shared_ptr<State>, std::string handle_, std::string groupHandle_, boost::python::list intervals, boost::python::list temps_, int applyEvery = 10);
+    FixNVTRescale(boost::shared_ptr<State>, std::string handle_, std::string groupHandle_, boost::python::object tempFunc_, int applyEvery = 10);
+    FixNVTRescale(boost::shared_ptr<State>, std::string handle_, std::string groupHandle_, double temp_, int applyEvery = 10);
 
 };
 

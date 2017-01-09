@@ -66,13 +66,14 @@ public:
     void setValues(std::string handle, double mass, double atomicNum);
 
 public:
-    State *state; //!< Vector to the corresponding state class
+    State *state; //!< state class
 
     int numTypes; //!< Number of atom types
     std::vector<std::string> handles; //!< List of handles to specify atom types
     std::vector<double> masses; //!< List of masses, one for each atom type
     std::vector<int> atomicNums; //!< For each atom type, this vector stores
                                     //!< its number in the periodic table
+    void guessAtomicNumbers();
 };
 
 #endif

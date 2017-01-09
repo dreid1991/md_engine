@@ -98,6 +98,7 @@ public:
 
     void handle2d();
     BoundsGPU makeGPU();
+    bool vectorInBounds(Vector &);
     bool atomInBounds(Atom &);
     double volume();
 

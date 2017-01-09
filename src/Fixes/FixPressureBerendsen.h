@@ -9,7 +9,7 @@ void export_FixPressureBerendsen();
 namespace MD_ENGINE {
     class FixPressureBerendsen : public Interpolator, public Fix {
     public: 
-        FixPressureBerendsen(boost::shared_ptr<State> state_, std::string handle_, double pressure_, double period_);
+        FixPressureBerendsen(boost::shared_ptr<State> state_, std::string handle_, double pressure_, double period_, int applyEvery_);
 
         bool prepareForRun();
         bool stepFinal();
@@ -17,6 +17,9 @@ namespace MD_ENGINE {
         DataComputerPressure pressureComputer;
         double period;
         double bulkModulus;
+        double maxDilation;
+
+        void setParameters(double maxDilation_);
 
     };
 };
