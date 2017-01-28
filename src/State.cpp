@@ -55,7 +55,7 @@ State::State() {
     specialNeighborCoefs[2] = 0.5;
     rng_is_seeded = false;
     units.setLJ();//default units are lj
-    exclusionMode = EXCLUSIONMODE::FORCER;
+    exclusionMode = EXCLUSIONMODE::DISTANCE;
 
 
 }
@@ -308,7 +308,7 @@ void State::setSpecialNeighborCoefs(float onetwo, float onethree, float onefour)
     specialNeighborCoefs[2] = onefour;
 }
 
-void setExclusionMode(string mode) {
+void State::setExclusionMode(std::string mode) {
     if (mode == "forcer") {
         exclusionMode = EXCLUSIONMODE::FORCER;
     } else if (mode == "distance") {
@@ -414,7 +414,7 @@ float State::getMaxRCut() {
 void State::initializeGrid() {
     double maxRCut = getMaxRCut();// ALSO PADDING PLS
     double gridDim = maxRCut + padding;
-    gridGPU = GridGPU(this, gridDim, gridDim, gridDim, gridDim);
+    gridGPU = GridGPU(this, gridDim, gridDim, gridDim, gridDim, exclusionMode);
 
 }
 

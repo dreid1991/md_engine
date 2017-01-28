@@ -78,9 +78,10 @@ GridGPU::GridGPU(State *state_, float dx_, float dy_, float dz_, float neighCuto
   
     initArrays();
     initStream();
-    handleExclusions();
     numChecksSinceLastBuild = 0;
     exclusionMode = exclusionMode_;
+
+    handleExclusions();
 }
 
 GridGPU::~GridGPU() {
@@ -655,21 +656,21 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
             //neighborlist = GPUArrayDeviceGlobal<uint>(totalNumNeighbors*0.8);//REALLY??
             neighborlist = GPUArrayDeviceGlobal<uint>(totalNumNeighbors*1.5);//REALLY??
         }
+    
+        SAFECALL((assignNeighbors<<<NBLOCK(nAtoms), PERBLOCK, PERBLOCK*maxExclusionsPerAtom*sizeof(uint)>>>(
+                state->gpd.xs(gridIdx), nAtoms, state->gpd.ids(gridIdx),
+                perCellArray.d_data.data(), perBlockArray.d_data.data(), os, ds, ns,
+                bounds.periodic, trace, neighCut*neighCut, neighborlist.data(), warpSize,
+                exclusionIndexes.data(), exclusionIds.data(), maxExclusionsPerAtom
+        )));
         /*
-        SAFECALL(assignNeighbors<<<NBLOCK(nAtoms), PERBLOCK, PERBLOCK*maxExclusionsPerAtom*sizeof(uint)>>>(
-                state->gpd.xs(gridIdx), nAtoms, state->gpd.idToIdxs.getTex(), state->gpd.ids(gridIdx),
-                perBlockArray.d_data.data(), os, ds, ns,
-                bounds.periodic, trace, neighCut*neighCut,
-                neighborlist.data(), warpSize,
-                exclusionIndexes.data(), exclusionIds.size(), maxExclusionsPerAtom
-        ));//, state->gpd.nlistExclusionIdxs.getTex(), state->gpd.nlistExclusions.getTex(), state->maxExclusions);
-        */
         assignNeighbors<<<NBLOCK(nAtoms), PERBLOCK, PERBLOCK*maxExclusionsPerAtom*sizeof(uint)>>>(
                 state->gpd.xs(gridIdx), nAtoms, state->gpd.ids(gridIdx),
                 perCellArray.d_data.data(), perBlockArray.d_data.data(), os, ds, ns,
                 bounds.periodic, trace, neighCut*neighCut, neighborlist.data(), warpSize,
                 exclusionIndexes.data(), exclusionIds.data(), maxExclusionsPerAtom
-        );//, state->gpd.nlistExclusionIdxs.getTex(), state->gpd.nlistExclusions.getTex(), state->maxExclusions);
+        );
+        */
 
         // printNeighbors<<<NBLOCK(state->atoms.size()), PERBLOCK>>>(
         //      perAtomArray.ptr, neighborlist.tex, state->atoms.size());
@@ -832,7 +833,7 @@ bool GridGPU::checkSorting(int gridIdx, int *gridIdxs,
     std::cout << activeIds.size() << " " << gpuIds.size() << std::endl;
     if (activeIds != gpuIds) {
         correct = false;
-        std::cout << "different ids!   Seriou problem!" << std::endl;
+        std::cout << "different ids!   Serious problem!" << std::endl;
         assert(activeIds.size() == gpuIds.size());
     }
 

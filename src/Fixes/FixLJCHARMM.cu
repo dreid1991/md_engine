@@ -18,15 +18,15 @@ const string LJCHARMMType = "LJCHARMM";
 
 FixLJCHARMM::FixLJCHARMM(boost::shared_ptr<State> state_, string handle_)
     : FixPair(state_, handle_, "all", LJCHARMMType, true, false, 1),
-    epsHandle("eps"), sigHandle("sig"), epsHandle14("eps14"), sigHandle14("sig14"), rCutHandle("rCut")
+    epsHandle("eps"), sigHandle("sig"), eps14Handle("eps14"), sig14Handle("sig14"), rCutHandle("rCut")
 {
 
     initializeParameters(epsHandle, epsilons);
     initializeParameters(sigHandle, sigmas);
-    initializeParameters(epsHandle14, epsilons14);
-    initializeParameters(sigHandle14, sigmas14);
+    initializeParameters(eps14Handle, epsilons14);
+    initializeParameters(sig14Handle, sigmas14);
     initializeParameters(rCutHandle, rCuts);
-    paramOrder = {rCutHandle, epsHandle, sigHandle, epsHandle14, sigHandle14};
+    paramOrder = {rCutHandle, epsHandle, sigHandle, eps14Handle, sig14Handle};
     readFromRestart();
     canAcceptChargePairCalc = true;
 }
@@ -66,7 +66,7 @@ void FixLJCHARMM::singlePointEng(float *perParticleEng) {
 
 void FixLJCHARMM::setEvalWrapper() {
     EvaluatorCHARMM eval;
-    evalWrap = pickEvaluator<EvaluatorLJ, 3>(eval, chargeCalcFix);
+    evalWrap = pickEvaluator<EvaluatorCHARMM, 3>(eval, chargeCalcFix);
 
 }
 
@@ -99,7 +99,7 @@ bool FixLJCHARMM::prepareForRun() {
     };
 
     auto copyEpsDiag = [&] () {
-    }
+    };
     //copy in non 1-4 parameters for sig, eps
 
     std::vector<float> &epsPreProc = *paramMap["eps"];
@@ -107,7 +107,7 @@ bool FixLJCHARMM::prepareForRun() {
 
     std::vector<float> &eps14PreProc = *paramMap["eps14"];
     std::vector<float> &sig14PreProc = *paramMap["sig14"];
-    assert(epsPreProc.size() == sigProc.Size());
+    assert(epsPreProc.size() == sigPreProc.size());
     for (int i=0; i<epsPreProc.size(); i++) {
         if (eps14PreProc[i] == DEFAULT_FILL) {
             eps14PreProc[i] = epsPreProc[i]; //times some coefficient?

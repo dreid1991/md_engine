@@ -75,11 +75,9 @@ add_subdirectory (src)
 #add src directory
 
 # Install Python library
-if (PYTHON)
-    add_subdirectory (python)
-    #add_custom_command (OUTPUT python/timestamp
-    #    MAIN_DEPENDENCY python/Sim.cpp
-    #    COMMAND ${PYTHON_BIN} python/setup.py build
-    #    COMMAND ${CMAKE_COMMAND} -E touch ${OUTPUT})
-endif (PYTHON)
+add_subdirectory (python)
+#add_custom_command (OUTPUT python/timestamp
+#    MAIN_DEPENDENCY python/Sim.cpp
+#    COMMAND ${PYTHON_BIN} python/setup.py build
+#    COMMAND ${CMAKE_COMMAND} -E touch ${OUTPUT})
 # Add tests

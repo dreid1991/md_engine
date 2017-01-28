@@ -2,7 +2,7 @@
 
 #include "cutils_math.h"
 
-class EvaluatoCHARMMJ {
+class EvaluatorCHARMM {
     public:
         inline __device__ float3 force(float3 dr, float params[5], float lenSqr, float multiplier) {
             if (multiplier) {

@@ -129,7 +129,7 @@ public:
     double rCut;
     double padding; //!< Added to rCut for cutoff distance of neighbor building
     int exclusionMode; //!< Mode for handling bond list exclusions.  See comments for exclusions in GridGPU
-    void setExclusionMode(string);
+    void setExclusionMode(std::string);
 
 
 

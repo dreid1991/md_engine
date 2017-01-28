@@ -121,7 +121,7 @@ public:
      */
     void handleExclusions();
     void handleExclusionsDistance();
-    void handleExclusionsForcer();
+    void handleExclusionsForcers();
 
     /*! \brief Remap atoms around periodic boundary conditions
      *

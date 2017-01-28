@@ -90,4 +90,3 @@ class FixLJCHARMM : public FixPair {
 
 };
 
-#endif
