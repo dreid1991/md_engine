@@ -721,7 +721,19 @@ void State::seedRNG(unsigned int seed) {
 }
 
     //helper for reader funcs (LAMMPS reader)
-Vector generateVector(State &s) {
+Vector generateVector(State &s, py::list valsPy) {
+    if (py::len(valsPy) == 3) {
+        double vals[3];
+        for (int i=0; i<3; i++) {
+            py::extract<double> val(valsPy[i]);
+            if (!val.check()) {
+                printf("Tried to generate vector with invalid values\n");
+                assert(val.check());
+            }
+            vals[i] = val;
+        }
+        return Vector(vals[0], vals[1], vals[2]);
+    }
     return Vector();
 }
 
@@ -778,7 +790,7 @@ BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(State_seedRNG_overloads,State::seedRNG,0,
                 .def_readonly("dataManager", &State::dataManager)
                 //shared ptrs
                 .def_readwrite("bounds", &State::bounds)
-                .def_readwrite("fixes", &State::fixes)
+                .def_readwrite("fixes", &State::fixesShr)
                 .def_readwrite("atomParams", &State::atomParams)
                 .def_readwrite("writeConfigs", &State::writeConfigs)
                 .def_readonly("readConfig", &State::readConfig)
@@ -787,7 +799,7 @@ BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(State_seedRNG_overloads,State::seedRNG,0,
                 .def_readonly("deviceManager", &State::devManager)
                 .def_readonly("units", &State::units)
                 //helper for reader funcs
-                .def("Vector", &generateVector)
+                .def("Vector", &generateVector, (py::arg("vals")=py::list()))
 
 
                 ;

@@ -22,7 +22,6 @@ void Molecule::rotate(Vector &around, Vector &axis, double theta) {
 Vector Molecule::COM() {
     Vector weightedPos(0, 0, 0);
     double sumMass = 0;
-    //DEAL WITH PBCs HERE PLEASE
     Vector firstPos = state->idToAtom(ids[0]).pos;
     Bounds bounds = state->bounds;
     for (int id : ids) {
@@ -33,6 +32,19 @@ Vector Molecule::COM() {
         sumMass += mass;
     }
     return weightedPos / sumMass;
+}
+
+void Molecule::unwrap() {
+    Vector weightedPos(0, 0, 0);
+    double sumMass = 0;
+    Vector firstPos = state->idToAtom(ids[0]).pos;
+    Bounds bounds = state->bounds;
+    for (int id : ids) {
+		int idx = state->idToIdx[id];
+		Atom &a = state->atoms[idx];
+        a.pos = firstPos + bounds.minImage(a.pos - firstPos);
+
+    }
 }
 
 double Molecule::dist(Molecule &other) {
@@ -70,5 +82,6 @@ void export_Molecule() {
     .def("COM", &Molecule::COM)
     .def("dist", &Molecule::dist)
     .def("size", &Molecule::size)
+    .def("unwrap", &Molecule::unwrap)
     ;
 }

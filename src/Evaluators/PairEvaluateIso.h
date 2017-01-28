@@ -127,7 +127,7 @@ __global__ void compute_force_iso
 //this is the analagous energy computation kernel for isotropic pair potentials.  See comments for force kernel, it's the same thing.
 
 template <class PAIR_EVAL, int N, class CHARGE_EVAL, bool COMP_CHARGES>
-__global__ void compute_energy_isoi
+__global__ void compute_energy_iso
         (int nAtoms, 
          float4 *xs, 
          float *perParticleEng, 
