@@ -11,7 +11,7 @@ void FixPair::prepareParameters(std::string handle,
                                 std::function<float (float, float)> fillFunction,
                                 std::function<float (float)> processFunction,
                                 bool fillDiag,
-                                std::function<float ()> fillDiagFunction)
+                                std::function<float (int, int)> fillDiagFunction)
 {
     std::vector<float> &preProc = *paramMap[handle];
     std::vector<float> *postProc = &paramMapProcessed[handle];

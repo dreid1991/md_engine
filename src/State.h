@@ -49,6 +49,7 @@ class ReadConfig;
 class Fix;
 class WriteConfig;
 
+enum EXCLUSIONMODE {FORCER, DISTANCE};
 //! Simulation state
 /*!
  * This class reflects the current state of the simulation. It contains and
@@ -127,6 +128,9 @@ public:
      */
     double rCut;
     double padding; //!< Added to rCut for cutoff distance of neighbor building
+    int exclusionMode; //!< Mode for handling bond list exclusions.  See comments for exclusions in GridGPU
+    void setExclusionMode(string);
+
 
 
     //! Set the coefficients for bonded neighbor interactions

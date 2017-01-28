@@ -55,6 +55,7 @@ State::State() {
     specialNeighborCoefs[2] = 0.5;
     rng_is_seeded = false;
     units.setLJ();//default units are lj
+    exclusionMode = EXCLUSIONMODE::FORCER;
 
 
 }
@@ -305,6 +306,16 @@ void State::setSpecialNeighborCoefs(float onetwo, float onethree, float onefour)
     specialNeighborCoefs[0] = onetwo;
     specialNeighborCoefs[1] = onethree;
     specialNeighborCoefs[2] = onefour;
+}
+
+void setExclusionMode(string mode) {
+    if (mode == "forcer") {
+        exclusionMode = EXCLUSIONMODE::FORCER;
+    } else if (mode == "distance") {
+        exclusionMode = EXCLUSIONMODE::DISTANCE;
+    } else {
+        mdAssert(false, "Exclusion mode must be 'forcer' or 'distance'");
+    }
 }
 
 template <typename T>

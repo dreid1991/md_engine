@@ -66,7 +66,7 @@ GridGPU::GridGPU() {
 
 
 
-GridGPU::GridGPU(State *state_, float dx_, float dy_, float dz_, float neighCutoffMax_)
+GridGPU::GridGPU(State *state_, float dx_, float dy_, float dz_, float neighCutoffMax_, int exclusionMode_)
   : state(state_) {
     neighCutoffMax = neighCutoffMax_;
 
@@ -80,6 +80,7 @@ GridGPU::GridGPU(State *state_, float dx_, float dy_, float dz_, float neighCuto
     initStream();
     handleExclusions();
     numChecksSinceLastBuild = 0;
+    exclusionMode = exclusionMode_;
 }
 
 GridGPU::~GridGPU() {
@@ -388,7 +389,7 @@ __global__ void assignNeighbors(float4 *xs, int nAtoms, uint *ids,
     //int myWarp = threadIdx.x / warpSize;
     //int myIdxInWarp = threadIdx.x % warpSize;
     //okay, then just start here and space by warpSize;
-    //YOU JUST NEED TO UPDATE HOW WE CHECK EXCLUSIONS (IDXS IN SHEARED)
+    //YOU JUST NEED TO UPDATE HOW WE CHECK EXCLUSIONS (IDXS IN SHARED)
     if (idx < nAtoms) {
         //printf("threadid %d idx %x has lo, hi of %d, %d\n", threadIdx.x, idx, exclIdxLo_shr, exclIdxHi_shr);
         int currentNeighborIdx = baseNeighlistIdx(cumulSumMaxPerBlock, warpSize);
@@ -416,12 +417,6 @@ __global__ void assignNeighbors(float4 *xs, int nAtoms, uint *ids,
 
                                     int3 sqrIdxOther = make_int3(xIdxLoop, yIdxLoop, zIdxLoop);
                                     int sqrIdxOtherLin = LINEARIDX(sqrIdxOther, ns);
-                                    //__device__ int assignFromCell(
-                                    //      float3 pos, int idx, uint myId, float4 *xs, uint *ids, int *gridCellArrayIdxs,
-                                    //      int squareIdx, float3 offset, float3 trace, float neighCutSqr,
-                                    //      int currentNeighborIdx, cudaSurfaceObject_t neighborlist,
-                                    //      uint *exclusionIds_shr, int exclIdxLo_shr, int exclIdxHi_shr,
-                                    //      int warpSize)
                                     currentNeighborIdx = assignFromCell(
                                             pos, idx, myId, xs, ids, gridCellArrayIdxs,
                                             sqrIdxOtherLin, -offset, trace, neighCutSqr,
@@ -847,6 +842,29 @@ bool GridGPU::checkSorting(int gridIdx, int *gridIdxs,
 
 void GridGPU::handleExclusions() {
 
+    if (exclusionMode == EXCLUSIONMODE::DISTANCE) {
+        handleExclusionsDistance();
+    } else {
+        handleExclusionsForcers();
+    }
+}
+
+
+void GridGPU::handleExclusionsForcers() {
+
+    std::vector<std::vector<BondVariant> *> allBonds;
+       for (Fix *f : state->fixes) {
+        std::vector<BondVariant> *fixBonds = f->getBonds();
+        if (fixBonds != nullptr) {
+            allBonds.push_back(fixBonds);
+        }
+    }
+    uint exclusionTags[3] = {(uint) 1 << 30, (uint) 2 << 30, (uint) 3 << 30};
+    
+}
+
+void GridGPU::handleExclusionsDistance() {
+
     const ExclusionList exclList = generateExclusionList(4);
     std::vector<int> idxs;
     std::vector<uint> excludedById;
@@ -890,25 +908,7 @@ void GridGPU::handleExclusions() {
     //there's enough shared memory for PERBLOCK _atoms_, not just PERBLOCK ids
     //(when calling assign exclusions kernel)
 
-    //for test output
-    /*
-    std::cout << "index ptrs " << std::endl;
-    for (int id : idxs) {
-        std::cout << id << std::endl;
     }
-    std::cout << "end" << std::endl;
-    for (int i=0; i<idxs.size()-1; i++) {
-        for (int exclIdx=idxs[i]; exclIdx < idxs[i+1]; exclIdx++) {
-            uint excl = excludedById[exclIdx];
-            uint filter = (uint) 3 << 30;
-            std::cout << filter << std::endl;
-            uint dist = (excl & filter) >> 30;
-            uint id = excl & (~filter);
-            std::cout << "id " << i << " excludes " << id << " with dist " << dist << std::endl;
-        }
-    }
-    */
-}
 
 bool GridGPU::closerThan(const ExclusionList &exclude,
                          int atomid, int otherid, int16_t depthi) {
