@@ -10,6 +10,7 @@
 #include <iostream>
 
 #include <map>
+#include <unordered_map>
 #include <tuple>
 #include <vector>
 #include <set>
@@ -310,6 +311,7 @@ public:
 
     void createMolecule(std::vector<int> &ids);
     boost::python::object createMoleculePy(boost::python::list ids);
+    void unwrapMolecules();
 
     boost::python::object duplicateMolecule(Molecule &, int n);
     Atom &duplicateAtom(Atom);

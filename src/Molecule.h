@@ -6,6 +6,7 @@
 
 class State;
 
+//MAKE IT SO BY DEFAULT MOLEC DOES TOPO SEARCH TO INCLUDE EVERYTHING IT'S CONNECT TO`
 void export_Molecule();
 
 class Molecule {
