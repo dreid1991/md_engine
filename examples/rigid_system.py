@@ -57,7 +57,6 @@ nonbond.setParameter('eps', 'spc1', 'spc2', 0)
 nonbond.setParameter('sig', 'spc2', 'spc2', 0)
 nonbond.setParameter('eps', 'spc2', 'spc2', 0)
 
-<<<<<<< HEAD
 nonbond.setParameter('sig', 'spc3', 'spc3', 0)
 nonbond.setParameter('eps', 'spc3', 'spc3', 0)
 
@@ -79,7 +78,7 @@ for x in xrange(28):
 # initialize rigid fix
 rigid = FixRigid(state, 'rigid', 'all')
 
-for i in xrange(200):
+for i in xrange(2):
     position = positions[i]
     atomO = position
     atomH1 = position + offset1
