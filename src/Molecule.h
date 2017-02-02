@@ -6,6 +6,7 @@
 
 class State;
 
+//MAKE IT SO BY DEFAULT MOLEC DOES TOPO SEARCH TO INCLUDE EVERYTHING IT'S CONNECT TO`
 void export_Molecule();
 
 class Molecule {
@@ -20,6 +21,7 @@ public:
     bool operator==(const Molecule &other) {
         return ids == other.ids;
     }
+	void unwrap();
     double dist(Molecule &);
     Vector size();
 };

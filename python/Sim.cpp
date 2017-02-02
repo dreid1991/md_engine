@@ -52,11 +52,14 @@ BOOST_PYTHON_MODULE(Sim) {
     export_BondFENE();
     
     export_FixAngleHarmonic();
+    export_FixAngleCHARMM();
     export_FixAngleCosineDelta();
     export_AngleHarmonic();
+    export_AngleCHARMM();
     export_AngleCosineDelta();
 
     export_FixImproperHarmonic();
+    export_FixImproperCVFF();
     export_Impropers();
     export_FixDihedralOPLS();
     export_FixDihedralCHARMM();

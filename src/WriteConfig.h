@@ -28,15 +28,18 @@ public:
 	int groupBit;
 
     bool isXML;
+    bool unwrapMolecules;
     int orderPreference; //just there so I can use same functions as fix for adding/removing
     bool oneFilePerWrite;
 
+
     WriteConfig(boost::shared_ptr<State>,
-                std::string fn, std::string handle, std::string format, int writeEvery, std::string groupHandle_="all");
+                std::string fn, std::string handle, std::string format, int writeEvery, std::string groupHandle_="all", bool unwrapMolecules=false);
 
     ~WriteConfig() {
         finish();
     }
+    void unwrap();
     void finish();
 
     void write(int64_t turn);

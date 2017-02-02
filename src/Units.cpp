@@ -8,6 +8,7 @@ void Units::setLJ() {
     qqr_to_eng = 1;
     nktv_to_press = 1;
     ftm_to_v = 1.0;
+    unitType = UNITS::LJ;
 }
 
 void Units::setReal() {
@@ -17,6 +18,7 @@ void Units::setReal() {
     nktv_to_press = 68568.415;
     qqr_to_eng = 332.06371;
     ftm_to_v = 1.0f / (48.88821291 * 48.88821291);
+    unitType = UNITS::REAL;
 }
 
 

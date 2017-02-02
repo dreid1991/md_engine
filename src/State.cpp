@@ -55,6 +55,7 @@ State::State() {
     specialNeighborCoefs[2] = 0.5;
     rng_is_seeded = false;
     units.setLJ();//default units are lj
+    exclusionMode = EXCLUSIONMODE::DISTANCE;
 
 
 }
@@ -93,7 +94,16 @@ bool State::addAtomDirect(Atom a) {
 			maxIdExisting++;
 			a.id = maxIdExisting;
 		}
-	}
+	} else {
+        auto it = find(idBuffer.begin(), idBuffer.end(), a.id);
+        if (it != idBuffer.end()) {
+            idBuffer.erase(it);
+        }
+        //not going to worry about populating id buffer, because presumably you are reading in from a system with well-packed ids
+        if (maxIdExisting < a.id) {
+            maxIdExisting = a.id;
+        }
+    }
     while (idToIdx.size() <= a.id) {
         idToIdx.push_back(0);
     }
@@ -222,20 +232,11 @@ py::object State::createMoleculePy(py::list idsPy) {
 
 
 py::object State::duplicateMolecule(Molecule &molec, int n) {
-    //std::map<int, int> oldToNew;
-    //std::vector<int> newIds;
     int molecsOrig = py::len(molecules);
     std::vector<int> oldIds;
     std::vector< std::vector<int> > newIdss;
     for (int id : molec.ids) {
         oldIds.push_back(id);
-
-    //    Atom &a = atoms[idToIdx[id]];
-
-     //   Atom &dup = duplicateAtom(a);
-        //NOTE THAT REFERENCE TO A MAY BE INVALIDATE AFTER DUPLICATION B/C VECTOR COULD REALLOCATE
-     //   oldToNew[id] = dup.id;
-     //   newIds.push_back(dup.id);
     }
     for (int i=0; i<n; i++) {
         std::vector<int> newIds(oldIds.size());
@@ -264,6 +265,67 @@ py::object State::duplicateMolecule(Molecule &molec, int n) {
 
 }
 
+void unwrapMolec(State *state, int id, std::vector<int> &molecIds, std::unordered_map<int, std::vector<int> > bondMap) {
+    Vector myPos = state->idToAtom(id).pos;
+    if (bondMap.find(id) != bondMap.end()) {
+        std::vector<int> &myConnections = bondMap[id];
+        for (int i=myConnections.size()-1; i>=0; i--) {
+            auto it = find(molecIds.begin(), molecIds.end(), myConnections[i]);
+            if (it != molecIds.end()) {
+                int otherId = *it;
+                molecIds.erase(it);
+                Atom &other = state->idToAtom(otherId);
+                //unwrap
+                other.pos = myPos + state->bounds.minImage(other.pos - myPos);
+
+                //and recurse
+                unwrapMolec(state, otherId, molecIds, bondMap);
+
+
+
+            }
+
+        }
+    }
+}
+
+void State::unwrapMolecules() {
+    std::vector<int> allMolecIds;
+    std::vector<Molecule *> molecs;
+    int nMolec = py::len(molecules);
+    for (int i=0; i<nMolec; i++) {
+        py::extract<Molecule *> molecEx(molecules[i]);
+        mdAssert(molecEx.check(), "Non-molecule found in molecules list");
+        Molecule *molec = molecEx;
+        allMolecIds.insert(allMolecIds.end(), molec->ids.begin(), molec->ids.end());
+        molecs.push_back(molec);
+    }
+    std::unordered_map<int, std::vector<int> > bondMap;
+
+    for (Fix *f : fixes) {
+        std::vector<BondVariant> *fixBonds = f->getBonds();
+        if (fixBonds != nullptr) {
+            for (BondVariant &bv : *fixBonds) {
+                Bond b = boost::get<Bond>(bv);
+                if (find(allMolecIds.begin(), allMolecIds.end(), b.ids[0]) != allMolecIds.end() and find(allMolecIds.begin(), allMolecIds.end(), b.ids[1]) != allMolecIds.end()) {
+                    bondMap[b.ids[0]].push_back(b.ids[1]);
+                    bondMap[b.ids[1]].push_back(b.ids[0]);
+                }
+            }
+        }
+    }
+    //now we just do graph search & reset to first's reference frame for each molec
+    for (Molecule *molec : molecs) {
+        std::vector<int> ids = molec->ids;
+        int idBegin = ids.back();
+        ids.pop_back();
+        unwrapMolec(this, idBegin, ids, bondMap);
+        //check that COM is in box
+
+    }
+
+
+}
 
 
 
@@ -296,6 +358,16 @@ void State::setSpecialNeighborCoefs(float onetwo, float onethree, float onefour)
     specialNeighborCoefs[0] = onetwo;
     specialNeighborCoefs[1] = onethree;
     specialNeighborCoefs[2] = onefour;
+}
+
+void State::setExclusionMode(std::string mode) {
+    if (mode == "forcer") {
+        exclusionMode = EXCLUSIONMODE::FORCER;
+    } else if (mode == "distance") {
+        exclusionMode = EXCLUSIONMODE::DISTANCE;
+    } else {
+        mdAssert(false, "Exclusion mode must be 'forcer' or 'distance'");
+    }
 }
 
 template <typename T>
@@ -394,7 +466,7 @@ float State::getMaxRCut() {
 void State::initializeGrid() {
     double maxRCut = getMaxRCut();// ALSO PADDING PLS
     double gridDim = maxRCut + padding;
-    gridGPU = GridGPU(this, gridDim, gridDim, gridDim, gridDim);
+    gridGPU = GridGPU(this, gridDim, gridDim, gridDim, gridDim, exclusionMode);
 
 }
 
@@ -701,7 +773,19 @@ void State::seedRNG(unsigned int seed) {
 }
 
     //helper for reader funcs (LAMMPS reader)
-Vector generateVector(State &s) {
+Vector generateVector(State &s, py::list valsPy) {
+    if (py::len(valsPy) == 3) {
+        double vals[3];
+        for (int i=0; i<3; i++) {
+            py::extract<double> val(valsPy[i]);
+            if (!val.check()) {
+                printf("Tried to generate vector with invalid values\n");
+                assert(val.check());
+            }
+            vals[i] = val;
+        }
+        return Vector(vals[0], vals[1], vals[2]);
+    }
     return Vector();
 }
 
@@ -731,6 +815,7 @@ BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(State_seedRNG_overloads,State::seedRNG,0,
                         (py::arg("handle"),
                          py::arg("atoms") = py::list())
                     )
+				.def("atomInGroup", &State::atomInGroup)
                 .def("createMolecule", &State::createMoleculePy, (py::arg("ids")))
                 .def("duplicateMolecule", &State::duplicateMolecule, (py::arg("molecule"), py::arg("n")=1))
                 .def("selectGroup", &State::selectGroup)
@@ -757,7 +842,7 @@ BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(State_seedRNG_overloads,State::seedRNG,0,
                 .def_readonly("dataManager", &State::dataManager)
                 //shared ptrs
                 .def_readwrite("bounds", &State::bounds)
-                .def_readwrite("fixes", &State::fixes)
+                .def_readwrite("fixes", &State::fixesShr)
                 .def_readwrite("atomParams", &State::atomParams)
                 .def_readwrite("writeConfigs", &State::writeConfigs)
                 .def_readonly("readConfig", &State::readConfig)
@@ -766,7 +851,7 @@ BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(State_seedRNG_overloads,State::seedRNG,0,
                 .def_readonly("deviceManager", &State::devManager)
                 .def_readonly("units", &State::units)
                 //helper for reader funcs
-                .def("Vector", &generateVector)
+                .def("Vector", &generateVector, (py::arg("vals")=py::list()))
 
 
                 ;

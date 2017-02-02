@@ -7,21 +7,51 @@
 #include "helpers.h"
 #include "SquareVector.h"
 template <class PAIR_EVAL, int N_PARAM, bool COMP_VIRIALS, class CHARGE_EVAL, bool COMP_CHARGES>
-__global__ void compute_force_iso(int nAtoms, const float4 *__restrict__ xs, float4 *__restrict__ fs, const uint16_t *__restrict__ neighborCounts, const uint *__restrict__ neighborlist, const uint32_t * __restrict__ cumulSumMaxPerBlock, int warpSize, const float *__restrict__ parameters, int numTypes,  BoundsGPU bounds, float onetwoStr, float onethreeStr, float onefourStr, Virial *__restrict__ virials, float *qs, float qCutoffSqr, PAIR_EVAL pairEval, CHARGE_EVAL chargeEval) {
+__global__ void compute_force_iso
+        (int nAtoms, 
+         const float4 *__restrict__ xs, 
+         float4 *__restrict__ fs, 
+         const uint16_t *__restrict__ neighborCounts, 
+         const uint *__restrict__ neighborlist, 
+         const uint32_t * __restrict__ cumulSumMaxPerBlock, 
+         int warpSize, 
+         const float *__restrict__ parameters, 
+         int numTypes,  
+         BoundsGPU bounds, 
+         float onetwoStr, 
+         float onethreeStr, 
+         float onefourStr, 
+         Virial *__restrict__ virials, 
+         float *qs, 
+         float qCutoffSqr, 
+         PAIR_EVAL pairEval, 
+         CHARGE_EVAL chargeEval) 
+{
     float multipliers[4] = {1, onetwoStr, onethreeStr, onefourStr};
+    //so we load in N_PARAM matrices which are of dimension numType*numTypes.  The matrices are arranged as linear blocks of data
+    //paramsAll is the single big shared memory array that holds all of these parameters
     extern __shared__ float paramsAll[];
     int sqrSize = numTypes*numTypes;
     float *params_shr[N_PARAM];
+    //then we take pointers into paramsAll.
+    //
+    //The order of the params_shr is given by the paramOrder array (see for example, FixLJCut.cu)
     for (int i=0; i<N_PARAM; i++) {
         params_shr[i] = paramsAll + i * sqrSize;
     }
+    //okay, so then we have a template to copy the global memory array parameters into paramsAll
     copyToShared<float>(parameters, paramsAll, N_PARAM*sqrSize);
+
+    //then sync to let the threads finish their copying into shared memory
     __syncthreads();
     int idx = GETIDX();
+    //then if this is a valid atom
     if (idx < nAtoms) {
         Virial virialsSum = Virial(0, 0, 0, 0, 0, 0);
+        //load where my neighborlist starts
         int baseIdx = baseNeighlistIdx(cumulSumMaxPerBlock, warpSize);
         float qi;
+        //load charges if necessary
         if (COMP_CHARGES) {
             qi = qs[idx];
         }
@@ -31,34 +61,42 @@ __global__ void compute_force_iso(int nAtoms, const float4 *__restrict__ xs, flo
 
         float3 forceSum = make_float3(0, 0, 0);
 
+        //how many neighbors do I have?
         int numNeigh = neighborCounts[idx];
         for (int i=0; i<numNeigh; i++) {
+            //the nth neighbor of atoms in my warp are all stored together.  This way, memory access is coalesced
+            //my neighbors, then, are spaced by warpSize
             int nlistIdx = baseIdx + warpSize * i;
             uint otherIdxRaw = neighborlist[nlistIdx];
+            //The leftmost two bits in the neighbor entry say if it is a 1-2, 1-3, or 1-4 neighbor, or none of these
             uint neighDist = otherIdxRaw >> 30;
             float multiplier = multipliers[neighDist];
             uint otherIdx = otherIdxRaw & EXCL_MASK;
             float4 otherPosWhole = xs[otherIdx];
+            //type is stored in w component of position
             int otherType = __float_as_int(otherPosWhole.w);
             float3 otherPos = make_float3(otherPosWhole);
-            //then wrap and compute forces!
+
+            //based on the two atoms types, which index in each of the square matrices will I need to load from?
             int sqrIdx = squareVectorIndex(numTypes, type, otherType);
             float3 dr = bounds.minImage(pos - otherPos);
             float lenSqr = lengthSqr(dr);
-            //printf("dr sqr pair is %f OMG UNCOMMENT IF MULT\n", lenSqr);
+            //load that pair's parameters into a linear array to be send to the force evaluator
             float params_pair[N_PARAM];
             for (int pIdx=0; pIdx<N_PARAM; pIdx++) {
                 params_pair[pIdx] = params_shr[pIdx][sqrIdx];
             }
-            //evaluator.force(forceSum, dr, params_pair, lenSqr, multiplier);
+            //we enforce that rCut is always the first parameter (for pairs at least, may need to be different for tersoff)
             float rCutSqr = params_pair[0];
             float3 force = make_float3(0, 0, 0);
             bool computedForce = false;
             if (lenSqr < rCutSqr) {
+                //add to running total of the atom's forces
                 force += pairEval.force(dr, params_pair, lenSqr, multiplier);
                 computedForce = true;
             }
             if (COMP_CHARGES && lenSqr < qCutoffSqr) {
+                //compute charge pair force if necessary
                 float qj = qs[otherIdx];
                 force += chargeEval.force(dr, lenSqr, qi, qj, multiplier);
                 computedForce = true;
@@ -71,28 +109,43 @@ __global__ void compute_force_iso(int nAtoms, const float4 *__restrict__ xs, flo
             }
 
         }   
-    //    printf("LJ force %f %f %f \n", forceSum.x, forceSum.y, forceSum.z);
         float4 forceCur = fs[idx];
-        //float mult = 0.066 / 3.5;
-        //printf("cur %f %f %f new %f %f %f\n", forceCur.x, forceCur.y, forceCur.z, mult*forceSum.x, mult*forceSum.y, mult*forceSum.z);
         forceCur += forceSum;
+        //increment my forces by the total.  Note that each atom is calcu
         fs[idx] = forceCur;
         if (COMP_VIRIALS) {
             virialsSum *= 0.5f;
-            //printf("virials %f %f %f %f %f %f\n", virialsSum[0], virialsSum[1], virialsSum[2], virialsSum[3], virialsSum[4], virialsSum[5]);
             virials[idx] += virialsSum;
         }
     
-        //fs[idx] += forceSum;
 
     }
 
 }
 
 
+//this is the analagous energy computation kernel for isotropic pair potentials.  See comments for force kernel, it's the same thing.
 
 template <class PAIR_EVAL, int N, class CHARGE_EVAL, bool COMP_CHARGES>
-__global__ void compute_energy_iso(int nAtoms, float4 *xs, float *perParticleEng, uint16_t *neighborCounts, uint *neighborlist, uint32_t *cumulSumMaxPerBlock, int warpSize, float *parameters, int numTypes, BoundsGPU bounds, float onetwoStr, float onethreeStr, float onefourStr, float *qs, float qCutoffSqr, PAIR_EVAL pairEval, CHARGE_EVAL chargeEval) {
+__global__ void compute_energy_iso
+        (int nAtoms, 
+         float4 *xs, 
+         float *perParticleEng, 
+         uint16_t *neighborCounts, 
+         uint *neighborlist, 
+         uint32_t *cumulSumMaxPerBlock, 
+         int warpSize, 
+         float *parameters, 
+         int numTypes, 
+         BoundsGPU bounds, 
+         float onetwoStr, 
+         float onethreeStr, 
+         float onefourStr, 
+         float *qs, 
+         float qCutoffSqr, 
+         PAIR_EVAL pairEval, 
+         CHARGE_EVAL chargeEval) 
+{
     float multipliers[4] = {1, onetwoStr, onethreeStr, onefourStr};
     extern __shared__ float paramsAll[];
     int sqrSize = numTypes*numTypes;

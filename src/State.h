@@ -10,6 +10,7 @@
 #include <iostream>
 
 #include <map>
+#include <unordered_map>
 #include <tuple>
 #include <vector>
 #include <set>
@@ -49,6 +50,7 @@ class ReadConfig;
 class Fix;
 class WriteConfig;
 
+enum EXCLUSIONMODE {FORCER, DISTANCE};
 //! Simulation state
 /*!
  * This class reflects the current state of the simulation. It contains and
@@ -127,6 +129,9 @@ public:
      */
     double rCut;
     double padding; //!< Added to rCut for cutoff distance of neighbor building
+    int exclusionMode; //!< Mode for handling bond list exclusions.  See comments for exclusions in GridGPU
+    void setExclusionMode(std::string);
+
 
 
     //! Set the coefficients for bonded neighbor interactions
@@ -306,6 +311,7 @@ public:
 
     void createMolecule(std::vector<int> &ids);
     boost::python::object createMoleculePy(boost::python::list ids);
+    void unwrapMolecules();
 
     boost::python::object duplicateMolecule(Molecule &, int n);
     Atom &duplicateAtom(Atom);

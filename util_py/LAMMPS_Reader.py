@@ -393,6 +393,7 @@ def bondFENE_input(reader, args):
     eps = float(args[4])
     sig = float(args[5])
     return [type, k, rEq, eps, sig]
+
 def angleHarmonic_data(reader, args):
     LMPType = int(args[0])
     if not LMPType in reader.LMPTypeToSimTypeAngle:
@@ -414,6 +415,32 @@ def angleHarmonic_input(reader, args):
 
     thetaEq = float(args[3]) * DEGREES_TO_RADIANS
     return [type, k, thetaEq]
+
+def angleCHARMM_data(reader, args):
+    LMPType = int(args[0])
+    if not LMPType in reader.LMPTypeToSimTypeAngle:
+        print 'Ignoring LAMMPS angle type %d from data file.  Angle not used in data file' % LMPType
+        return False
+    type = reader.LMPTypeToSimTypeAngle[LMPType]
+    k = float(args[1]) * 2 #2 because LAMMPS includes the 1/2 in its k
+
+    thetaEq = float(args[2]) * DEGREES_TO_RADIANS
+    kub = float(args[2]) * 2 #2 because LAMMPS includes the 1/2 in its k
+    rub = float(args[3])
+    return [k, thetaEq, kub, rub, type]
+
+def angleCHARMM_input(reader, args):
+    LMPType = int(args[1])
+    if not LMPType in reader.LMPTypeToSimTypeAngle:
+        print 'Ignoring LAMMPS angle type %d from input script.  Angle not used in data file' % LMPType
+        return False
+    type = reader.LMPTypeToSimTypeAngle[LMPType]
+    k = float(args[2]) * 2  #2 because LAMMPS includes the 1/2 in its k
+
+    thetaEq = float(args[3]) * DEGREES_TO_RADIANS
+    kub = float(args[4]) * 2 #2 because LAMMPS includes the 1/2 in its k
+    rub = float(args[5])
+    return [k, thetaEq, kub, rub, type]
 
 def angleCosineDelta_data(reader, args):
     LMPType = int(args[0])
@@ -501,29 +528,60 @@ def improperHarmonic_input(reader, args):
         print 'Ignoring LAMMPS improper type %d from input script.  Improper not used in data file' % LMPType
         return False
     type = reader.LMPTypeToSimTypeImproper[LMPType]
-    k = float(args[2])
+    k = float(args[2]) * 2
     thetaEq = float(args[3]) * DEGREES_TO_RADIANS
+    print 'k is %f' % k
     return [type, k, thetaEq]
+
+
+def improperCVFF_data(reader, args):
+    LMPType = int(args[0])
+    if not LMPType in reader.LMPTypeToSimTypeImproper:
+        print 'Ignoring LAMMPS improper type %d from data file.  Improper not used in data file' % LMPType
+        return False
+    type = reader.LMPTypeToSimTypeImproper[LMPType]
+
+    k = float(args[2])
+    d = int(args[3])
+    n = int(args[4])
+
+    return [type, k, d, n]
+
+def improperCVFF_input(reader, args):
+    LMPType = int(args[1])
+    if not LMPType in reader.LMPTypeToSimTypeImproper:
+        print 'Ignoring LAMMPS improper type %d from input script.  Improper not used in data file' % LMPType
+        return False
+    type = reader.LMPTypeToSimTypeImproper[LMPType]
+    k = float(args[2])
+    d = int(args[3])
+    n = int(args[4])
+    return [type, k, d, n]
+
 
 argumentConverters = {
         'data':
         {
-            'BondHarmonic': bondHarmonic_data,
-            'BondFENE': bondFENE_data,
-            'AngleHarmonic': angleHarmonic_data,
+            'BondHarmonic'    : bondHarmonic_data,
+            'BondFENE'        : bondFENE_data,
+            'AngleHarmonic'   : angleHarmonic_data,
+            'AngleCHARMM'     : angleCHARMM_data,
             'AngleCosineDelta': angleCosineDelta_data,
-            'DihedralOPLS': dihedralOPLS_data,
-            'DihedralCHARMM': dihedralCHARMM_data,
-            'ImproperHarmonic': improperHarmonic_data
+            'DihedralOPLS'    : dihedralOPLS_data,
+            'DihedralCHARMM'  : dihedralCHARMM_data,
+            'ImproperHarmonic': improperHarmonic_data,
+            'ImproperCVFF': improperCVFF_data
             },
         'input':
         {
-            'BondHarmonic': bondHarmonic_input,
-            'BondFENE': bondFENE_input,
-            'AngleHarmonic': angleHarmonic_input,
+            'BondHarmonic'    : bondHarmonic_input,
+            'BondFENE'        : bondFENE_input,
+            'AngleHarmonic'   : angleHarmonic_input,
+            'AngleCHARMM'     : angleCHARMM_input,
             'AngleCosineDelta': angleCosineDelta_input,
-            'DihedralOPLS': dihedralOPLS_input,
-            'DihedralCHARMM': dihedralCHARMM_input,
-            'ImproperHarmonic': improperHarmonic_input
+            'DihedralOPLS'    : dihedralOPLS_input,
+            'DihedralCHARMM'  : dihedralCHARMM_input,
+            'ImproperHarmonic': improperHarmonic_input,
+            'ImproperCVFF': improperCVFF_input
             }
         }

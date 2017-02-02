@@ -729,9 +729,9 @@ void FixRigid::createRigid(int id_a, int id_b, int id_c) {
   Bond bondOH1;
   Bond bondOH2;
   Bond bondHH;
-  bondOH1.ids = {waterMol.x,waterMol.y};
-  bondOH2.ids = {waterMol.x,waterMol.z};
-  bondHH.ids = {waterMol.y,waterMol.z};
+  bondOH1.ids = { {waterMol.x,waterMol.y} };
+  bondOH2.ids = { {waterMol.x,waterMol.z} };
+  bondHH.ids = { {waterMol.y,waterMol.z} };
   bonds.push_back(bondOH1);
   bonds.push_back(bondOH2);
   bonds.push_back(bondHH);

@@ -8,7 +8,7 @@
 #include <map>
 #include <string>
 #include <vector>
-#include <iostream>//makes it compile on my machine  (error: cout is not a member of std)
+#include <iostream>
 
 #include "AtomParams.h"
 #include "GPUArrayGlobal.h"
@@ -151,18 +151,32 @@ public:
      * \param handleB String specigying second atom type
      * \param val Value of the parameter
      *
-     * \return False always
+     * \return False if not set, True if set
      *
      * This function sets a specific parameter for the pair potential
      * between two atom types.
      *
-     * \todo Shouldn't this function return True is parameters are set
-     *       successfully?
      */
     bool setParameter(std::string param,
                       std::string handleA,
                       std::string handleB,
                       double val);
+//! Get a specific parameter for specific particle types
+    /*!
+     * \param param String specifying the parameter to set
+     * \param handleA String specifying first atom type
+     * \param handleB String specigying second atom type
+     *
+     * \return value of parameter if valid parameter, otherwise will fail
+     *
+     * This function gets a specific parameter for the pair potential
+     * between two atom types.
+     *
+     */
+    double getParameter(std::string param,
+                      std::string handleA,
+                      std::string handleB);
+
 
     //! Reste parameters to before processing
     /*!

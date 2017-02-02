@@ -313,7 +313,7 @@ string WriteConfig::getCurrentFn(int64_t turn) {
     return string(buffer);
 }
 
-WriteConfig::WriteConfig(SHARED(State) state_, string fn_, string handle_, string format_, int writeEvery_, string groupHandle_) : state(state_.get()), fn(fn_), handle(handle_), format(format_), writeEvery(writeEvery_), groupHandle(groupHandle_) {
+WriteConfig::WriteConfig(SHARED(State) state_, string fn_, string handle_, string format_, int writeEvery_, string groupHandle_, bool unwrapMolecules_) : state(state_.get()), fn(fn_), handle(handle_), format(format_), writeEvery(writeEvery_), groupHandle(groupHandle_), unwrapMolecules(unwrapMolecules_) {
 	groupBit = state->groupTagFromHandle(groupHandle);
     if (format == "base64") {
         writeFormat = &writeXMLfileBase64;
@@ -346,19 +346,29 @@ void WriteConfig::finish() {
         outFile << "</data>";
     }
 }
+
+
 void WriteConfig::write(int64_t turn) {
+    if (unwrapMolecules) {
+        state->unwrapMolecules();
+    }
     writeFormat(state, getCurrentFn(turn), turn, oneFilePerWrite, groupBit);
 }
 void WriteConfig::writePy() {
+    state->atomParams.guessAtomicNumbers();
+    if (unwrapMolecules) {
+        state->unwrapMolecules();
+    }
     writeFormat(state, getCurrentFn(state->turn), state->turn, oneFilePerWrite, groupBit);
 }
 
 
 void export_WriteConfig() {
     py::class_<WriteConfig,
-                          SHARED(WriteConfig) >("WriteConfig", py::init<SHARED(State), string, string, string, int, py::optional<string> >(py::args("fn", "handle", "format", "writeEvery", "groupHandle"))
+                          SHARED(WriteConfig) >("WriteConfig", py::init<SHARED(State), string, string, string, int, py::optional<string, bool> >(py::args("fn", "handle", "format", "writeEvery", "groupHandle", "unwrapMolecules"))
     )
     .def_readwrite("writeEvery", &WriteConfig::writeEvery)
+    .def_readwrite("unwrapMolecules", &WriteConfig::unwrapMolecules)
     .def_readonly("handle", &WriteConfig::handle)
     .def("write", &WriteConfig::writePy)
     ;
