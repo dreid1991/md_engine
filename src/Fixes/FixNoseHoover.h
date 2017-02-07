@@ -43,25 +43,31 @@ public:
      * \param state Pointer to the simulation state
      * \param handle "Name" of the Fix
      * \param groupHandle String specifying group of atoms this Fix acts on
-     * \param temp Desired temperature of the system
      * \param timeConstant Time constant of the Nose-Hoover thermostat
      */
+
+    // general constructor for barostat/thermostat;
     FixNoseHoover(boost::shared_ptr<State> state,
                   std::string handle,
                   std::string groupHandle,
-                  double temp,
                   double timeConstant);
-    FixNoseHoover(boost::shared_ptr<State> state,
-                  std::string handle,
-                  std::string groupHandle,
-                  boost::python::list intervals,
-                  boost::python::list temps,
-                  double timeConstant);
-    FixNoseHoover(boost::shared_ptr<State> state,
-                  std::string handle,
-                  std::string groupHandle,
-                  boost::python::object tempFunc,
-                  double timeConstant);
+
+    // declare set methods for the thermostat
+    // assorted inputs are accepted for set point temperatures and pressures
+    void setTemperature(double);
+    void setTemperature(boost::python::object);
+    void setTemperature(boost::python::list, boost::python::list);
+    
+    void setPressure(double);
+    void setPressure(boost::python::object);
+    void setPressure(boost::python::list, boost::python::list);
+
+    // likewise, we offer default values for chain lengths;
+    // conversely, these lengths may be set, /provided/ they are >= 1
+    void setBarostatChainLength(int);
+    void setBarostatThermostatChainLength(int);
+
+
 
     //! Prepare Nose-Hoover thermostat for simulation run
     bool prepareForRun();
@@ -113,8 +119,6 @@ private:
      * \param scale Scale factor for rescaling
      */
     void rescale();
-    void setPressure(double pressure);
-
     float frequency; //!< Frequency of the Nose-Hoover thermostats
 
     GPUArrayGlobal<float> kineticEnergy; //!< Stores kinetic energy and
@@ -123,6 +127,7 @@ private:
     size_t ndf; //!< Number of degrees of freedom
 
     size_t chainLength; //!< Number of thermostats in the Nose-Hoover chain
+    size_t pchainLength; //!< Number of thermostats monitoring the barostat's thermal DOF
     size_t nTimesteps; //!< Number of timesteps for multi-timestep method
 
     size_t n_ys; //!< n_ys from \cite MartynaEtal:MP1996
@@ -134,9 +139,33 @@ private:
     std::vector<double> thermForce; //!< Force on the Nose-Hoover thermostats
     std::vector<double> thermMass; //!< Masses of the Nose-Hoover thermostats
 
+    // our barostat variables
     std::vector<double> omega;
     std::vector<double> omegaVel;
     std::vector<double> omegaMass;
+
+    int etaPChainLength; //!< length of barostat-thermostat chain; default value 3
+    std::vector<double> etaPressure; //!< Position of the barostat-thermostats
+    std::vector<double> etaPressure_dt; //!< Velocities of the barostat-thermostats
+    std::vector<double> etaPressure_dt2; //!< Accelerations of the barostat-thermostats
+    std::vector<double> etaPressure_mass; //!< Masses of the barostat-thermostats
+
+
+
+    //TODO: verify that we have these quantities; also, where would we get them from? Bounds.h?
+    std::vector<double> h0; //!< Our reference cell 
+    std::vector<double> h0_inv; //!< inverse;
+    std::vector<double> referencePoint; //!< reference point within the original cell
+    void tranformBox(); //TODO: modifying the actual simulation box, be very careful
+    
+    
+    
+    
+    bool verifyInputs(); //TODO: this will be called in prepareForRun, verifying that the barostat is
+    // exactly specified;
+
+
+
     std::vector<double> pressFreq;
     std::vector<double> pressCurrent;
     void setPressCurrent();
@@ -148,6 +177,7 @@ private:
     Interpolator pressInterpolator;
 
     float3 scale; //!< Factor by which the velocities are rescaled
+    
     MD_ENGINE::DataComputerTemperature tempComputer;
     MD_ENGINE::DataComputerPressure pressComputer;
     bool thermostatting;
@@ -156,6 +186,19 @@ private:
 
     float mtkTerm1;
     float mtkTerm2;
+
+    // flags for bookkeeping
+    bool barostatThermostatChainLengthSpecified;
+
+
+
+
+
+
+
+
+
+
 
 };
 

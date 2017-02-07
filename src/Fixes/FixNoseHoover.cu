@@ -42,10 +42,12 @@ __global__ void rescale_no_tags_cu(int nAtoms, float4 *vs, float3 scale)
     }
 }
 
+
+// create a general instance of FixNoseHoover; this may be either
+// a thermostat, or a barostat-thermostat
 FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state_, std::string handle_,
-                             std::string groupHandle_, double temp_, double timeConstant_)
-        : tempInterpolator(temp_),
-          Fix(state_,
+                             std::string groupHandle_, double timeConstant_)
+        : Fix(state_,
               handle_,           // Fix handle
               groupHandle_,      // Group handle
               NoseHooverType,   // Fix name
@@ -56,43 +58,8 @@ FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state_, std::string handle
              ), frequency(1.0 / timeConstant_),
                 kineticEnergy(GPUArrayGlobal<float>(2)),
                 ke_current(0.0), ndf(0),
-                chainLength(3), nTimesteps(1), n_ys(1),
-                weight(std::vector<double>(n_ys,1.0)),
-                //thermPos(std::vector<double>(chainLength,0.0)),
-                thermVel(std::vector<double>(chainLength,0.0)),
-                thermForce(std::vector<double>(chainLength,0.0)),
-                thermMass(std::vector<double>(chainLength,0.0)),
-                scale(make_float3(1.0f, 1.0f, 1.0f)),
-                omega(std::vector<double>(6)),
-                omegaVel(std::vector<double>(6)),
-                omegaMass(std::vector<double>(6)),
-                pressFreq(6, 0),
-                pressCurrent(6, 0),
-                pFlags(6, false),
-                tempComputer(state, true, false), 
-                pressComputer(state, true, false), 
-                pressMode(PRESSMODE::ISO),
-                thermostatting(true),
-                barostatting(false)
-{
-    pressComputer.usingExternalTemperature = true;
-}
-
-FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state_, std::string handle_,
-                             std::string groupHandle_, py::object tempFunc_, double timeConstant_)
-        : tempInterpolator(tempFunc_),
-          Fix(state_,
-              handle_,           // Fix handle
-              groupHandle_,      // Group handle
-              NoseHooverType,   // Fix name
-              false,            // forceSingle
-              false,
-              false,            // requiresCharges
-              1                 // applyEvery
-             ), frequency(1.0 / timeConstant_),
-                kineticEnergy(GPUArrayGlobal<float>(2)),
-                ke_current(0.0), ndf(0),
-                chainLength(3), nTimesteps(1), n_ys(1),
+                chainLength(3), pchainLength(3),
+                nTimesteps(1), n_ys(1),
                 weight(std::vector<double>(n_ys,1.0)),
                 //thermPos(std::vector<double>(chainLength,0.0)),
                 thermVel(std::vector<double>(chainLength,0.0)),
@@ -101,8 +68,8 @@ FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state_, std::string handle
                 omega(std::vector<double>(6)),
                 omegaVel(std::vector<double>(6)),
                 omegaMass(std::vector<double>(6)),
-                pressFreq(6, 0),
-                pressCurrent(6, 0),
+                pressFreq(6, 0.0),
+                pressCurrent(6, 0.0),
                 pFlags(6, false),
                 scale(make_float3(1.0f, 1.0f, 1.0f)),
                 tempComputer(state, true, false), 
@@ -110,52 +77,80 @@ FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state_, std::string handle
                 pressMode(PRESSMODE::ISO),
                 thermostatting(true),
                 barostatting(false)
-
 {
     pressComputer.usingExternalTemperature = true;
-}
+    
+    barostatThermostatChainLengthSpecified = false;
 
 
-FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state_, std::string handle_,
-                             std::string groupHandle_, py::list intervals_, py::list temps_, double timeConstant_)
-        : tempInterpolator(intervals_, temps_),
-          Fix(state_,
-              handle_,           // Fix handle
-              groupHandle_,      // Group handle
-              NoseHooverType,   // Fix name
-              false,            // forceSingle
-              false,
-              false,            // requiresCharges
-              1                 // applyEvery
-             ), frequency(1.0 / timeConstant_),
-                kineticEnergy(GPUArrayGlobal<float>(2)),
-                ke_current(0.0), ndf(0),
-                chainLength(3), nTimesteps(1), n_ys(1),
-                weight(std::vector<double>(n_ys,1.0)),
-                //thermPos(std::vector<double>(chainLength,0.0)),
-                thermVel(std::vector<double>(chainLength,0.0)),
-                thermForce(std::vector<double>(chainLength,0.0)),
-                thermMass(std::vector<double>(chainLength,0.0)),
-                omega(std::vector<double>(6)),
-                omegaVel(std::vector<double>(6)),
-                omegaMass(std::vector<double>(6)),
-                pressFreq(6, 0),
-                pressCurrent(6, 0),
-                pFlags(6, false),
-                scale(make_float3(1.0f, 1.0f, 1.0f)),
-                tempComputer(state, true, false), 
-                pressComputer(state, true, false), 
-                pressMode(PRESSMODE::ISO),
-                thermostatting(true),
-                barostatting(false)
 
-{
-    pressComputer.usingExternalTemperature = true;
-}
+};
+
+// we can set the pressure to be a double as the set point value;
 void FixNoseHoover::setPressure(double press) {
     pressInterpolator = Interpolator(press);
-}
+    barostatting = true;
+};
 
+// the pressure may be a python function
+void FixNoseHoover::setPressure(py::object pressFunc) {
+    pressInterpolator = Interpolator(pressFunc);
+    barostatting = true;
+
+};
+
+// the pressure may be a list of set points across assorted intervals
+void FixNoseHoover::setPressure(py::list pressures, py::list intervals) {
+    pressInterpolator = Interpolator(pressures,intervals); 
+    barostatting = true;
+};
+
+// tempInterpolator can take a double as the set point value;
+void FixNoseHoover::setTemperature(double temperature) {
+    tempInterpolator = Interpolator(temperature);
+};
+
+// alternatively, it can take an actual python function
+void FixNoseHoover::setTemperature(py::object tempFunc) {
+    tempInterpolator = Interpolator(tempFunc);
+};
+
+// alternatively, it can take a list
+void FixNoseHoover::setTemperature(py::list temps, py::list intervals) {
+    tempInterpolator = Interpolator(temps,intervals);
+};
+
+void FixNoseHoover::setBarostatThermostatChainLength(int chainlength) {
+    // the chainlength must be greater than or equal to 1; else, this fails
+    assert(chainlength >= 1);
+    etaPChainLength = chainlength;
+    barostatThermostatChainLengthSpecified = true;
+};
+
+bool FixNoseHoover::verifyInputs() {
+    /* THINGS WE MUST VERIFY:
+     * 
+     * - a barostatted dimension must be periodic
+     * - (if triclinic) verify that the 2nd dimension of the off-diagonal component is periodic
+     *              (e.g., if barostatting xz, verify z dimension is periodic)
+     * - if 2D simulation:
+     *      - cannot barostat [z, xz,yz] dimensions
+     *      - cannot specify coupling of XZ or YZ
+     * - verify for coupling of dimensions that the coupled dimensions are barostatted
+     *      for identical time intervals AND have the same frequencies
+     * - all damping parameters - thermostat or barostat - must be strictly greater than zero
+     *      (recommended value: ~100 timesteps)
+     */
+
+
+
+
+
+
+
+
+
+};
 
 bool FixNoseHoover::prepareForRun()
 {
@@ -182,11 +177,45 @@ bool FixNoseHoover::prepareForRun()
                 thermVel.at(k-1) - boltz*temp
             ) / thermMass.at(k);
     }
+
+    // initialize the omega arrays
     if (barostatting) {
         for (int i=0; i<6; i++) {
             omega[i] = 0;
             omegaVel[i] = 0;
             omegaMass[i] = temp * boltz * state->atoms.size() / (pressFreq[i] * pressFreq[i]); //
+        }
+
+        // TODO: pressFreq needs to be populated with values! How? Idk.  What are sensible default values?
+        //              -- what are the constraints, s.t. a dimension may be barostatted?
+        //              -- what constitutes underspecified? overspecified?
+        //              -- use assertions to verify that the system is properly specified?
+        // TODO: get the maximum value of pressFreq; denote this as maxPressureFrequency
+        
+
+        if (!(barostatThermostatChainLengthSpecified)) {
+            etaPChainLength = 3;
+        };
+       
+        double maxPressureFrequency = 0.0;
+        // loop over pressFreq array and ass maxPressureFrequency the maximum value;
+        // it is safe to assume that all elements are greater than or equal to zero 
+        // (if we are not barostatting a given dimension, it is left to the default value of zero)
+        for (int jj = 0; jj < pressFreq.size(); jj++) {
+            if (pressFreq[jj] > maxPressureFrequency) maxPressureFrequency = pressFreq[jj];
+        };
+
+        // initialize the etaPressure variables; and then populate with values
+        // (these are the barostat's thermostat variables)
+        etaPressure = std::vector<double> (etaPChainLength,0.0);
+        etaPressure_dt = std::vector<double> (etaPChainLength, 0.0);
+        etaPressure_dt2 = std::vector<double> (etaPChainLength, 0.0);
+        etaPressure_mass = std::vector<double> (etaPChainLength, 0.0);
+        
+        // etaPressure_mass[j] = boltz * t_target / (p_freq_max^2);
+        for (int j = 0; j < etaPChainLength; j++) {
+            etaPressure[j] = boltz * temp / (maxPressureFrequency * maxPressureFrequency);
+
         }
     }
 
@@ -369,7 +398,7 @@ bool FixNoseHoover::halfStep(bool firstHalfStep)
     if (barostatting) {
         //THIS WILL HAVE TO BE CHANGED FOR ANISO
         //if iso, all the pressure stuff is the same in every dimension
-        /*
+        
         if (pressMode == PRESSMODE::ISO) {
             double scaledTemp = tempScalar_current * scale.x;//keeping track of it for barostat so I don't have to re-sum
             pressComputer.tempNDF = ndf;
@@ -383,7 +412,7 @@ bool FixNoseHoover::halfStep(bool firstHalfStep)
             pressComputer.computeScalar_GPU(true, groupTag);
 
         }
-            */
+       
         pressInterpolator.computeCurrentVal(state->turn);
         cudaDeviceSynchronize();
         if (pressMode == PRESSMODE::ISO) {
@@ -480,12 +509,53 @@ void FixNoseHoover::rescale()
     scale = make_float3(1.0f, 1.0f, 1.0f);
 }
 
-void export_FixNoseHoover()
+void FixNoseHoover::transformBox() 
 {
+// transform the simulation box by a prescribed volume s.t. NPT ensemble is sampled
+
+
+
+};
+
+
+
+
+
+
+
+void (FixNoseHoover::*setTemperature_x1)(double) = &FixNoseHoover::setTemperature;
+void (FixNoseHoover::*setTemperature_x2)(py::object) = &FixNoseHoover::setTemperature;
+void (FixNoseHoover::*setTemperature_x3)(py::list, py::list) = &FixNoseHoover::setTemperature;
+void export_FixNoseHoover()   {
+
     py::class_<FixNoseHoover,                    // Class
                boost::shared_ptr<FixNoseHoover>, // HeldType
                py::bases<Fix>,                   // Base class
                boost::noncopyable>
+    (   "FixNoseHoover",
+        py::init<boost::shared_ptr<State>, std::string, std::string, double>(
+            py::args("state", "handle", "groupHandle", "timeConstant")
+            )
+    )
+    .def("setTemperature", setTemperature_x1, 
+         (py::args("temperature")
+       )
+    )
+    .def("setTemperature", setTemperature_x2,
+         (py::arg("tempFunc")
+         )
+        )
+    .def("setTemperature", setTemperature_x3,
+         (py::arg("temps"), 
+          py::arg("intervals")
+         )
+        )
+    .def("setPressure", &FixNoseHoover::setPressure, 
+         (py::arg("pressure")
+         )
+        )
+    // the old constructors; keep while we see if the set() methods work!
+    /*
     (
         "FixNoseHoover",
         py::init<boost::shared_ptr<State>, std::string, std::string, py::object, double>(
@@ -502,6 +572,6 @@ void export_FixNoseHoover()
 
                 )
         )
-
+    */
     ;
 }
