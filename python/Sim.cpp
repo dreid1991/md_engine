@@ -71,6 +71,9 @@ BOOST_PYTHON_MODULE(Sim) {
     export_FixLinearMomentum();
     export_FixRigid();
 
+    export_FixExternal();
+    export_FixExternalHarmonic();
+
     export_FixPair();
     export_FixLJCut(); //make there be a pair base class in boost!
     export_FixLJCutFS();
