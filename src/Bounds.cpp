@@ -101,6 +101,12 @@ Vector Bounds::minImage(Vector v) {
     }
     return v;
 }
+Vector Bounds::wrap(Vector v) {
+    Vector dVec = v - lo;
+    VectorInt nImage = dVec / rectComponents; 
+    v -= nImage * rectComponents;
+    return v + lo;
+}
 
 void Bounds::setHiPy(Vector &v) {
     rectComponents = v - lo;

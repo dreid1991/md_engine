@@ -320,11 +320,11 @@ void State::unwrapMolecules() {
         int idBegin = ids.back();
         ids.pop_back();
         unwrapMolec(this, idBegin, ids, bondMap);
-        //check that COM is in box
-
+        Vector com = molec->COM();
+        Vector comNew = bounds.wrap(com);
+        Vector diff = comNew - com;
+        molec->translate(diff);
     }
-
-
 }
 
 
