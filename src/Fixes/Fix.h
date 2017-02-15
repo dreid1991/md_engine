@@ -9,6 +9,7 @@
 
 class Atom;
 class State;
+class EvaluatorWrapper;
 
 //! Make class Fix available to Python interface
 void export_Fix();
@@ -49,6 +50,8 @@ protected:
     Fix(boost::shared_ptr<State> state_, std::string handle_, std::string groupHandle_,
         std::string type_, bool forceSingle_, bool requiresVirials_, bool requiresCharges_, int applyEvery_,
         int orderPreference_ = 0);
+    boost::shared_ptr<EvaluatorWrapper> evalWrap;
+    boost::shared_ptr<EvaluatorWrapper> origEvalWrap;
 
 public:
     //! Destructor
@@ -221,7 +224,16 @@ public:
     void validAtoms(std::vector<Atom *> &atoms);
     virtual void acceptChargePairCalc(Fix *){};
 
-public:
+    boost::shared_ptr<EvaluatorWrapper> getEvalWrapper() {
+        return evalWrap;
+    }
+    void setEvalWrapper(boost::shared_ptr<EvaluatorWrapper> w) {
+        evalWrap = w
+    }
+    void setOrigEvalWrapper() {
+        evalWrap = origEvalWrap;
+    }
+
     State *state; //!< Pointer to the simulation state
     std::string handle; //!< "Name" of the Fix
     std::string groupHandle; //!< Group to which the Fix applies

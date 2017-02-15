@@ -18,6 +18,10 @@ FixLJCutFS::FixLJCutFS(SHARED(State) state_, std::string handle_)
     initializeParameters(rCutHandle, rCuts);
     initializeParameters("FCutHandle", FCuts);
     paramOrder = {rCutHandle, epsHandle, sigHandle, "FCutHandle"};
+
+    canAcceptChargePairCalc = true;
+    setEvalWrapper();
+    origEvalWrap = getEvalWrapper();
 }
 void FixLJCutFS::compute(bool computeVirials) {
     int nAtoms = state->atoms.size();

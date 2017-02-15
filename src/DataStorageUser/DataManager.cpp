@@ -9,9 +9,10 @@
 using namespace MD_ENGINE;
 namespace py = boost::python;
 DataManager::DataManager(State * state_) : state(state_) {
-    turnLastEngs = state->turn-1;
+    //turnLastEngs = state->turn-1;
 }
 
+/*
 //okay - assumption: energies are computed rarely.  I can get away with not computing them in force kernels and just computing them when a data set needs them
 void DataManager::computeEnergy() {
     if (turnLastEngs != state->turn) {
@@ -19,15 +20,15 @@ void DataManager::computeEnergy() {
         turnLastEngs = state->turn;
     }
 }
+*/
 
 
 
-
-boost::shared_ptr<DataSetUser> DataManager::createDataSet(boost::shared_ptr<DataComputer> comp, uint32_t groupTag, int dataMode, int dataType, int interval, py::object collectGenerator) {
+boost::shared_ptr<DataSetUser> DataManager::createDataSet(boost::shared_ptr<DataComputer> comp, uint32_t groupTag, int interval, py::object collectGenerator) {
     if (interval == 0) {
-        return boost::shared_ptr<DataSetUser>(new DataSetUser(state, comp, groupTag, dataMode, dataType, collectGenerator));
+        return boost::shared_ptr<DataSetUser>(new DataSetUser(state, comp, groupTag, collectGenerator));
     } else {
-        return boost::shared_ptr<DataSetUser>(new DataSetUser(state, comp, groupTag, dataMode, dataType, interval));
+        return boost::shared_ptr<DataSetUser>(new DataSetUser(state, comp, groupTag, interval));
     }
 
 }
@@ -43,32 +44,33 @@ void DataManager::stopRecord(boost::shared_ptr<DataSetUser> dataSet) {
 }
 
 
-boost::shared_ptr<DataSetUser> DataManager::recordTemperature(std::string groupHandle, int interval, py::object collectGenerator) { //add tensor, etc, later
-    boost::shared_ptr<DataComputer> comp = boost::shared_ptr<DataComputer> ( (DataComputer *) new DataComputerTemperature(state, true, false) );
+boost::shared_ptr<DataSetUser> DataManager::recordTemperature(std::string groupHandle, std::string computeMode, int interval, py::object collectGenerator) { //add tensor, etc, later
+    boost::shared_ptr<DataComputer> comp = boost::shared_ptr<DataComputer> ( (DataComputer *) new DataComputerTemperature(state, computeMode) );
     uint32_t groupTag = state->groupTagFromHandle(groupHandle);
-    boost::shared_ptr<DataSetUser> dataSet = createDataSet(comp, groupTag, DATAMODE::SCALAR, DATATYPE::TEMPERATURE, interval, collectGenerator);
+    boost::shared_ptr<DataSetUser> dataSet = createDataSet(comp, groupTag, interval, collectGenerator);
     dataSets.push_back(dataSet);
     return dataSet;
 
 }
 
-boost::shared_ptr<DataSetUser> DataManager::recordEnergy(std::string groupHandle, int interval, py::object collectGenerator) {
+boost::shared_ptr<DataSetUser> DataManager::recordEnergy(std::string groupHandle, std::string computeMode, py::list fixes, int interval, py::object collectGenerator) {
     int dataType = DATATYPE::ENERGY;
-    boost::shared_ptr<DataComputer> comp = boost::shared_ptr<DataComputer> ( (DataComputer *) new DataComputerEnergy(state) );
+    boost::shared_ptr<DataComputer> comp = boost::shared_ptr<DataComputer> ( (DataComputer *) new DataComputerEnergy(state, fixes, computeMode) );
     uint32_t groupTag = state->groupTagFromHandle(groupHandle);
-    boost::shared_ptr<DataSetUser> dataSet = createDataSet(comp, groupTag, DATAMODE::SCALAR, DATATYPE::ENERGY, interval, collectGenerator);
+    boost::shared_ptr<DataSetUser> dataSet = createDataSet(comp, groupTag, interval, collectGenerator);
     dataSets.push_back(dataSet);
+   
     return dataSet;
 
 
 }
 
-boost::shared_ptr<DataSetUser> DataManager::recordPressure(std::string groupHandle, int interval, py::object collectGenerator) {
+boost::shared_ptr<DataSetUser> DataManager::recordPressure(std::string groupHandle, std::string computeMode, int interval, py::object collectGenerator) {
     int dataType = DATATYPE::PRESSURE;
-    boost::shared_ptr<DataComputer> comp = boost::shared_ptr<DataComputer> ( (DataComputer *) new DataComputerPressure(state, true, false) );
+    boost::shared_ptr<DataComputer> comp = boost::shared_ptr<DataComputer> ( (DataComputer *) new DataComputerPressure(state, computeMode) );
     uint32_t groupTag = state->groupTagFromHandle(groupHandle);
     //deal with tensors later
-    boost::shared_ptr<DataSetUser> dataSet = createDataSet(comp, groupTag, DATAMODE::SCALAR, DATATYPE::PRESSURE, interval, collectGenerator);
+    boost::shared_ptr<DataSetUser> dataSet = createDataSet(comp, groupTag, interval, collectGenerator);
     dataSets.push_back(dataSet);
     return dataSet;
 
@@ -78,7 +80,7 @@ boost::shared_ptr<DataSetUser> DataManager::recordBounds(int interval, py::objec
     int dataType = DATATYPE::BOUNDS;
     boost::shared_ptr<DataComputer> comp = boost::shared_ptr<DataComputer>( (DataComputer *) new DataComputerBounds(state) );
     uint32_t groupTag = 1;
-    boost::shared_ptr<DataSetUser> dataSet = createDataSet(comp, groupTag, DATAMODE::SCALAR, DATATYPE::BOUNDS, interval, collectGenerator);
+    boost::shared_ptr<DataSetUser> dataSet = createDataSet(comp, groupTag, interval, collectGenerator);
     dataSets.push_back(dataSet);
     return dataSet;
 
@@ -122,16 +124,20 @@ void export_DataManager() {
 
     .def("recordTemperature", &DataManager::recordTemperature,
             (py::arg("handle") = "all",
+             py::arg("perParticle") = false,
              py::arg("interval") = 0,
              py::arg("turnGenerator") = py::object())
         )
     .def("recordEnergy", &DataManager::recordEnergy,
             (py::arg("handle") = "all",
+             py::arg("perParticle") = false,
              py::arg("interval") = 0,
+             py::arg("fixes") = py::list(),
              py::arg("collectGenerator") = py::object())
         )
     .def("recordPressure", &DataManager::recordPressure,
             (py::arg("handle") = "all",
+             py::arg("perParticle") = false,
              py::arg("interval") = 0,
              py::arg("collectGenerator") = py::object())
         )

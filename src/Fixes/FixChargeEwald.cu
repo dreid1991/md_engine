@@ -1167,6 +1167,7 @@ void FixChargeEwald::singlePointEng(float * perParticleEng) {
                                             */
     field_E.dataToHost();
 
+    HEY - YOU WERE GOING TO MAKE THE EWALD FIX WORK WIth EVAL WRAPPERS TO HANDOFF / RESET COULD WORK NICELY
     field_energy_per_particle=0.5*field_E.h_data[0]/volume/nAtoms;
 //         cout<<"field_E "<<field_E.h_data[0]<<'\n';
 

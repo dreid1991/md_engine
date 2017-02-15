@@ -18,11 +18,11 @@ class DataManager {
 	public:
 		DataManager(){};
 		DataManager(State *); 
-        boost::shared_ptr<DataSetUser> createDataSet(boost::shared_ptr<DataComputer> comp, uint32_t groupTag, int dataMode, int dataType, int interval, boost::python::object collectGenerator);
+        boost::shared_ptr<DataSetUser> createDataSet(boost::shared_ptr<DataComputer> comp, uint32_t groupTag, int interval, boost::python::object collectGenerator);
 
-        boost::shared_ptr<MD_ENGINE::DataSetUser> recordTemperature(std::string groupHandle, int interval, boost::python::object collectGenerator); 
-        boost::shared_ptr<MD_ENGINE::DataSetUser> recordEnergy(std::string groupHandle, int collectEvery, boost::python::object collectGenerator); 
-        boost::shared_ptr<MD_ENGINE::DataSetUser> recordPressure(std::string groupHandle, int collectEvery, boost::python::object collectGenerator); 
+        boost::shared_ptr<MD_ENGINE::DataSetUser> recordTemperature(std::string groupHandle, std::string computeMode, int interval, boost::python::object collectGenerator); 
+        boost::shared_ptr<MD_ENGINE::DataSetUser> recordEnergy(std::string groupHandle, std::string computeMode, boost::python::list fixes, int interval, boost::python::object collectGenerator); 
+        boost::shared_ptr<MD_ENGINE::DataSetUser> recordPressure(std::string groupHandle, std::string computeMode , int interval, boost::python::object collectGenerator); 
         boost::shared_ptr<MD_ENGINE::DataSetUser> recordBounds(int collectEvery, boost::python::object collectGenerator); 
 
         void stopRecord(boost::shared_ptr<MD_ENGINE::DataSetUser>);
@@ -33,10 +33,6 @@ class DataManager {
 
         std::vector<boost::shared_ptr<DataSetUser> > dataSets;  //to be continually maintained
 
-
-        int64_t turnLastEngs;
-
-        void computeEnergy();
 
         void addVirialTurn(int64_t);
         void clearVirialTurn(int64_t);

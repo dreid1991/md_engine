@@ -41,6 +41,7 @@ void IntegratorUtil::postNVE_X() {
     }
 }
 
+/*
 void IntegratorUtil::singlePointEng() {
     GPUArrayGlobal<float> &perParticleEng = state->gpd.perParticleEng;
     perParticleEng.d_data.memset(0);
@@ -49,6 +50,7 @@ void IntegratorUtil::singlePointEng() {
     }
 
 }
+*/
 
 void IntegratorUtil::forceSingle(bool computeVirials) {
     for (Fix *f : state->fixes) {
@@ -66,9 +68,6 @@ void IntegratorUtil::doDataComputation() {
     bool computedAny = false;
     for (boost::shared_ptr<DataSetUser> ds : dm.dataSets) {
         if (ds->nextCompute == turn) {
-            if (ds->requiresEnergy()) {
-                dm.computeEnergy();
-            }
             ds->computeData();
             computedAny = true;
         }

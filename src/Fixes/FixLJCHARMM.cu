@@ -126,6 +126,7 @@ bool FixLJCHARMM::prepareForRun() {
 
     sendAllToDevice();
     setEvalWrapper();
+    origEvalWrap = getEvalWrapper();
     return true;
 }
 

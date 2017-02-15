@@ -16,7 +16,6 @@
 #include "xml_func.h"
 #include "SquareVector.h"
 #include "BoundsGPU.h"
-class EvaluatorWrapper;
 void export_FixPair();
 
 class State;
@@ -140,7 +139,6 @@ protected:
     void ensureOrderGivenForAllParams();
     Fix *chargeCalcFix;
     BoundsGPU boundsLast;
-    boost::shared_ptr<EvaluatorWrapper> evalWrap;
     void acceptChargePairCalc(Fix *chargeFix); 
     virtual void setEvalWrapper() = 0;
 public:

@@ -29,7 +29,7 @@ public:
     //! Calculate single point energy for all fixes
     /*!
      */
-    void singlePointEng(); 
+//    void singlePointEng(); 
 
     //! Calculate single point force
     /*!

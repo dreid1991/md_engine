@@ -32,7 +32,7 @@ set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fpic")
 # Find CUDA
 find_package(CUDA REQUIRED)
 set (CUDA_PROPAGATE_HOST_FLAGS OFF)
-set (custom_cuda_flags -std=c++11; -Xcompiler -fpic; --use_fast_math; --prec-div=true; --prec-sqrt=true;)
+set (custom_cuda_flags -std=c++11; -Xcompiler -fpic; --use_fast_math; --prec-div=true; --prec-sqrt=true; --Wno-deprecated-gpu-targets)
 #set (custom_cuda_flags -std=c++11; -Xcompiler -fpic; )
 list (APPEND CUDA_NVCC_FLAGS ${custom_cuda_flags})
 list (APPEND CUDA_NVCC_FLAGS ${CUDA_NVCC_DEBUG_FLAGS})
@@ -55,7 +55,7 @@ include_directories (${PYTHON_INCLUDE_DIR}) #removed an S here
 #get_filename_component (PYTHON_LIBRARY_PATH ${PYTHON_LIBRARIES} DIRECTORY)
 
 # Find boost
-find_package (Boost 1.62.0 COMPONENTS python REQUIRED)
+find_package (Boost COMPONENTS python REQUIRED)
 
 
 message (STATUS "Building MD_engine Version ${VERSION_MAJOR}.${VERSION_MINOR}")

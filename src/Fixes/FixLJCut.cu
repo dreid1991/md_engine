@@ -27,6 +27,8 @@ FixLJCut::FixLJCut(boost::shared_ptr<State> state_, string handle_)
     paramOrder = {rCutHandle, epsHandle, sigHandle};
     readFromRestart();
     canAcceptChargePairCalc = true;
+    setEvalWrapper();
+    origEvalWrap = getEvalWrapper();
 }
 
 void FixLJCut::compute(bool computeVirials) {
