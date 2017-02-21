@@ -132,6 +132,8 @@ public:
     int exclusionMode; //!< Mode for handling bond list exclusions.  See comments for exclusions in GridGPU
     void setExclusionMode(std::string);
 
+    int nPerRingPoly;
+
 
 
     //! Set the coefficients for bonded neighbor interactions
