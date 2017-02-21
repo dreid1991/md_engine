@@ -73,6 +73,7 @@ BOOST_PYTHON_MODULE(Sim) {
 
     export_FixExternal();
     export_FixExternalHarmonic();
+    export_FixExternalQuartic();
 
     export_FixPair();
     export_FixLJCut(); //make there be a pair base class in boost!
