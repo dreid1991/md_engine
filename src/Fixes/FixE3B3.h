@@ -38,7 +38,7 @@ class FixE3B3: public Fix {
     FixE3B3(boost::shared_ptr<State> state,
                   std::string handle,
                   std::string groupHandle,
-                  double _moreParmsHere); // TODO
+                  double _moreParmsHere); //
 
 
 
