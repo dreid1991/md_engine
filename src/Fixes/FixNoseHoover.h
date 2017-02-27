@@ -12,7 +12,7 @@
 #include "Interpolator.h"
 #include "DataComputerTemperature.h"
 #include "DataComputerPressure.h"
-
+#include "Virial.h"
 //! Make FixNoseHoover available to the python interface
 void export_FixNoseHoover();
 
@@ -67,8 +67,6 @@ public:
     void setBarostatChainLength(int);
     void setBarostatThermostatChainLength(int);
 
-
-
     //! Prepare Nose-Hoover thermostat for simulation run
     bool prepareForRun();
 
@@ -112,13 +110,38 @@ private:
      * This function assumes that ke_current and ndf have already been
      * calculated and are up to date.
      */
-    void updateMasses();
+    void updateThermalMasses();
 
-    //! Rescale particle velocities
+    //! This function rescales particle velocities
     /*!
      * \param scale Scale factor for rescaling
      */
     void rescale();
+
+    //! This function sets the current pressure 
+    /*! 
+     * Computes the instantaneous pressure in the simulation,
+     * and stores this information in pressCurrent vector
+     */
+    void setPressCurrent();
+
+    //! This function integrates the thermostat positions and velocities
+    /*!
+     * Updates the positions and velocities of our thermostat particles
+     * within the simulation.
+     */
+    void thermostatIntegrate(double, double, bool);
+
+    //! This function integrates the barostat variables
+    /*!
+     * Updates the masses, velocities of our barostat particles;
+     * Updates the masses, positions, and velocities of our barostat's thermostat.
+     */
+    void omegaIntegrate();
+
+
+    void scaleVelocitiesOmega();
+
     float frequency; //!< Frequency of the Nose-Hoover thermostats
 
     GPUArrayGlobal<float> kineticEnergy; //!< Stores kinetic energy and
@@ -126,6 +149,7 @@ private:
     float ke_current; //!< Current kinetic energy
     size_t ndf; //!< Number of degrees of freedom
 
+    BoundsGPU *bounds;
     size_t chainLength; //!< Number of thermostats in the Nose-Hoover chain
     size_t pchainLength; //!< Number of thermostats monitoring the barostat's thermal DOF
     size_t nTimesteps; //!< Number of timesteps for multi-timestep method
@@ -150,24 +174,27 @@ private:
     std::vector<double> etaPressure_dt2; //!< Accelerations of the barostat-thermostats
     std::vector<double> etaPressure_mass; //!< Masses of the barostat-thermostats
 
+    float3 refCell; //!< Our reference cell x,y,z
+    float3 refCellSkews; //!< Our reference cell yz, xy, xz skews (triclinic only, else 0.0)
+    float3 refCell_inv; //!< inverse of our reference cell;
+    float3 refCellSkews_inv; //!< Inverse of reference cell skews (Voigt notation used)
 
-
-    //TODO: verify that we have these quantities; also, where would we get them from? Bounds.h?
-    std::vector<double> h0; //!< Our reference cell 
-    std::vector<double> h0_inv; //!< inverse;
-    std::vector<double> referencePoint; //!< reference point within the original cell
-    void tranformBox(); //TODO: modifying the actual simulation box, be very careful
+    float3 referencePoint; //!< reference point within the original cell
     
-    
-    
+    double initialVolume; //!< initial volume of the simulation cell
+    void transformBox(); //TODO: modifying the actual simulation box, be very careful
+       
     
     bool verifyInputs(); //TODO: this will be called in prepareForRun, verifying that the barostat is
     // exactly specified;
+    std::string barostatErrorMessage; // this will be populated by verifyInputs, and returned if 
+    // the assertion fails (if verifyInputs returns false, the relevant error message will be displayed
 
 
 
     std::vector<double> pressFreq;
     std::vector<double> pressCurrent;
+    int couple; //!< integer value denoting the coupled dimensions
     void setPressCurrent();
     void thermostatIntegrate(double, double, bool);
     void omegaIntegrate();
@@ -175,7 +202,7 @@ private:
     std::vector<bool> pFlags;
     Interpolator tempInterpolator;
     Interpolator pressInterpolator;
-
+    
     float3 scale; //!< Factor by which the velocities are rescaled
     
     MD_ENGINE::DataComputerTemperature tempComputer;
@@ -186,18 +213,8 @@ private:
 
     float mtkTerm1;
     float mtkTerm2;
-
     // flags for bookkeeping
     bool barostatThermostatChainLengthSpecified;
-
-
-
-
-
-
-
-
-
 
 
 };

@@ -6,9 +6,11 @@
 #include <boost/python.hpp>
 
 #include "cutils_func.h"
+#include "cutils_math.h"
 #include "Logging.h"
 #include "State.h"
-enum PRESSMODE {ISO, ANISO};
+enum PRESSMODE {ISO, ANISO, TRICLINIC};
+enum COUPLESTYLE {XYZ, XY, YZ, XZ}
 namespace py = boost::python;
 
 std::string NoseHooverType = "NoseHoover";
@@ -133,6 +135,7 @@ bool FixNoseHoover::verifyInputs() {
      * - a barostatted dimension must be periodic
      * - (if triclinic) verify that the 2nd dimension of the off-diagonal component is periodic
      *              (e.g., if barostatting xz, verify z dimension is periodic)
+     *      - for now, we must verify that the simulation is /not/ triclinic.
      * - if 2D simulation:
      *      - cannot barostat [z, xz,yz] dimensions
      *      - cannot specify coupling of XZ or YZ
@@ -141,15 +144,13 @@ bool FixNoseHoover::verifyInputs() {
      * - all damping parameters - thermostat or barostat - must be strictly greater than zero
      *      (recommended value: ~100 timesteps)
      */
-
-
-
-
-
-
-
-
-
+    
+    // initialize the error message to something innocuous
+    // -- note: if we failed anything, we'll have changed the error message and
+    //          already returned false anyways; so this doesn't really matter.
+    barostatErrorMessage = "Everything is fine here!";
+    
+    return true;
 };
 
 bool FixNoseHoover::prepareForRun()
@@ -160,11 +161,12 @@ bool FixNoseHoover::prepareForRun()
     tempComputer.prepareForRun();
     if (barostatting) {
         pressComputer.prepareForRun();
+        pressComputer.usingExternalTemperature = true;
     }
 
     calculateKineticEnergy();
     tempInterpolator.computeCurrentVal(state->runInit);
-    updateMasses();
+    updateThermalMasses();
 
     // Update thermostat forces
     double boltz = state->units.boltz;
@@ -180,12 +182,19 @@ bool FixNoseHoover::prepareForRun()
 
     // initialize the omega arrays
     if (barostatting) {
+
+        if (!(verifyInputs() )) {
+            //printf("%s\n", barostatErrorMessage);
+            assert(false);
+        };
         for (int i=0; i<6; i++) {
             omega[i] = 0;
             omegaVel[i] = 0;
             omegaMass[i] = temp * boltz * state->atoms.size() / (pressFreq[i] * pressFreq[i]); //
         }
 
+
+        float3 dims = bounds->trace();
         // TODO: pressFreq needs to be populated with values! How? Idk.  What are sensible default values?
         //              -- what are the constraints, s.t. a dimension may be barostatted?
         //              -- what constitutes underspecified? overspecified?
@@ -193,15 +202,18 @@ bool FixNoseHoover::prepareForRun()
         // TODO: get the maximum value of pressFreq; denote this as maxPressureFrequency
         
 
+        // check if the barostat's thermostat chain length was specified;
+        // if so, this flag will be true and etaPChainLength will have some finite value
+        // else, set it to a default value of 3
         if (!(barostatThermostatChainLengthSpecified)) {
             etaPChainLength = 3;
         };
        
         double maxPressureFrequency = 0.0;
-        // loop over pressFreq array and ass maxPressureFrequency the maximum value;
+        // loop over pressFreq array and set maxPressureFrequency the maximum value;
         // it is safe to assume that all elements are greater than or equal to zero 
         // (if we are not barostatting a given dimension, it is left to the default value of zero)
-        for (int jj = 0; jj < pressFreq.size(); jj++) {
+        for (unsigned int jj = 0; jj < pressFreq.size(); jj++) {
             if (pressFreq[jj] > maxPressureFrequency) maxPressureFrequency = pressFreq[jj];
         };
 
@@ -215,8 +227,20 @@ bool FixNoseHoover::prepareForRun()
         // etaPressure_mass[j] = boltz * t_target / (p_freq_max^2);
         for (int j = 0; j < etaPChainLength; j++) {
             etaPressure[j] = boltz * temp / (maxPressureFrequency * maxPressureFrequency);
+        };
 
-        }
+        // get the initial volume of the simulation cell
+        initialVolume = bounds->volume();
+        
+        // we want to use float3, not std::double<vector> (see return value of BoundsGPU *bounds ->()..
+        // also, if we use GPU to compute anything, needs float3 not std::vector<double> which is really just a pointer
+        refCell = bounds->trace();
+        // // uncomment the following line when triclinic support is implemented
+        //refCellSkews = bounds->skews();
+        refCell_inv = bounds->invTrace();
+        // // uncomment the following line when triclinic support is implemented; ensure Voigt notation is used in BoundsGPU
+        //refCellSkews_inv = bounds->invSkews();
+        // // sidenote: implement that ^^ function in BoundsGPU
     }
 
     return true;
@@ -314,7 +338,20 @@ void FixNoseHoover::thermostatIntegrate(double temp, double boltz, bool firstHal
 
 }
 
+// update the barostat positions (= volumes)
 void FixNoseHoover::omegaIntegrate() {
+    
+    double boltz = state->units.boltz;
+    double kt = boltz * temp;
+
+    int nDims = 0;
+
+    // get the number of dimensions which we barostat
+    for (int i = 0; i < 6; i++) {
+        nDims += (int) pFlags[i];
+    };
+
+
     /*
     double timestep2 = 0.5 * state->dt;
     double forceOmega;
@@ -373,7 +410,7 @@ bool FixNoseHoover::halfStep(bool firstHalfStep)
     }
 
     double boltz = state->units.boltz;
-
+    
     // Update the desired temperature
     double temp;
     if (firstHalfStep) {
@@ -381,7 +418,7 @@ bool FixNoseHoover::halfStep(bool firstHalfStep)
         tempInterpolator.computeCurrentVal(state->turn);
         temp = tempInterpolator.getCurrentVal();
         if (currentTemp != temp) {
-            updateMasses();
+            updateThermalMasses();
         }
     }
 
@@ -396,15 +433,15 @@ bool FixNoseHoover::halfStep(bool firstHalfStep)
     thermostatIntegrate(temp, boltz, firstHalfStep);
 
     if (barostatting) {
-        //THIS WILL HAVE TO BE CHANGED FOR ANISO
-        //if iso, all the pressure stuff is the same in every dimension
-        
+        // so, we need to update the masses; 
+        // also, we need to update etap_mass according to t_target;
+        // first
         if (pressMode == PRESSMODE::ISO) {
             double scaledTemp = tempScalar_current * scale.x;//keeping track of it for barostat so I don't have to re-sum
             pressComputer.tempNDF = ndf;
             pressComputer.tempScalar = scaledTemp;
             pressComputer.computeScalar_GPU(true, groupTag);
-        } else if (pressMode == PRESSMODE::ANISO) {
+        } else {
             //not worrying about cross-terms for now
             Virial scaledTemp = Virial(tempTensor_current[0] * scale.x, tempTensor_current[1] * scale.y, tempTensor_current[2] * scale.z, 0, 0, 0);
             pressComputer.tempNDF = ndf;
@@ -415,14 +452,18 @@ bool FixNoseHoover::halfStep(bool firstHalfStep)
        
         pressInterpolator.computeCurrentVal(state->turn);
         cudaDeviceSynchronize();
+
+        // if pressmode is iso, we only need a scalar value of the pressure
         if (pressMode == PRESSMODE::ISO) {
             pressComputer.computeScalar_CPU();
-        } else if (pressMode == PRESSMODE::ANISO) {
+        } else {
             pressComputer.computeTensor_CPU();
         }
         setPressCurrent();
+        
         omegaIntegrate();
         scaleVelocitiesOmega();
+        */
     }
 
     if (firstHalfStep) { 
@@ -439,16 +480,49 @@ bool FixNoseHoover::halfStep(bool firstHalfStep)
 
 
 void FixNoseHoover::setPressCurrent() {
-    for (int i=0; i<3; i++) {
-        pressCurrent[i] = pressComputer.pressureScalar;
-    }
-    for (int i=3; i<6; i++) {
-        pressCurrent[0] = pressComputer.pressureScalar;
+    // store the computed pressure scalar (or tensor) locally within the pressCurrent vector
+
+    if (pressMode == PRESSMODE::ISO) {
+        for (int i = 0; i<3; i++) {
+            pressCurrent[i] = pressComputer.pressureScalar;
+        }
+        return; // nothing more to do here...
+    } else {
+        Virial computedPressure = pressComputer.pressureTensor;
+        if (couple == COUPLESTYLE::XYZ) {
+            double val = (1.0 / 3.0) * (computedPressure[0] + computedPressure[1] + computedPressure[2]);
+            for (int i = 0; i<3; i++) {
+                pressCurrent[i] = val;
+            }
+        } else if (couple == COUPLESTYLE::XY) {
+            double val = 0.5 * (computedPressure[0] + computedPressure[1]);
+            pressCurrent[0] = pressCurrent[1] = val;
+            pressCurrent[2] = computedPressure[2];
+        } else if (couple == COUPLESTYLE::XZ) {
+            double val = 0.5 * (computedPressure[0] + computedPressure[2]);
+            pressCurrent[0] = pressCurrent[2] = val;
+            pressCurrent[1] = computedPressure[1];
+        } else if (couple = COUPLESTYLE::YZ) {
+            double val = 0.5 * (computedPressure[1] + computedPressure[2]);
+            pressCurrent[1] = pressCurrent[2] = val;
+            pressCurrent[0] = computedPressure[0];
+        } else {
+            // no coupling
+            pressCurrent[0] = computedPressure[0];
+            pressCurrent[1] = computedPressure[1];
+            pressCurrent[2] = computedPressure[2];
+        }
     }
 
+    /*
+    if (pressMode == PRESSMODE::TRICLINIC) {
+        // stuff here; not needed until we implement support for triclinic boxes
+    };
+    */
 }
-void FixNoseHoover::updateMasses()
+void FixNoseHoover::updateThermalMasses()
 {
+    // update the current thermal masses of the thermostat particles
     double boltz = state->units.boltz;
     double temp = tempInterpolator.getCurrentVal();
     thermMass.at(0) = ndf * boltz * temp / (frequency*frequency);
@@ -473,7 +547,7 @@ void FixNoseHoover::calculateKineticEnergy()
         ndf = tempComputer.ndf;
         ke_current = tempComputer.totalKEScalar;
 
-       // tempComputer.computeTensorFromScalar();
+        tempComputer.computeTensorFromScalar();
     } else if (pressMode == PRESSMODE::ANISO) {
         tempComputer.computeTensor_GPU(true, groupTag);
         cudaDeviceSynchronize();
@@ -550,10 +624,11 @@ void export_FixNoseHoover()   {
           py::arg("intervals")
          )
         )
-    .def("setPressure", &FixNoseHoover::setPressure, 
+    /*.def("setPressure", &FixNoseHoover::setPressure, 
          (py::arg("pressure")
          )
         )
+        */
     // the old constructors; keep while we see if the set() methods work!
     /*
     (

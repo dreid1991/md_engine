@@ -57,6 +57,15 @@ public:
         return *this;
     }
 
+    /*! \brief Return inverse rectangular components of this box
+     *
+     * \return Inverse rectangular components for the box
+     *
+     */
+    __host__ __device__ float3 invTrace() {
+        return invRectComponents;
+    }
+
     /*! \brief Return trace of this box
      *
      * \return Trace for the box
