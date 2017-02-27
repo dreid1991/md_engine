@@ -17,6 +17,15 @@ inline __device__ int baseNeighlistIdx(const uint32_t *cumulSumMaxPerBlock, int 
     return blockDim.x * cumulSumMaxPerBlock[blockIdx.x] + maxNeighInMyBlock * warpSize * myWarp + myIdxInWarp;
 }
 
+inline __device__ int baseNeighlistIdxFromRPIndex(const uint32_t *cumulSumMaxPerBlock, int warpSize, int myRingPolyIdx) { 
+    int      blockIdx           = myRingPolyIdx / blockDim.x;
+    uint32_t cumulSumUpToMe     = cumulSumMaxPerBlock[blockIdx];
+    uint32_t maxNeighInMyBlock  = cumulSumMaxPerBlock[blockIdx+1] - cumulSumUpToMe;
+    int      myWarp             = myRingPolyIdx / warpSize;
+    int      myIdxInWarp        = myRingPolyIdx % warpSize;
+    return blockDim.x * cumulSumMaxPerBlock[blockIdx] + maxNeighInMyBlock * warpSize * myWarp + myIdxInWarp;
+}
+
 inline __device__ int baseNeighlistIdxFromIndex(uint32_t *cumulSumMaxPerBlock, int warpSize, int idx) {
     int blockIdx = idx / blockDim.x;
     int warpIdx = (idx - blockIdx * blockDim.x) / warpSize;

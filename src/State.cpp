@@ -54,7 +54,7 @@ State::State() {
     specialNeighborCoefs[1] = 0;
     specialNeighborCoefs[2] = 0.5;
     rng_is_seeded = false;
-    nPerRingPoly = 1;
+    nPerRingPoly  = 1;
     units.setLJ();//default units are lj
     exclusionMode = EXCLUSIONMODE::DISTANCE;
 

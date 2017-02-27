@@ -9,6 +9,7 @@
 template <class PAIR_EVAL, int N_PARAM, bool COMP_VIRIALS, class CHARGE_EVAL, bool COMP_CHARGES>
 __global__ void compute_force_iso
         (int nAtoms, 
+	 int nPerRingPoly,
          const float4 *__restrict__ xs, 
          float4 *__restrict__ fs, 
          const uint16_t *__restrict__ neighborCounts, 
@@ -44,13 +45,23 @@ __global__ void compute_force_iso
 
     //then sync to let the threads finish their copying into shared memory
     __syncthreads();
+
+    // MW: NEED TO CHANGE ACCESS OF NEIGHBOR LIST BASED ON THREAD ID
+    // This assumes that all ring polymers are the same size
+    // this will change in later implementations where a variable number of beads may be used per RP
     int idx = GETIDX();
     //then if this is a valid atom
     if (idx < nAtoms) {
         Virial virialsSum = Virial(0, 0, 0, 0, 0, 0);
+	// information based on ring polymer and bead
+        int ringPolyIdx = idx / nPerRingPoly;	// which ring polymer
+        int beadIdx     = idx % nPerRingPoly;	// which time slice
+
         //load where my neighborlist starts
-        int baseIdx = baseNeighlistIdx(cumulSumMaxPerBlock, warpSize);
+        //int baseIdx = baseNeighlistIdx(cumulSumMaxPerBlock, warpSize);
+        int baseIdx = baseNeighlistIdxFromRPIndex(cumulSumMaxPerBlock, warpSize, ringPolyIdx);
         float qi;
+
         //load charges if necessary
         if (COMP_CHARGES) {
             qi = qs[idx];
@@ -71,15 +82,20 @@ __global__ void compute_force_iso
             //The leftmost two bits in the neighbor entry say if it is a 1-2, 1-3, or 1-4 neighbor, or none of these
             uint neighDist = otherIdxRaw >> 30;
             float multiplier = multipliers[neighDist];
-            uint otherIdx = otherIdxRaw & EXCL_MASK;
+            //uint otherIdx = otherIdxRaw & EXCL_MASK;
+            
+            // Extract corresponding index for pair interaction (at same time slice)
+            uint otherRPIdx = otherIdxRaw & EXCL_MASK;
+	    uint otherIdx   = nPerRingPoly*otherRPIdx + beadIdx;  // atom = P*ring_polymer + k, k = 0,...,P-1
             float4 otherPosWhole = xs[otherIdx];
+
             //type is stored in w component of position
             int otherType = __float_as_int(otherPosWhole.w);
             float3 otherPos = make_float3(otherPosWhole);
 
             //based on the two atoms types, which index in each of the square matrices will I need to load from?
             int sqrIdx = squareVectorIndex(numTypes, type, otherType);
-            float3 dr = bounds.minImage(pos - otherPos);
+            float3 dr  = bounds.minImage(pos - otherPos);
             float lenSqr = lengthSqr(dr);
             //load that pair's parameters into a linear array to be send to the force evaluator
             float params_pair[N_PARAM];
@@ -129,6 +145,7 @@ __global__ void compute_force_iso
 template <class PAIR_EVAL, int N, class CHARGE_EVAL, bool COMP_CHARGES>
 __global__ void compute_energy_iso
         (int nAtoms, 
+	 int nPerRingPoly,
          float4 *xs, 
          float *perParticleEng, 
          uint16_t *neighborCounts, 
@@ -156,9 +173,18 @@ __global__ void compute_energy_iso
     copyToShared<float>(parameters, paramsAll, N*sqrSize);
 
     __syncthreads();    
+
+    // MW: NEED TO CHANGE ACCESS OF NEIGHBOR LIST BASED ON THREAD ID
+    // This assumes that all ring polymers are the same size
+    // this will change in later implementations where a variable number of beads may be used per RP
     int idx = GETIDX();
     if (idx < nAtoms) {
-        int baseIdx = baseNeighlistIdx(cumulSumMaxPerBlock, warpSize);
+	// information based on ring polymer and bead
+        int ringPolyIdx = idx / nPerRingPoly;	// which ring polymer
+        int beadIdx     = idx % nPerRingPoly;	// which time slice
+
+	//int baseIdx = baseNeighlistIdx(cumulSumMaxPerBlock, warpSize);
+        int baseIdx = baseNeighlistIdxFromRPIndex(cumulSumMaxPerBlock, warpSize,ringPolyIdx);
         float4 posWhole = xs[idx];
         //int type = * (int *) &posWhole.w;
         int type = __float_as_int(posWhole.w);
@@ -177,7 +203,11 @@ __global__ void compute_energy_iso
             uint otherIdxRaw = neighborlist[nlistIdx];
             uint neighDist = otherIdxRaw >> 30;
             float multiplier = multipliers[neighDist];
-            uint otherIdx = otherIdxRaw & EXCL_MASK;
+            // Extract corresponding index for pair interaction (at same time slice)
+            uint otherRPIdx = otherIdxRaw & EXCL_MASK;
+	    uint otherIdx   = nPerRingPoly*otherRPIdx + beadIdx;  // atom = P*ring_polymer + k, k = 0,...,P-1
+            //uint otherIdx = otherIdxRaw & EXCL_MASK;
+
             float4 otherPosWhole = xs[otherIdx];
             int otherType = __float_as_int(otherPosWhole.w);
             float3 otherPos = make_float3(otherPosWhole);
