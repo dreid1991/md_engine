@@ -41,12 +41,12 @@ __global__ void compute_three_body_iso
     __syncthreads();
     int idx = GETIDX();
 
-    if (idx < nMoleculess) {
+    if (idx < nMolecules) {
 
         // stuff with virials here as well
 
         // so, we'll need to make baseMoleculeNeighList().. for now, just call it as if we have it
-        // -- 
+        // -- the purpose of this is to load the neighbors associated with this molecule ID
         int baseMoleculeIdx = baseMoleculeNeighList(cumulSumMaxPerBlock, warpSize);
 
         // number of neighbors this molecule has, with which it can form trimers
@@ -57,17 +57,18 @@ __global__ void compute_three_body_iso
 
         // is this the correct way to access this...? assuming it will be of similar form to neighborlist,
         // except now we need a list of atoms corresponding to a given molecule..
+        // additionally, we assume that the list of atoms in a molecule is ordered as {O, H1, H2}
         uint* iAtoms = atomsFromMolecule[idx];
         float4 imol_OPosWhole = xs[iAtoms[0]];
         float4 imol_H1PosWhole = xs[iAtoms[1]];
         float4 imol_H2PosWhole = xs[iAtoms[2]];
 
         // now, get just positions in float3
-
         float3 imol_OPos = make_float3(imol_OPosWhole);
         float3 imol_H1Pos = make_float3(imol_H1PosWhole);
         float3 imol_H2Pos = make_float3(imol_H2PosWhole);
 
+        // extract the initial forces on these atoms; these will be modified at the end of this function
         float4 imol_O_fsWhole = fs[iAtoms[0]];
         float4 imol_H1_fsWhole = fs[iAtoms[1]];
         float4 imol_H2_fsWhole = fs[iAtoms[2]];
@@ -77,6 +78,9 @@ __global__ void compute_three_body_iso
         
         // TODO see if we need this..
         float3 O_forceSum = make_float3(0.0, 0.0, 0.0);
+        float3 H1_forceSum = make_float3(0.0, 0.0, 0.0);
+        float3 H2_forceSum = make_float3(0.0, 0.0, 0.0);
+        
         // we need to range over the entire list of numNeighMolecules, because we need to compute two things:
         // -- the pair correction term E_{ij}
         // -- the trimer contribution
@@ -99,7 +103,6 @@ __global__ void compute_three_body_iso
 
             // compute the pertinent O-H distances for use in our potential
             // ----> just for {ij}, compute the O-O distance as well, because we need it for our two-body correction term
-            //
             float3 r_OiOj = bounds.minImage(imol_OPos - jmol_OPos);
            
             // we have four OH distances to compute here
@@ -109,16 +112,25 @@ __global__ void compute_three_body_iso
             float3 r_OjH1i = bounds.minImage(jmol_OPos - imol_H1Pos);
             float3 r_OjH2i = bounds.minImage(jmol_OPos - jmol_H2Pos);
 
+            // re-initialize the correction term to 0.0
+            float3 correction_term_ij = make_float3(0.0, 0.0, 0.0);
 
-            float3 correction_term_ij = eval.forceTwoBody(r_OiOj);
+            // evaluate it w.r.t. this new oxygen position O of molecule j
+            correction_term_ij = eval.forceTwoBody(r_OiOj);
+            //--- what do we do with this? idk, think about it
+
 
             // we now have our molecule 'j'
             // --> get molecule 'k' to complete the trimer
 
-            // we only wish to compute \Delta E_{ijk} for all unique combos of trimers, so this should range 
-            // from k = j+1, while still less than numNeighMolecules w.r.t. baseMolecule ('i')
+            // we only wish to compute $-/nabla E_{ijk}$ for all unique combos of trimers, so this should range 
+            // from k = j+1, while still less than numNeighMolecules w.r.t. baseMolecule ('i');
+            // --- we only need to continue with this iteration if at least /one/ of the hydrogens above was within 
+            //     the cutoff distance for E3B3; consider having a boolean function return determining this?
             for (int k = j+1; k < numNeighMolecules; k++) {
+                // grab warp index corresponding to this 'k'
                 int klistMoleculeIdx = baseMoleculeIdx + warpSize * k;
+                // convert this index to a molecule index within our molecule array
                 int krawIdx = neighborlist[klistMoleculeIdx];
 
                 // we now have our k molecule
@@ -129,20 +141,34 @@ __global__ void compute_three_body_iso
                 float4 kmol_H1PosWhole = xs[kAtoms[1]];
                 float4 kmol_H2PosWhole = xs[kAtoms[2]];
 
+                float3 kmol_OPos = make_float3(kmol_OPosWhole);
+                float3 kmol_H1Pos = make_float3(kmol_H1PosWhole);
+                float3 kmol_H2Pos = make_float3(kmol_H2PosWhole);
+                
                 // compute the pertinent O-H distances for use in our potential (there are 8)
                 
-                // - distances from 
+                // -- distances from Oi to H1k and H2k:
+                float3 r_OiH1k = bounds.minImage(imol_OPos - kmol_H1Pos);
+                float3 r_OiH2k = bounds.minImage(imol_OPos - kmol_H2Pos);
+               
+                // -- distances from Oj to H1k and H2k:
+                float3 r_OjH1k = bounds.minImage(jmol_OPos - kmol_H1Pos);
+                float3 r_OjH2k = bounds.minImage(jmol_Opos - kmol_H2Pos);
 
+                // -- distances from Ok to H1i and H2i:
+                float3 r_OkH1i = bounds.minImage(kmol_OPos - imol_H1Pos);
+                float3 r_OkH2i = bounds.minImage(kmol_OPos - imol_H2Pos);
 
+                // -- distances from Ok to H1j and H2j:
+                float3 r_OkH1j = bounds.minImage(kmol_OPos - jmol_H1Pos);
+                float3 r_OkH2j = bounds.minImage(kmol_OPos - jmol_H2Pos);
 
-
-
+                // this completes our 12 unique O-H distance calculations; we are ready to throw them 
+                // at the E3B3 evaluator and get some forces!
 
 
                 // NOTE: for each molecule /baseMolecule/ we do these same loops;
                 // so, the force as computed should be directed only on molecule i.
-                // additionally, I think this force is directed only w.r.t the atoms it is between?
-                // think further on this matter
 
             }
         }

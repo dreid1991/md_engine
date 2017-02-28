@@ -15,10 +15,10 @@ class ThreeBodyEvaluatorE3B3 {
 
         // short cutoff for switching function (defaults to 5.0 Angstroms)
         float rs;
-
+        float rstimes3;
         // long cutoff for switching function (defaults to 5.2 Angstroms)
         float rf;
-
+        
         // denominator of the switching function (constant once defined)
         float rfminusrs_cubed_inv;
         // prefactors E2 - pair correction term for two-body TIP4P
@@ -43,6 +43,7 @@ class ThreeBodyEvaluatorE3B3 {
             Ec = Ec_;
             float rfminusrs = rf_ - rs;
             rfminusrs_cubed_inv = 1.0 / (rfminusrs * rfminusrs * rfminusrs);
+            rstimes3 = 3.0 * rs_;
         };
 
         // this implements one force calculation for a given trimer
@@ -62,10 +63,10 @@ class ThreeBodyEvaluatorE3B3 {
             } else if (dist > rf) {
                 return 0.0;
             } else {
-
-                float rfminusr1 = rf - dist;
-                float rfr1sqr = rfminusr1 * rfminusr1;
-                float sr = (rfr1sqr * (rf - (2.0 * dist) + (3.0 * rs) ) ) * rfminusrs_cubed_inv;
+                // rf
+                float rfMinusDist = rf - dist;
+                float rfDistSqr = rfMinusDist * rfMinusDist;
+                float sr = (rfDistSqr * (rf - (2.0 * dist) + rstimes3) ) * rfminusrs_cubed_inv;
                 return sr;
             }
         }
