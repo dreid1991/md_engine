@@ -85,6 +85,16 @@ public:
      */
     bool stepFinal();
 
+    //! Remapping of system after half-step update of velocities
+    /*!
+     * \return Result of FixNoseHoover::remap() call
+     */
+    bool postNVE_V();
+
+    //! Remapping of system after full-step update of 
+    bool postNVE_X();
+
+
 private:
     //! Perform one half step of the Nose-Hoover thermostatting
     /*!
@@ -146,6 +156,7 @@ private:
 
     GPUArrayGlobal<float> kineticEnergy; //!< Stores kinetic energy and
                                          //!< number of atoms in Fix group
+    double boltz; //!< Our boltzmann constant (computed in prepareForRun())
     float ke_current; //!< Current kinetic energy
     size_t ndf; //!< Number of degrees of freedom
 
@@ -188,9 +199,7 @@ private:
     bool verifyInputs(); //TODO: this will be called in prepareForRun, verifying that the barostat is
     // exactly specified;
     std::string barostatErrorMessage; // this will be populated by verifyInputs, and returned if 
-    // the assertion fails (if verifyInputs returns false, the relevant error message will be displayed
-
-
+    // the assertion fails (if verifyInputs returns false, the relevant error message will be displayed)
 
     std::vector<double> pressFreq;
     std::vector<double> pressCurrent;
@@ -211,6 +220,7 @@ private:
     bool barostatting;
     int pressMode;
 
+    double current_set_point_temp; // current set point temperature. altered only in stepInit
     float mtkTerm1;
     float mtkTerm2;
     // flags for bookkeeping
