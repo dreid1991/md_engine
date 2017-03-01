@@ -50,6 +50,27 @@ __global__ void compute_force_iso
     // This assumes that all ring polymers are the same size
     // this will change in later implementations where a variable number of beads may be used per RP
     int idx = GETIDX();
+    //=========================================================================
+//    if (idx == 0) {
+//      //for (int tid = 255 ; tid< nAtoms; tid+= 256) {
+//      printf("####cumulsum, b0 = %d, b1 = %d\n",cumulSumMaxPerBlock[0],cumulSumMaxPerBlock[1]);
+//      for (int tid = 0 ; tid< nAtoms; tid+= 1) {
+//        int the_rp     = tid / nPerRingPoly;
+//        int the_bead   = idx % nPerRingPoly;
+//        int the_baseId = baseNeighlistIdxFromRPIndex(cumulSumMaxPerBlock, warpSize, the_rp);
+//        int nn         = neighborCounts[tid];
+//        printf("%d with %d\n",tid,nn);
+//    //    for (int i = 0; i< nn; i++) {
+//    //      int the_nnId = the_baseId + warpSize*i;
+//    //      uint otherIdxRaw = neighborlist[the_nnId];
+//    //      uint otherRPIdx = otherIdxRaw & EXCL_MASK;
+//    //    uint otherIdx   = nPerRingPoly*otherRPIdx + the_bead;  // atom = P*ring_polymer + k, k = 0,...,P-1
+//    //      printf("i,j = (%d, %d) -- baseId = %d\n", tid, otherIdx, the_baseId);
+//    //  }
+//      }
+//    }
+//    __syncthreads();    
+    //=========================================================================
     //then if this is a valid atom
     if (idx < nAtoms) {
         Virial virialsSum = Virial(0, 0, 0, 0, 0, 0);
@@ -75,7 +96,6 @@ __global__ void compute_force_iso
         //how many neighbors do I have?
         int numNeigh = neighborCounts[idx];
         for (int i=0; i<numNeigh; i++) {
-            //the nth neighbor of atoms in my warp are all stored together.  This way, memory access is coalesced
             //my neighbors, then, are spaced by warpSize
             int nlistIdx = baseIdx + warpSize * i;
             uint otherIdxRaw = neighborlist[nlistIdx];
@@ -92,6 +112,7 @@ __global__ void compute_force_iso
             //type is stored in w component of position
             int otherType = __float_as_int(otherPosWhole.w);
             float3 otherPos = make_float3(otherPosWhole);
+
 
             //based on the two atoms types, which index in each of the square matrices will I need to load from?
             int sqrIdx = squareVectorIndex(numTypes, type, otherType);
@@ -173,7 +194,6 @@ __global__ void compute_energy_iso
     copyToShared<float>(parameters, paramsAll, N*sqrSize);
 
     __syncthreads();    
-
     // MW: NEED TO CHANGE ACCESS OF NEIGHBOR LIST BASED ON THREAD ID
     // This assumes that all ring polymers are the same size
     // this will change in later implementations where a variable number of beads may be used per RP

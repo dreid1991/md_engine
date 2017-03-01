@@ -27,11 +27,11 @@ public:
         if (computeVirials) {
             compute_force_iso<PAIR_EVAL, N_PARAM, true, CHARGE_EVAL, COMP_CHARGES> <<<NBLOCK(nAtoms), PERBLOCK, N_PARAM*numTypes*numTypes*sizeof(float)>>>(nAtoms,nPerRingPoly, xs, fs, neighborCounts, neighborlist, cumulSumMaxPerBlock, warpSize, parameters, numTypes, bounds, onetwoStr, onethreeStr, onefourStr, virials, qs, qCutoff*qCutoff, pairEval, chargeEval);
         } else {
-            compute_force_iso<PAIR_EVAL, N_PARAM, false, CHARGE_EVAL, COMP_CHARGES> <<<NBLOCK(nAtoms), PERBLOCK, N_PARAM*numTypes*numTypes*sizeof(float)>>>(nAtoms,nPerRingPoly, xs, fs, neighborCounts, neighborlist, cumulSumMaxPerBlock, warpSize, parameters, numTypes, bounds, onetwoStr, onethreeStr, onefourStr, virials, qs, qCutoff*qCutoff, pairEval, chargeEval);
+            SAFECALL((compute_force_iso<PAIR_EVAL, N_PARAM, false, CHARGE_EVAL, COMP_CHARGES> <<<NBLOCK(nAtoms), PERBLOCK, N_PARAM*numTypes*numTypes*sizeof(float)>>>(nAtoms,nPerRingPoly, xs, fs, neighborCounts, neighborlist, cumulSumMaxPerBlock, warpSize, parameters, numTypes, bounds, onetwoStr, onethreeStr, onefourStr, virials, qs, qCutoff*qCutoff, pairEval, chargeEval)));
         }
     }
     virtual void energy(int nAtoms, int nPerRingPoly, float4 *xs, float *perParticleEng, uint16_t *neighborCounts, uint *neighborlist, uint32_t *cumulSumMaxPerBlock, int warpSize, float *parameters, int numTypes, BoundsGPU bounds, float onetwoStr, float onethreeStr, float onefourStr, float *qs, float qCutoff) {
-        compute_energy_iso<PAIR_EVAL, N_PARAM, CHARGE_EVAL, COMP_CHARGES> <<<NBLOCK(nAtoms), PERBLOCK, N_PARAM*numTypes*numTypes*sizeof(float)>>> (nAtoms, nPerRingPoly, xs, perParticleEng, neighborCounts, neighborlist, cumulSumMaxPerBlock, warpSize, parameters, numTypes, bounds, onetwoStr, onethreeStr, onefourStr, qs, qCutoff*qCutoff, pairEval, chargeEval);
+       SAFECALL((compute_energy_iso<PAIR_EVAL, N_PARAM, CHARGE_EVAL, COMP_CHARGES> <<<NBLOCK(nAtoms), PERBLOCK, N_PARAM*numTypes*numTypes*sizeof(float)>>> (nAtoms, nPerRingPoly, xs, perParticleEng, neighborCounts, neighborlist, cumulSumMaxPerBlock, warpSize, parameters, numTypes, bounds, onetwoStr, onethreeStr, onefourStr, qs, qCutoff*qCutoff, pairEval, chargeEval)));
     }
 
 };
