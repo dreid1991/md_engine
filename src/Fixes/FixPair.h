@@ -137,6 +137,7 @@ protected:
     Fix *chargeCalcFix;
     BoundsGPU boundsLast;
     void acceptChargePairCalc(Fix *);
+    float chargeRCut;
 public:
     //! Set a specific parameter for specific particle types
     /*!

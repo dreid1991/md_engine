@@ -229,8 +229,8 @@ public:
     //The un-adulterated evaluator is origEvalWrapper, and that is used to calculate per-particle energies
     virtual void acceptChargePairCalc(Fix *){};
 
-    virtual void setEvalWrapper();
-    virtual void setEvalWrapperOrig();
+    virtual void setEvalWrapper(){};
+    virtual void setEvalWrapperOrig(){};
 
     State *state; //!< Pointer to the simulation state
     std::string handle; //!< "Name" of the Fix
@@ -250,7 +250,6 @@ public:
     
     bool hasOffloadedChargePairCalc;
     bool hasAcceptedChargePairCalc;
-    double chargeRCut;
     void resetChargePairFlags();
 
     int orderPreference; //!< Fixes with a high order preference are calculated

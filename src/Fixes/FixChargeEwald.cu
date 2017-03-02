@@ -427,7 +427,7 @@ __global__ void sum_virials_cu(Virial *dest, Virial *src, int n, int warpSize){
         atomicAdd(&(dest[0].vals[5]), tmpV[0][5]);
     }
 }
-
+/*
 template < bool COMPUTE_VIRIALS>
 __global__ void compute_short_range_forces_cu(int nAtoms, float4 *xs, float4 *fs, uint16_t *neighborCounts, uint *neighborlist, uint32_t *cumulSumMaxPerBlock, float *qs, float alpha, float rCut, BoundsGPU bounds, int warpSize, float onetwoStr, float onethreeStr, float onefourStr, Virial *__restrict__ virials, Virial *virialField, float volume,float  conversion) {
 
@@ -487,7 +487,8 @@ __global__ void compute_short_range_forces_cu(int nAtoms, float4 *xs, float4 *fs
     }
 
 }
-
+*/
+/*
 __global__ void compute_short_range_energies_cu(int nAtoms, float4 *xs, uint16_t *neighborCounts, uint *neighborlist, uint32_t *cumulSumMaxPerBlock, float *qs, float alpha, float rCut, BoundsGPU bounds, int warpSize, float onetwoStr, float onethreeStr, float onefourStr,float *perParticleEng, float field_energy_per_particle,float  conversion) {
 
     float multipliers[4] = {1, onetwoStr, onethreeStr, onefourStr};
@@ -532,7 +533,7 @@ __global__ void compute_short_range_energies_cu(int nAtoms, float4 *xs, uint16_t
     }
 
 }
-
+*/
 __global__ void applyStoredForces(int  nAtoms,
                 float4 *fs,
                 uint *ids, float4 *fsStored) {
@@ -862,15 +863,21 @@ bool FixChargeEwald::prepareForRun() {
     } else {
         storedForces = GPUArrayDeviceGlobal<float4>(1);
     }
+    setEvalWrapper();
     return true;
 }
 
 void FixChargeEwald::setEvalWrapper() {
     if (hasOffloadedChargePairCalc) {
-        evalWrap = pickEvaluator<EvaluatorNone, 1, false>(EvaluatorNone(), this); //nParams arg is 1 rather than zero b/c can't have zero sized argument on device
+        evalWrap = pickEvaluator<EvaluatorNone, 1, false>(EvaluatorNone(), nullptr); //nParams arg is 1 rather than zero b/c can't have zero sized argument on device
     } else {
-        evalWrap = pickEvaluator<EvaluatorNone, 1, true>(EvaluatorNone(), this);
+        evalWrap = pickEvaluator<EvaluatorNone, 1, false>(EvaluatorNone(), this);
     }
+
+}
+
+void FixChargeEwald::setEvalWrapperOrig() {
+    evalWrap = pickEvaluator<EvaluatorNone, 1, false>(EvaluatorNone(), this);
 }
 
 void FixChargeEwald::handleBoundsChange() {
@@ -1163,7 +1170,7 @@ void FixChargeEwald::singlePointEng(float * perParticleEng) {
 //pair energies
     mapEngToParticles<<<NBLOCK(nAtoms), PERBLOCK>>>(nAtoms, field_energy_per_particle, perParticleEng);
     float *neighborCoefs = state->specialNeighborCoefs;
-    evalWrap->energy(nAtoms, gpd.xs(activeIdx), perParticleEng, neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, nullptr, 0, state->boundsGPU, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.qs(activeIdx), chargeRCut);
+    evalWrap->energy(nAtoms, gpd.xs(activeIdx), perParticleEng, neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, nullptr, 0, state->boundsGPU, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.qs(activeIdx), r_cut);
 
 
     CUT_CHECK_ERROR("Ewald_short_range_forces_cu  execution failed");

@@ -21,7 +21,7 @@ class DataManager {
         boost::shared_ptr<DataSetUser> createDataSet(boost::shared_ptr<DataComputer> comp, uint32_t groupTag, int interval, boost::python::object collectGenerator);
 
         boost::shared_ptr<MD_ENGINE::DataSetUser> recordTemperature(std::string groupHandle, std::string computeMode, int interval, boost::python::object collectGenerator); 
-        boost::shared_ptr<MD_ENGINE::DataSetUser> recordEnergy(std::string groupHandle, std::string computeMode, boost::python::list fixes, int interval, boost::python::object collectGenerator); 
+        boost::shared_ptr<MD_ENGINE::DataSetUser> recordEnergy(std::string groupHandle, std::string computeMode, int interval, boost::python::object collectGenerator, boost::python::list fixes); 
         boost::shared_ptr<MD_ENGINE::DataSetUser> recordPressure(std::string groupHandle, std::string computeMode , int interval, boost::python::object collectGenerator); 
         boost::shared_ptr<MD_ENGINE::DataSetUser> recordBounds(int collectEvery, boost::python::object collectGenerator); 
 

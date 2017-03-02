@@ -26,6 +26,7 @@ void DataComputerEnergy::computeScalar_GPU(bool transferToCPU, uint32_t groupTag
     int nAtoms = state->atoms.size();
     GPUData &gpd = state->gpd;
     for (boost::shared_ptr<Fix> fix : fixes) {
+        std::cout << "handle " << fix->handle << std::endl;
         fix->setEvalWrapperOrig();
         fix->singlePointEng(gpuBuffer.getDevData());
         fix->setEvalWrapper();
@@ -66,12 +67,13 @@ void DataComputerEnergy::computeVector_GPU(bool transferToCPU, uint32_t groupTag
 
 void DataComputerEnergy::computeScalar_CPU() {
     int n;
-    double total = gpuBuffer.h_data[0];
+    double total = gpuBufferReduce.h_data[0];
     if (lastGroupTag == 1) {
         n = state->atoms.size();//* (int *) &tempGPUScalar.h_data[1];
     } else {
-        n = * (int *) &gpuBuffer.h_data[1];
+        n = * (int *) &gpuBufferReduce.h_data[1];
     }
+    printf("total %f n %d\n", total, n);
     engScalar = total / n;
 }
 

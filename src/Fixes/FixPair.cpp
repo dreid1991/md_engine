@@ -87,7 +87,7 @@ void FixPair::acceptChargePairCalc(Fix *chargeFix) {
     chargeRCut = cutoffs[0];
 
     chargeCalcFix = chargeFix;
-    setEvalWrapper();
+    //setEvalWrapper(); done in integrator after prepareForRun is done
 
 }
 void FixPair::ensureParamSize(std::vector<float> &array)

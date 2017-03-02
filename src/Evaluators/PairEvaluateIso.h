@@ -40,10 +40,10 @@ __global__ void compute_force_iso
         }
         //okay, so then we have a template to copy the global memory array parameters into paramsAll
         copyToShared<float>(parameters, paramsAll, N_PARAM*sqrSize);
+        //then sync to let the threads finish their copying into shared memory
+        __syncthreads();
     }
 
-    //then sync to let the threads finish their copying into shared memory
-    __syncthreads();
     int idx = GETIDX();
     //then if this is a valid atom
     if (idx < nAtoms) {
@@ -153,12 +153,14 @@ __global__ void compute_energy_iso
     extern __shared__ float paramsAll[];
     int sqrSize = numTypes*numTypes;
     float *params_shr[N];
-    for (int i=0; i<N; i++) {
-        params_shr[i] = paramsAll + i * sqrSize;
+    if (COMP_PAIRS) {
+        for (int i=0; i<N; i++) {
+            params_shr[i] = paramsAll + i * sqrSize;
+        }
+        copyToShared<float>(parameters, paramsAll, N*sqrSize);
+        __syncthreads();    
     }
-    copyToShared<float>(parameters, paramsAll, N*sqrSize);
 
-    __syncthreads();    
     int idx = GETIDX();
     if (idx < nAtoms) {
         int baseIdx = baseNeighlistIdx(cumulSumMaxPerBlock, warpSize);
@@ -187,11 +189,14 @@ __global__ void compute_energy_iso
             float3 dr = bounds.minImage(pos - otherPos);
             float lenSqr = lengthSqr(dr);
             int sqrIdx = squareVectorIndex(numTypes, type, otherType);
+            float rCutSqr;
             float params_pair[N];
-            for (int pIdx=0; pIdx<N; pIdx++) {
-                params_pair[pIdx] = params_shr[pIdx][sqrIdx];
+            if (COMP_PAIRS) {
+                for (int pIdx=0; pIdx<N; pIdx++) {
+                    params_pair[pIdx] = params_shr[pIdx][sqrIdx];
+                }
+                rCutSqr = params_pair[0];
             }
-            float rCutSqr = params_pair[0];
             if (COMP_PAIRS && lenSqr < rCutSqr) {
                 sumEng += pairEval.energy(params_pair, lenSqr, multiplier);
             }

@@ -53,7 +53,7 @@ boost::shared_ptr<DataSetUser> DataManager::recordTemperature(std::string groupH
 
 }
 
-boost::shared_ptr<DataSetUser> DataManager::recordEnergy(std::string groupHandle, std::string computeMode, py::list fixes, int interval, py::object collectGenerator) {
+boost::shared_ptr<DataSetUser> DataManager::recordEnergy(std::string groupHandle, std::string computeMode, int interval, py::object collectGenerator, py::list fixes) {
     int dataType = DATATYPE::ENERGY;
     boost::shared_ptr<DataComputer> comp = boost::shared_ptr<DataComputer> ( (DataComputer *) new DataComputerEnergy(state, fixes, computeMode) );
     uint32_t groupTag = state->groupTagFromHandle(groupHandle);
@@ -124,16 +124,16 @@ void export_DataManager() {
 
     .def("recordTemperature", &DataManager::recordTemperature,
             (py::arg("handle") = "all",
-             py::arg("perParticle") = false,
+             py::arg("mode") = "scalar",
              py::arg("interval") = 0,
              py::arg("turnGenerator") = py::object())
         )
     .def("recordEnergy", &DataManager::recordEnergy,
             (py::arg("handle") = "all",
-             py::arg("perParticle") = false,
+             py::arg("mode") = "scalar",
              py::arg("interval") = 0,
-             py::arg("fixes") = py::list(),
-             py::arg("collectGenerator") = py::object())
+             py::arg("collectGenerator") = py::object(),
+             py::arg("fixes") = py::list())
         )
     .def("recordPressure", &DataManager::recordPressure,
             (py::arg("handle") = "all",

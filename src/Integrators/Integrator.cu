@@ -154,6 +154,9 @@ void Integrator::basicPrepare(int numTurns) {
         f->setVirialTurnPrepare();
     }
     state->handleChargeOffloading();
+    for (Fix *f : state->fixes) {
+        f->setEvalWrapper(); //have to do this after prepare b/c pair calcs need evaluators from charge that have been updated with correct alpha or other coefficiants, and change calcs need to know that handoffs happened
+    }
     state->gridGPU.periodicBoundaryConditions(-1, true);
     for (boost::shared_ptr<MD_ENGINE::DataSetUser> ds : state->dataManager.dataSets) {
         ds->prepareForRun(); //will also prepare those data sets' computers
