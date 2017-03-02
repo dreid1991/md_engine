@@ -26,7 +26,7 @@ namespace MD_ENGINE {
             std::vector<boost::shared_ptr<Fix> > fixes;
 
             void appendScalar(boost::python::list &);
-            void appendVector(boost::python::list &); //YOU WERE GOING TO IMPLEMENT THESE
+            void appendVector(boost::python::list &); 
             void appendTensor(boost::python::list &){};
 
 

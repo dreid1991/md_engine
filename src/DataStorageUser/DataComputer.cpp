@@ -12,11 +12,14 @@ DataComputer::DataComputer(State *state_, std::string computeMode_, bool require
 
 void DataComputer::prepareForRun() {
     if (computeMode=="scalar") {
-        gpuBuffer = GPUArrayGlobal<float>(2);
+        gpuBufferReduce = GPUArrayGlobal<float>(2);
+        gpuBuffer = GPUArrayGlobal<float>(state->atoms.size());
     } else if (computeMode=="tensor") {
-        gpuBuffer = GPUArrayGlobal<float>(2*6);
+        gpuBufferReduce = GPUArrayGlobal<float>(2*6);
+        gpuBuffer = GPUArrayGlobal<float>(state->atoms.size() * 6);
     } else if (computeMode=="vector") {
         gpuBuffer = GPUArrayGlobal<float>(state->atoms.size());
+        sorted = std::vector<double>(state->atoms.size());
     } else {
         std::cout << "Invalid data type " << computeMode << ".  Must be scalar, tensor, or vector" << std::endl;
     }

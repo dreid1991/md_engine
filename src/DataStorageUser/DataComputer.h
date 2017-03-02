@@ -1,6 +1,4 @@
 #pragma once
-#ifndef DATACOMPUTER_H
-#define DATACOMPUTER_H
 #include "Python.h"
 #include <vector>
 #include <map>
@@ -44,6 +42,8 @@ namespace MD_ENGINE {
         bool requiresVirials;
 
         GPUArrayGlobal<float> gpuBuffer; //will be cast as virial if necessary
+        GPUArrayGlobal<float> gpuBufferReduce; //target for reductions, also maybe cast as virial
+        std::vector<double> sorted; //sorted vector values
 
         std::string computeMode;
         virtual void prepareForRun();
@@ -52,7 +52,14 @@ namespace MD_ENGINE {
         void appendData(boost::python::list &);
         DataComputer(){};
         DataComputer(State *, std::string computeMode_, bool requiresVirials_);
+
+
     };
 
 }
-#endif
+template<class SRC, class DST>
+void sortToCPUOrder(std::vector<SRC> &src, std::vector<DST> &sorted, std::vector<uint> &ids, std::vector<int> &idToIdxs) {
+    for (int i=0; i<src.size(); i++) {
+        sorted[idToIdxs[ids[i]]] = src[i];
+    }
+}

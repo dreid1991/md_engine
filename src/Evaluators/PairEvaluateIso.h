@@ -34,11 +34,13 @@ __global__ void compute_force_iso
     //then we take pointers into paramsAll.
     //
     //The order of the params_shr is given by the paramOrder array (see for example, FixLJCut.cu)
-    for (int i=0; i<N_PARAM; i++) {
-        params_shr[i] = paramsAll + i * sqrSize;
+    if (COMP_PAIRS) {
+        for (int i=0; i<N_PARAM; i++) {
+            params_shr[i] = paramsAll + i * sqrSize;
+        }
+        //okay, so then we have a template to copy the global memory array parameters into paramsAll
+        copyToShared<float>(parameters, paramsAll, N_PARAM*sqrSize);
     }
-    //okay, so then we have a template to copy the global memory array parameters into paramsAll
-    copyToShared<float>(parameters, paramsAll, N_PARAM*sqrSize);
 
     //then sync to let the threads finish their copying into shared memory
     __syncthreads();
@@ -81,11 +83,14 @@ __global__ void compute_force_iso
             float lenSqr = lengthSqr(dr);
             //load that pair's parameters into a linear array to be send to the force evaluator
             float params_pair[N_PARAM];
-            for (int pIdx=0; pIdx<N_PARAM; pIdx++) {
-                params_pair[pIdx] = params_shr[pIdx][sqrIdx];
+            float rCutSqr;
+            if (COMP_PAIRS) {
+                for (int pIdx=0; pIdx<N_PARAM; pIdx++) {
+                    params_pair[pIdx] = params_shr[pIdx][sqrIdx];
+                }
+                //we enforce that rCut is always the first parameter (for pairs at least, may need to be different for tersoff)
+                rCutSqr = params_pair[0];
             }
-            //we enforce that rCut is always the first parameter (for pairs at least, may need to be different for tersoff)
-            float rCutSqr = params_pair[0];
             float3 force = make_float3(0, 0, 0);
             bool computedForce = false;
             if (COMP_PAIRS && lenSqr < rCutSqr) {

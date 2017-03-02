@@ -21,35 +21,45 @@ DataComputerEnergy::DataComputerEnergy(State *state_, py::list fixes_, std::stri
 
 void DataComputerEnergy::computeScalar_GPU(bool transferToCPU, uint32_t groupTag) {
     gpuBuffer.d_data.memset(0);
+    gpuBufferReduce.d_data.memset(0);
     lastGroupTag = groupTag;
     int nAtoms = state->atoms.size();
+    GPUData &gpd = state->gpd;
     for (boost::shared_ptr<Fix> fix : fixes) {
         fix->setEvalWrapperOrig();
-        fix->singlePointEng(gpuBuffer.d_data.data());
+        fix->singlePointEng(gpuBuffer.getDevData());
         fix->setEvalWrapper();
     }
-    /*
-    GPUArrayGlobal<float> &perParticleEng = gpd.perParticleEng;
-    //printf("COPYING STUFF IN DATA COMPUTE ENG\n");
-    //perParticleEng.dataToHost();
-    //cudaDeviceSynchronize();
-    //for (float x : perParticleEng.h_data) {
-    //    printf("PARTICLE ENG %f\n", x);
-   // }
     if (groupTag == 1) {
          accumulate_gpu<float, float, SumSingle, N_DATA_PER_THREAD> <<<NBLOCK(nAtoms / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*PERBLOCK*sizeof(float)>>>
-            (gpuBuffer.getDevData(), perParticleEng.getDevData(), nAtoms, state->devManager.prop.warpSize, SumSingle());
+            (gpuBufferReduce.getDevData(), gpuBuffer.getDevData(), nAtoms, state->devManager.prop.warpSize, SumSingle());
     } else {
         accumulate_gpu_if<float, float, SumSingleIf, N_DATA_PER_THREAD> <<<NBLOCK(nAtoms / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*PERBLOCK*sizeof(float)>>>
-            (gpuBuffer.getDevData(), perParticleEng.getDevData(), nAtoms, state->devManager.prop.warpSize, SumSingleIf(gpd.fs.getDevData(), groupTag));
+            (gpuBufferReduce.getDevData(), gpuBuffer.getDevData(), nAtoms, state->devManager.prop.warpSize, SumSingleIf(gpd.fs.getDevData(), groupTag));
+    }
+    if (transferToCPU) {
+        //does NOT sync
+        gpuBufferReduce.dataToHost();
+    }
+}
+
+
+void DataComputerEnergy::computeVector_GPU(bool transferToCPU, uint32_t groupTag) {
+    gpuBuffer.d_data.memset(0);
+    lastGroupTag = groupTag;
+    int nAtoms = state->atoms.size();
+    GPUData &gpd = state->gpd;
+    for (boost::shared_ptr<Fix> fix : fixes) {
+        fix->setEvalWrapperOrig();
+        fix->singlePointEng(gpuBuffer.getDevData());
+        fix->setEvalWrapper();
     }
     if (transferToCPU) {
         //does NOT sync
         gpuBuffer.dataToHost();
+        gpd.ids.dataToHost(); //need ids to map back to original ordering
     }
-    */
 }
-
 
 
 
@@ -65,10 +75,19 @@ void DataComputerEnergy::computeScalar_CPU() {
     engScalar = total / n;
 }
 
+void DataComputerEnergy::computeVector_CPU() {
+    std::vector<uint> &ids = state->gpd.ids.h_data;
+    std::vector<float> &src = gpuBuffer.h_data;
+    sortToCPUOrder(src, sorted, ids, state->gpd.idToIdxsOnCopy);
+}
+
 
 
 void DataComputerEnergy::appendScalar(boost::python::list &vals) {
     vals.append(engScalar);
+}
+void DataComputerEnergy::appendVector(boost::python::list &vals) {
+    vals.append(sorted);
 }
 
 void DataComputerEnergy::prepareForRun() {
