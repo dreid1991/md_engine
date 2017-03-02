@@ -104,12 +104,13 @@ bool FixLJCutFS::prepareForRun() {
     prepareParameters("FCutHandle", fillFCut);
     sendAllToDevice();
     setEvalWrapper();
+    origEvalWrap = getEvalWrapper();
     return true;
 }
 
 void FixLJCutFS::setEvalWrapper() {
     EvaluatorLJFS eval;
-    evalWrap = pickEvaluator<EvaluatorLJFS, 3>(eval, chargeCalcFix);
+    evalWrap = pickEvaluator<EvaluatorLJFS, 3, true>(eval, chargeCalcFix);
 }
 
 std::string FixLJCutFS::restartChunk(std::string format) {

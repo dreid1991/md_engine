@@ -62,6 +62,8 @@ private:
         
     bool malloced;
 
+    boost::shared_ptr<EvaluatorWrapper> evalWrap
+
 public:
     int longRangeInterval;
     int64_t turnInit;
@@ -91,8 +93,9 @@ public:
         res.push_back(r_cut);
         return res;
     }    
-    ChargeEvaluatorEwald generateEvaluator(); 
 
+    ChargeEvaluatorEwald generateEvaluator();
+    void setEvalWrapper();
 };
 
 #endif

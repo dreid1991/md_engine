@@ -6,7 +6,7 @@
 #include "Virial.h"
 #include "helpers.h"
 #include "SquareVector.h"
-template <class PAIR_EVAL, int N_PARAM, bool COMP_VIRIALS, class CHARGE_EVAL, bool COMP_CHARGES>
+template <class PAIR_EVAL, bool COMP_PAIRS, int N_PARAM, bool COMP_VIRIALS, class CHARGE_EVAL, bool COMP_CHARGES>
 __global__ void compute_force_iso
         (int nAtoms, 
          const float4 *__restrict__ xs, 
@@ -90,7 +90,7 @@ __global__ void compute_force_iso
             float rCutSqr = params_pair[0];
             float3 force = make_float3(0, 0, 0);
             bool computedForce = false;
-            if (lenSqr < rCutSqr) {
+            if (COMP_PAIRS && lenSqr < rCutSqr) {
                 //add to running total of the atom's forces
                 force += pairEval.force(dr, params_pair, lenSqr, multiplier);
                 computedForce = true;
@@ -126,7 +126,7 @@ __global__ void compute_force_iso
 
 //this is the analagous energy computation kernel for isotropic pair potentials.  See comments for force kernel, it's the same thing.
 
-template <class PAIR_EVAL, int N, class CHARGE_EVAL, bool COMP_CHARGES>
+template <class PAIR_EVAL, bool COMP_PAIRS, int N, class CHARGE_EVAL, bool COMP_CHARGES>
 __global__ void compute_energy_iso
         (int nAtoms, 
          float4 *xs, 
@@ -189,7 +189,7 @@ __global__ void compute_energy_iso
                 params_pair[pIdx] = params_shr[pIdx][sqrIdx];
             }
             float rCutSqr = params_pair[0];
-            if (lenSqr < rCutSqr) {
+            if (COMP_PAIRS && lenSqr < rCutSqr) {
                 sumEng += pairEval.energy(params_pair, lenSqr, multiplier);
             }
             if (COMP_CHARGES && lenSqr < qCutoffSqr) {

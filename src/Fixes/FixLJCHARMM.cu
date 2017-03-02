@@ -29,6 +29,8 @@ FixLJCHARMM::FixLJCHARMM(boost::shared_ptr<State> state_, string handle_)
     paramOrder = {rCutHandle, epsHandle, sigHandle, eps14Handle, sig14Handle};
     readFromRestart();
     canAcceptChargePairCalc = true;
+    setEvalW
+    origEvalWrap = getEvalWrapper();
 }
 
     //neighbor coefs are not used in CHARMM force field, because it specifies 1-4 sigmas and epsilons.
@@ -66,7 +68,7 @@ void FixLJCHARMM::singlePointEng(float *perParticleEng) {
 
 void FixLJCHARMM::setEvalWrapper() {
     EvaluatorCHARMM eval;
-    evalWrap = pickEvaluator<EvaluatorCHARMM, 3>(eval, chargeCalcFix);
+    evalWrap = pickEvaluator<EvaluatorCHARMM, 3, true>(eval, chargeCalcFix);
 
 }
 
@@ -126,7 +128,6 @@ bool FixLJCHARMM::prepareForRun() {
 
     sendAllToDevice();
     setEvalWrapper();
-    origEvalWrap = getEvalWrapper();
     return true;
 }
 

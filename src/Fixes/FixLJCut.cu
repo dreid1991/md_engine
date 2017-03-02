@@ -63,7 +63,7 @@ void FixLJCut::singlePointEng(float *perParticleEng) {
 
 void FixLJCut::setEvalWrapper() {
     EvaluatorLJ eval;
-    evalWrap = pickEvaluator<EvaluatorLJ, 3>(eval, chargeCalcFix);
+    evalWrap = pickEvaluator<EvaluatorLJ, 3, true>(eval, chargeCalcFix);
 
 }
 

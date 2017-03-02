@@ -554,6 +554,7 @@ __global__ void mapEngToParticles(int nAtoms, float eng, float *engs) {
     }
 }
 
+HEY YOU NEED TO CHECK IF OFFLOADING HAPPENS BEFORE OR AFTER PREPARE FOR RUN
 FixChargeEwald::FixChargeEwald(SHARED(State) state_, string handle_, string groupHandle_): FixCharge(state_, handle_, groupHandle_, chargeEwaldType, true){
   cufftCreate(&plan);
   canOffloadChargePairCalc = true;
@@ -675,6 +676,8 @@ double FixChargeEwald::find_optimal_parameters(bool printError){
     }
     if (n_iter==max_iter) cout<<"Ewald RMS Root finder failed, max_iter "<<max_iter<<" reached\n";
     alpha=x_b;
+    setEvalWrapper();
+    //set orig!
     //alpha = 1.0;
     double error = DeltaF_k(alpha)+DeltaF_real(alpha);
     if (printError) {
@@ -1054,6 +1057,7 @@ void FixChargeEwald::compute(bool computeVirials) {
         if (hasOffloadedChargePairCalc) {
             mapVirialToSingleAtom<<<1, 6>>>(gpd.virials.d_data.data(), virialField.data(), volume);
         } else {
+
             compute_short_range_forces_cu<true><<<NBLOCK(nAtoms), PERBLOCK>>>( nAtoms,
                     gpd.xs(activeIdx),                                                      
                     gpd.fs(activeIdx),
@@ -1167,7 +1171,6 @@ void FixChargeEwald::singlePointEng(float * perParticleEng) {
                                             */
     field_E.dataToHost();
 
-    HEY - YOU WERE GOING TO MAKE THE EWALD FIX WORK WIth EVAL WRAPPERS TO HANDOFF / RESET COULD WORK NICELY
     field_energy_per_particle=0.5*field_E.h_data[0]/volume/nAtoms;
 //         cout<<"field_E "<<field_E.h_data[0]<<'\n';
 
@@ -1201,6 +1204,8 @@ int FixChargeEwald::setLongRangeInterval(int interval) {
     }
     return longRangeInterval;
 }
+
+
 
 ChargeEvaluatorEwald FixChargeEwald::generateEvaluator() {
     return ChargeEvaluatorEwald(alpha, state->units.qqr_to_eng);

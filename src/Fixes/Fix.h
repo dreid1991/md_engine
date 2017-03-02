@@ -228,7 +228,7 @@ public:
         return evalWrap;
     }
     void setEvalWrapper(boost::shared_ptr<EvaluatorWrapper> w) {
-        evalWrap = w
+        evalWrap = w;
     }
     void setOrigEvalWrapper() {
         evalWrap = origEvalWrap;
