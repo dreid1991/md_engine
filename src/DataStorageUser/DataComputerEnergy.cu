@@ -20,14 +20,13 @@ DataComputerEnergy::DataComputerEnergy(State *state_, py::list fixes_, std::stri
 
 
 void DataComputerEnergy::computeScalar_GPU(bool transferToCPU, uint32_t groupTag) {
-    GPUData &gpd = state->gpd;
     gpuBuffer.d_data.memset(0);
     lastGroupTag = groupTag;
     int nAtoms = state->atoms.size();
     for (boost::shared_ptr<Fix> fix : fixes) {
-        fix->setToOrigEvaluator();
+        fix->setEvalWrapperOrig();
         fix->singlePointEng(gpuBuffer.d_data.data());
-        fix->
+        fix->setEvalWrapper();
     }
     /*
     GPUArrayGlobal<float> &perParticleEng = gpd.perParticleEng;

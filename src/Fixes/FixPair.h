@@ -1,8 +1,4 @@
 #pragma once
-#ifndef FIX_PAIR_H
-#define FIX_PAIR_H
-
-#define DEFAULT_FILL -1000
 
 #include <climits>
 #include <map>
@@ -10,6 +6,7 @@
 #include <vector>
 #include <iostream>
 
+#include "globalDefs.h"
 #include "AtomParams.h"
 #include "GPUArrayGlobal.h"
 #include "Fix.h"
@@ -139,8 +136,7 @@ protected:
     void ensureOrderGivenForAllParams();
     Fix *chargeCalcFix;
     BoundsGPU boundsLast;
-    void acceptChargePairCalc(Fix *chargeFix); 
-    virtual void setEvalWrapper() = 0;
+    void acceptChargePairCalc(Fix *);
 public:
     //! Set a specific parameter for specific particle types
     /*!
@@ -182,4 +178,3 @@ public:
      */
     void handleBoundsChange();
 };
-#endif

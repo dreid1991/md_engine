@@ -51,7 +51,6 @@ protected:
         std::string type_, bool forceSingle_, bool requiresVirials_, bool requiresCharges_, int applyEvery_,
         int orderPreference_ = 0);
     boost::shared_ptr<EvaluatorWrapper> evalWrap;
-    boost::shared_ptr<EvaluatorWrapper> origEvalWrap;
 
 public:
     //! Destructor
@@ -222,17 +221,16 @@ public:
      * \todo Pass const reference. Make this function const.
      */
     void validAtoms(std::vector<Atom *> &atoms);
+    //okay, so there's a bit of a structure going on with these evaluators.  
+    //So each fix that can evaluate pair potential has an evaluator wrapper.
+    //For the sake of efficiency, certain fixes (charges, at current) can offload their evaluators to other pair fixes.  
+    //This can be seen in handleChargeOffloading in State.cpp.  After the charge fix is offloaded, the evaluator is set by the fix in prepareForRun.
+    //There's a hitch though.  When I want to calculate per-fix energies, the charge fix needs to take back its evaluator so that short-range pair energies belong to that fix. 
+    //The un-adulterated evaluator is origEvalWrapper, and that is used to calculate per-particle energies
     virtual void acceptChargePairCalc(Fix *){};
 
-    boost::shared_ptr<EvaluatorWrapper> getEvalWrapper() {
-        return evalWrap;
-    }
-    void setEvalWrapper(boost::shared_ptr<EvaluatorWrapper> w) {
-        evalWrap = w;
-    }
-    void setOrigEvalWrapper() {
-        evalWrap = origEvalWrap;
-    }
+    virtual void setEvalWrapper();
+    virtual void setEvalWrapperOrig();
 
     State *state; //!< Pointer to the simulation state
     std::string handle; //!< "Name" of the Fix

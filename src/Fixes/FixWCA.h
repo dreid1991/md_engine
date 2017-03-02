@@ -80,6 +80,7 @@ class FixWCA : public FixPair {
         std::vector<float> rCuts; //!< vector storing cutoff distance values
 
         void setEvalWrapper();
+        void setEvalWrapperOrig();
 };
 
 #endif

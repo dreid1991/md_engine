@@ -10,6 +10,9 @@
 #include <fstream>
 #include "Virial.h"
 #include "helpers.h"
+
+#include "PairEvaluatorNone.h"
+#include "EvaluatorWrapper.h"
 // #include <cmath>
 using namespace std;
 namespace py = boost::python;
@@ -554,23 +557,23 @@ __global__ void mapEngToParticles(int nAtoms, float eng, float *engs) {
     }
 }
 
-HEY YOU NEED TO CHECK IF OFFLOADING HAPPENS BEFORE OR AFTER PREPARE FOR RUN
 FixChargeEwald::FixChargeEwald(SHARED(State) state_, string handle_, string groupHandle_): FixCharge(state_, handle_, groupHandle_, chargeEwaldType, true){
-  cufftCreate(&plan);
-  canOffloadChargePairCalc = true;
-  modeIsError = false;
-  sz = make_int3(32, 32, 32);
-  malloced = false;
-  longRangeInterval = 1;
+    cufftCreate(&plan);
+    canOffloadChargePairCalc = true;
+    modeIsError = false;
+    sz = make_int3(32, 32, 32);
+    malloced = false;
+    longRangeInterval = 1;
+    setEvalWrapper();
 }
 
 
 FixChargeEwald::~FixChargeEwald(){
-  cufftDestroy(plan);
-  cudaFree(FFT_Qs);
-  cudaFree(FFT_Ex);
-  cudaFree(FFT_Ey);
-  cudaFree(FFT_Ez);
+    cufftDestroy(plan);
+    cudaFree(FFT_Qs);
+    cudaFree(FFT_Ex);
+    cudaFree(FFT_Ey);
+    cudaFree(FFT_Ez);
 }
 
 
@@ -860,6 +863,14 @@ bool FixChargeEwald::prepareForRun() {
         storedForces = GPUArrayDeviceGlobal<float4>(1);
     }
     return true;
+}
+
+void FixChargeEwald::setEvalWrapper() {
+    if (hasOffloadedChargePairCalc) {
+        evalWrap = pickEvaluator<EvaluatorNone, 1, false>(EvaluatorNone(), this); //nParams arg is 1 rather than zero b/c can't have zero sized argument on device
+    } else {
+        evalWrap = pickEvaluator<EvaluatorNone, 1, true>(EvaluatorNone(), this);
+    }
 }
 
 void FixChargeEwald::handleBoundsChange() {

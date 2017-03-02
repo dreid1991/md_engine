@@ -21,7 +21,6 @@ FixLJCutFS::FixLJCutFS(SHARED(State) state_, std::string handle_)
 
     canAcceptChargePairCalc = true;
     setEvalWrapper();
-    origEvalWrap = getEvalWrapper();
 }
 void FixLJCutFS::compute(bool computeVirials) {
     int nAtoms = state->atoms.size();
@@ -104,13 +103,16 @@ bool FixLJCutFS::prepareForRun() {
     prepareParameters("FCutHandle", fillFCut);
     sendAllToDevice();
     setEvalWrapper();
-    origEvalWrap = getEvalWrapper();
     return true;
 }
 
 void FixLJCutFS::setEvalWrapper() {
     EvaluatorLJFS eval;
     evalWrap = pickEvaluator<EvaluatorLJFS, 3, true>(eval, chargeCalcFix);
+}
+void FixLJCutFS::setEvalWrapperOrig() {
+    EvaluatorLJFS eval;
+    evalWrap = pickEvaluator<EvaluatorLJFS, 3, true>(eval, nullptr);
 }
 
 std::string FixLJCutFS::restartChunk(std::string format) {

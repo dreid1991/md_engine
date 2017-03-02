@@ -1,6 +1,4 @@
 #pragma once
-#ifndef PAIR_EVALUATOR_ISO_H
-#define PAIR_EVALUATOR_ISO_H
 #include "BoundsGPU.h"
 #include "cutils_func.h"
 #include "Virial.h"
@@ -209,4 +207,3 @@ __global__ void compute_energy_iso
     }
 
 }
-#endif

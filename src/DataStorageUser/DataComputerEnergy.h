@@ -1,6 +1,4 @@
 #pragma once
-#ifndef DATACOMPUTERENERGY_H
-#define DATACOMPUTERENERGY_H
 
 #include "DataComputer.h"
 #include "GPUArrayGlobal.h"
@@ -35,4 +33,3 @@ namespace MD_ENGINE {
     };
 };
 
-#endif

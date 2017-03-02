@@ -1,6 +1,4 @@
-#ifndef FIX_CHARGE_EWALD_H
-#define FIX_CHARGE_EWALD_H
-
+#pragma once
 #include <cufft.h>
 
 //#include "AtomParams.h"
@@ -62,7 +60,6 @@ private:
         
     bool malloced;
 
-    boost::shared_ptr<EvaluatorWrapper> evalWrap
 
 public:
     int longRangeInterval;
@@ -96,6 +93,6 @@ public:
 
     ChargeEvaluatorEwald generateEvaluator();
     void setEvalWrapper();
+    void setEvalWrapperOrig();
 };
 
-#endif

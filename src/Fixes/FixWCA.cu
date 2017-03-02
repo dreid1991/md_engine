@@ -19,7 +19,6 @@ FixWCA::FixWCA(SHARED(State) state_, std::string handle_)
     paramOrder = {rCutHandle, epsHandle, sigHandle};
     readFromRestart();
     setEvalWrapper();
-    origEvalWrap = getEvalWrapper();
 }
 void FixWCA::compute(bool computeVirials) {
     int nAtoms = state->atoms.size();
@@ -102,6 +101,10 @@ bool FixWCA::prepareForRun() {
 void FixWCA::setEvalWrapper() {
     EvaluatorWCA eval;
     evalWrap = pickEvaluator<EvaluatorWCA, 3, true>(eval, chargeCalcFix);
+}
+void FixWCA::setEvalWrapperOrig() {
+    EvaluatorWCA eval;
+    evalWrap = pickEvaluator<EvaluatorWCA, 3, true>(eval, nullptr);
 }
 
 std::string FixWCA::restartChunk(std::string format) {
