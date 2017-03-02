@@ -144,12 +144,28 @@ private:
 
     //! This function integrates the barostat variables
     /*!
-     * Updates the masses, velocities of our barostat particles;
-     * Updates the masses, positions, and velocities of our barostat's thermostat.
+     * 
+     *
      */
     void omegaIntegrate();
 
+    //! This function integrates some barostat variables
+    /*!
+     * Updates the masses associated with our barostats;
+     * Updates the masses and accelerations associated with our barostat thermostats
+     */
 
+    void barostatMassIntegrate();
+
+    //! This function integrates some barostat variables
+    /*!
+     * Computes the kinetic energy associated with our barostat thermostat variables;
+     * Updates the velocities associated with our barostats accordingly
+     */
+    void barostatThermostatIntegrate();
+
+    
+    
     void scaleVelocitiesOmega();
 
     float frequency; //!< Frequency of the Nose-Hoover thermostats
@@ -168,6 +184,8 @@ private:
     size_t n_ys; //!< n_ys from \cite MartynaEtal:MP1996
     std::vector<double> weight; //!< Weights for closer approximation
 
+    size_t n_ys_b; // n_ys for barostat
+    size_t nTimesteps_b; // Number of timesteps for multi-timestep method for barostat
     //std::vector<double> thermPos; //!< Position (= Energy) of the Nose-Hoover
                                     //!< thermostats
     std::vector<double> thermVel; //!< Velocity of the Nose-Hoover thermostats
@@ -202,10 +220,12 @@ private:
     // the assertion fails (if verifyInputs returns false, the relevant error message will be displayed)
 
     std::vector<double> pressFreq;
+    double maxPressFreq;
     std::vector<double> pressCurrent;
     int couple; //!< integer value denoting the coupled dimensions
     void setPressCurrent();
     void thermostatIntegrate(double, double, bool);
+    void barostatMassIntegrate();
     void omegaIntegrate();
     void scaleVelocitiesOmega();
     std::vector<bool> pFlags;

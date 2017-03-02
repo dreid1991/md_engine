@@ -62,6 +62,7 @@ FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state_, std::string handle
                 ke_current(0.0), ndf(0),
                 chainLength(3), pchainLength(3),
                 nTimesteps(1), n_ys(1),
+                nTimesteps_b(1), n_ys_b(1),
                 weight(std::vector<double>(n_ys,1.0)),
                 //thermPos(std::vector<double>(chainLength,0.0)),
                 thermVel(std::vector<double>(chainLength,0.0)),
@@ -80,11 +81,14 @@ FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state_, std::string handle
                 thermostatting(true),
                 barostatting(false)
 {
+    // initialize pressComputer.usingExternalTemperature to true
     pressComputer.usingExternalTemperature = true;
-    
+
+    // at this point, barostatThermostatChainLength has not been specified; we'll later set it to a default value
     barostatThermostatChainLengthSpecified = false;
 
-
+    // set our flag 'requiresPostNVE_V' to true (see Fix.cpp Fix ctor)
+    requiresPostNVE_V = true;
 
 };
 
@@ -193,14 +197,13 @@ bool FixNoseHoover::prepareForRun()
             omegaVel[i] = 0;
             omegaMass[i] = temp * boltz * state->atoms.size() / (pressFreq[i] * pressFreq[i]); //
         }
-
-
+        
         float3 dims = bounds->trace();
         // TODO: pressFreq needs to be populated with values! How? Idk.  What are sensible default values?
         //              -- what are the constraints, s.t. a dimension may be barostatted?
         //              -- what constitutes underspecified? overspecified?
         //              -- use assertions to verify that the system is properly specified?
-        // TODO: get the maximum value of pressFreq; denote this as maxPressureFrequency
+        // TODO: get the maximum value of pressFreq; denote this as maxPressFreq
         
 
         // check if the barostat's thermostat chain length was specified;
@@ -210,12 +213,12 @@ bool FixNoseHoover::prepareForRun()
             etaPChainLength = 3;
         };
        
-        double maxPressureFrequency = 0.0;
-        // loop over pressFreq array and set maxPressureFrequency the maximum value;
+        maxPressFreq = 0.0;
+        // loop over pressFreq array and set maxPressFreq the maximum value;
         // it is safe to assume that all elements are greater than or equal to zero 
         // (if we are not barostatting a given dimension, it is left to the default value of zero)
         for (unsigned int jj = 0; jj < pressFreq.size(); jj++) {
-            if (pressFreq[jj] > maxPressureFrequency) maxPressureFrequency = pressFreq[jj];
+            if (pressFreq[jj] > maxPressFreq) maxPressFreq = pressFreq[jj];
         };
 
         // initialize the etaPressure variables; and then populate with values
@@ -227,7 +230,7 @@ bool FixNoseHoover::prepareForRun()
         
         // etaPressure_mass[j] = boltz * t_target / (p_freq_max^2);
         for (int j = 0; j < etaPChainLength; j++) {
-            etaPressure[j] = boltz * temp / (maxPressureFrequency * maxPressureFrequency);
+            etaPressure[j] = boltz * temp / (maxPressFreq * maxPressFreq);
         };
 
         // get the initial volume of the simulation cell
@@ -261,6 +264,8 @@ bool FixNoseHoover::stepInit()
     // first, update the barostat masses if necessary;
     // then, update the barostat thermostat variables;
     if (barostatting) {
+
+        // updating omega's, then barostat thermostat variables (eta_pressure vectors)
         barostatMassIntegrate();
         barostatThermostatIntegrate();
     }
@@ -281,17 +286,22 @@ bool FixNoseHoover::stepInit()
         // so, we need to update the masses; 
         // also, we need to update etap_mass according to t_target;
         // first, 
-        // TODO: impact of PRESSMODE:ANISO ?! -- no longer a simple scaling of velocities by barostat; there is an additive contribution
+        // TODO: impact of PRESSMODE:TRICLINIC ?! -- no longer a simple scaling of velocities by barostat; there is an additive contribution
         if (pressMode == PRESSMODE::ISO) {
             double scaledTemp = tempScalar_current * scale.x;//keeping track of it for barostat so I don't have to re-sum
             pressComputer.tempNDF = ndf;
             pressComputer.tempScalar = scaledTemp;
             pressComputer.computeScalar_GPU(true, groupTag);
-        } else {
+        } else if (pressMode == PRESSMODE::ANISO) {
+            // TODO: make sure this is OK
             Virial scaledTemp = Virial(tempTensor_current[0] * scale.x, tempTensor_current[1] * scale.y, tempTensor_current[2] * scale.z, 0, 0, 0);
             pressComputer.tempNDF = ndf;
             pressComputer.tempTensor = scaledTemp;
             pressComputer.computeTensor_GPU(true, groupTag);
+        } else {
+            // TBD for TRICLINIC: need to modify KE_tensor and pressure_tensor in datacomputer classes;
+            // also, some optimizations will not be adequate, since there is an /additive/ contribution to atom velocities when scaling
+            assert(false)
 
         }
         // compute and get the set point pressure from our pressInterpolator
@@ -310,7 +320,17 @@ bool FixNoseHoover::stepInit()
             pressComputer.computeTensor_CPU();
         }
         setPressCurrent();
-    }
+
+        // compute MTK terms & update the velocities of the barostat variables
+        // -- note for future development: this is where we would need deviatoric stresses to be computed & included
+        omegaIntegrate();
+
+        // do our other thing
+
+        // throw all the scaling in
+
+    } else {
+        // call our scaling here
 
 
 
@@ -329,23 +349,150 @@ bool FixNoseHoover::postNVE_V()
         rescaleVolume(); //, and possibly some rigid-body self-consistency checks here
     }
     return true;
-};
+}
 
 bool FixNoseHoover::postNVE_X()
 {
     if (barostatting) {
         rescaleVolume(); // handleBoundsChange() called in IntegratorVerlet next, so nothing more to do here;
         // maybe some rigid-body self-consistency checks here?
+        
         // or, we could put rigid-body handling for volume rescaling in the rescaleVolume() function itself. 
     }
-};
+}
 
 void FixNoseHoover::barostatIntegrate(**args) {
 
 
 
-};
+}
 
+void FixNoseHoover::barostatMassIntegrate() {
+    
+    // update the masses of the barostats; very brief function
+    // if we are barostatting a given dimension, update the mass associated with it
+
+    // we update the masses according to the /set point/ temperature, not the instantaneous temperature
+    double kt = (state->units.boltz) * current_set_point_temp;
+    double nkt = ndf * (state->units.boltz) * current_set_point_temp;
+    for (int i = 0; i < 3; i++) {
+        if (pFlags[i]) {
+            omegaMass[i] = nkt / (pressFreq[i] * pressFreq[i]);
+        }
+    }
+
+    if (pressMode == PRESSMODE::TRICLINIC) {
+        // remove this assertion when TRICLINIC support is enabled
+        assert(false);
+        // update masses associated with our slant vectors
+        for (int i = 3; i < 6; i++) {
+            if (pFlags[i]) {
+                omegaMass[i] = nkt / (pressFreq[i] * pressFreq[i]);
+            }
+        }
+    }
+
+    // and update masses associated with barostat thermostat variables
+    etaPressure_mass[0] = kt / (maxPressFreq * maxPressFreq);
+    for (int j = 1; j < pchainLength; j++) {
+        etaPressure_mass[j] = kt / (maxPressFreq * maxPressFreq);
+    }
+    for (int j = 1; j < pchainLength; j++) {
+        etaPressure_dt2[j] = ((etaPressure_mass[j-1] * etaPressure_dt[j-1] * 
+                              etaPressure_dt[j-1]) - kt) / etaPressure_mass[j];
+    }
+
+}
+
+
+void FixNoseHoover::barostatThermostatIntegrate() {
+    // get the current kinetic energy associated with our barostats
+    double ke_barostats = 0.0;
+    double kt = boltz * current_set_point_temp;
+
+    // sum over i = [1,3] to get kinetic energy associated with barostats x,y,z
+    for (int i = 0; i < 3; i++) {
+        if (pFlags[i]) ke_barostats += ( omegaMass[i] * omegaVel[i] * omegaVel[i] );
+    }
+    
+    // if TRICLINIC, account for these contributions to the kinetic energy
+    if (pressMode == PRESSMODE::TRICLINIC) {
+        for (int i = 3; i < 6; i++) {
+            if (pFlags[i]) ke_barostats += ( omegaMass[i] * omegaVel[i] * omegaVel[i] );
+        }
+    }
+
+    etaPressure_dt2[0] = (ke_barostats - kt) / (etaPressure_mass[0]);
+
+    // perform iterative integration scheme
+
+    // nTimeseps_b = number of iterations over which we perform the integration
+    double ploop_weight = 1.0 / ( (double) nTimesteps_b);
+    for (size_t i = 0; i < nTimesteps_b; i++) {
+        for (size_t j = 0; j < n_ys_b; j++) {
+            double timestep = ploop_weight * state->dt / nTimesteps_b;
+            double timestep2 = 0.5*timestep;
+            double timestep4 = 0.25*timestep;
+            double timestep8 = 0.125*timestep;
+
+            for (int k = pchainLength - 1; k > 0; k--) {
+                double preFactor = std::exp(-timestep8 * etaPressure_dt[k+1]);
+                etaPressure_dt[k] *= preFactor;
+                etaPressure_dt[k] += etaPressure_dt2[k] * timestep4;
+                etaPressure_dt[k] *= preFactor;
+            }
+
+            double preFactor = std::exp(-timestep8 * etaPressure_dt[1]);
+            etaPressure_dt[0] *= preFactor;
+            etaPressure_dt[0] *= etaPressure_dt2[0] * timestep4;
+            etaPressure_dt[0] *= preFactor;
+
+            for (int k = 0; k < pchainLength; k++) {
+                etaPressure[k] += timestep2 * etaPressure_dt[k];
+            }
+            // this scale factor is not used elsewhere; so, we're ok.
+            double barostatScaleFactor = std::exp(-timestep2 * etaPressure_dt[0]);
+
+            for (int k = 0; k < 3; k++) {
+                if (pFlags[k]) omegaVel[k] *= barostatScaleFactor;
+            }
+
+            if (pressMode == PRESSMODE::TRICLINIC) {
+                for (int k = 3; k < 6; k++) {
+                    if (pFlags[k]) omegaVel[k] *= barostatScaleFactor;
+                }
+            }
+
+            double barostat_ke = 0.0;
+
+            for (int k = 0; k < 3; k++) {
+                if (pFlags[k]) barostat_ke += (omegaMass[k] * omegaVel[k] * omegaVel[k]);
+            }
+            
+            if (pressMode == PRESSMODE::TRICLINIC) {
+                for (int k = 3; k < 6; k++) {
+                    if (pFlags[k]) barostat_ke += (omegaMass[k] * omegaVel[k] * omegaVel[k]);
+                }
+            }
+           
+            etaPressure_dt2[0] = (barostat_ke - kt) / etaPressure_mass[0];
+
+            etaPressure_dt[0] *= preFactor;
+            etaPressure_dt[0] *= etaPressure_dt2[0] * timestep4;
+            etaPressure_dt[0] *= preFactor;
+
+            for (int k = 1; k < pchainLength; k++) {
+                double preFactor = std::exp(-timestep8 * etaPressure_dt[k+1]);
+                etaPressure_dt[k] *= preFactor;
+                etaPressure_dt2[k] = ( (etaPressure_mass[k-1] * etaPressure_dt[k-1] 
+                                        * etaPressure_dt[k-1]) - kt) / etaPressure_mass[k];
+                etaPressure_dt[k] += etaPressure_dt2[k] * timestep4;
+                etaPressure_dt[k] *= preFactor;
+            }
+        }
+    }
+
+}
 void FixNoseHoover::thermostatIntegrate(double temp, double boltz, bool firstHalfStep) {
  // Equipartition at desired temperature
     double nkt = ndf * boltz * temp;
@@ -357,21 +504,19 @@ void FixNoseHoover::thermostatIntegrate(double temp, double boltz, bool firstHal
 
     //printf("temp %f boltz %f ndf %d\n", temp, boltz, int(ndf));
     // Multiple timestep procedure
-    double tloop_weight = 1.0 / ( (double) nTimesteps);
     for (size_t i = 0; i < nTimesteps; ++i) {
         for (size_t j = 0; j < n_ys; ++j) {
             double timestep = weight.at(j)*state->dt / nTimesteps;
             double timestep2 = 0.5*timestep;
             double timestep4 = 0.25*timestep;
             double timestep8 = 0.125*timestep;
-            printf("In this loop! Am I? ");
 
             // Update thermostat velocities
             thermVel.back() += timestep4*thermForce.back();
             for (size_t k = chainLength-2; k > 0; --k) {
-                double preFactor = std::exp( - tloop_weight * timestep8*thermVel.at(k+1) );
+                double preFactor = std::exp( -timestep8*thermVel.at(k+1) );
                 thermVel.at(k) *= preFactor;
-                thermVel.at(k) += timestep4 * tloop_weight * thermForce.at(k);
+                thermVel.at(k) += timestep4 * thermForce.at(k);
                 thermVel.at(k) *= preFactor;
             }
 
@@ -386,11 +531,6 @@ void FixNoseHoover::thermostatIntegrate(double temp, double boltz, bool firstHal
             //printf("factor %f %f\n", scale.x, scaleFactor);
 
             ke_current *= scaleFactor*scaleFactor;
-
-            // Update the thermostat positions
-            //for (size_t k = 0; k < chainLength; ++k) {
-            //    thermPos.at(k) += timestep2*thermVel.at(k);
-            //}
 
             // Update the forces
             thermVel.at(0) *= preFactor;
@@ -425,7 +565,7 @@ void FixNoseHoover::thermostatIntegrate(double temp, double boltz, bool firstHal
 // update the barostat positions (= volumes)
 void FixNoseHoover::omegaIntegrate() {
     
-    double kt = boltz * temp;
+    double kt = boltz * current_set_point_temp;;
 
     int nDims = 0;
 
@@ -483,99 +623,6 @@ void FixNoseHoover::scaleVelocitiesOmega() {
 
 }
 
-bool FixNoseHoover::halfStep(bool firstHalfStep)
-{
-    // chainLength should not change between now and prepareForRun()... move this there..?
-    if (chainLength == 0) {
-        mdWarning("Call of FixNoseHoover with zero thermostats in "
-                  "the Nose-Hoover chain.");
-        return false;
-    }
-
-    double temp;
-    if (firstHalfStep) {
-        if (barostatting) {
-            // integrate our barostat variables
-            barostat_integrate();
-        };
-
-        // here we check if the set point changed since the last turn 
-        // (--> and therefore if update the thermal masses..)
-        double currentTemp = tempInterpolator.getCurrentVal();
-        tempInterpolator.computeCurrentVal(state->turn);
-        temp = tempInterpolator.getCurrentVal();
-        if (currentTemp != temp) {
-            updateThermalMasses();
-        }
-    }
-
-    // Get the total kinetic energy
-    if (!firstHalfStep) {
-        //! \todo This optimization assumes that the velocities are not changed
-        //!       between stepFinal() and stepInit(). Can we add a check to make
-        //!       sure this is indeed the case?
-        temp = tempInterpolator.getCurrentVal();
-        calculateKineticEnergy();
-    }
-
-    // integrate our thermostat variables
-    thermostatIntegrate(temp, boltz, firstHalfStep);
-
-    // Update particle velocites
-    //! \todo In this optimization, I assume that velocities are not accessed
-    //!       between stepFinal() and stepInitial(). Can we ensure that this is
-    //!       indeed the case?
-    if (firstHalfStep) { 
-        rescale();
-    }
-
-    if (barostatting) {
-        // so, we need to update the masses; 
-        // also, we need to update etap_mass according to t_target;
-        // first, 
-        if (pressMode == PRESSMODE::ISO) {
-            double scaledTemp = tempScalar_current * scale.x;//keeping track of it for barostat so I don't have to re-sum
-            pressComputer.tempNDF = ndf;
-            pressComputer.tempScalar = scaledTemp;
-            pressComputer.computeScalar_GPU(true, groupTag);
-        } else {
-            //not worrying about cross-terms for now
-            // TODO what are we doing here with the scale factors?! ... ugh
-            Virial scaledTemp = Virial(tempTensor_current[0] * scale.x, tempTensor_current[1] * scale.y, tempTensor_current[2] * scale.z, 0, 0, 0);
-            pressComputer.tempNDF = ndf;
-            pressComputer.tempTensor = scaledTemp;
-            pressComputer.computeTensor_GPU(true, groupTag);
-
-        }
-       
-        // compute the target pressure
-        pressInterpolator.computeCurrentVal(state->turn);
-
-        // synchronize devices
-        cudaDeviceSynchronize();
-
-        // ---> we already computed our instantaneous T, P in calculateKineticEnergy() 
-        // and pressComputer.compute(Scalar/Tensor)_GPU, respectively
-        
-        // if pressmode is iso, we only need a scalar value of the pressure
-        if (pressMode == PRESSMODE::ISO) {
-            pressComputer.computeScalar_CPU();
-        } else {
-            pressComputer.computeTensor_CPU();
-        }
-        setPressCurrent();
-        
-        // integrate omega variables
-        omegaIntegrate();
-
-        // scale velocities; -- should also probably store some scale factor here w.r.t. kinetic energy?
-        rescaleOmega();
-    }
-    
-    return true;
-}
-
-
 void FixNoseHoover::setPressCurrent() {
     // store the computed pressure scalar (or tensor) locally within the pressCurrent vector
 
@@ -611,6 +658,7 @@ void FixNoseHoover::setPressCurrent() {
         }
     }
 
+    // PRESSMODE::TRICLINIC ~ 'triclinic' in lammps; MTK paper describes full cell fluctuations
     /*
     if (pressMode == PRESSMODE::TRICLINIC) {
         // stuff here; not needed until we implement support for triclinic boxes
@@ -620,7 +668,7 @@ void FixNoseHoover::setPressCurrent() {
 void FixNoseHoover::updateThermalMasses()
 {
     // update the current thermal masses of the thermostat particles
-    double temp = tempInterpolator.getCurrentVal();
+    double temp = current_set_point_temp;
     thermMass.at(0) = ndf * boltz * temp / (frequency*frequency);
     for (size_t i = 1; i < chainLength; ++i) {
         thermMass.at(i) = boltz*temp / (frequency*frequency);
@@ -653,7 +701,11 @@ void FixNoseHoover::calculateKineticEnergy()
         ndf = tempComputer.ndf;
         ke_current = tempComputer.totalKEScalar;
         //need this for temp biz
+    } else if (pressMode == PRESSMODE::TRICLINIC) {
+        // shouldn't be using this, yet. assert false.
+        assert(false);
     }
+
 }
 
 void FixNoseHoover::rescale()
