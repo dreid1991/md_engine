@@ -26,7 +26,6 @@ void DataComputerEnergy::computeScalar_GPU(bool transferToCPU, uint32_t groupTag
     int nAtoms = state->atoms.size();
     GPUData &gpd = state->gpd;
     for (boost::shared_ptr<Fix> fix : fixes) {
-        std::cout << "handle " << fix->handle << std::endl;
         fix->setEvalWrapperOrig();
         fix->singlePointEng(gpuBuffer.getDevData());
         fix->setEvalWrapper();
@@ -49,16 +48,13 @@ void DataComputerEnergy::computeVector_GPU(bool transferToCPU, uint32_t groupTag
     gpuBuffer.d_data.memset(0);
     lastGroupTag = groupTag;
     int nAtoms = state->atoms.size();
-    GPUData &gpd = state->gpd;
     for (boost::shared_ptr<Fix> fix : fixes) {
         fix->setEvalWrapperOrig();
         fix->singlePointEng(gpuBuffer.getDevData());
         fix->setEvalWrapper();
     }
     if (transferToCPU) {
-        //does NOT sync
         gpuBuffer.dataToHost();
-        gpd.ids.dataToHost(); //need ids to map back to original ordering
     }
 }
 
@@ -66,18 +62,21 @@ void DataComputerEnergy::computeVector_GPU(bool transferToCPU, uint32_t groupTag
 
 
 void DataComputerEnergy::computeScalar_CPU() {
-    int n;
+    //int n;
     double total = gpuBufferReduce.h_data[0];
+    /*
     if (lastGroupTag == 1) {
         n = state->atoms.size();//* (int *) &tempGPUScalar.h_data[1];
     } else {
         n = * (int *) &gpuBufferReduce.h_data[1];
     }
-    printf("total %f n %d\n", total, n);
-    engScalar = total / n;
+    */
+    //just going with total energy value, not average
+    engScalar = total;
 }
 
 void DataComputerEnergy::computeVector_CPU() {
+    //ids have already been transferred, look in doDataComputation in integUtil
     std::vector<uint> &ids = state->gpd.ids.h_data;
     std::vector<float> &src = gpuBuffer.h_data;
     sortToCPUOrder(src, sorted, ids, state->gpd.idToIdxsOnCopy);

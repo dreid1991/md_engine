@@ -554,7 +554,6 @@ void State::handleChargeOffloading() {
                     g->acceptChargePairCalc(f); 
                     f->hasOffloadedChargePairCalc = true;
                     g->hasAcceptedChargePairCalc = true;
-                    printf("HANDOFF HAPPENED\n");
                 }
             }
         }

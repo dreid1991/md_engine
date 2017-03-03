@@ -3,6 +3,7 @@
 #include "State.h"
 #include "DataSetUser.h"
 #include "DataManager.h"
+#include "DataComputer.h"
 #include "Fix.h"
 #include <vector>
 using namespace MD_ENGINE;
@@ -66,6 +67,15 @@ void IntegratorUtil::doDataComputation() {
     DataManager &dm = state->dataManager;
     int64_t turn = state->turn;
     bool computedAny = false;
+    bool requireIds = false;
+    for (boost::shared_ptr<DataSetUser> ds : dm.dataSets) {
+        if (ds->nextCompute == turn and ds->computer->computeMode == "vector") {
+            requireIds = true;
+        }
+    }
+    if (requireIds) {
+        state->gpd.ids.dataToHost(); //need ids to map back to original ordering
+    }
     for (boost::shared_ptr<DataSetUser> ds : dm.dataSets) {
         if (ds->nextCompute == turn) {
             ds->computeData();
@@ -75,7 +85,6 @@ void IntegratorUtil::doDataComputation() {
     if (computedAny) {
         cudaDeviceSynchronize();
     }
-    //append is after post_force, final step to keep to gpu busy while we do slow python list appending
 }
 
 void IntegratorUtil::doDataAppending() {
