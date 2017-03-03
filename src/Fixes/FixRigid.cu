@@ -124,10 +124,6 @@ __global__ void set_fixed_sides(int4 *waterIds, float4 *xs, float4 *com, float4 
 __global__ void set_init_vel_correction(int4 *waterIds, float4 *dvs_0, int nMols) {
   int idx = GETIDX();
   if (idx < nMols) {
-    int ids[3];
-    ids[0] = waterIds[idx].x;
-    ids[1] = waterIds[idx].y;
-    ids[2] = waterIds[idx].z;
     for (int i = 0; i < 3; i++) {
       dvs_0[idx*3 + i] = make_float4(0.0f,0.0f,0.0f,0.0f);
     }
@@ -207,9 +203,9 @@ __device__ void settle_xs(float timestep, float3 com, float3 com1, float3 *xs_0,
   rt2 = normalize(rt2); 
   //printf("normal = %f %f %f  cross(ap1,n) = %f %f %f cross(n,m) = %f %f %f\n", rt0.x, rt0.y, rt0.z, rt1.x, rt1.y, rt1.z, rt2.x,rt2.y, rt2.z);
 
-  float3 rtn[3] = {rt1, rt2, rt0};
+  //float3 rtn[3] = {rt1, rt2, rt0};
   //printf("rtn=%f %f %f | %f %f %f | %f %f %f\n",rtn[0].x,rtn[0].y,rtn[0].z,rtn[1].x,rtn[1].y,rtn[1].z,rtn[2].x,rtn[2].y,rtn[2].z);
-  float3 trn[3] = {make_float3(rt1.x, rt2.x, rt0.x), make_float3(rt1.y, rt2.y, rt0.y), make_float3(rt1.z, rt2.z, rt0.z)};
+  //float3 trn[3] = {make_float3(rt1.x, rt2.x, rt0.x), make_float3(rt1.y, rt2.y, rt0.y), make_float3(rt1.z, rt2.z, rt0.z)};
 
   ap1 = rotateCoords(ap1,r);
   bp1 = rotateCoords(bp1,r);
