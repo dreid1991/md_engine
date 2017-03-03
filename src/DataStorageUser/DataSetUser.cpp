@@ -6,43 +6,34 @@
 namespace py = boost::python;
 using namespace MD_ENGINE;
 
-DataSetUser::DataSetUser(State *state_, boost::shared_ptr<DataComputer> computer_, uint32_t groupTag_, int dataMode_, int dataType_, boost::python::object pyFunc_) : state(state_), computeMode(COMPUTEMODE::PYTHON), dataMode(dataMode_), dataType(dataType_), groupTag(groupTag_), computer(computer_), pyFunc(pyFunc_), pyFuncRaw(pyFunc_.ptr()) {
+DataSetUser::DataSetUser(State *state_, boost::shared_ptr<DataComputer> computer_, uint32_t groupTag_, boost::python::object pyFunc_) : state(state_), computeMode(COMPUTEMODE::PYTHON), groupTag(groupTag_), computer(computer_), pyFunc(pyFunc_), pyFuncRaw(pyFunc_.ptr()) {
     mdAssert(PyCallable_Check(pyFuncRaw), "Non-function passed to data set");
     setNextTurn(state->turn);
 }
 
-DataSetUser::DataSetUser(State *state_, boost::shared_ptr<DataComputer> computer_, uint32_t groupTag_, int dataMode_, int dataType_, int interval_) : state(state_), computeMode(COMPUTEMODE::INTERVAL), dataMode(dataMode_), dataType(dataType_), groupTag(groupTag_), computer(computer_), interval(interval_) {
+DataSetUser::DataSetUser(State *state_, boost::shared_ptr<DataComputer> computer_, uint32_t groupTag_, int interval_) : state(state_), computeMode(COMPUTEMODE::INTERVAL), groupTag(groupTag_), computer(computer_), interval(interval_) {
     nextCompute = state->turn;
 
 }
 void DataSetUser::prepareForRun() {
-    computer->computingScalar = false;
-    computer->computingTensor = false;
-    if (dataMode == DATAMODE::SCALAR) {
-        computer->computingScalar = true;
-    } else if (dataMode == DATAMODE::TENSOR) {
-        computer->computingTensor = true;
-    }
     computer->prepareForRun();
     
 }
 void DataSetUser::computeData() {
-    if (dataMode == DATAMODE::SCALAR) {
-        computer->computeScalar_GPU(true, groupTag);
-    } else if (dataMode == DATAMODE::TENSOR) {
-        computer->computeTensor_GPU(true, groupTag);
-    }
+    computer->compute_GPU(true, groupTag);
+    //if (dataMode == DATAMODE::SCALAR) {
+    //    computer->computeScalar_GPU(true, groupTag);
+    //} else if (dataMode == DATAMODE::VECTOR) {
+    //    computer->computeVector_GPU(true, groupTag);
+    //} else if (dataMode == DATAMODE::TENSOR) {
+    //    computer->computeTensor_GPU(true, groupTag);
+    //}
     turns.append(state->turn);
 }
 
 void DataSetUser::appendData() {
-    if (dataMode == DATAMODE::SCALAR) {
-        computer->computeScalar_CPU();
-        computer->appendScalar(vals);
-    } else if (dataMode == DATAMODE::TENSOR) {
-        computer->computeTensor_CPU();
-        computer->appendTensor(vals);
-    }
+    computer->compute_CPU();
+    computer->appendData(vals);
 }
 
         
@@ -67,9 +58,6 @@ void DataSetUser::setPyFunc(boost::python::object func_) {
 
 bool DataSetUser::requiresVirials() {
     return computer->requiresVirials;
-}
-bool DataSetUser::requiresEnergy() {
-    return computer->requiresEnergy;
 }
 
 void export_DataSetUser() {

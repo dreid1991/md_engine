@@ -84,7 +84,7 @@ public:
      * the particles in the group specified via the groupHandle.
      */
     //SHOULD THIS BE HERE OR IN STATE?
-    double singlePointEngPythonAvg(std::string groupHandle);
+    //double singlePointEngPythonAvg(std::string groupHandle);
 
     //! Create list of per-particle energies
     /*!
@@ -93,7 +93,7 @@ public:
      * This function calculates the per-particle energy and returns a list
      * containing one value per atom in the simulation.
      */
-    boost::python::list singlePointEngPythonPerParticle();
+    //boost::python::list singlePointEngPythonPerParticle();
 
     //! Default constructor
     /*!

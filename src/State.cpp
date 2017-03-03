@@ -518,7 +518,7 @@ bool State::prepareForRun() {
     std::vector<Virial> virials(atoms.size(), Virial(0, 0, 0, 0, 0, 0));
     gpd.virials = GPUArrayGlobal<Virial>(nAtoms);
     gpd.virials.set(virials);
-    gpd.perParticleEng = GPUArrayGlobal<float>(nAtoms);
+    //gpd.perParticleEng = GPUArrayGlobal<float>(nAtoms);
     // so... wanna keep ids tightly packed.  That's managed by program, not user
     std::vector<int> id_vec = LISTMAPREF(Atom, int, a, atoms, a.id);
     std::vector<int> idToIdxs_vec;

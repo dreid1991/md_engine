@@ -76,8 +76,10 @@ class FixLJCut : public FixPair {
 
         //! Return list of cutoff values
         std::vector<float> getRCuts();
-        void setEvalWrapper();
     public:
+        void setEvalWrapper();
+        void setEvalWrapperOrig();
+
         const std::string epsHandle; //!< Handle for parameter epsilon
         const std::string sigHandle; //!< Handle for parameter sigma
         const std::string rCutHandle; //!< Handle for parameter rCut

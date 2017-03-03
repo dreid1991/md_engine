@@ -10,6 +10,9 @@
 #include <fstream>
 #include "Virial.h"
 #include "helpers.h"
+
+#include "PairEvaluatorNone.h"
+#include "EvaluatorWrapper.h"
 // #include <cmath>
 using namespace std;
 namespace py = boost::python;
@@ -424,7 +427,7 @@ __global__ void sum_virials_cu(Virial *dest, Virial *src, int n, int warpSize){
         atomicAdd(&(dest[0].vals[5]), tmpV[0][5]);
     }
 }
-
+/*
 template < bool COMPUTE_VIRIALS>
 __global__ void compute_short_range_forces_cu(int nAtoms, float4 *xs, float4 *fs, uint16_t *neighborCounts, uint *neighborlist, uint32_t *cumulSumMaxPerBlock, float *qs, float alpha, float rCut, BoundsGPU bounds, int warpSize, float onetwoStr, float onethreeStr, float onefourStr, Virial *__restrict__ virials, Virial *virialField, float volume,float  conversion) {
 
@@ -484,7 +487,8 @@ __global__ void compute_short_range_forces_cu(int nAtoms, float4 *xs, float4 *fs
     }
 
 }
-
+*/
+/*
 __global__ void compute_short_range_energies_cu(int nAtoms, float4 *xs, uint16_t *neighborCounts, uint *neighborlist, uint32_t *cumulSumMaxPerBlock, float *qs, float alpha, float rCut, BoundsGPU bounds, int warpSize, float onetwoStr, float onethreeStr, float onefourStr,float *perParticleEng, float field_energy_per_particle,float  conversion) {
 
     float multipliers[4] = {1, onetwoStr, onethreeStr, onefourStr};
@@ -529,7 +533,7 @@ __global__ void compute_short_range_energies_cu(int nAtoms, float4 *xs, uint16_t
     }
 
 }
-
+*/
 __global__ void applyStoredForces(int  nAtoms,
                 float4 *fs,
                 uint *ids, float4 *fsStored) {
@@ -555,21 +559,22 @@ __global__ void mapEngToParticles(int nAtoms, float eng, float *engs) {
 }
 
 FixChargeEwald::FixChargeEwald(SHARED(State) state_, string handle_, string groupHandle_): FixCharge(state_, handle_, groupHandle_, chargeEwaldType, true){
-  cufftCreate(&plan);
-  canOffloadChargePairCalc = true;
-  modeIsError = false;
-  sz = make_int3(32, 32, 32);
-  malloced = false;
-  longRangeInterval = 1;
+    cufftCreate(&plan);
+    canOffloadChargePairCalc = true;
+    modeIsError = false;
+    sz = make_int3(32, 32, 32);
+    malloced = false;
+    longRangeInterval = 1;
+    setEvalWrapper();
 }
 
 
 FixChargeEwald::~FixChargeEwald(){
-  cufftDestroy(plan);
-  cudaFree(FFT_Qs);
-  cudaFree(FFT_Ex);
-  cudaFree(FFT_Ey);
-  cudaFree(FFT_Ez);
+    cufftDestroy(plan);
+    cudaFree(FFT_Qs);
+    cudaFree(FFT_Ex);
+    cudaFree(FFT_Ey);
+    cudaFree(FFT_Ez);
 }
 
 
@@ -675,6 +680,8 @@ double FixChargeEwald::find_optimal_parameters(bool printError){
     }
     if (n_iter==max_iter) cout<<"Ewald RMS Root finder failed, max_iter "<<max_iter<<" reached\n";
     alpha=x_b;
+    setEvalWrapper();
+    //set orig!
     //alpha = 1.0;
     double error = DeltaF_k(alpha)+DeltaF_real(alpha);
     if (printError) {
@@ -856,7 +863,21 @@ bool FixChargeEwald::prepareForRun() {
     } else {
         storedForces = GPUArrayDeviceGlobal<float4>(1);
     }
+    setEvalWrapper();
     return true;
+}
+
+void FixChargeEwald::setEvalWrapper() {
+    if (hasOffloadedChargePairCalc) {
+        evalWrap = pickEvaluator<EvaluatorNone, 1, false>(EvaluatorNone(), nullptr); //nParams arg is 1 rather than zero b/c can't have zero sized argument on device
+    } else {
+        evalWrap = pickEvaluator<EvaluatorNone, 1, false>(EvaluatorNone(), this);
+    }
+
+}
+
+void FixChargeEwald::setEvalWrapperOrig() {
+    evalWrap = pickEvaluator<EvaluatorNone, 1, false>(EvaluatorNone(), this);
 }
 
 void FixChargeEwald::handleBoundsChange() {
@@ -1034,7 +1055,6 @@ void FixChargeEwald::compute(bool computeVirials) {
                 gpd.ids(activeIdx), storedForces.data());
     }
     CUT_CHECK_ERROR("Ewald_long_range_forces_cu  execution failed");
-    float *neighborCoefs = state->specialNeighborCoefs;
     //SHORT RANGE
     if (computeVirials) {
         int warpSize = state->devManager.prop.warpSize;
@@ -1046,43 +1066,17 @@ void FixChargeEwald::compute(bool computeVirials) {
 
 
 
-        //  Virial virial_per_particle = Virial(0, 0, 0, 0, 0, 0);  
-        //  for (int i=0; i<6; i++) {
-        //      virial_per_particle.vals[i] = virial.h_data[0][i]/volume/nAtoms;
-        //      cout << virial_per_particle.vals[i] << endl;
-        //  }
-        if (hasOffloadedChargePairCalc) {
-            mapVirialToSingleAtom<<<1, 6>>>(gpd.virials.d_data.data(), virialField.data(), volume);
-        } else {
-            compute_short_range_forces_cu<true><<<NBLOCK(nAtoms), PERBLOCK>>>( nAtoms,
-                    gpd.xs(activeIdx),                                                      
-                    gpd.fs(activeIdx),
-                    neighborCounts,
-                    grid.neighborlist.data(),
-                    grid.perBlockArray.d_data.data(),
-                    gpd.qs(activeIdx),
-                    alpha,
-                    r_cut,
-                    state->boundsGPU,
-                    state->devManager.prop.warpSize, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2],
-                    gpd.virials.d_data.data(), virialField.data(), volume,state->units.qqr_to_eng);
-        }
-    } else {
-        if (not hasOffloadedChargePairCalc) {
-            compute_short_range_forces_cu<false><<<NBLOCK(nAtoms), PERBLOCK>>>( nAtoms,
-                    gpd.xs(activeIdx),                                                      
-                    gpd.fs(activeIdx),
-                    neighborCounts,
-                    grid.neighborlist.data(),
-                    grid.perBlockArray.d_data.data(),
-                    gpd.qs(activeIdx),
-                    alpha,
-                    r_cut,
-                    state->boundsGPU,
-                    state->devManager.prop.warpSize, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2],
-                    gpd.virials.d_data.data(), virialField.data(), 0,state->units.qqr_to_eng);
-        }
+        mapVirialToSingleAtom<<<1, 6>>>(gpd.virials.d_data.data(), virialField.data(), volume);
     }
+
+    float *neighborCoefs = state->specialNeighborCoefs;
+    evalWrap->compute(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx),
+                  neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(),
+                  state->devManager.prop.warpSize, nullptr, 0, state->boundsGPU, //PASSING NULLPTR TO GPU MAY CAUSE ISSUES
+    //ALTERNATIVELy, COULD JUST GIVE THE PARMS SOME OTHER RANDOM POINTER, AS LONG AS IT'S VALID
+                  neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.virials.d_data.data(), gpd.qs(activeIdx), r_cut, computeVirials);
+
+
     CUT_CHECK_ERROR("Ewald_short_range_forces_cu  execution failed");
 
 }
@@ -1173,24 +1167,14 @@ void FixChargeEwald::singlePointEng(float * perParticleEng) {
     field_energy_per_particle-=alpha/sqrt(M_PI)*total_Q2/nAtoms;
 //      cout<<"self correction "<<alpha/sqrt(M_PI)*total_Q2<<'\n';
 
-    //pair energies
-    if (hasOffloadedChargePairCalc) {
-        mapEngToParticles<<<NBLOCK(nAtoms), PERBLOCK>>>(nAtoms, field_energy_per_particle, perParticleEng);
-    } else {
-        float *neighborCoefs = state->specialNeighborCoefs;
-        compute_short_range_energies_cu<<<NBLOCK(nAtoms), PERBLOCK>>>( nAtoms,
-                                                  gpd.xs(activeIdx),                                                      
-                                                  neighborCounts,
-                                                  grid.neighborlist.data(),
-                                                  grid.perBlockArray.d_data.data(),
-                                                  gpd.qs(activeIdx),
-                                                  alpha,
-                                                  r_cut,
-                                                  state->boundsGPU,
-                                                  state->devManager.prop.warpSize, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2],perParticleEng,field_energy_per_particle,state->units.qqr_to_eng);
-        CUT_CHECK_ERROR("Ewald_short_range_forces_cu  execution failed");
-    } 
-    
+//pair energies
+    mapEngToParticles<<<NBLOCK(nAtoms), PERBLOCK>>>(nAtoms, field_energy_per_particle, perParticleEng);
+    float *neighborCoefs = state->specialNeighborCoefs;
+    evalWrap->energy(nAtoms, gpd.xs(activeIdx), perParticleEng, neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, nullptr, 0, state->boundsGPU, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.qs(activeIdx), r_cut);
+
+
+    CUT_CHECK_ERROR("Ewald_short_range_forces_cu  execution failed");
+
 }
 
 
@@ -1200,6 +1184,8 @@ int FixChargeEwald::setLongRangeInterval(int interval) {
     }
     return longRangeInterval;
 }
+
+
 
 ChargeEvaluatorEwald FixChargeEwald::generateEvaluator() {
     return ChargeEvaluatorEwald(alpha, state->units.qqr_to_eng);

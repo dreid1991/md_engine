@@ -18,6 +18,7 @@ FixTICG::FixTICG(boost::shared_ptr<State> state_, std::string handle_)
     initializeParameters(rCutHandle, rCuts);
     paramOrder = {rCutHandle, CHandle};
     readFromRestart();
+    setEvalWrapper();
 }
 
 void FixTICG::compute(bool computeVirials) {
@@ -71,7 +72,11 @@ bool FixTICG::prepareForRun() {
 
 void FixTICG::setEvalWrapper() {
     EvaluatorTICG eval;
-    evalWrap = pickEvaluator<EvaluatorTICG, 2>(eval, chargeCalcFix);
+    evalWrap = pickEvaluator<EvaluatorTICG, 2, true>(eval, chargeCalcFix);
+}
+void FixTICG::setEvalWrapperOrig() {
+    EvaluatorTICG eval;
+    evalWrap = pickEvaluator<EvaluatorTICG, 2, true>(eval, nullptr);
 }
 std::string FixTICG::restartChunk(std::string format) {
     std::stringstream ss;

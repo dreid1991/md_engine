@@ -94,8 +94,8 @@ void IntegratorVerlet::run(int numTurns)
 {
 
     basicPreRunChecks();
-    basicPrepare(numTurns);
-
+    basicPrepare(numTurns); //nlist built here
+    force(false);
     int periodicInterval = state->periodicInterval;
 
     auto start = std::chrono::high_resolution_clock::now();
@@ -125,14 +125,15 @@ void IntegratorVerlet::run(int numTurns)
         // Recalculate forces
         force(computeVirialsInForce);
 
+
         // Perform second half of velocity-Verlet step
         postForce();
 
         stepFinal();
 
         asyncOperations();
-        doDataComputation();
         //HEY - MAKE DATA APPENDING HAPPEN WHILE SOMETHING IS GOING ON THE GPU.  
+        doDataComputation();
         doDataAppending();
         dataManager.clearVirialTurn(state->turn);
 

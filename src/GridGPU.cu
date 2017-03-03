@@ -860,7 +860,7 @@ void GridGPU::handleExclusionsForcers() {
             allBonds.push_back(fixBonds);
         }
     }
-    uint exclusionTags[3] = {(uint) 1 << 30, (uint) 2 << 30, (uint) 3 << 30};
+    //uint exclusionTags[3] = {(uint) 1 << 30, (uint) 2 << 30, (uint) 3 << 30};
     
 }
 

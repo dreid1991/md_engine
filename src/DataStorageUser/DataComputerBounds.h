@@ -12,9 +12,11 @@ namespace MD_ENGINE {
         public:
 
             void computeScalar_GPU(bool, uint32_t);
+            void computeVector_GPU(bool, uint32_t){};
             void computeTensor_GPU(bool, uint32_t){};
 
             void computeScalar_CPU();
+            void computeVector_CPU(){};
             void computeTensor_CPU(){};
 
             DataComputerBounds(State *);
@@ -22,6 +24,7 @@ namespace MD_ENGINE {
             //so these are just length 2 arrays.  First value is used for the result of the sum.  Second value is bit-cast to an int and used to cound how many values are present.
 
             void appendScalar(boost::python::list &);
+            void appendVector(boost::python::list &){};
             void appendTensor(boost::python::list &){};
             Bounds storedBounds;
 

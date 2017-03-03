@@ -9,6 +9,7 @@
 
 class Atom;
 class State;
+class EvaluatorWrapper;
 
 //! Make class Fix available to Python interface
 void export_Fix();
@@ -49,6 +50,7 @@ protected:
     Fix(boost::shared_ptr<State> state_, std::string handle_, std::string groupHandle_,
         std::string type_, bool forceSingle_, bool requiresVirials_, bool requiresCharges_, int applyEvery_,
         int orderPreference_ = 0);
+    boost::shared_ptr<EvaluatorWrapper> evalWrap;
 
 public:
     //! Destructor
@@ -219,9 +221,17 @@ public:
      * \todo Pass const reference. Make this function const.
      */
     void validAtoms(std::vector<Atom *> &atoms);
+    //okay, so there's a bit of a structure going on with these evaluators.  
+    //So each fix that can evaluate pair potential has an evaluator wrapper.
+    //For the sake of efficiency, certain fixes (charges, at current) can offload their evaluators to other pair fixes.  
+    //This can be seen in handleChargeOffloading in State.cpp.  After the charge fix is offloaded, the evaluator is set by the fix in prepareForRun.
+    //There's a hitch though.  When I want to calculate per-fix energies, the charge fix needs to take back its evaluator so that short-range pair energies belong to that fix. 
+    //The un-adulterated evaluator is origEvalWrapper, and that is used to calculate per-particle energies
     virtual void acceptChargePairCalc(Fix *){};
 
-public:
+    virtual void setEvalWrapper(){};
+    virtual void setEvalWrapperOrig(){};
+
     State *state; //!< Pointer to the simulation state
     std::string handle; //!< "Name" of the Fix
     std::string groupHandle; //!< Group to which the Fix applies
@@ -240,7 +250,6 @@ public:
     
     bool hasOffloadedChargePairCalc;
     bool hasAcceptedChargePairCalc;
-    double chargeRCut;
     void resetChargePairFlags();
 
     int orderPreference; //!< Fixes with a high order preference are calculated

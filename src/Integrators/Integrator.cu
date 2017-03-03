@@ -154,6 +154,9 @@ void Integrator::basicPrepare(int numTurns) {
         f->setVirialTurnPrepare();
     }
     state->handleChargeOffloading();
+    for (Fix *f : state->fixes) {
+        f->setEvalWrapper(); //have to do this after prepare b/c pair calcs need evaluators from charge that have been updated with correct alpha or other coefficiants, and change calcs need to know that handoffs happened
+    }
     state->gridGPU.periodicBoundaryConditions(-1, true);
     for (boost::shared_ptr<MD_ENGINE::DataSetUser> ds : state->dataManager.dataSets) {
         ds->prepareForRun(); //will also prepare those data sets' computers
@@ -194,7 +197,6 @@ void Integrator::setActiveData() {
     }
 
     activeData.push_back((GPUArray *) &state->gpd.virials);
-    activeData.push_back((GPUArray *) &state->gpd.perParticleEng);
 }
 
 
@@ -209,6 +211,7 @@ void Integrator::writeOutput() {
 }
 
 
+    /*
 double Integrator::singlePointEngPythonAvg(string groupHandle) {
     GPUArrayGlobal<float> eng(2);
     eng.d_data.memset(0);
@@ -228,11 +231,6 @@ double Integrator::singlePointEngPythonAvg(string groupHandle) {
          warpSize,
          SumSingleIf(state->gpd.fs.getDevData(), groupTag)
         );
-    /*
-    sumPlain<float, float, N_DATA_PER_THREAD><<<NBLOCK(state->atoms.size() / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*sizeof(float)*PERBLOCK>>>(
-            eng.getDevData(), state->gpd.perParticleEng.getDevData(),
-            state->atoms.size(), groupTag, state->gpd.fs.getDevData(), warpSize);
-            */
     eng.dataToHost();
     cudaDeviceSynchronize();
     CUT_CHECK_ERROR("Calculation of single point average energy failed");
@@ -263,6 +261,7 @@ boost::python::list Integrator::singlePointEngPythonPerParticle() {
 
 }
 
+    */
 
 
 
@@ -272,10 +271,10 @@ void export_Integrator() {
         "Integrator"
     )
     .def("writeOutput", &Integrator::writeOutput)
-    .def("energyAverage", &Integrator::singlePointEngPythonAvg,
-            (boost::python::arg("groupHandle")="all")
-        )
-    .def("energyPerParticle", &Integrator::singlePointEngPythonPerParticle);
+   // .def("energyAverage", &Integrator::singlePointEngPythonAvg,
+    //        (boost::python::arg("groupHandle")="all")
+    //    )
+    //.def("energyPerParticle", &Integrator::singlePointEngPythonPerParticle);
     //.def("run", &Integrator::run)
     ;
 }
