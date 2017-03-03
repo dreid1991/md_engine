@@ -55,7 +55,7 @@ include_directories (${PYTHON_INCLUDE_DIR}) #removed an S here
 #get_filename_component (PYTHON_LIBRARY_PATH ${PYTHON_LIBRARIES} DIRECTORY)
 
 # Find boost
-find_package (Boost 1.62.0 COMPONENTS python REQUIRED)
+find_package (Boost COMPONENTS python REQUIRED)
 
 
 message (STATUS "Building MD_engine Version ${VERSION_MAJOR}.${VERSION_MINOR}")

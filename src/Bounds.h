@@ -53,6 +53,7 @@ public:
     Bounds copy() {
         return *this;
     }
+    Vector wrap(Vector v);
     bool isInitialized();
     void set(BoundsGPU &b) {
         lo = Vector(b.lo);
