@@ -1,4 +1,4 @@
-#include "FixRigid.h"
+#include "FixRigidTIP4P.h"
 
 #include "State.h"
 #include "VariantPyListInterface.h"
@@ -7,9 +7,9 @@
 #include <math.h>
 using namespace std;
 namespace py = boost::python;
-const string rigidType = "Rigid";
+const string rigidType = "RigidTIP4P";
 
-FixRigid::FixRigid(boost::shared_ptr<State> state_, string handle_, string groupHandle_) : Fix(state_, handle_, groupHandle_, rigidType, true, true, false, 1) {
+FixRigidTIP4P::FixRigidTIP4P(boost::shared_ptr<State> state_, string handle_, string groupHandle_) : Fix(state_, handle_, groupHandle_, rigidType, true, true, false, 100) {
 
 }
 
@@ -17,12 +17,12 @@ __device__ inline float3 positionsToCOM(float3 *pos, float *mass, float ims) {
   return (pos[0]*mass[0] + pos[1]*mass[1] + pos[2]*mass[2])*ims;
 }
 
-inline __host__ __device__ float3 rotateCoords(float3 vector, float3 matrix[]) {
+__device__ inline float3 rotateCoords(float3 vector, float3 matrix[]) {
   return make_float3(dot(matrix[0],vector),dot(matrix[1],vector),dot(matrix[2],vector));
 }
 
-//fills r which rotates a to b
-__device__ void fillRotMatrix(float3 a, float3 b, float3 r[]) {
+//fills r which rotates a to b                                                                                                    
+__device__ inline void fillRotMatrix(float3 a, float3 b, float3 r[]) {
   float3 v = cross(a, b);
   float s = length(v);
   float c = dot(b,a);
@@ -38,14 +38,14 @@ __device__ void fillRotMatrix(float3 a, float3 b, float3 r[]) {
   } else {
     if (c > -1.0001 and c < -0.9999) {
       for (int row = 0; row < 3; row++) {
-	r[row] = -1*(vx[row] + i[row]);
+        r[row] = -1*(vx[row] + i[row]);
       }
     }
   }
 }
 
 // filld r which rotates a to b around the z axis
-__device__ void fillRotZMatrix(float3 a, float3 b, float3 r[]){
+__device__ inline void fillRotZMatrix(float3 a, float3 b, float3 r[]){
   float s = length(cross(a, b));
   float c = dot(b,a);
   float3 g[3] = {make_float3(c, s, 0.0f), make_float3(-s, c, 0.0f), make_float3(0.0f, 0.0f, 1.0f)};
@@ -54,7 +54,7 @@ __device__ void fillRotZMatrix(float3 a, float3 b, float3 r[]){
   }
 }
 
-__global__ void compute_COM(int4 *waterIds, float4 *xs, float4 *vs, int *idToIdxs, int nMols, float4 *com, BoundsGPU bounds) {
+__global__ inline void compute_COM(int4 *waterIds, float4 *xs, float4 *vs, int *idToIdxs, int nMols, float4 *com, BoundsGPU bounds) {
   int idx = GETIDX();
   if (idx  < nMols) {
     float3 pos[3];
@@ -81,7 +81,7 @@ __global__ void compute_COM(int4 *waterIds, float4 *xs, float4 *vs, int *idToIdx
   }
 }
 
-__global__ void compute_prev_val(int4 *waterIds, float4 *xs, float4 *xs_0, float4 *vs, float4 *vs_0, float4 *fs, float4 *fs_0, int nMols, int *idToIdxs) {
+__global__ inline void compute_prev_val(int4 *waterIds, float4 *xs, float4 *xs_0, int nMols, int *idToIdxs) {
   int idx = GETIDX();
   if (idx < nMols) {
     int ids[3];
@@ -91,21 +91,22 @@ __global__ void compute_prev_val(int4 *waterIds, float4 *xs, float4 *xs_0, float
     for (int i = 0; i < 3; i++) {
       int myIdx = idToIdxs[ids[i]];
       xs_0[idx*3 + i] = xs[myIdx];
-      vs_0[idx*3 + i] = vs[myIdx];
-      fs_0[idx*3 + i] = fs[myIdx];
+      //printf("xs = %f %f %f\n", xs_0[idx*3 + i].x, xs_0[idx*3 + i].y, xs_0[idx*3 + i].z);
     }
   }
 }
 
-__global__ void set_fixed_sides(int4 *waterIds, float4 *xs, float4 *com, float4 *fix_len, int nMols, int *idToIdxs, bool fourSite) {
+__global__ inline void set_fixed_sides(int4 *waterIds, float4 *xs, float4 *com, float4 *fix_len, int nMols, int *idToIdxs) {
   int idx = GETIDX();
   if (idx < nMols) {
-    int ids[4];
+    int ids[3];
     ids[0] = waterIds[idx].x;
     ids[1] = waterIds[idx].y;
     ids[2] = waterIds[idx].z;
-    ids[3] = waterIds[idx].w;
-    float4 pts[4];
+    int4 id_loc = waterIds[idx];
+    // load once, and then set
+    ids[0] = id_loc.x;
+    float4 pts[3];
     //float side_ab = length(xs[idToIdxs[ids[1]]] - xs[idToIdxs[ids[0]]]);
     //float side_bc = length(xs[idToIdxs[ids[2]]] - xs[idToIdxs[ids[1]]]);
     //float side_ca = length(xs[idToIdxs[ids[0]]] - xs[idToIdxs[ids[2]]]);
@@ -113,102 +114,44 @@ __global__ void set_fixed_sides(int4 *waterIds, float4 *xs, float4 *com, float4 
       int myIdx = idToIdxs[ids[i]];
       pts[i] = xs[myIdx];
     }
-    if (fourSite) {
-      pts[3] = xs[idToIdxs[ids[3]]];
-    }
     float4 comCut = com[idx];
     comCut.w = 0.0f;
     float ra = fabs(length(comCut - pts[0]));
     float rc = fabs(length(pts[2] - pts[1])*0.5);
     float rb = sqrtf(length(pts[0]-pts[2])*length(pts[0]-pts[2]) - (rc*rc)) - ra;
-    if (fourSite) {
-      float rm = length(pts[3] - pts[0]);
-      fix_len[idx] = make_float4(ra, rb, rc, rm);
-    } else {
-      fix_len[idx] = make_float4(ra, rb, rc, 0.0f);
-    }
+    fix_len[idx] = make_float4(ra, rb, rc, 0.0f);
   }
 } 
 
-  /* ---- Based off of the algorithm used to redistribute lone pair forces in NAMD ---- */
- 
-__global__ void distribute_electron_force(int4 *waterIds, float4 *xs, float4 *fs, int nMols, int *idToIdxs) {
+__global__ inline void distributeElectronForce(int4 *waterIds, float4 *xs, float4 *fs, int nMols, int *idToIdxs) {
   int idx = GETIDX();
   if (idx < nMols) {
-    int id_o = idToIdxs[waterIds[idx].x];
-    int id_h1 = idToIdxs[waterIds[idx].y];
-    int id_h2 = idToIdxs[waterIds[idx].z];
-    int id_e = idToIdxs[waterIds[idx].w];
-    float3 f_o, f_h1, f_h2, f_e;
-    f_o = make_float3(fs[id_o]);
-    f_h1 = make_float3(fs[id_h1]);
-    f_h2 = make_float3(fs[id_h2]);
-    f_e = make_float3(fs[id_e]);
-    float3 x_o, x_h1, x_h2, x_e;
-    x_o = make_float3(xs[id_o]);
-    x_h1 = make_float3(xs[id_h1]);
-    x_h2 = make_float3(xs[id_h2]);
-    x_e = make_float3(xs[id_e]);
-
-    float3 forceNet_old = f_o + f_h1 + f_h2 + f_e;
-    float3 torqueNet_old = cross(f_o,x_o) + cross(f_h1,x_h1) + cross(f_h2,x_h2) + cross(f_e,x_e);
-    printf("oldt = %f %f %f\n", torqueNet_old.x, torqueNet_old.y, torqueNet_old.z);
-    // OM direction vector
-    float3 vm = x_e - x_o;
-    float forceRadFactor = dot(f_e,vm) / lengthSqr(vm);
-    float3 forceAngular = vm * forceRadFactor;
-    forceAngular += f_e;
-
-    float3 va = x_o - ((x_h1 + x_h2) *0.5);
-    float inva = rsqrt(dot(va,va));
-    float co = (length(va) - length(vm));
-    co *= inva;
-    float ch = length(vm) * 0.5;
-    ch *= inva;
-
-    fs[id_e] = make_float4(0.0f,0.0f,0.0f,0.0f);
-    fs[id_o] += make_float4(forceAngular + forceAngular*co);
-    fs[id_h1] += make_float4(forceAngular*ch);
-    fs[id_h2] += make_float4(forceAngular*ch);
-
-    float3 forceNet_new = f_o + f_h1 + f_h2;
-    float3 torqueNet_new = cross(f_o,x_o) + cross(f_h1,x_h1) + cross(f_h2,x_h2);
-    printf("oldf = %f %f %f  newf = %f %f %f\n", forceNet_old.x, forceNet_old.y, forceNet_old.z, forceNet_new.x, forceNet_new.y, forceNet_new.z);
-    printf("oldt = %f %f %f  newt = %f %f %f\n", torqueNet_old.x, torqueNet_old.y, torqueNet_old.z, torqueNet_new.x, torqueNet_new.y, torqueNet_new.z);
-    float err = length(forceNet_new - forceNet_old);
-    assert(err <= 0.0001);
-    err = length(torqueNet_new - torqueNet_old);
-    assert(err <= 0.0001);
-  }
-}
-
-__global__ void set_init_vel_correction(int4 *waterIds, float4 *dvs_0, int nMols) {
-  int idx = GETIDX();
-  if (idx < nMols) {
-    int ids[3];
-    ids[0] = waterIds[idx].x;
-    ids[1] = waterIds[idx].y;
-    ids[2] = waterIds[idx].z;
-    for (int i = 0; i < 3; i++) {
-      dvs_0[idx*3 + i] = make_float4(0.0f,0.0f,0.0f,0.0f);
-    }
+    int idx_M = idToIdxs[waterIds[idx].w];
+    int idx_O = idToIdxs[waterIds[idx].x];
+    float3 e_OM = make_float3(xs[idx_O] - xs[idx_M]);
+    e_OM = normalize(e_OM);
+    float trans_force = dot(make_float3(fs[idx_M]), e_OM);
+    float3 torque = cross(-e_OM, make_float3(fs[idx_M]));
+    fs[idx_O] += trans_force;
+    // fix this -- apply on H
+    fs[idx_O] += torque;
   }
 }
 
 /* ------- Based off of the SETTLE Algorithm outlined in ------------
    ------ Miyamoto et al., J Comput Chem. 13 (8): 952–962 (1992). ------ */
 
-__device__ void settle_xs(float timestep, float3 com, float3 com1, float3 *xs_0, float3 *xs, float4 fix_len, bool fourSite) {
+__device__ inline void settle_xs(float timestep, float3 com, float3 com1, float3 *xs_0, float3 *xs, float3 fix_len) {
   //printf("COM = %f %f %f  len = %f %f %f\n", com.x, com.y, com.x, fix_len.x, fix_len.y, fix_len.z);
   float3 a0 = xs_0[0];
   float3 b0 = xs_0[1];
   float3 c0 = xs_0[2];
-  //printf("a0=%f %f %f\n",a0.x,a0.y,a0.z);
+  printf("a0=%f %f %f\n",a0.x,a0.y,a0.z);
 
   float3 a1 = xs[0];
   float3 b1 = xs[1];
   float3 c1 = xs[2];
-  //printf("a1=%f %f %f  b1=%f %f %f  c1=%f %f %f\n",a1.x,a1.y,a1.z,b1.x,b1.y,b1.z,c1.x,c1.y,c1.z);
+  printf("a1=%f %f %f  b1=%f %f %f  c1=%f %f %f\n",a1.x,a1.y,a1.z,b1.x,b1.y,b1.z,c1.x,c1.y,c1.z);
   
   float ra = fix_len.x;
   float rc = fix_len.z;
@@ -224,7 +167,7 @@ __device__ void settle_xs(float timestep, float3 com, float3 com1, float3 *xs_0,
   float3 ap1 = a1 - com1;
   float3 bp1 = b1 - com1;
   float3 cp1 = c1 - com1;
-  //printf("com1=%f %f %f  ap1=%f %f %f  bp1=%f %f %f  cp1=%f %f %f\n",com1.x,com1.y,com1.z, ap1.x,ap1.y,ap1.z, bp1.x,bp1.y,bp1.z, cp1.x,cp1.y,cp1.z);
+  printf("com1=%f %f %f  ap1=%f %f %f  bp1=%f %f %f  cp1=%f %f %f\n",com1.x,com1.y,com1.z, ap1.x,ap1.y,ap1.z, bp1.x,bp1.y,bp1.z, cp1.x,cp1.y,cp1.z);
   //printf("coms = %f %f %f\n", (com1-com).x, (com1-com).y, (com1-com).z);
   // construct rotation matrix for z-axis to normal
   float3 normal = cross(b0-a0,c0-a0);
@@ -364,7 +307,7 @@ __device__ void settle_xs(float timestep, float3 com, float3 com1, float3 *xs_0,
   } else {
     cos_psi = sqrtf(1-(sin_psi*sin_psi));
   }
-  //printf("sin_phi: %f  cos_phi: %f  sin_psi: %f  cos-psi: %f\n", sin_phi, cos_phi, sin_psi, cos_psi);
+  printf("sin_phi: %f  cos_phi: %f  sin_psi: %f  cos-psi: %f\n", sin_phi, cos_phi, sin_psi, cos_psi);
   float3 a2 = make_float3(0,ra*cos_phi,ra*sin_phi);
   float3 b2 = make_float3(-rc*cos_psi,-rb*cos_phi-rc*sin_psi*sin_phi,-rb*sin_phi+rc*sin_psi*cos_phi);
   float3 c2 = make_float3(rc*cos_psi,-rb*cos_phi+rc*sin_psi*sin_phi,-rb*sin_phi-rc*sin_psi*cos_phi);
@@ -408,7 +351,7 @@ __device__ void settle_xs(float timestep, float3 com, float3 com1, float3 *xs_0,
       cos_theta = sqrtf(1 - sin_theta*sin_theta);
     }
   }
-  //printf("sin_theta = %f  cos_theta = %f  alpha = %f  beta = %f  gamma = %f\n", sin_theta, cos_theta, alpha, beta, gamma);
+  printf("sin_theta = %f  cos_theta = %f  alpha = %f  beta = %f  gamma = %f\n", sin_theta, cos_theta, alpha, beta, gamma);
   assert(fabs(sin_phi) <= 1.00001);
   assert(fabs(sin_psi) <= 1.00001);
   assert(fabs(sin_theta) <= 1.00001);
@@ -431,14 +374,6 @@ __device__ void settle_xs(float timestep, float3 com, float3 com1, float3 *xs_0,
   b3 = rotateCoords(b3,tr);
   c3 = rotateCoords(c3,tr);
   
-  // place lone pair
-  if (fourSite) {
-    float rm = fix_len.w;
-    float3 adir = normalize(a3);
-    float3 m3 = adir*rm + a3;
-    xs[3] = m3 + com1;
-  }
-
   //a3 = rotateCoords(a3, trn);
   //b3 = rotateCoords(b3, trn);
   //c3 = rotateCoords(c3, trn);
@@ -460,7 +395,7 @@ __device__ void settle_xs(float timestep, float3 com, float3 com1, float3 *xs_0,
   //printf("------------------------------- VEL -------\n");
 }
 
-__device__ void settle_vs(float timestep, float3 *vs_0, float3 *dvs_0, float3 *vs, float3 *xs, float3 *xs_0, float *mass, float3 *fs_0, float3 *fs) {
+__device__ inline void settle_vs(float timestep, float3 *vs, float3 *xs, float3 *xs_0, float *mass) {
   float dt = timestep;
 
   // calculate velocities
@@ -473,9 +408,6 @@ __device__ void settle_vs(float timestep, float3 *vs_0, float3 *dvs_0, float3 *v
   float mb = mass[1];
   float mc = mass[2];
 
-  float3 v0a_ = vs_0[0] + (0.5*dt*fs_0[0]) + dt*dvs_0[0] + (0.5*dt*fs[0]);
-  float3 v0b_ = vs_0[1] + 0.5*dt*fs_0[1] + dt*dvs_0[1] + 0.5*dt*fs[1];
-  float3 v0c_ = vs_0[2] + 0.5*dt*fs_0[2] + dt*dvs_0[2] + 0.5*dt*fs[2];
   //printf("v0a.x = %f  1/2*dt*f0a.x = %f  dt*dv0a.x = %f  1/2*dt*fa.x = %f\n", vs_0[0].x, (0.5*dt*fs_0[0]).x, (dt*dvs_0[0]).x, (0.5*dt*fs[0]).x);
   //printf("f=%f %f %f  dvs=%f %f %f v0=%f %f %f v=%f %f %f\n", fs_0[0].x, fs_0[0].y, fs_0[0].z, dvs_0[0].x, dvs_0[0].y, dvs_0[0].z, v0a_.x, v0b_.y, v0c_.z);
   //printf("v0a_ = %f %f %f  v0b_ = %f %f %f  v0c_ = %f %f %f\n", v0a_.x, v0a_.y, v0a_.z, v0b_.x, v0b_.y, v0b_.z, v0c_.x, v0c_.y, v0c_.z);
@@ -581,9 +513,6 @@ __device__ void settle_vs(float timestep, float3 *vs_0, float3 *dvs_0, float3 *v
   // ------------
   //printf("da=%f %f %f db=%f %f %f dc=%f %f %f\n", dva.x*dt, dva.y*dt, dva.z*dt, dvb.x*dt, dvb.y*dt, dvb.z*dt, dvc.x*dt, dvc.y*dt, dvc.z*dt);
   //printf("dva=%f %f %f dvb=%f %f %f dvc=%f %f %f\n", dva.x, dva.y, dva.z, dvb.x, dvb.y, dvb.z, dvc.x, dvc.y, dvc.z);
-  dvs_0[0] = dva;
-  dvs_0[1] = dvb;
-  dvs_0[2] = dvc;
   
   //printf("v'a=%f %f %f vb=%f %f %f vc=%f %f %f\n",va.x,va.y,va.z,vb.x,vb.y,vb.z,vc.x,vc.y,vc.z);
   v0a += dva;
@@ -604,54 +533,37 @@ __device__ void settle_vs(float timestep, float3 *vs_0, float3 *dvs_0, float3 *v
 
 
 
-__global__ void compute_SETTLE(int4 *waterIds, float4 *xs, float4 *xs_0, float4 *vs, float4 *vs_0, float4 *dvs_0, float4 *fs, float4 *fs_0, float4 *comOld, float4 *fix_len, int nMols, float dt, int *idToIdxs, BoundsGPU bounds, bool fourSite) {
+__global__ inline void compute_SETTLE(int4 *waterIds, float4 *xs, float4 *xs_0, float4 *vs, float4 *comOld, float4 *fix_len, int nMols, float dt, int *idToIdxs, BoundsGPU bounds) {
   int idx = GETIDX();
   if (idx < nMols) {
     int ids[3];
     int idxs[3];
     float3 xs_0_mol[3];
-    float3 xs_mol[4];
-    float3 vs_0_mol[3];
+    float3 xs_mol[3];
     float3 vs_mol[3];
-    float3 dvs_0_mol[3];
-    float3 fs_0_mol[3];
-    float3 fs_mol[3];
     float mass[3];
-    float4 fix_len_mol = fix_len[idx];
-    int4 waterId_mol = waterIds[idx];
+    float3 fix_len_mol = make_float3(fix_len[idx]);
+    int3 waterId_mol = make_int3(waterIds[idx]);
     ids[0] = waterId_mol.x;
     ids[1] = waterId_mol.y;
     ids[2] = waterId_mol.z;
-    int myIdx;
     for (int i = 0; i < 3; i++) {
-      myIdx = idToIdxs[ids[i]];
+      int myIdx = idToIdxs[ids[i]];
       idxs[i] = myIdx;
       xs_0_mol[i] = make_float3(xs_0[idx*3+i]);
       float4 xWhole = xs[myIdx];
+      //printf("xs = %f %f %f\n", xWhole.x, xWhole.y, xWhole.z);
       xs_mol[i] = make_float3(xWhole);
-      vs_0_mol[i] = make_float3(vs_0[idx*3+i]);
       float4 vWhole = vs[myIdx];
       vs_mol[i] = make_float3(vWhole);
-      dvs_0_mol[i] = make_float3(dvs_0[idx*3+i]);
-      //printf("dvs=%f %f %f\n", dvs_0_mol[i].x, dvs_0_mol[i].y, dvs_0_mol[i].z);
       mass[i] = 1.0f / vWhole.w;
-      fs_0_mol[i] = make_float3(fs_0[idx*3+i]);
-      float4 fWhole = fs[myIdx];
-      fs_mol[i] = make_float3(fWhole);
-      //fix_len_mol[i] = make_float3(fix_len[idx*3+i]);
     }
-    int numAtoms = 3;
-    if (fourSite) {
-      numAtoms = 4;
-      myIdx = idToIdxs[waterId_mol.w];
-      xs_mol[3] = make_float3(xs[myIdx]);
-    }
-    for (int i=1; i<numAtoms; i++) {
-      //printf("xs = %f %f %f\n", xs_mol[i].x, xs_mol[i].y, xs_mol[i].z);
+    for (int i=1; i<3; i++) {
+      printf("xs = %f %f %f\n", xs_mol[i].x, xs_mol[i].y, xs_mol[i].z);
       float3 delta = xs_mol[i] - xs_mol[0];
       delta = bounds.minImage(delta);
       xs_mol[i] = xs_mol[0] + delta;
-      //printf("xd = %f %f %f\n", xs_mol[i].x, xs_mol[i].y, xs_mol[i].z);
+      printf("xd = %f %f %f\n", xs_mol[i].x, xs_mol[i].y, xs_mol[i].z);
     }
     for (int i=0; i<3; i++) {
       float3 delta = xs_0_mol[i] - xs_mol[0];
@@ -665,84 +577,27 @@ __global__ void compute_SETTLE(int4 *waterIds, float4 *xs, float4 *xs_0, float4 
     delta = bounds.minImage(delta);
     float3 comOldWrap = comNew + delta;
     //printf("comNew = %f %f %f  delta = %f %f %f  comOldWrap = %f %f %f\n", comNew.x, comNew.y, comNew.z, delta.x, delta.y, delta.z, comOldWrap.x*1000, comOldWrap.y*1000, comOldWrap.z*1000);
-    //printf("xs_x=%f xs_y=%f xs_z=%f\n", xs_mol[0].x, xs_mol[0].y, xs_mol[0].z);
-    settle_xs(dt, comOldWrap, comNew, xs_0_mol, xs_mol, fix_len_mol, fourSite);
+    printf("xs_x=%f xs_y=%f xs_z=%f\n", xs_mol[0].x, xs_mol[0].y, xs_mol[0].z);
+    settle_xs(dt, comOldWrap, comNew, xs_0_mol, xs_mol, fix_len_mol);
     /*printf("Settle  positions: xs_x=%f xs_y=%f xs_z=%f\n", xs_mol[0].x, xs_mol[0].y, xs_mol[0].z);
     printf("                   xs_x=%f xs_y=%f xs_z=%f\n", xs_mol[1].x, xs_mol[1].y, xs_mol[1].z);
     printf("                   xs_x=%f xs_y=%f xs_z=%f\n", xs_mol[2].x, xs_mol[2].y, xs_mol[2].z);*/
     //printf("vs_mol = %f %f %f\n", vs_mol[0].x*100, vs_mol[0].y*100, vs_mol[0].z*100);
-    settle_vs(dt, vs_0_mol, dvs_0_mol, vs_mol, xs_mol, xs_0_mol, mass, fs_0_mol, fs_mol);
+    settle_vs(dt, vs_mol, xs_mol, xs_0_mol, mass);
     /*printf("Settle velocities: vs_x=%f vs_y=%f vs_z=%f\n", vs_mol[0].x, vs_mol[0].y, vs_mol[0].z);
     printf("                   vs_x=%f vs_y=%f vs_z=%f\n", vs_mol[1].x, vs_mol[1].y, vs_mol[1].z);
     printf("                   vs_x=%f vs_y=%f vs_z=%f\n", vs_mol[2].x, vs_mol[2].y, vs_mol[2].z);*/
-    for (int i=0; i<numAtoms; i++) {
+    for (int i=0; i<3; i++) {
       xs[idxs[i]] = make_float4(xs_mol[i]);
     }
     for (int i=0; i<3; i++) {
       vs[idxs[i]] = make_float4(vs_mol[i]);
       vs[idxs[i]].w = 1.0f/mass[i];
-      dvs_0[idx*3+i] = make_float4(dvs_0_mol[i]);
     }
   }
 }
-
-void FixRigid::createRigid(int id_a, int id_b, int id_c) {
-  if (fourSet) assert(!fourSite);
-  else {
-    fourSet = true;
-    fourSite = false;
-  }
-  int4 waterMol = make_int4(0,0,0,0);
-  Vector a = state->idToAtom(id_a).pos;
-  Vector b = state->idToAtom(id_b).pos;
-  Vector c = state->idToAtom(id_c).pos;
-
-  double ma = state->idToAtom(id_a).mass;
-  double mb = state->idToAtom(id_b).mass;
-  double mc = state->idToAtom(id_c).mass;
-  double ims = 1.0 / (ma + mb + mc);
-  float4 ims4 = make_float4(0.0f, 0.0f, 0.0f, float(ims));
-  invMassSums.push_back(ims4);
-
-  float det = a[0]*b[1]*c[2] - a[0]*c[1]*b[2] - b[0]*a[1]*c[2] + b[0]*c[1]*a[2] + c[0]*a[1]*b[2] - c[0]*b[1]*a[2];
-  if (state->idToAtom(id_a).mass == state->idToAtom(id_b).mass) {
-    waterMol = make_int4(id_c,id_a,id_b,0);
-    if (det < 0) {
-      waterMol = make_int4(id_c,id_b,id_a,0);
-    }
-  }
-  else if (state->idToAtom(id_b).mass == state->idToAtom(id_c).mass) {
-    waterMol = make_int4(id_a,id_b,id_c,0);
-    if (det < 0) {
-      waterMol = make_int4(id_a,id_c,id_b,0);
-    }
-  }
-  else if (state->idToAtom(id_c).mass == state->idToAtom(id_a).mass) {
-    waterMol = make_int4(id_b,id_c,id_a,0);
-    if (det < 0) {
-      waterMol = make_int4(id_b,id_a,id_c,0);
-    }
-  } else {
-    assert("waterMol set" == "true");
-  }
-  waterIds.push_back(waterMol);
-  Bond bondOH1;
-  Bond bondOH2;
-  Bond bondHH;
-  bondOH1.ids = { {waterMol.x,waterMol.y} };
-  bondOH2.ids = { {waterMol.x,waterMol.z} };
-  bondHH.ids = { {waterMol.y,waterMol.z} };
-  bonds.push_back(bondOH1);
-  bonds.push_back(bondOH2);
-  bonds.push_back(bondHH);
-}
-
-void FixRigid::createRigidTIP4P(int id_a, int id_b, int id_c, int id_m) {
-  if (fourSet) assert(fourSite);
-  else {
-    fourSet = true;
-    fourSite = true;
-  }
+// just input the 3 atoms
+void FixRigidTIP4P::createTIP4P(int id_a, int id_b, int id_c, int id_m) {
   int4 waterMol = make_int4(0,0,0,0);
   Vector a = state->idToAtom(id_a).pos;
   Vector b = state->idToAtom(id_b).pos;
@@ -756,7 +611,7 @@ void FixRigid::createRigidTIP4P(int id_a, int id_b, int id_c, int id_m) {
   double ims = 1.0 / (ma + mb + mc + mm);
   float4 ims4 = make_float4(0.0f, 0.0f, 0.0f, float(ims));
   invMassSums.push_back(ims4);
-
+  printf("mass = %f %f %f\n", state->idToAtom(id_a).mass, state->idToAtom(id_b).mass, state->idToAtom(id_c).mass);
   float det = a[0]*b[1]*c[2] - a[0]*c[1]*b[2] - b[0]*a[1]*c[2] + b[0]*c[1]*a[2] + c[0]*a[1]*b[2] - c[0]*b[1]*a[2];
   if (state->idToAtom(id_a).mass == state->idToAtom(id_b).mass) {
     waterMol = make_int4(id_c,id_a,id_b,id_m);
@@ -793,15 +648,14 @@ void FixRigid::createRigidTIP4P(int id_a, int id_b, int id_c, int id_m) {
   bonds.push_back(bondOM);
 }
 
-bool FixRigid::prepareForRun() {
+
+bool FixRigidTIP4P::prepareForRun() {
   int n = waterIds.size();
   waterIdsGPU = GPUArrayDeviceGlobal<int4>(n);
   waterIdsGPU.set(waterIds.data());
 
   xs_0 = GPUArrayDeviceGlobal<float4>(3*n);
   vs_0 = GPUArrayDeviceGlobal<float4>(3*n);
-  dvs_0 = GPUArrayDeviceGlobal<float4>(3*n);
-  fs_0 = GPUArrayDeviceGlobal<float4>(3*n);
   com = GPUArrayDeviceGlobal<float4>(n);
   com.set(invMassSums.data());
   fix_len = GPUArrayDeviceGlobal<float4>(n);
@@ -809,25 +663,24 @@ bool FixRigid::prepareForRun() {
   int activeIdx = gpd.activeIdx();
   BoundsGPU &bounds = state->boundsGPU;
   compute_COM<<<NBLOCK(n), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), gpd.vs(activeIdx), gpd.idToIdxs.d_data.data(), n, com.data(), bounds);
-  set_fixed_sides<<<NBLOCK(n), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), com.data(), fix_len.data(), n, gpd.idToIdxs.d_data.data(),fourSite);
-  set_init_vel_correction<<<NBLOCK(n), PERBLOCK>>>(waterIdsGPU.data(), dvs_0.data(), n);
+  set_fixed_sides<<<NBLOCK(n), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), com.data(), fix_len.data(), n, gpd.idToIdxs.d_data.data());
   return true;
 }
 
-bool FixRigid::stepInit() {
+bool FixRigidTIP4P::stepInit() {
   int nMols = waterIdsGPU.size();
   GPUData &gpd = state->gpd;
   int activeIdx = gpd.activeIdx();
   BoundsGPU &bounds = state->boundsGPU;
   compute_COM<<<NBLOCK(nMols), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), gpd.vs(activeIdx), gpd.idToIdxs.d_data.data(), nMols, com.data(), bounds);
-  compute_prev_val<<<NBLOCK(nMols), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), xs_0.data(), gpd.vs(activeIdx), vs_0.data(), gpd.fs(activeIdx), fs_0.data(), nMols, gpd.idToIdxs.d_data.data());
+  compute_prev_val<<<NBLOCK(nMols), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), xs_0.data(), nMols, gpd.idToIdxs.d_data.data());
   //float4 cpu_com[nMols*3];
   //xs_0.get(cpu_com);
   //std::cout << cpu_com[0] << "\n";
   return true;
 }
 
-bool FixRigid::stepFinal() {
+bool FixRigidTIP4P::stepFinal() {
   int nMols = waterIdsGPU.size();
   float dt = state->dt;
   GPUData &gpd = state->gpd;
@@ -836,8 +689,8 @@ bool FixRigid::stepFinal() {
   //float4 cpu_xs[nMols*3];
   //gpd.xs.dataToHost(activeIdx);
   //std::cout << "before settle: " << cpu_xs[0] << "\n";
-  //distribute_electron_force<<<NBLOCK(nMols), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), gpd.fs(activeIdx), nMols, gpd.idToIdxs.d_data.data());
-  compute_SETTLE<<<NBLOCK(nMols), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), xs_0.data(), gpd.vs(activeIdx), vs_0.data(), dvs_0.data(), gpd.fs(activeIdx), fs_0.data(), com.data(), fix_len.data(), nMols, dt, gpd.idToIdxs.d_data.data(), bounds, fourSite);
+  distributeElectronForce<<<NBLOCK(nMols), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), gpd.fs(activeIdx), nMols, gpd.idToIdxs.d_data.data());
+  compute_SETTLE<<<NBLOCK(nMols), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), xs_0.data(), gpd.vs(activeIdx), com.data(), fix_len.data(), nMols, dt, gpd.idToIdxs.d_data.data(), bounds);
   //xs_0.get(cpu_xs);
   //std::cout << cpu_xs[0] << "\n";
   return true;
@@ -845,19 +698,15 @@ bool FixRigid::stepFinal() {
 
 
 
-void export_FixRigid() {
-  py::class_<FixRigid, boost::shared_ptr<FixRigid>, py::bases<Fix> > ( 
-								      "FixRigid",
+void export_FixRigidTIP4P() {
+  py::class_<FixRigidTIP4P, boost::shared_ptr<FixRigidTIP4P>, py::bases<Fix> > ( 
+								      "FixRigidTIP4P",
 								      py::init<boost::shared_ptr<State>, std::string, std::string>
 								      (py::args("state", "handle", "groupHandle")
 								       ))
-    .def("createRigid", &FixRigid::createRigid,
-	 (py::arg("id_a"), py::arg("id_b"), py::arg("id_c"))
-	 )
-    .def("createRigidTIP4P", &FixRigid::createRigidTIP4P,
-	 (py::arg("id_a"), py::arg("id_b"), py::arg("id_c"))
+    .def("createRigidTIP4P", &FixRigidTIP4P::createTIP4P,
+	 (py::arg("id_a"), py::arg("id_b"), py::arg("id_c"), py::arg("id_m"))
 	 );
-  
 }
     
 

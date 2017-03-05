@@ -172,8 +172,8 @@ class FixBond : public Fix, public TypedItemHolder {
                     belongingToOld.push_back(b);
                 }
             }
-            for (int i=0; i<newIds.size(); i++) {
-                for (int j=0; j<belongingToOld.size(); j++) {
+            for (uint i=0; i<newIds.size(); i++) {
+                for (uint j=0; j<belongingToOld.size(); j++) {
                     CPUMember copy = belongingToOld[j];
                     std::array<int, 2> idsNew = copy.ids;
                     for (int k=0; k<2; k++) {

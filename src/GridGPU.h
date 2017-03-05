@@ -60,6 +60,7 @@ private:
      * atoms are sorted correctly into the grid cells.
      */
     bool checkSorting(int gridIdx, int *gridIdxs, GPUArrayDeviceGlobal<int> &grid);
+    int exclusionMode; //<! When to do exclusions based on distance or existing forcers
 
 public:
     GPUArrayGlobal<uint32_t> perCellArray;      //!< Number of atoms in a given grid cell, later starting index of cell in neighborlist
@@ -89,7 +90,7 @@ public:
      * resolution will be the next larger value such that the box size is
      * a multiple of the resolution.
      */
-    GridGPU(State *state_, float dx, float dy, float dz, float neighCutoffMax);
+    GridGPU(State *state_, float dx, float dy, float dz, float neighCutoffMax, int exclusionMode_);
 
     /*! \brief Default constructor
      *
@@ -112,11 +113,15 @@ public:
 
     /*! \brief Take care of bonded-atoms exclusions
      *
-     * For bonded interactions, the positions of the next one (bond), two
-     * (angle) or three (dihedral) atoms need to be known. This function
-     * takes care that they are included in the grid cell.
+     *  can be set in one of two modes:
+     *  Distance search mode, in which exclusions are added basd on the number of bonds seperating the two particles,
+     *  or forcer mode (find a new name for this), in which exclusions are added only based on the dihedrals, angles, and bonds present
+     * 
+     * 
      */
     void handleExclusions();
+    void handleExclusionsDistance();
+    void handleExclusionsForcers();
 
     /*! \brief Remap atoms around periodic boundary conditions
      *
