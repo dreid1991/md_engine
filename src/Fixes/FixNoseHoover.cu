@@ -76,6 +76,7 @@ FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state_, std::string handle
                 barostatting(false)
 {
     pressComputer.usingExternalTemperature = true;
+    isThermostat = true;
 }
 
 FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state_, std::string handle_,
@@ -113,6 +114,7 @@ FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state_, std::string handle
 
 {
     pressComputer.usingExternalTemperature = true;
+    isThermostat = true;
 }
 
 
@@ -151,6 +153,7 @@ FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state_, std::string handle
 
 {
     pressComputer.usingExternalTemperature = true;
+    isThermostat = true;
 }
 void FixNoseHoover::setPressure(double press) {
     pressInterpolator = Interpolator(press);
@@ -482,6 +485,12 @@ void FixNoseHoover::rescale()
     scale = make_float3(1.0f, 1.0f, 1.0f);
 }
 
+Interpolator *FixNoseHoover::getInterpolator(std::string type) {
+    if (type == "temp") {
+        return &tempInterpolator;
+    }
+    return nullptr;
+}
 void export_FixNoseHoover()
 {
     py::class_<FixNoseHoover,                    // Class
