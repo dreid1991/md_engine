@@ -143,8 +143,8 @@ FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state_, std::string handle
                 pressCurrent(6, 0),
                 pFlags(6, false),
                 scale(make_float3(1.0f, 1.0f, 1.0f)),
-                tempComputer(state, "single"), 
-                pressComputer(state, "single"), 
+                tempComputer(state, "scalar"), 
+                pressComputer(state, "scalar"), 
                 pressMode(PRESSMODE::ISO),
                 thermostatting(true),
                 barostatting(false)
