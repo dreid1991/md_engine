@@ -349,8 +349,10 @@ bool FixNoseHoover::halfStep(bool firstHalfStep)
     double temp;
     if (firstHalfStep) {
         double currentTemp = tempInterpolator.getCurrentVal();
+        //printf("CURRENT TEMP IS %f\n", currentTemp);
         tempInterpolator.computeCurrentVal(state->turn);
         temp = tempInterpolator.getCurrentVal();
+        //printf("SET PT IS %f\n", temp);
         if (currentTemp != temp) {
             updateMasses();
         }

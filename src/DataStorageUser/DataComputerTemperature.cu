@@ -69,8 +69,8 @@ void DataComputerTemperature::computeScalar_CPU() {
     if (lastGroupTag == 1) {
         n = state->atoms.size();//* (int *) &gpuBuffer.h_data[1];
     } else {
-        Virial *asVir = (Virial *) &gpuBuffer.h_data + 1;
-        n = * (int *) asVir;
+        float *asfloat  = gpuBuffer.h_data.data() + 1;
+        n = * (int *) asfloat;
     }
     if (state->is2d) {
         ndf = 2*(n-1); //-1 is analagous to extra_dof in lammps
