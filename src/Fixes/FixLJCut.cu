@@ -61,12 +61,15 @@ void FixLJCut::singlePointEng(float *perParticleEng) {
 }
 
 void FixLJCut::setEvalWrapper() {
-    EvaluatorLJ eval;
-    evalWrap = pickEvaluator<EvaluatorLJ, 3, true>(eval, chargeCalcFix);
+    if (evalWrapperMode == "offload") {
+        EvaluatorLJ eval;
+        evalWrap = pickEvaluator<EvaluatorLJ, 3, true>(eval, chargeCalcFix);
+    } else if (evalWrapperMode == "self") {
+        EvaluatorLJ eval;
+        evalWrap = pickEvaluator<EvaluatorLJ, 3, true>(eval, nullptr);
+    }
 }
 void FixLJCut::setEvalWrapperOrig() {
-    EvaluatorLJ eval;
-    evalWrap = pickEvaluator<EvaluatorLJ, 3, true>(eval, nullptr);
 }
 
 bool FixLJCut::prepareForRun() {

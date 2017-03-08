@@ -783,7 +783,6 @@ void FixChargeEwald::setGridToErrorTolerance(bool printMsg) {
 
 }
 void FixChargeEwald::setError(double targetError, float rcut_, int interpolation_order_) {
-    printf("HEY HERE\n");
     r_cut=rcut_;
     interpolation_order=interpolation_order_;
     errorTolerance = targetError;
@@ -868,17 +867,18 @@ bool FixChargeEwald::prepareForRun() {
 }
 
 void FixChargeEwald::setEvalWrapper() {
-    if (hasOffloadedChargePairCalc) {
-        evalWrap = pickEvaluator<EvaluatorNone, 1, false>(EvaluatorNone(), nullptr); //nParams arg is 1 rather than zero b/c can't have zero sized argument on device
-    } else {
+    if (evalWrapperMode == "offload") {
+        if (hasOffloadedChargePairCalc) {
+            evalWrap = pickEvaluator<EvaluatorNone, 1, false>(EvaluatorNone(), nullptr); //nParams arg is 1 rather than zero b/c can't have zero sized argument on device
+        } else {
+            evalWrap = pickEvaluator<EvaluatorNone, 1, false>(EvaluatorNone(), this);
+        }
+    } else if (evalWrapperMode == "self") {
         evalWrap = pickEvaluator<EvaluatorNone, 1, false>(EvaluatorNone(), this);
     }
 
 }
 
-void FixChargeEwald::setEvalWrapperOrig() {
-    evalWrap = pickEvaluator<EvaluatorNone, 1, false>(EvaluatorNone(), this);
-}
 
 void FixChargeEwald::handleBoundsChange() {
     handleBoundsChangeInternal(false);

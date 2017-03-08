@@ -230,7 +230,10 @@ public:
     virtual void acceptChargePairCalc(Fix *){};
 
     virtual void setEvalWrapper(){};
-    virtual void setEvalWrapperOrig(){};
+
+    std::string evalWrapperMode;
+    //self or offload
+    void setEvalWrapperMode(std::string mode);
 
     State *state; //!< Pointer to the simulation state
     std::string handle; //!< "Name" of the Fix

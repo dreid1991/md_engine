@@ -71,12 +71,13 @@ bool FixTICG::prepareForRun() {
 }
 
 void FixTICG::setEvalWrapper() {
-    EvaluatorTICG eval;
-    evalWrap = pickEvaluator<EvaluatorTICG, 2, true>(eval, chargeCalcFix);
-}
-void FixTICG::setEvalWrapperOrig() {
-    EvaluatorTICG eval;
-    evalWrap = pickEvaluator<EvaluatorTICG, 2, true>(eval, nullptr);
+    if (evalWrapperMode == "orig") {
+        EvaluatorTICG eval;
+        evalWrap = pickEvaluator<EvaluatorTICG, 2, true>(eval, chargeCalcFix);
+     } else if (evalWrapperMode == "self") {
+        EvaluatorTICG eval;
+        evalWrap = pickEvaluator<EvaluatorTICG, 2, true>(eval, nullptr);
+     }
 }
 std::string FixTICG::restartChunk(std::string format) {
     std::stringstream ss;

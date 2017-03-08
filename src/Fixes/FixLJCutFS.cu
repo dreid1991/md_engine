@@ -107,12 +107,13 @@ bool FixLJCutFS::prepareForRun() {
 }
 
 void FixLJCutFS::setEvalWrapper() {
-    EvaluatorLJFS eval;
-    evalWrap = pickEvaluator<EvaluatorLJFS, 3, true>(eval, chargeCalcFix);
-}
-void FixLJCutFS::setEvalWrapperOrig() {
-    EvaluatorLJFS eval;
-    evalWrap = pickEvaluator<EvaluatorLJFS, 3, true>(eval, nullptr);
+    if (evalWrapperMode == "orig") {
+        EvaluatorLJFS eval;
+        evalWrap = pickEvaluator<EvaluatorLJFS, 3, true>(eval, chargeCalcFix);
+    } else if (evalWrapperMode == "self") {
+        EvaluatorLJFS eval;
+        evalWrap = pickEvaluator<EvaluatorLJFS, 3, true>(eval, nullptr);
+    }
 }
 
 std::string FixLJCutFS::restartChunk(std::string format) {

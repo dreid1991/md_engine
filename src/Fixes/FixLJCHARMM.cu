@@ -66,12 +66,13 @@ void FixLJCHARMM::singlePointEng(float *perParticleEng) {
 }
 
 void FixLJCHARMM::setEvalWrapper() {
-    EvaluatorCHARMM eval;
-    evalWrap = pickEvaluator<EvaluatorCHARMM, 3, true>(eval, chargeCalcFix);
-}
-void FixLJCHARMM::setEvalWrapperOrig() {
-    EvaluatorCHARMM eval;
-    evalWrap = pickEvaluator<EvaluatorCHARMM, 3, true>(eval, nullptr);
+    if (evalWrapperMode == "orig") {
+        EvaluatorCHARMM eval;
+        evalWrap = pickEvaluator<EvaluatorCHARMM, 3, true>(eval, chargeCalcFix);
+    } else if (evalWrapperMode == "self") {
+        EvaluatorCHARMM eval;
+        evalWrap = pickEvaluator<EvaluatorCHARMM, 3, true>(eval, nullptr);
+    }
 }
 
 bool FixLJCHARMM::prepareForRun() {

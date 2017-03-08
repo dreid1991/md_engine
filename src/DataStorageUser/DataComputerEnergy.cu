@@ -25,9 +25,12 @@ void DataComputerEnergy::computeScalar_GPU(bool transferToCPU, uint32_t groupTag
     lastGroupTag = groupTag;
     int nAtoms = state->atoms.size();
     GPUData &gpd = state->gpd;
+    printf("in compute\n");
     for (boost::shared_ptr<Fix> fix : fixes) {
-        fix->setEvalWrapperOrig();
+        fix->setEvalWrapperMode("self");
+        fix->setEvalWrapper();
         fix->singlePointEng(gpuBuffer.getDevData());
+        fix->setEvalWrapperMode("offload");
         fix->setEvalWrapper();
     }
     if (groupTag == 1) {
@@ -48,9 +51,12 @@ void DataComputerEnergy::computeVector_GPU(bool transferToCPU, uint32_t groupTag
     gpuBuffer.d_data.memset(0);
     lastGroupTag = groupTag;
     int nAtoms = state->atoms.size();
+
     for (boost::shared_ptr<Fix> fix : fixes) {
-        fix->setEvalWrapperOrig();
+        fix->setEvalWrapperMode("self");
+        fix->setEvalWrapper();
         fix->singlePointEng(gpuBuffer.getDevData());
+        fix->setEvalWrapperMode("offload");
         fix->setEvalWrapper();
     }
     if (transferToCPU) {
