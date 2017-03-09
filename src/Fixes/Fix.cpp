@@ -24,6 +24,7 @@ Fix::Fix(boost::shared_ptr<State> state_, std::string handle_, std::string group
     
     hasOffloadedChargePairCalc = false;
     hasAcceptedChargePairCalc = false;
+    setEvalWrapperMode("offload"); //offload by default
 
 
     /*
@@ -89,6 +90,23 @@ void Fix::validAtoms(std::vector<Atom *> &atoms) {
             assert(false);
         }
     }
+}
+
+void Fix::setEvalWrapperMode(std::string mode) {
+    if (mode == "offload") { 
+        evalWrapperMode = mode;
+    } else if (mode == "self") {
+        evalWrapperMode = mode;
+    } else {
+        std::cout << "Invalid evaluator wrapper mode " << mode << ".  This is an internal error." << std::endl;
+        assert(mode == "offload" or mode == "self");
+    }
+    
+}
+
+
+Interpolator *Fix::getInterpolator(std::string type) {
+    return nullptr;
 }
 
 void export_Fix() {

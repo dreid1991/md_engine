@@ -1,7 +1,6 @@
 #pragma once
-#ifndef GLOBAL_DEFS_H
-#define GLOBAL_DEFS_H
 
+#define DEFAULT_FILL -1000
 #include <boost/shared_ptr.hpp>
 
 #define DEBUG
@@ -55,4 +54,3 @@ using b_shared_ptr = boost::shared_ptr<T>;
 
 #define LINEARIDX(idx, ns) (ns.z*ns.y*idx.x + ns.z*idx.y + idx.z)
 
-#endif

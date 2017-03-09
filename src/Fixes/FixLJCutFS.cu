@@ -18,6 +18,9 @@ FixLJCutFS::FixLJCutFS(SHARED(State) state_, std::string handle_)
     initializeParameters(rCutHandle, rCuts);
     initializeParameters("FCutHandle", FCuts);
     paramOrder = {rCutHandle, epsHandle, sigHandle, "FCutHandle"};
+
+    canAcceptChargePairCalc = true;
+    setEvalWrapper();
 }
 void FixLJCutFS::compute(bool computeVirials) {
     int nAtoms = state->atoms.size();
@@ -106,8 +109,13 @@ bool FixLJCutFS::prepareForRun() {
 }
 
 void FixLJCutFS::setEvalWrapper() {
-    EvaluatorLJFS eval;
-    evalWrap = pickEvaluator<EvaluatorLJFS, 3>(eval, chargeCalcFix);
+    if (evalWrapperMode == "orig") {
+        EvaluatorLJFS eval;
+        evalWrap = pickEvaluator<EvaluatorLJFS, 3, true>(eval, chargeCalcFix);
+    } else if (evalWrapperMode == "self") {
+        EvaluatorLJFS eval;
+        evalWrap = pickEvaluator<EvaluatorLJFS, 3, true>(eval, nullptr);
+    }
 }
 
 std::string FixLJCutFS::restartChunk(std::string format) {

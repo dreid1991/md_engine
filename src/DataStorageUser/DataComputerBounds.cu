@@ -5,7 +5,7 @@
 namespace py = boost::python;
 using namespace MD_ENGINE;
 
-DataComputerBounds::DataComputerBounds(State *state_) : DataComputer(state_, true, false, false, false) {
+DataComputerBounds::DataComputerBounds(State *state_) : DataComputer(state_, "scalar", false) {
 }
 
 

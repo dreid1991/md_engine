@@ -27,6 +27,7 @@ FixLJCut::FixLJCut(boost::shared_ptr<State> state_, string handle_)
     paramOrder = {rCutHandle, epsHandle, sigHandle};
     readFromRestart();
     canAcceptChargePairCalc = true;
+    setEvalWrapper();
 }
 
 void FixLJCut::compute(bool computeVirials) {
@@ -62,9 +63,15 @@ void FixLJCut::singlePointEng(float *perParticleEng) {
 }
 
 void FixLJCut::setEvalWrapper() {
-    EvaluatorLJ eval;
-    evalWrap = pickEvaluator<EvaluatorLJ, 3>(eval, chargeCalcFix);
-
+    if (evalWrapperMode == "offload") {
+        EvaluatorLJ eval;
+        evalWrap = pickEvaluator<EvaluatorLJ, 3, true>(eval, chargeCalcFix);
+    } else if (evalWrapperMode == "self") {
+        EvaluatorLJ eval;
+        evalWrap = pickEvaluator<EvaluatorLJ, 3, true>(eval, nullptr);
+    }
+}
+void FixLJCut::setEvalWrapperOrig() {
 }
 
 bool FixLJCut::prepareForRun() {

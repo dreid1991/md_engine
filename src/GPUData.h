@@ -38,9 +38,6 @@ public:
     std::map<int, GPUArrayGlobal<uint>> movedIdsBuffers;
     std::map<int, GPUArrayGlobal<int>> movedIdxBuffers;
 
-    /* for data collection.  If we re-use per-particle arrays, we can't do
-     * async kernels to do per-group sums.  Would use less memory though */
-    GPUArrayGlobal<float> perParticleEng;
 
     std::vector<int> idToIdxsOnCopy;
 

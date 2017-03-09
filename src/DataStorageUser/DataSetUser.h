@@ -11,26 +11,24 @@ namespace MD_ENGINE {
 
 class DataComputer;
 enum COMPUTEMODE {INTERVAL, PYTHON};
-enum DATAMODE {SCALAR, TENSOR};
+enum DATAMODE {SCALAR, VECTOR, TENSOR};
 enum DATATYPE {TEMPERATURE, PRESSURE, ENERGY, BOUNDS};
 class DataSetUser {
 private:
     State *state;
 public:
-    DataSetUser(State *, boost::shared_ptr<DataComputer> computer_, uint32_t groupTag_, int, int, int);
-    DataSetUser(State *, boost::shared_ptr<DataComputer> computer_, uint32_t groupTag_, int, int, boost::python::object);
+    DataSetUser(State *, boost::shared_ptr<DataComputer> computer_, uint32_t groupTag_, int);
+    DataSetUser(State *, boost::shared_ptr<DataComputer> computer_, uint32_t groupTag_, boost::python::object);
 
     boost::python::list turns;
     boost::python::list vals;
-    int dataMode; 
-    int dataType;
+
     uint32_t groupTag;
     boost::shared_ptr<DataComputer> computer;
     int computeMode;
     int64_t nextCompute;
 
     bool requiresVirials();
-    bool requiresEnergy();
 
     void prepareForRun();
     void computeData();

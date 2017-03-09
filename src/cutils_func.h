@@ -132,6 +132,23 @@ ACCUMULATION_CLASS(SumVectorToVirial, Virial, float4, v, Virial(v.x*v.x, v.y*v.y
 ACCUMULATION_CLASS(SumVectorToVirialOverW, Virial, float4, v, Virial(v.x*v.x/v.w, v.y*v.y/v.w, v.z*v.z/v.w, v.x*v.y/v.w, v.x*v.z/v.w, v.y*v.z/v.w), Virial(0, 0, 0, 0, 0, 0)); 
 ACCUMULATION_CLASS(SumVirialToScalar, float, Virial, vir, (vir[0]+vir[1]+vir[2]), 0); 
 
+
+
+template <class K, class T, class C, int NPERTHREAD>
+__global__ void oneToOne_gpu(K *dest, T *src, int n, C instance) {
+    
+    const int copyBaseIdx = blockDim.x*blockIdx.x * NPERTHREAD + threadIdx.x;
+    const int copyIncrement = blockDim.x;
+    for (int i=0; i<NPERTHREAD; i++) {
+        int step = i * copyIncrement;
+        if (copyBaseIdx + step < n) {
+            dest[copyBaseIdx + step] = instance.process(src[copyBaseIdx + step]);
+            
+        } 
+    }
+}
+
+
 template <class K, class T, class C, int NPERTHREAD>
 __global__ void accumulate_gpu(K *dest, T *src, int n, int warpSize, C instance) {
     SharedMemory<K> sharedMem;
