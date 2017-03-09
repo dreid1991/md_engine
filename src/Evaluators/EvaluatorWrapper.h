@@ -29,7 +29,7 @@ public:
             } else {
                 compute_force_iso<PAIR_EVAL, COMP_PAIRS, N_PARAM, false, CHARGE_EVAL, COMP_CHARGES> <<<NBLOCK(nAtoms), PERBLOCK, N_PARAM*numTypes*numTypes*sizeof(float)>>>(nAtoms, xs, fs, neighborCounts, neighborlist, cumulSumMaxPerBlock, warpSize, parameters, numTypes, bounds, onetwoStr, onethreeStr, onefourStr, virials, qs, qCutoff*qCutoff, pairEval, chargeEval);
             }
-        }
+        } 
     }
     virtual void energy(int nAtoms, float4 *xs, float *perParticleEng, uint16_t *neighborCounts, uint *neighborlist, uint32_t *cumulSumMaxPerBlock, int warpSize, float *parameters, int numTypes, BoundsGPU bounds, float onetwoStr, float onethreeStr, float onefourStr, float *qs, float qCutoff) {
         if (COMP_PAIRS or COMP_CHARGES) {
