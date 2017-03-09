@@ -103,6 +103,12 @@ void Fix::setEvalWrapperMode(std::string mode) {
     }
     
 }
+
+
+Interpolator *Fix::getInterpolator(std::string type) {
+    return nullptr;
+}
+
 void export_Fix() {
     boost::python::class_<Fix, SHARED(Fix), boost::noncopyable> (
         "Fix",

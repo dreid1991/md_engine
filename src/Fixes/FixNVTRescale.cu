@@ -34,6 +34,7 @@ FixNVTRescale::FixNVTRescale(SHARED(State) state_, string handle_, string groupH
     : Interpolator(intervals_, temps_), Fix(state_, handle_, groupHandle_, NVTRescaleType, false, false, false, applyEvery_),
       curIdx(0), tempComputer(state, "scalar")
 {
+    isThermostat = true;
 
 
 }
@@ -42,6 +43,7 @@ FixNVTRescale::FixNVTRescale(SHARED(State) state_, string handle_, string groupH
     : Interpolator(tempFunc_), Fix(state_, handle_, groupHandle_, NVTRescaleType, false, false, false, applyEvery_),
       curIdx(0), tempComputer(state, "scalar")
 {
+    isThermostat = true;
 
 
 }
@@ -50,6 +52,7 @@ FixNVTRescale::FixNVTRescale(SHARED(State) state_, string handle_, string groupH
     : Interpolator(constTemp_), Fix(state_, handle_, groupHandle_, NVTRescaleType, false, false, false, applyEvery_),
       curIdx(0), tempComputer(state, "scalar")
 {
+    isThermostat = true;
 
 
 }
@@ -105,6 +108,12 @@ bool FixNVTRescale::postRun() {
 }
 
 
+Interpolator *FixNVTRescale::getInterpolator(std::string type) {
+    if (type == "temp") {
+        return (Interpolator *) this;
+    }
+    return nullptr;
+}
 
 
 void export_FixNVTRescale() {

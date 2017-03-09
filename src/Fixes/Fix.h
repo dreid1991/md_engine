@@ -6,6 +6,7 @@
 #include "globalDefs.h"
 #include <pugixml.hpp>
 #include <map>
+#include "Interpolator.h"
 
 class Atom;
 class State;
@@ -262,6 +263,8 @@ public:
 
     void setVirialTurnPrepare();
     void setVirialTurn();
+
+    virtual Interpolator *getInterpolator(std::string);
 
 
 };
