@@ -903,6 +903,7 @@ void FixChargeEwald::compute(bool computeVirials) {
 
 //     cout<<"FixChargeEwald::compute..\n";
     int nAtoms = state->atoms.size();
+    int nPerRingPoly = state->nPerRingPoly;
     GPUData &gpd = state->gpd;
     GridGPU &grid = state->gridGPU;
     int activeIdx = gpd.activeIdx();
@@ -1070,7 +1071,7 @@ void FixChargeEwald::compute(bool computeVirials) {
     }
 
     float *neighborCoefs = state->specialNeighborCoefs;
-    evalWrap->compute(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx),
+    evalWrap->compute(nAtoms,nPerRingPoly,gpd.xs(activeIdx), gpd.fs(activeIdx),
                   neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(),
                   state->devManager.prop.warpSize, nullptr, 0, state->boundsGPU, //PASSING NULLPTR TO GPU MAY CAUSE ISSUES
     //ALTERNATIVELy, COULD JUST GIVE THE PARMS SOME OTHER RANDOM POINTER, AS LONG AS IT'S VALID
@@ -1090,6 +1091,7 @@ void FixChargeEwald::singlePointEng(float * perParticleEng) {
     }
 //     cout<<"FixChargeEwald::compute..\n";
     int nAtoms = state->atoms.size();
+    int nPerRingPoly = state->nPerRingPoly;
     GPUData &gpd = state->gpd;
     GridGPU &grid = state->gridGPU;
     int activeIdx = gpd.activeIdx();
@@ -1170,7 +1172,7 @@ void FixChargeEwald::singlePointEng(float * perParticleEng) {
 //pair energies
     mapEngToParticles<<<NBLOCK(nAtoms), PERBLOCK>>>(nAtoms, field_energy_per_particle, perParticleEng);
     float *neighborCoefs = state->specialNeighborCoefs;
-    evalWrap->energy(nAtoms, gpd.xs(activeIdx), perParticleEng, neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, nullptr, 0, state->boundsGPU, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.qs(activeIdx), r_cut);
+    evalWrap->energy(nAtoms,nPerRingPoly, gpd.xs(activeIdx), perParticleEng, neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, nullptr, 0, state->boundsGPU, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.qs(activeIdx), r_cut);
 
 
     CUT_CHECK_ERROR("Ewald_short_range_forces_cu  execution failed");

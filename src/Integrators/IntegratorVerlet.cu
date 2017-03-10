@@ -6,6 +6,7 @@
 #include <boost/shared_ptr.hpp>
 #include "Logging.h"
 #include "State.h"
+#include "Fix.h"
 using namespace MD_ENGINE;
 
 namespace py = boost::python;
@@ -50,18 +51,8 @@ __global__ void nve_xPIMD_cu(int nRingPoly, int nPerRingPoly, float omegaP, floa
     float3 *vsNM = xsvs + PERBLOCK * nPerRingPoly;		// normal-mode transform of velocity
 
     if (idx < nRingPoly) {
-	
-        // Update velocity by a half timestep for all beads in the ring polymer
 	int baseIdx = idx * nPerRingPoly;
-	for (int i = baseIdx; i< baseIdx + nPerRingPoly; i++) {
-        	float4 vel     = vs[baseIdx];
-        	float  invmass = vel.w;
-        	float4 force   = fs[baseIdx];
-        	float3 dv      = dtf * invmass * make_float3(force);
-        	vel           += dv;
-        	vs[baseIdx]    = vel;
-	}
-
+	
         // 1. Transform to normal mode positions and velocities
 	// 	xNM_k = \sum_{n=1}^P x_n* Cnk
 	// 	Cnk = \sqrt(1/P)			k = 0
@@ -96,24 +87,24 @@ __global__ void nve_xPIMD_cu(int nRingPoly, int nPerRingPoly, float omegaP, floa
 	   float3 xn     = make_float3(xs[baseIdx+n-1]);
 	   float3 vn     = make_float3(vs[baseIdx+n-1]);
 	   float  cosval = cos(twoPiInvP * k * n);	// cos(2*pi*k*n/P)
-	   xsFT[k] += xn * sqrt2 * cosval;
-	   vsFT[k] += vn * sqrt2 * cosval;
+	   xsNM[k] += xn * sqrt2 * cosval;
+	   vsNM[k] += vn * sqrt2 * cosval;
 	  }
 	}
 	// k = P/2+1,...,P-1; n = 1,...,P
         for (int k = halfP+1; k < nPerRingPoly; k++) {
 	  for (int n = 1; n < nPerRingPoly+1; n++) {
-	   float3 xn     = make_float3(xs[baeIdx+n-1]);
-	   float3 vn     = make_float3(vs[baeIdx+n-1]);
+	   float3 xn     = make_float3(xs[baseIdx+n-1]);
+	   float3 vn     = make_float3(vs[baseIdx+n-1]);
 	   float  sinval = sin(twoPiInvP * k * n);	// sin(2*pi*k*n/P)
-	   xsFT[k] += xn * sqrt2 * sinval;
-	   vsFT[k] += vn * sqrt2 * sinval;
+	   xsNM[k] += xn * sqrt2 * sinval;
+	   vsNM[k] += vn * sqrt2 * sinval;
 	  }
 	}
 	// orthogonalize
 	for (int n = 0; n<nPerRingPoly; n++) {
-          xsNM[0] *= invSqrtP
-          vsNM[0] *= invSqrtP
+          xsNM[0] *= invSqrtP;
+          vsNM[0] *= invSqrtP;
 	}
 
 	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -126,8 +117,8 @@ __global__ void nve_xPIMD_cu(int nRingPoly, int nPerRingPoly, float omegaP, floa
 	// k = 1,...,P-1
 	for (int k = 1; k< nPerRingPoly; k++) {
 	  float omegaK = 2.0f * omegaP * sin( k * twoPiInvP * 0.5);
-	  float cosdt  = cos(Omegak * dt);
-	  float sindt  = sin(Omegak * dt);
+	  float cosdt  = cos(omegaK * dt);
+	  float sindt  = sin(omegaK * dt);
 	  float3 xsNMk = xsNM[k];
 	  float3 vsNMk = vsNM[k];
 	  xsNM[k] *= cosdt;
@@ -171,9 +162,6 @@ __global__ void nve_xPIMD_cu(int nRingPoly, int nPerRingPoly, float omegaP, floa
 	  xs[baseIdx+n-1] = make_float4(xn*invSqrtP);
 	  vs[baseIdx+n-1] = make_float4(vn*invSqrtP);
 	}
-	
-        // Set forces to zero before force calculation
-        fs[idx] = make_float4(0.0f, 0.0f, 0.0f, force.w);
     }
 
 }
@@ -221,13 +209,15 @@ __global__ void preForcePIMD_cu(int nRingPoly, int nPerRingPoly, float omegaP, f
 	
         // Update velocity by a half timestep for all beads in the ring polymer
 	int baseIdx = idx * nPerRingPoly;
-	for (int i = baseIdx; i< baseIdx + nPerRingPoly; i++) {
-        	float4 vel     = vs[baseIdx];
+	for (int id = baseIdx; id< baseIdx + nPerRingPoly; id++) {
+        	float4 vel     = vs[id];
         	float  invmass = vel.w;
-        	float4 force   = fs[baseIdx];
+        	float4 force   = fs[id];
         	float3 dv      = dtf * invmass * make_float3(force);
         	vel           += dv;
-        	vs[baseIdx]    = vel;
+        	vs[id]         = vel;
+        	// Set forces to zero before force calculation
+		fs[id] = make_float4(0.0f,0.0f,0.0f,force.w);
 	}
 
         // 1. Transform to normal mode positions and velocities
@@ -264,24 +254,24 @@ __global__ void preForcePIMD_cu(int nRingPoly, int nPerRingPoly, float omegaP, f
 	   float3 xn     = make_float3(xs[baseIdx+n-1]);
 	   float3 vn     = make_float3(vs[baseIdx+n-1]);
 	   float  cosval = cos(twoPiInvP * k * n);	// cos(2*pi*k*n/P)
-	   xsFT[k] += xn * sqrt2 * cosval;
-	   vsFT[k] += vn * sqrt2 * cosval;
+	   xsNM[k] += xn * sqrt2 * cosval;
+	   vsNM[k] += vn * sqrt2 * cosval;
 	  }
 	}
 	// k = P/2+1,...,P-1; n = 1,...,P
         for (int k = halfP+1; k < nPerRingPoly; k++) {
 	  for (int n = 1; n < nPerRingPoly+1; n++) {
-	   float3 xn     = make_float3(xs[baeIdx+n-1]);
-	   float3 vn     = make_float3(vs[baeIdx+n-1]);
+	   float3 xn     = make_float3(xs[baseIdx+n-1]);
+	   float3 vn     = make_float3(vs[baseIdx+n-1]);
 	   float  sinval = sin(twoPiInvP * k * n);	// sin(2*pi*k*n/P)
-	   xsFT[k] += xn * sqrt2 * sinval;
-	   vsFT[k] += vn * sqrt2 * sinval;
+	   xsNM[k] += xn * sqrt2 * sinval;
+	   vsNM[k] += vn * sqrt2 * sinval;
 	  }
 	}
 	// orthogonalize
 	for (int n = 0; n<nPerRingPoly; n++) {
-          xsNM[0] *= invSqrtP
-          vsNM[0] *= invSqrtP
+          xsNM[0] *= invSqrtP;
+          vsNM[0] *= invSqrtP;
 	}
 
 	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -294,8 +284,8 @@ __global__ void preForcePIMD_cu(int nRingPoly, int nPerRingPoly, float omegaP, f
 	// k = 1,...,P-1
 	for (int k = 1; k< nPerRingPoly; k++) {
 	  float omegaK = 2.0f * omegaP * sin( k * twoPiInvP * 0.5);
-	  float cosdt  = cos(Omegak * dt);
-	  float sindt  = sin(Omegak * dt);
+	  float cosdt  = cos(omegaK * dt);
+	  float sindt  = sin(omegaK * dt);
 	  float3 xsNMk = xsNM[k];
 	  float3 vsNMk = vsNM[k];
 	  xsNM[k] *= cosdt;
@@ -340,8 +330,6 @@ __global__ void preForcePIMD_cu(int nRingPoly, int nPerRingPoly, float omegaP, f
 	  vs[baseIdx+n-1] = make_float4(vn*invSqrtP);
 	}
 	
-        // Set forces to zero before force calculation
-        fs[idx] = make_float4(0.0f, 0.0f, 0.0f, force.w);
     }
 }
 
@@ -443,7 +431,7 @@ void IntegratorVerlet::nve_v() {
 
 void IntegratorVerlet::nve_x() {
     uint activeIdx = state->gpd.activeIdx();
-    if (state->nPerRingpoly == 1) {
+    if (state->nPerRingPoly == 1) {
     	nve_x_cu<<<NBLOCK(state->atoms.size()), PERBLOCK>>>(
     	        state->atoms.size(),
     	        state->gpd.xs.getDevData(),
@@ -451,11 +439,14 @@ void IntegratorVerlet::nve_x() {
     	        state->dt); }
     else {
 	// get target temperature from thermostat fix
+	double temp;
 	for (Fix *f: state->fixes) {
-	  if ( f->isThermostat == true && f->groupHandle == "all" ) {
-	    double temp = f->getInterpolator("temp")->getCurrentVal();
+	  if ( f->isThermostat && f->groupHandle == "all" ) {
+	    std::string t = "temp";
+	    temp = f->getInterpolator(t)->getCurrentVal();
 	  }
 	}
+	int   nPerRingPoly = state->nPerRingPoly;
         int   nRingPoly = state->atoms.size() / nPerRingPoly;
 	float omegaP    = (float) nPerRingPoly / state->units.hbar * state->units.boltz * temp;
     	nve_xPIMD_cu<<<NBLOCK(nRingPoly), PERBLOCK, sizeof(float3) * 2 *PERBLOCK * nPerRingPoly>>>(
@@ -469,7 +460,7 @@ void IntegratorVerlet::nve_x() {
 void IntegratorVerlet::preForce()
 {
     uint activeIdx = state->gpd.activeIdx();
-    if (state->nPerRingPoly == 1 {
+    if (state->nPerRingPoly == 1) {
     	preForce_cu<<<NBLOCK(state->atoms.size()), PERBLOCK>>>(
     	        state->atoms.size(),
     	        state->gpd.xs.getDevData(),
@@ -481,11 +472,14 @@ void IntegratorVerlet::preForce()
 	// get target temperature from thermostat fix
 	// XXX: need to think about how to handle if no thermostat
 	//      probably should not be allowed, tbh
+	double temp;
 	for (Fix *f: state->fixes) {
-	  if ( f->isThermostat == true && f->groupHandle == "all" ) {
-	    double temp = f->getInterpolator("temp")->getCurrentVal();
+	  if ( f->isThermostat && f->groupHandle == "all" ) {
+	    std::string t = "temp";
+	    temp = f->getInterpolator(t)->getCurrentVal();
 	  }
 	}
+	int   nPerRingPoly = state->nPerRingPoly;
         int   nRingPoly = state->atoms.size() / nPerRingPoly;
 	float omegaP    = (float) nPerRingPoly / state->units.hbar * state->units.boltz * temp;
     	preForcePIMD_cu<<<NBLOCK(nRingPoly), PERBLOCK, sizeof(float3) * 2 *PERBLOCK * nPerRingPoly>>>(

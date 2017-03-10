@@ -5,6 +5,7 @@ void export_Units();
 class Units {
 public:
     float boltz;
+    float hbar;
     float mvv_to_eng;
     float qqr_to_eng;
     float nktv_to_press;
