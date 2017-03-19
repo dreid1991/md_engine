@@ -1,4 +1,5 @@
 import re
+import os
 import sys
 import math
 DEGREES_TO_RADIANS = math.pi / 180.
@@ -25,6 +26,10 @@ class LAMMPS_Reader:
         self.LMPTypeToSimTypeImproper = {}
 
     def read(self, dataFn='', inputFns=[]):
+        if dataFn != '':
+            assert(os.path.isfile(dataFn))
+        for fn in inputFns:
+            assert(os.path.isfile(fn))
         self.dataFile = open(dataFn, 'r')
         self.inputFiles = [open(inputFn, 'r') for inputFn in inputFns]
         self.allFiles = [self.dataFile ] + self.inputFiles
