@@ -737,6 +737,7 @@ void State::deleteAtoms() {
     idBuffer.erase(idBuffer.begin(), idBuffer.end());
     maxIdExisting = -1;
     idToIdx.erase(idToIdx.begin(), idToIdx.end());
+    molecules = py::list();
 }
 
 
