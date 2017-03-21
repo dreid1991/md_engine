@@ -69,6 +69,26 @@ void outputGroups(ofstream &outFile, State *state) {
     outFile << "</groupBits>\n";
     outFile << "</groupInfo>\n";
 }
+
+void outputMolecules(ofstream &outFile, State *state) {
+    outFile << "<molecules>\n";
+    int len = py::len(state->molecules);
+    for (int i=0; i<len; i++) {
+        outFile << "<m>\n";
+        py::extract<Molecule> mPy(state->molecules[i]);
+        if (!mPy.check()) {
+            assert(mPy.check());
+        }
+        Molecule m = mPy;
+        for (int id : m.ids) {
+            outFile << id << " ";
+        }
+        outFile << "</m>\n";
+    }
+    outFile << "</molecules>\n";
+
+}
+
 void writeXMLfileBase64(State *state, string fnFinal, int64_t turn, bool oneFilePerWrite, uint groupBit) {
     vector<Atom> &atoms = state->atoms;
     ofstream outFile;
@@ -131,6 +151,7 @@ void writeXMLfileBase64(State *state, string fnFinal, int64_t turn, bool oneFile
             );
 
     outputGroups(outFile, state);
+    outputMolecules(outFile, state);
     sprintf(buffer, "</configuration>\n");
     outFile << buffer;
     if (oneFilePerWrite) {
@@ -259,6 +280,7 @@ void writeXMLfile(State *state, string fnFinal, int64_t turn, bool oneFilePerWri
             }
             );
     outputGroups(outFile, state);
+    outputMolecules(outFile, state);
     sprintf(buffer, "</configuration>\n");
     outFile << buffer;
     if (oneFilePerWrite) {

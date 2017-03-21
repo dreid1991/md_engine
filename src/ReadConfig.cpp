@@ -137,29 +137,25 @@ void loadGroupInfo(pugi::xml_node &config, State *state) {
         cout << "Failed to load groups from file " << endl;
     }
 }
-/*
-vector<Bond> buildBonds(pugi::xml_node &config, State *state, string tag, int numBonds) {
-	vector<Bond> bonds;
-	auto bonds_xml = config.child("bond");
-	if (bonds_xml) {
-		istringstream ss(bonds_xml.first_child().value());
-		string line;
-		while (ss >> line) {
-			Atom *atoms[2];
-			atoms[0] = state->atomFromId(atoi(line.c_str()));
-			ss >> line;
-			atoms[1] = state->atomFromId(atoi(line.c_str()));
-			ss >> line;
-			double k = atof(line.c_str());
-			ss >> line;
-			double rEq = atof(line.c_str());
-			assert(atoms[0] != (Atom *) NULL and atoms[1] != (Atom *) NULL);
-			state->addBond(atoms[0], atoms[1], k, rEq);
-		}
-	}
-	return bonds;
+
+
+void loadMolecules(pugi::xml_node &config, State *state) {
+    auto mol_xml = config.child("molecules").first_child();
+    if (mol_xml) {
+        while (mol_xml) {
+            std::istringstream ss(mol_xml.first_child().value());
+            std::string s;
+            vector<int> ids;
+            while (ss >> s) {
+                ids.push_back(atoi(s.c_str()));
+            }
+            state->createMolecule(ids);
+            mol_xml = mol_xml.next_sibling();
+        }
+        
+    }
 }
-*/
+
 pugi::xml_node ReadConfig::readFix(string type, string handle) {
     if (config) {
         auto node = config->child("fixes").first_child();
@@ -256,6 +252,7 @@ bool ReadConfig::read() {
 	for (Atom &a : readAtoms) {
 		state->addAtomDirect(a);
 	}
+    loadMolecules(*config, state);
 	return true;
 
 }
