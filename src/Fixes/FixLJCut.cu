@@ -27,10 +27,12 @@ FixLJCut::FixLJCut(boost::shared_ptr<State> state_, string handle_)
     paramOrder = {rCutHandle, epsHandle, sigHandle};
     readFromRestart();
     canAcceptChargePairCalc = true;
+    setEvalWrapper();
 }
 
 void FixLJCut::compute(bool computeVirials) {
-    int nAtoms = state->atoms.size();
+    int nAtoms       = state->atoms.size();
+    int nPerRingPoly = state->nPerRingPoly;
     int numTypes = state->atomParams.numTypes;
     GPUData &gpd = state->gpd;
     GridGPU &grid = state->gridGPU;
@@ -38,7 +40,7 @@ void FixLJCut::compute(bool computeVirials) {
     uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
     float *neighborCoefs = state->specialNeighborCoefs;
 
-    evalWrap->compute(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx),
+    evalWrap->compute(nAtoms, nPerRingPoly, gpd.xs(activeIdx), gpd.fs(activeIdx),
                       neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(),
                       state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU,
                       neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.virials.d_data.data(), gpd.qs(activeIdx), chargeRCut, computeVirials);
@@ -47,22 +49,29 @@ void FixLJCut::compute(bool computeVirials) {
 
 void FixLJCut::singlePointEng(float *perParticleEng) {
     int nAtoms = state->atoms.size();
+    int nPerRingPoly = state->nPerRingPoly;
     int numTypes = state->atomParams.numTypes;
     GPUData &gpd = state->gpd;
     GridGPU &grid = state->gridGPU;
     int activeIdx = gpd.activeIdx();
     uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
     float *neighborCoefs = state->specialNeighborCoefs;
-    evalWrap->energy(nAtoms, gpd.xs(activeIdx), perParticleEng, neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.qs(activeIdx), chargeRCut);
+    evalWrap->energy(nAtoms, nPerRingPoly, gpd.xs(activeIdx), perParticleEng, neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.qs(activeIdx), chargeRCut);
 
 
 
 }
 
 void FixLJCut::setEvalWrapper() {
-    EvaluatorLJ eval;
-    evalWrap = pickEvaluator<EvaluatorLJ, 3>(eval, chargeCalcFix);
-
+    if (evalWrapperMode == "offload") {
+        EvaluatorLJ eval;
+        evalWrap = pickEvaluator<EvaluatorLJ, 3, true>(eval, chargeCalcFix);
+    } else if (evalWrapperMode == "self") {
+        EvaluatorLJ eval;
+        evalWrap = pickEvaluator<EvaluatorLJ, 3, true>(eval, nullptr);
+    }
+}
+void FixLJCut::setEvalWrapperOrig() {
 }
 
 bool FixLJCut::prepareForRun() {

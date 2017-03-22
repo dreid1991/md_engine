@@ -132,7 +132,9 @@ public:
     int exclusionMode; //!< Mode for handling bond list exclusions.  See comments for exclusions in GridGPU
     void setExclusionMode(std::string);
 
-    int nPerRingPoly;
+    // Variables that enable extension to PIMD
+    int nPerRingPoly;			// RP discretization/number of time slices
+					// possibly later allow this to be vector per atom 
 
 
 

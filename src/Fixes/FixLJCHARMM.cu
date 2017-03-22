@@ -29,6 +29,7 @@ FixLJCHARMM::FixLJCHARMM(boost::shared_ptr<State> state_, string handle_)
     paramOrder = {rCutHandle, epsHandle, sigHandle, eps14Handle, sig14Handle};
     readFromRestart();
     canAcceptChargePairCalc = true;
+    setEvalWrapper();
 }
 
     //neighbor coefs are not used in CHARMM force field, because it specifies 1-4 sigmas and epsilons.
@@ -36,6 +37,7 @@ FixLJCHARMM::FixLJCHARMM(boost::shared_ptr<State> state_, string handle_)
     // but we need to tell the evaluator if it's a 1-4 neighbor.  We do this by making a dummy neighborCoefs array, where all the values are 1 except the 1-4 value, which is zero.
 void FixLJCHARMM::compute(bool computeVirials) {
     int nAtoms = state->atoms.size();
+    int nPerRingPoly = state->nPerRingPoly;
     int numTypes = state->atomParams.numTypes;
     GPUData &gpd = state->gpd;
     GridGPU &grid = state->gridGPU;
@@ -43,7 +45,7 @@ void FixLJCHARMM::compute(bool computeVirials) {
     uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
     float neighborCoefs[4] = {1, 1, 1, 0};//see comment above
 
-    evalWrap->compute(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx),
+    evalWrap->compute(nAtoms,nPerRingPoly, gpd.xs(activeIdx), gpd.fs(activeIdx),
                       neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(),
                       state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU,
                       neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.virials.d_data.data(), gpd.qs(activeIdx), chargeRCut, computeVirials);
@@ -52,22 +54,27 @@ void FixLJCHARMM::compute(bool computeVirials) {
 
 void FixLJCHARMM::singlePointEng(float *perParticleEng) {
     int nAtoms = state->atoms.size();
+    int nPerRingPoly = state->nPerRingPoly;
     int numTypes = state->atomParams.numTypes;
     GPUData &gpd = state->gpd;
     GridGPU &grid = state->gridGPU;
     int activeIdx = gpd.activeIdx();
     uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
     float neighborCoefs[4] = {1, 1, 1, 0}; //see comment above
-    evalWrap->energy(nAtoms, gpd.xs(activeIdx), perParticleEng, neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.qs(activeIdx), chargeRCut);
+    evalWrap->energy(nAtoms,nPerRingPoly, gpd.xs(activeIdx), perParticleEng, neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.qs(activeIdx), chargeRCut);
 
 
 
 }
 
 void FixLJCHARMM::setEvalWrapper() {
-    EvaluatorCHARMM eval;
-    evalWrap = pickEvaluator<EvaluatorCHARMM, 3>(eval, chargeCalcFix);
-
+    if (evalWrapperMode == "orig") {
+        EvaluatorCHARMM eval;
+        evalWrap = pickEvaluator<EvaluatorCHARMM, 3, true>(eval, chargeCalcFix);
+    } else if (evalWrapperMode == "self") {
+        EvaluatorCHARMM eval;
+        evalWrap = pickEvaluator<EvaluatorCHARMM, 3, true>(eval, nullptr);
+    }
 }
 
 bool FixLJCHARMM::prepareForRun() {

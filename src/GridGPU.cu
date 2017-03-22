@@ -15,7 +15,10 @@
 void GridGPU::initArrays() {
     //this happens in adjust for new bounds
     //perCellArray = GPUArrayGlobal<uint32_t>(prod(ns) + 1);
-    int nRingPoly = state->atoms.size() / state->nPerRingPoly;
+    int nRingPoly = state->atoms.size() / state->nPerRingPoly;   // number of ring polymers/atom representations
+    if (state->nPerRingPoly > 1) {
+        rpCentroids = GPUArrayDeviceGlobal<float4>(nRingPoly);
+    }
     perAtomArray = GPUArrayGlobal<uint16_t>(nRingPoly + 1);
     // also cumulative sum, tracking cumul. sum of max per block
     perBlockArray = GPUArrayGlobal<uint32_t>(NBLOCK(nRingPoly) + 1);
@@ -26,9 +29,6 @@ void GridGPU::initArrays() {
     // in prepare for run, you make GPU grid _after_ copying xs to device
     buildFlag = GPUArrayGlobal<int>(1);
     buildFlag.d_data.memset(0);
-    if (state->nPerRingPoly > 1) {
-        rpCentroids = GPUArrayDeviceGlobal<float4>(nRingPoly);
-    }
 }
 
 void GridGPU::setBounds(BoundsGPU &newBounds) {
@@ -126,26 +126,22 @@ __global__ void periodicWrap(float4 *xs, int nAtoms, BoundsGPU bounds) {
 
 __global__ void computeCentroids(float4 *centroids, float4 *xs, int nAtoms, int nPerRingPoly, BoundsGPU bounds) {
     int idx = GETIDX();
-    int nRingPoly = nAtoms / nPerRingpoly;
+    int nRingPoly = nAtoms / nPerRingPoly;
     if (idx < nRingPoly) {
         int baseIdx = idx * nPerRingPoly;
-        float3 init = make_float3(xs[baseIdx])
+        float3 init = make_float3(xs[baseIdx]);
         float3 diffSum = make_float3(0, 0, 0);
         for (int i=baseIdx+1; i<baseIdx + nPerRingPoly; i++) {
-            float3 next = xs[i];
+            float3 next = make_float3(xs[i]);
             float3 dx = bounds.minImage(next - init);
             diffSum += dx;
         }
         diffSum /= nPerRingPoly;
-
         float3 unwrappedPos = init + diffSum;
-
-
         float3 trace = bounds.trace();
         float3 diffFromLo = unwrappedPos - bounds.lo;
         float3 imgs = floorf(diffFromLo / trace); //are unskewed at this point
         float3 wrappedPos = unwrappedPos - trace * imgs * bounds.periodic;
-
 
         centroids[idx] = make_float4(wrappedPos);
     }
@@ -205,7 +201,7 @@ __device__ void copyToOtherSurf(cudaSurfaceObject_t from, cudaSurfaceObject_t to
 
 template <typename T>
 __device__ void copyToOtherList(T *from, T *to, int idx_init, int idx_final, int nPerRingPoly) {
-    int initPerAtom = idx_init * nPerRingPoly;
+    int initPerAtom  = idx_init  * nPerRingPoly;
     int finalPerAtom = idx_final * nPerRingPoly;
     for (int i=0; i<nPerRingPoly; i++) {
         to[finalPerAtom+i] = from[initPerAtom+i];
@@ -233,19 +229,18 @@ __global__ void sortPerAtomArrays(
                     float *qsFrom, float *qsTo,
                     int *idToIdxs,
                     bool requiresCharges,
-                    uint32_t *gridCellArrayIdxs, uint16_t *idxInGridCell, int nAtoms,
+                    uint32_t *gridCellArrayIdxs, uint16_t *idxInGridCell, int nRingPoly,
                     float3 os, float3 ds, int3 ns,
                     int nPerRingPoly) {
 
     int idx = GETIDX();
-    int nRingPoly = nAtoms / nPerRingPoly;
     if (idx < nRingPoly) {
-        float4 posWhole = centroids[idx]; 
-        float3 pos = make_float3(posWhole);
-        uint id = idsFrom[idx * nPerRingPoly];
-        int3 sqrIdx = make_int3((pos - os) / ds);
-        int sqrLinIdx = LINEARIDX(sqrIdx, ns);
-        int sortedIdx = gridCellArrayIdxs[sqrLinIdx] + idxInGridCell[idx];
+        float4 posWhole  = centroids[idx]; 
+        float3 pos       = make_float3(posWhole);
+        uint   id        = idsFrom[idx * nPerRingPoly];
+        int3   sqrIdx    = make_int3((pos - os) / ds);
+        int    sqrLinIdx = LINEARIDX(sqrIdx, ns);
+        int    sortedIdx = gridCellArrayIdxs[sqrLinIdx] + idxInGridCell[idx];
         //printf("I MOVE FROM %d TO %d, id is %d , MY POS IS %f %f %f\n", idx, sortedIdx, id, pos.x, pos.y, pos.z);
 
         //okay, now have all data needed to do copies
@@ -256,6 +251,7 @@ __global__ void sortPerAtomArrays(
         if (requiresCharges) {
             copyToOtherList<float>(qsFrom, qsTo, idx, sortedIdx, nPerRingPoly);
         }
+        
         for (int i=0; i<nPerRingPoly; i++) {
             idToIdxs[idsFrom[idx * nPerRingPoly + i]] = sortedIdx + i;
         }
@@ -276,7 +272,7 @@ __device__ void checkCell(float3 pos, float4 *xs,
     uint32_t idxMax = gridCellArrayIdxs[squareIdx+1];
     for (int i=idxMin; i<idxMax; i++) {
         float3 otherPos = make_float3(xs[i]);
-        float3 distVec = otherPos + loop - pos;
+        float3 distVec  = otherPos + loop - pos;
         if (dot(distVec, distVec) < neighCutSqr) {
             myCount++;
         }
@@ -291,8 +287,8 @@ __global__ void countNumNeighbors(float4 *xs, int nRingPoly,
     int idx = GETIDX();
     if (idx < nRingPoly) {
         float4 posWhole = xs[idx];
-        float3 pos = make_float3(posWhole);
-        int3 sqrIdx = make_int3((pos - os) / ds);
+        float3 pos      = make_float3(posWhole);
+        int3   sqrIdx   = make_int3((pos - os) / ds);
 
         int xIdx, yIdx, zIdx;
         int xIdxLoop, yIdxLoop, zIdxLoop;
@@ -312,8 +308,8 @@ __global__ void countNumNeighbors(float4 *xs, int nRingPoly,
                             offset.z = -floorf((float) zIdx / ns.z);
                             zIdxLoop = zIdx + ns.z * offset.z;
                             if (periodic.z || (!periodic.z && zIdxLoop == zIdx)) {
-                                int3 sqrIdxOther = make_int3(xIdxLoop, yIdxLoop, zIdxLoop);
-                                int sqrIdxOtherLin = LINEARIDX(sqrIdxOther, ns);
+                                int3 sqrIdxOther    = make_int3(xIdxLoop, yIdxLoop, zIdxLoop);
+                                int  sqrIdxOtherLin = LINEARIDX(sqrIdxOther, ns);
                                 float3 loop = (-offset) * trace;
                                 // updates myCount for this cell
                                 checkCell(pos, xs, 
@@ -330,6 +326,11 @@ __global__ void countNumNeighbors(float4 *xs, int nRingPoly,
             } //endif periodic.x
         } // endfor xIdx
         neighborCounts[idx] = myCount - 1; //because I counted myself.  have to subtract that off
+        // XXX
+	//__syncthreads();
+        //if (idx == 0) {
+        //  for ( int j = 0; j<nRingPoly; j++) {printf("my id = %d, # neigh = %d\n",j,neighborCounts[j]);}
+        //}
     }
 }
 
@@ -432,11 +433,11 @@ __global__ void assignNeighbors(float4 *xs, int nRingPoly, int nPerRingPoly, uin
     if (idx < nRingPoly) {
         posWhole = xs[idx];
         //printf("threadid %d idx %x has lo, hi of %d, %d\n", threadIdx.x, idx, exclIdxLo_shr, exclIdxHi_shr);
-        int currentNeighborIdx = baseNeighlistIdx(cumulSumMaxPerBlock, warpSize);
+        int    currentNeighborIdx = baseNeighlistIdx(cumulSumMaxPerBlock, warpSize);
         float3 pos = make_float3(posWhole);
-        int3 sqrIdx = make_int3((pos - os) / ds);
-        int xIdx, yIdx, zIdx;
-        int xIdxLoop, yIdxLoop, zIdxLoop;
+        int3   sqrIdx = make_int3((pos - os) / ds);
+        int    xIdx, yIdx, zIdx;
+        int    xIdxLoop, yIdxLoop, zIdxLoop;
         float3 offset = make_float3(0, 0, 0);
         currentNeighborIdx = assignFromCell(pos, idx, myId, xs, ids, gridCellArrayIdxs, LINEARIDX(sqrIdx, ns), offset, trace, neighCutSqr, currentNeighborIdx, neighborlist, exclusionIds_shr, exclIdxLo_shr, exclIdxHi_shr, nPerRingPoly, warpSize);
         for (xIdx=sqrIdx.x-1; xIdx<=sqrIdx.x+1; xIdx++) {
@@ -565,9 +566,9 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
         neighCut = neighCutoffMax;
     }
 
-    int nAtoms = state->atoms.size();
+    int nAtoms       = state->atoms.size();
     int nPerRingPoly = state->nPerRingPoly;
-    int nRingPoly = nAtoms / nPerRingPoly;
+    int nRingPoly    = nAtoms / nPerRingPoly;
 
     int activeIdx = state->gpd.activeIdx();
     if (boundsLastBuild != state->boundsGPU) {
@@ -585,7 +586,6 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
     buildFlag.dataToHost();
     cudaDeviceSynchronize();
 
-    // std::cout << "I AM BUILDING" << std::endl;
     if (buildFlag.h_data[0] or forceBuild) {
 
         float3 ds_orig = ds;
@@ -618,14 +618,15 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
         if (nPerRingPoly > 1) {
             computeCentroids<<<NBLOCK(nRingPoly), PERBLOCK>>>(rpCentroids.data(), state->gpd.xs(activeIdx), nAtoms, nPerRingPoly, boundsUnskewed);
             centroids = rpCentroids.data();
+            periodicWrap<<<NBLOCK(nRingPoly), PERBLOCK>>>(centroids, nRingPoly, boundsUnskewed);
         } else {
             centroids = state->gpd.xs(activeIdx);
         }
-        countNumInGridCells<<<NBLOCK(nRingPoly), PERBLOCK>>>(
+        SAFECALL((countNumInGridCells<<<NBLOCK(nRingPoly), PERBLOCK>>>(
                     centroids, nRingPoly,
                     perCellArray.d_data.data(), perAtomArray.d_data.data(),
                     os, ds, ns
-        );//PER RP CENTROID
+        )));//PER RP CENTROID
         perCellArray.dataToHost();
         cudaDeviceSynchronize();
 
@@ -637,7 +638,7 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
 
         //sort atoms by position, matching grid ordering
 
-        sortPerAtomArrays<<<NBLOCK(nRingPoly), PERBLOCK>>>(
+        SAFECALL((sortPerAtomArrays<<<NBLOCK(nRingPoly), PERBLOCK>>>(
                     centroids,
                     state->gpd.xs(activeIdx), state->gpd.xs(!activeIdx),
                     state->gpd.vs(activeIdx), state->gpd.vs(!activeIdx),
@@ -647,16 +648,19 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
                     state->gpd.idToIdxs.d_data.data(),
                     state->requiresCharges,
                     perCellArray.d_data.data(), perAtomArray.d_data.data(),
-                    nAtoms, os, ds, ns,
+                    nRingPoly, os, ds, ns,
                     nPerRingPoly
-        ); //PER RP CENTROID
+        ))); //PER RP CENTROID
         activeIdx = state->gpd.switchIdx();
         gridIdx = activeIdx;
 
+	// Must recompute the centroids since the order of atoms has changed
         if (nPerRingPoly > 1) {
-            computeCentroids<<<NBLOCK(nRingPoly), PERBLOCK>>>(rpCentroids.data(), state->gpd.xs(activeIdx), nAtoms, nPerRingPoly, boundsUnskewed);
+            SAFECALL((computeCentroids<<<NBLOCK(nRingPoly), PERBLOCK>>>(rpCentroids.data(), state->gpd.xs(activeIdx), nAtoms, nPerRingPoly, boundsUnskewed)));
             centroids = rpCentroids.data();
-        } 
+        } else {
+	    centroids = state->gpd.xs(activeIdx);
+	}
 
         float3 trace = boundsUnskewed.trace();
 
@@ -679,19 +683,19 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
          *     call this for ghosts too; everything after this has to be done on
          *     ghosts too
          */
-        countNumNeighbors<<<NBLOCK(nRingPoly), PERBLOCK>>>(
+        SAFECALL((countNumNeighbors<<<NBLOCK(nRingPoly), PERBLOCK>>>(
                     centroids, nRingPoly, 
                     perAtomArray.d_data.data(), perCellArray.d_data.data(),
-                    os, ds, ns, bounds.periodic, trace, neighCut*neighCut); //PER RP CENTROID
+                    os, ds, ns, bounds.periodic, trace, neighCut*neighCut))); //PER RP CENTROID
 
-        computeMaxNumNeighPerBlock<<<NBLOCK(nRingPoly), PERBLOCK, PERBLOCK*sizeof(uint16_t)>>>(
+        SAFECALL((computeMaxNumNeighPerBlock<<<NBLOCK(nRingPoly), PERBLOCK, PERBLOCK*sizeof(uint16_t)>>>(
                     nRingPoly, perAtomArray.d_data.data(),
-                    perBlockArray_maxNeighborsInBlock.data(), warpSize); // MAKE NUM NP VARIABLE
+                    perBlockArray_maxNeighborsInBlock.data(), warpSize))); // MAKE NUM NP VARIABLE
 
         int numBlocks = perBlockArray_maxNeighborsInBlock.size();
-        setCumulativeSumPerBlock<<<NBLOCK(numBlocks+1), PERBLOCK>>>(
+        SAFECALL((setCumulativeSumPerBlock<<<NBLOCK(numBlocks+1), PERBLOCK>>>(
                     numBlocks, perBlockArray.d_data.data(),
-                    perBlockArray_maxNeighborsInBlock.data());
+                    perBlockArray_maxNeighborsInBlock.data())));
         uint32_t cumulSumPerBlock;
         perBlockArray.d_data.get(&cumulSumPerBlock, numBlocks, 1);
         cudaDeviceSynchronize();
@@ -702,7 +706,7 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
         //perBlockArray.dataToDevice();
 
         //int totalNumNeighbors = perBlockArray.h_data.back() * PERBLOCK;
-        int totalNumNeighbors = cumulSumPerBlock * PERBLOCK;
+        int totalNumNeighbors = cumulSumPerBlock * PERBLOCK;  // total number of possible neighbors
         //std::cout << "TOTAL NUM IS " << totalNumNeighbors << std::endl;
         if (totalNumNeighbors > neighborlist.size()) {
             neighborlist = GPUArrayDeviceGlobal<uint>(totalNumNeighbors*1.5);
@@ -710,12 +714,12 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
             neighborlist = GPUArrayDeviceGlobal<uint>(totalNumNeighbors*1.5);
         }
     
-        assignNeighbors<<<NBLOCK(nRingPoly), PERBLOCK, PERBLOCK*maxExclusionsPerAtom*sizeof(uint)>>>(
+        SAFECALL((assignNeighbors<<<NBLOCK(nRingPoly), PERBLOCK, PERBLOCK*maxExclusionsPerAtom*sizeof(uint)>>>(
                 centroids, nRingPoly, nPerRingPoly, state->gpd.ids(gridIdx),
                 perCellArray.d_data.data(), perBlockArray.d_data.data(), os, ds, ns,
                 bounds.periodic, trace, neighCut*neighCut, neighborlist.data(), warpSize,
                 exclusionIndexes.data(), exclusionIds.data(), maxExclusionsPerAtom
-        ); //PER RP CENTROID
+        ))); //PER RP CENTROID
 
      
         if (bounds.isSkewed()) {
@@ -898,7 +902,7 @@ void GridGPU::handleExclusionsForcers() {
             allBonds.push_back(fixBonds);
         }
     }
-    uint exclusionTags[3] = {(uint) 1 << 30, (uint) 2 << 30, (uint) 3 << 30};
+    //uint exclusionTags[3] = {(uint) 1 << 30, (uint) 2 << 30, (uint) 3 << 30};
     
 }
 

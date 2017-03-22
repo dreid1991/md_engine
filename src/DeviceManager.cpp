@@ -26,6 +26,7 @@ void export_DeviceManager() {
     class_<DeviceManager, boost::noncopyable>("DeviceManager", no_init)
         
         .def_readonly("nDevices", &DeviceManager::nDevices)
+        .def_readonly("currentDevice", &DeviceManager::currentDevice)
         .def("setDevice", &DeviceManager::setDevice, (boost::python::arg("i"), boost::python::arg("output")=true ))
         ;
 

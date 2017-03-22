@@ -1,6 +1,4 @@
-#ifndef FIX_CHARGE_EWALD_H
-#define FIX_CHARGE_EWALD_H
-
+#pragma once
 #include <cufft.h>
 
 //#include "AtomParams.h"
@@ -62,7 +60,9 @@ private:
         
     bool malloced;
 
+
 public:
+    GPUArrayDeviceGlobal<float4> rpCentroids;
     int longRangeInterval;
     int64_t turnInit;
     void handleBoundsChange();
@@ -91,8 +91,9 @@ public:
         res.push_back(r_cut);
         return res;
     }    
-    ChargeEvaluatorEwald generateEvaluator(); 
 
+    ChargeEvaluatorEwald generateEvaluator();
+    void setEvalWrapper();
+    void setEvalWrapperOrig();
 };
 
-#endif

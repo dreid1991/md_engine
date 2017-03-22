@@ -5,48 +5,87 @@
 namespace py = boost::python;
 using namespace MD_ENGINE;
 
-DataComputerEnergy::DataComputerEnergy(State *state_) : DataComputer(state_, true, false, true, false) {
+DataComputerEnergy::DataComputerEnergy(State *state_, py::list fixes_, std::string computeMode_) : DataComputer(state_, computeMode_, false) {
+    if (py::len(fixes_)) {
+        int len = py::len(fixes_);
+        for (int i=0; i<len; i++) {
+            py::extract<boost::shared_ptr<Fix> > fixPy(fixes_[i]);
+            if (!fixPy.check()) {
+                assert(fixPy.check());
+            }
+            fixes.push_back(fixPy);
+        }
+    }
 }
 
 
 void DataComputerEnergy::computeScalar_GPU(bool transferToCPU, uint32_t groupTag) {
-    GPUData &gpd = state->gpd;
-    engGPUScalar.d_data.memset(0);
+    gpuBuffer.d_data.memset(0);
+    gpuBufferReduce.d_data.memset(0);
     lastGroupTag = groupTag;
     int nAtoms = state->atoms.size();
-    GPUArrayGlobal<float> &perParticleEng = gpd.perParticleEng;
-    //printf("COPYING STUFF IN DATA COMPUTE ENG\n");
-    //perParticleEng.dataToHost();
-    //cudaDeviceSynchronize();
-    //for (float x : perParticleEng.h_data) {
-    //    printf("PARTICLE ENG %f\n", x);
-   // }
+    GPUData &gpd = state->gpd;
+    printf("in compute\n");
+    for (boost::shared_ptr<Fix> fix : fixes) {
+        fix->setEvalWrapperMode("self");
+        fix->setEvalWrapper();
+        fix->singlePointEng(gpuBuffer.getDevData());
+        fix->setEvalWrapperMode("offload");
+        fix->setEvalWrapper();
+    }
     if (groupTag == 1) {
          accumulate_gpu<float, float, SumSingle, N_DATA_PER_THREAD> <<<NBLOCK(nAtoms / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*PERBLOCK*sizeof(float)>>>
-            (engGPUScalar.getDevData(), perParticleEng.getDevData(), nAtoms, state->devManager.prop.warpSize, SumSingle());
+            (gpuBufferReduce.getDevData(), gpuBuffer.getDevData(), nAtoms, state->devManager.prop.warpSize, SumSingle());
     } else {
         accumulate_gpu_if<float, float, SumSingleIf, N_DATA_PER_THREAD> <<<NBLOCK(nAtoms / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*PERBLOCK*sizeof(float)>>>
-            (engGPUScalar.getDevData(), perParticleEng.getDevData(), nAtoms, state->devManager.prop.warpSize, SumSingleIf(gpd.fs.getDevData(), groupTag));
+            (gpuBufferReduce.getDevData(), gpuBuffer.getDevData(), nAtoms, state->devManager.prop.warpSize, SumSingleIf(gpd.fs.getDevData(), groupTag));
     }
     if (transferToCPU) {
         //does NOT sync
-        engGPUScalar.dataToHost();
+        gpuBufferReduce.dataToHost();
     }
 }
 
+
+void DataComputerEnergy::computeVector_GPU(bool transferToCPU, uint32_t groupTag) {
+    gpuBuffer.d_data.memset(0);
+    lastGroupTag = groupTag;
+    int nAtoms = state->atoms.size();
+
+    for (boost::shared_ptr<Fix> fix : fixes) {
+        fix->setEvalWrapperMode("self");
+        fix->setEvalWrapper();
+        fix->singlePointEng(gpuBuffer.getDevData());
+        fix->setEvalWrapperMode("offload");
+        fix->setEvalWrapper();
+    }
+    if (transferToCPU) {
+        gpuBuffer.dataToHost();
+    }
+}
 
 
 
 
 void DataComputerEnergy::computeScalar_CPU() {
-    int n;
-    double total = engGPUScalar.h_data[0];
+    //int n;
+    double total = gpuBufferReduce.h_data[0];
+    /*
     if (lastGroupTag == 1) {
         n = state->atoms.size();//* (int *) &tempGPUScalar.h_data[1];
     } else {
-        n = * (int *) &engGPUScalar.h_data[1];
+        n = * (int *) &gpuBufferReduce.h_data[1];
     }
-    engScalar = total / n;
+    */
+    //just going with total energy value, not average
+    engScalar = total;
+}
+
+void DataComputerEnergy::computeVector_CPU() {
+    //ids have already been transferred, look in doDataComputation in integUtil
+    std::vector<uint> &ids = state->gpd.ids.h_data;
+    std::vector<float> &src = gpuBuffer.h_data;
+    sortToCPUOrder(src, sorted, ids, state->gpd.idToIdxsOnCopy);
 }
 
 
@@ -54,8 +93,14 @@ void DataComputerEnergy::computeScalar_CPU() {
 void DataComputerEnergy::appendScalar(boost::python::list &vals) {
     vals.append(engScalar);
 }
+void DataComputerEnergy::appendVector(boost::python::list &vals) {
+    vals.append(sorted);
+}
 
 void DataComputerEnergy::prepareForRun() {
-        engGPUScalar = GPUArrayGlobal<float>(2);
+    if (fixes.size() == 0) {
+        fixes = state->fixesShr; //if none specified, use them all
+    }
+    DataComputer::prepareForRun();
 }
 

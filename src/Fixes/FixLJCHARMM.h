@@ -74,8 +74,9 @@ class FixLJCHARMM : public FixPair {
 
         //! Return list of cutoff values
         std::vector<float> getRCuts();
-        void setEvalWrapper();
     public:
+        void setEvalWrapper();
+        void setEvalWrapperOrig();
         const std::string epsHandle; //!< Handle for parameter epsilon
         const std::string sigHandle; //!< Handle for parameter sigma
         const std::string eps14Handle; //!< Handle for parameter epsilon for 1-4 interactions

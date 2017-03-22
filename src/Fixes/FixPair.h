@@ -1,8 +1,4 @@
 #pragma once
-#ifndef FIX_PAIR_H
-#define FIX_PAIR_H
-
-#define DEFAULT_FILL -1000
 
 #include <climits>
 #include <map>
@@ -10,13 +6,13 @@
 #include <vector>
 #include <iostream>
 
+#include "globalDefs.h"
 #include "AtomParams.h"
 #include "GPUArrayGlobal.h"
 #include "Fix.h"
 #include "xml_func.h"
 #include "SquareVector.h"
 #include "BoundsGPU.h"
-class EvaluatorWrapper;
 void export_FixPair();
 
 class State;
@@ -140,9 +136,8 @@ protected:
     void ensureOrderGivenForAllParams();
     Fix *chargeCalcFix;
     BoundsGPU boundsLast;
-    boost::shared_ptr<EvaluatorWrapper> evalWrap;
-    void acceptChargePairCalc(Fix *chargeFix); 
-    virtual void setEvalWrapper() = 0;
+    void acceptChargePairCalc(Fix *);
+    float chargeRCut;
 public:
     //! Set a specific parameter for specific particle types
     /*!
@@ -184,4 +179,3 @@ public:
      */
     void handleBoundsChange();
 };
-#endif

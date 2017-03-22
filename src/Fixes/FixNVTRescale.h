@@ -34,6 +34,7 @@ public:
     FixNVTRescale(boost::shared_ptr<State>, std::string handle_, std::string groupHandle_, boost::python::list intervals, boost::python::list temps_, int applyEvery = 10);
     FixNVTRescale(boost::shared_ptr<State>, std::string handle_, std::string groupHandle_, boost::python::object tempFunc_, int applyEvery = 10);
     FixNVTRescale(boost::shared_ptr<State>, std::string handle_, std::string groupHandle_, double temp_, int applyEvery = 10);
+    Interpolator *getInterpolator(std::string);
 
 };
 

@@ -108,6 +108,7 @@ private:
      */
     void updateMasses();
 
+    Interpolator *getInterpolator(std::string);
     //! Rescale particle velocities
     /*!
      * \param scale Scale factor for rescaling

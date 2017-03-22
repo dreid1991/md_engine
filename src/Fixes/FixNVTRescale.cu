@@ -32,24 +32,27 @@ const std::string NVTRescaleType = "NVTRescale";
 
 FixNVTRescale::FixNVTRescale(SHARED(State) state_, string handle_, string groupHandle_, py::list intervals_, py::list temps_, int applyEvery_)
     : Interpolator(intervals_, temps_), Fix(state_, handle_, groupHandle_, NVTRescaleType, false, false, false, applyEvery_),
-      curIdx(0), tempComputer(state, true, false)
+      curIdx(0), tempComputer(state, "scalar")
 {
+    isThermostat = true;
 
 
 }
 
 FixNVTRescale::FixNVTRescale(SHARED(State) state_, string handle_, string groupHandle_, py::object tempFunc_, int applyEvery_)
     : Interpolator(tempFunc_), Fix(state_, handle_, groupHandle_, NVTRescaleType, false, false, false, applyEvery_),
-      curIdx(0), tempComputer(state, true, false)
+      curIdx(0), tempComputer(state, "scalar")
 {
+    isThermostat = true;
 
 
 }
 
 FixNVTRescale::FixNVTRescale(SHARED(State) state_, string handle_, string groupHandle_, double constTemp_, int applyEvery_)
     : Interpolator(constTemp_), Fix(state_, handle_, groupHandle_, NVTRescaleType, false, false, false, applyEvery_),
-      curIdx(0), tempComputer(state, true, false)
+      curIdx(0), tempComputer(state, "scalar")
 {
+    isThermostat = true;
 
 
 }
@@ -105,6 +108,12 @@ bool FixNVTRescale::postRun() {
 }
 
 
+Interpolator *FixNVTRescale::getInterpolator(std::string type) {
+    if (type == "temp") {
+        return (Interpolator *) this;
+    }
+    return nullptr;
+}
 
 
 void export_FixNVTRescale() {

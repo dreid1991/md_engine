@@ -69,13 +69,14 @@ FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state_, std::string handle
                 pressFreq(6, 0),
                 pressCurrent(6, 0),
                 pFlags(6, false),
-                tempComputer(state, true, false), 
-                pressComputer(state, true, false), 
+                tempComputer(state, "scalar"), 
+                pressComputer(state, "scalar"), 
                 pressMode(PRESSMODE::ISO),
                 thermostatting(true),
                 barostatting(false)
 {
     pressComputer.usingExternalTemperature = true;
+    isThermostat = true;
 }
 
 FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state_, std::string handle_,
@@ -105,14 +106,15 @@ FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state_, std::string handle
                 pressCurrent(6, 0),
                 pFlags(6, false),
                 scale(make_float3(1.0f, 1.0f, 1.0f)),
-                tempComputer(state, true, false), 
-                pressComputer(state, true, false), 
+                tempComputer(state, "scalar"), 
+                pressComputer(state, "scalar"), 
                 pressMode(PRESSMODE::ISO),
                 thermostatting(true),
                 barostatting(false)
 
 {
     pressComputer.usingExternalTemperature = true;
+    isThermostat = true;
 }
 
 
@@ -143,14 +145,15 @@ FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state_, std::string handle
                 pressCurrent(6, 0),
                 pFlags(6, false),
                 scale(make_float3(1.0f, 1.0f, 1.0f)),
-                tempComputer(state, true, false), 
-                pressComputer(state, true, false), 
+                tempComputer(state, "scalar"), 
+                pressComputer(state, "scalar"), 
                 pressMode(PRESSMODE::ISO),
                 thermostatting(true),
                 barostatting(false)
 
 {
     pressComputer.usingExternalTemperature = true;
+    isThermostat = true;
 }
 void FixNoseHoover::setPressure(double press) {
     pressInterpolator = Interpolator(press);
@@ -349,8 +352,10 @@ bool FixNoseHoover::halfStep(bool firstHalfStep)
     double temp;
     if (firstHalfStep) {
         double currentTemp = tempInterpolator.getCurrentVal();
+        //printf("CURRENT TEMP IS %f\n", currentTemp);
         tempInterpolator.computeCurrentVal(state->turn);
         temp = tempInterpolator.getCurrentVal();
+        //printf("SET PT IS %f\n", temp);
         if (currentTemp != temp) {
             updateMasses();
         }
@@ -480,6 +485,12 @@ void FixNoseHoover::rescale()
     scale = make_float3(1.0f, 1.0f, 1.0f);
 }
 
+Interpolator *FixNoseHoover::getInterpolator(std::string type) {
+    if (type == "temp") {
+        return &tempInterpolator;
+    }
+    return nullptr;
+}
 void export_FixNoseHoover()
 {
     py::class_<FixNoseHoover,                    // Class

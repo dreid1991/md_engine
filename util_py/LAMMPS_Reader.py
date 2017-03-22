@@ -530,7 +530,6 @@ def improperHarmonic_input(reader, args):
     type = reader.LMPTypeToSimTypeImproper[LMPType]
     k = float(args[2]) * 2
     thetaEq = float(args[3]) * DEGREES_TO_RADIANS
-    print 'k is %f' % k
     return [type, k, thetaEq]
 
 
