@@ -232,6 +232,8 @@ public:
 
     virtual void setEvalWrapper(){};
 
+    virtual void updateForPIMD(){};
+
     std::string evalWrapperMode;
     //self or offload
     void setEvalWrapperMode(std::string mode);
@@ -266,6 +268,7 @@ public:
 
     virtual Interpolator *getInterpolator(std::string);
 
+    virtual void updateForPIMD(int nPerRingPoly) {};
 
 };
 
