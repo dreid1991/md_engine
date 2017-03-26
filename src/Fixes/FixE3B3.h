@@ -71,8 +71,6 @@ class FixE3B3: public Fix {
          */
         bool postRun();
 
-
-
         void compute(bool);
         
         //! Reset parameters to before processing
@@ -86,6 +84,10 @@ class FixE3B3: public Fix {
 
         std::vector<BondVariant> *getBonds() {
             return &bonds;
+        }
+        
+        void setEvalWrapper();
+        void setEvalWrapperOrig();
         
 
 };
