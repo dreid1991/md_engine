@@ -5,6 +5,9 @@
 /* inherits from Fix.h, has a FixTIP4P member */
 #include "Fix.h"
 #include "GPUArrayGlobal.h"
+#include "PairEvaluatorE3B3.h"
+#include "ThreeBodyEvaluateIso.h"
+#include "ThreeBodyEvaluatorE3B3.h"
 
 //! Make FixE3B3 available to the python interface
 void export_FixE3B3();
@@ -88,7 +91,10 @@ class FixE3B3: public Fix {
         
         void setEvalWrapper();
         void setEvalWrapperOrig();
-        
+
+        // the evaluators for the forces and energy contributions
+        EvaluatorE3B3 twoBodyEvaluator;
+        ThreeBodyEvaluatorE3B3 threeBodyEvaluator;
 
 };
 
