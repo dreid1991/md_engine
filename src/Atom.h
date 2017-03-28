@@ -56,6 +56,11 @@ public:
 
     std::string getType();
 
+    void setBeadPos(int n, int nPerRingPoly, std::vector<Vector> &xsNM);
+    // displaces the position of a bead based on free ring-polymer distribution
+
+    //void setBeadVel(int nPerRingPoly, float betaP);
+
 
 };
 

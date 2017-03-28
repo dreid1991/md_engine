@@ -513,6 +513,16 @@ public:
 
     Units units;
 
+    bool preparePIMD();
+    //! Extends current simulation state to a path-integral representation
+    /*!
+     * \return True always
+     *
+     * This function makes nPerRingPoly copies of the exiting atoms in the simulation
+     * and their interactions for use in path-integral molecular dynamics simultions
+     * currently, the same number of replicas are applied to all particles in the system.
+     */
+
 private:
     std::mt19937 randomNumberGenerator; //!< Random number generator
     bool rng_is_seeded; //!< True if seedRNG has been called

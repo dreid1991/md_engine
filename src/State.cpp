@@ -738,6 +738,7 @@ void State::deleteAtoms() {
     idBuffer.erase(idBuffer.begin(), idBuffer.end());
     maxIdExisting = -1;
     idToIdx.erase(idToIdx.begin(), idToIdx.end());
+    molecules = py::list();
 }
 
 
@@ -791,6 +792,115 @@ Vector generateVector(State &s, py::list valsPy) {
 }
 
 
+bool State::preparePIMD() {
+    if (nPerRingPoly > 1) {
+        int nAtoms = atoms.size();          // this is current number of atoms in system
+        int nTot   = nAtoms * nPerRingPoly; // this is the total number of beads for PIMD
+        std::vector<Atom> RPatoms;          // new vector of atoms to replace current atoms
+        RPatoms.reserve(nTot);              
+        boost::python::list RPmolecules;    // new list of molecules to replace current list
+
+        // Extract temperature and spring frequency
+        double temp=1.0;
+        for (Fix *f: fixes) {
+          if ( f->isThermostat && f->groupHandle == "all" ) {
+            std::string t = "temp";
+            temp = f->getInterpolator(t)->getCurrentVal();
+          }
+        }
+        float betaP     = 1.0f / units.boltz / temp;
+        float omegaP    = (float) nPerRingPoly / units.hbar / betaP;
+        float invP            = 1.0 / (float) nPerRingPoly;
+        float twoPiInvP       = 2.0f * M_PI * invP;
+
+        //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        // UPDATE ATOMS
+        //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        for (int i=0; i < nAtoms; i++) {
+            Atom   ai = atoms[i];
+            int baseId = ai.id;
+            baseId    *= nPerRingPoly;      // stride the existing id's by nPerRingPoly
+
+            // prepare for position initialization
+            // here we are sampling a set of normal-mode coordinates
+            // from the free ring-polymer solution
+            // those coordinates will then be used in a back transformation to obtain
+            // a new set of coordinates with centroid at the initial position of the atoms
+            std::vector<Vector> xsNM;       // vector for containing normal-mode coordinates
+            xsNM.reserve(nPerRingPoly);
+            for (int k = 0; k < nPerRingPoly; k++) {
+                float omegak = 2.0f * omegaP * sinf( k * twoPiInvP * 0.5);
+                float sigmak = powf((float) nPerRingPoly  / betaP / ai.mass,0.5) / omegak; // sigma = sqrt(1/ beta_P * m *omegak^2)
+                std::normal_distribution<float> distNM(0.0,sigmak);
+                float xk, yk, zk;
+                xk = distNM(randomNumberGenerator);
+                yk = distNM(randomNumberGenerator);
+                zk = distNM(randomNumberGenerator);
+                xsNM.push_back(Vector(xk,yk,zk));
+            }
+
+            // prepare for velocity initialization
+            std::normal_distribution<float> distVel(0.0,sqrtf(ai.mass / betaP));
+
+            // fill in atom copies
+            for (int k=0; k < nPerRingPoly; k++) {
+                int RPid = baseId + k;          // get new ID based on position in ring polymer
+                Atom aik = ai;                  // atom copy
+                aik.id = RPid;                  // update id
+                aik.setBeadPos(k+1,nPerRingPoly,xsNM);  // adjust position
+                // resample velocity
+                Vector vk;
+                vk[0] = distVel(randomNumberGenerator); // vx
+                vk[1] = distVel(randomNumberGenerator); // vy
+                vk[2] = distVel(randomNumberGenerator); // vz
+                aik.setVel(vk);                // adjust velocity
+                RPatoms.push_back(aik);        // add atom to list
+            }
+
+        }
+        // replace atoms with the new RPatoms list
+        atoms = RPatoms;
+
+        //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        // UPDATE MOLECULES
+        //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        int nMol = py::len(molecules);
+        py::list molecsRP;
+        // go over each molecule
+        for (int i=0; i<nMol; i++) {
+            py::extract<Molecule *> molecEx(molecules[i]);
+            Molecule *moli = molecEx;
+            std::vector<int> moliIds;   // vector for containing ids defining molecule
+            // extract the ids for the molecule
+            for (int id : moli->ids) {
+                moliIds.push_back(id);
+            }
+            // iterate over beads/time slices and systematically increase IDs by timeslice
+            int nAtmPerMol = moliIds.size();
+            for (int k = 0; k < nPerRingPoly; k++) {
+                std::vector<int> molikIds = moliIds;        // new ids for the molecule at kth timeslice
+                for (int l = 0; l < nAtmPerMol; l++) {
+                    molikIds[l] = moliIds[l]*nPerRingPoly +k;   // stride by nPerRingPoly and increase to time slice
+                }
+                molecsRP.append(Molecule(this,molikIds));       // add molecule
+            }
+        }
+        // replace the list of molecules with the new list of molecsRP
+        molecules = molecsRP;
+
+        //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        // UPDATE FIXES
+        //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        for (Fix *fix : fixes) {
+            fix->updateForPIMD(nPerRingPoly);
+        }
+
+        return true;
+    }
+    else {
+        return false;
+    }
+}
 
 BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(State_seedRNG_overloads,State::seedRNG,0,1)
 

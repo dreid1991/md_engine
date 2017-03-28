@@ -35,8 +35,42 @@ std::string Atom::getType() {
     return handles->at(type);
 }
 
+void Atom::setBeadPos(int n, int nPerRingPoly, std::vector<Vector> &xsNM) {
+    float sqrt2           = sqrt(2.0);
+    float invP            = 1.0 / (float) nPerRingPoly;
+    float twoPiInvP       = 2.0f * M_PI * invP;
+    float invSqrtP        = sqrt(invP);
+    int halfP = nPerRingPoly/2;
 
+    // k = 0
+    Vector xn = xsNM[0];
+    
+    // k = halfP
+    // xn += xsNM[halfP]*(-1)**n
+    if ( n % 2 == 0) {
+      xn += xsNM[halfP];}
+    else {
+      xn -= xsNM[halfP];}
+    
+    // k = 1,...,P/2-1; n = 1,...,P
+    for (int k = 1; k < halfP; k++) {
+      float  cosval = cos(twoPiInvP * k * n); // cos(2*pi*k*n/P)
+      xn += xsNM[k] * sqrt2 * cosval;
+    }
+    
+    // k = P/2+1,...,P-1; n = 1,...,P
+    for (int k = halfP+1; k < nPerRingPoly; k++) {
+      float  sinval = sin(twoPiInvP * k * n); // cos(2*pi*k*n/P)
+      xn += xsNM[k] * sqrt2 * sinval;
+    }
+    
+    // replace evolved back-transformation
+    pos = xn*invSqrtP;
+}
 
+//void Atom::setBeadVel(int nPerRingPoly, float betaP) {
+//    Vector vn;
+//}
 
 void export_Atom () { 
     py::class_<Atom>("Atom", py::no_init)

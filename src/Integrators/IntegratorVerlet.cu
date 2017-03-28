@@ -447,7 +447,7 @@ void IntegratorVerlet::nve_x() {
 	  }
 	}
 	int   nPerRingPoly = state->nPerRingPoly;
-        int   nRingPoly = state->atoms.size() / nPerRingPoly;
+    int   nRingPoly = state->atoms.size() / nPerRingPoly;
 	float omegaP    = (float) nPerRingPoly / state->units.hbar * state->units.boltz * temp;
     	nve_xPIMD_cu<<<NBLOCK(nRingPoly), PERBLOCK, sizeof(float3) * 2 *PERBLOCK * nPerRingPoly>>>(
 	        nRingPoly,
