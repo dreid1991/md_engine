@@ -28,9 +28,9 @@ public:
 
     void setParameters(float alpha_, float r_cut_);
     void compute(bool);
-    ChargeEvaluatorDSF generateEvaluator() {
-        return ChargeEvaluatorDSF(alpha, A, shift);
-    }
+    ChargeEvaluatorDSF generateEvaluator();
+    void setEvalWrapper();
+    std::vector<float> getRCuts();
 
 };
 

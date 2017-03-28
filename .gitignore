@@ -24,6 +24,7 @@ doc/latex/
 build/
 build7.5/
 build-7.5/
+build_temp/
 src/Makefile
 Makefile
 benchmark/*nvprof
