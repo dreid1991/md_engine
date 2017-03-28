@@ -28,5 +28,7 @@
 #include "FixPressureBerendsen.h"
 #include "FixLinearMomentum.h"
 #include "FixRigid.h"
+#include "FixExternalHarmonic.h"
+#include "FixExternalQuartic.h"
 
 #endif
