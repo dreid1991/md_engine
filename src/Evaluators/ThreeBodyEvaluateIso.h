@@ -103,27 +103,30 @@ __global__ void compute_three_body_iso
             float3 r_a2b1 = bounds.minImage(pos_a2 - pos_b1);
             float3 r_a2c1 = bounds.minImage(pos_a2 - pos_c2);
 
+            // and get magnitudes of the OH distances computed so far
+            float r_a1b2_magnitude = length(r_a1b2);
+            float r_a1c2_magnitude = length(r_a1c2);
+            float r_a2b1_magnitude = length(r_a2b1);
+            float r_a2c1_magnitude = length(r_a2c1);
+
             // we now have our molecule 'j'
             // compute the two-body correction term w.r.t the oxygens
             float3 r_a1a2 = bounds.minImage(pos_a1 - pos_a2);
             float r_a1a2_magnitude = length(r_a1a2);
 
             fs_a1_sum += eval.twoBodyForce(r_a1a2,r_a1a2_magnitude)
-            // -- verify that our molecule 'j' is actually within the bounds of our potential; else, continue
-            bool moleculePairInBounds = evaluator.checkBounds(r_a1b2,r_a1c2,r_a2b1,r_a2c1);
-            
-
-            // if this pair of molecules has /no/ intermolecular O-H distance less than the max cutoff,
-            // all three-body terms will be zero.
-            if (!moleculePairInBounds) continue;
+           
+            // compute the number of O-H distances computed so far that are within the range of the three-body cutoff
+            // note: order really doesn't matter here; just checking if (val < 5.2 Angstroms)
+            int numberOfDistancesWithinCutoff = eval.getNumberWithinCutoff(r_a1b2_magnitude,
+                                                                           r_a1c2_magnitude,
+                                                                           r_a2b1_magnitude,
+                                                                           r_a2c1_magnitude);
 
             // --> get molecule 'k' to complete the trimer
 
             // we only wish to compute $-/nabla E_{ijk}$ for all unique combos of trimers, so this should range 
             // from k = j+1, while still less than numNeighMolecules w.r.t. baseMolecule ('i');
-            // --- we only need to continue with this iteration if at least /one/ of the hydrogens above was within 
-            //     the three-body far cutoff
-            //     --- this is accomplished by boolean 'moleculePairInBounds'
             
             for (int k = j+1; k < numNeighMolecules; k++) {
                 // grab warp index corresponding to this 'k'
@@ -165,6 +168,34 @@ __global__ void compute_three_body_iso
                  *  get the magnitude of the new distance vectors, and check if we still need to compute this potential
                  *  (i.e., see if this is a valid trimer, that there will be some non-zero threebody contribution)
                  */
+                float r_a1b3_magnitude = length(r_a1b3);
+                float r_a1c3_magnitude = length(r_a1b3);
+                
+                float r_a2b3_magnitude = length(r_a2b3);
+                float r_a2c3_magnitude = length(r_a2c3);
+
+                float r_a3b1_magnitude = length(r_a3b1);
+                float r_a3c1_magnitude = length(r_a3c1);
+                float r_a3b2_magnitude = length(r_a3b2);
+                float r_a3c2_magnitude = length(r_a3c2);
+
+                // compute the number of additional distances within the cutoff;
+                // if the total is >= 2, we need to compute the force terms.
+                numberOfDistancesWithinCutoff += eval.getNumberWithinCutoff(r_a1b3_magnitude,
+                                                                            r_a1c3_magnitude,
+                                                                            r_a2b3_magnitude,
+                                                                            r_a2c3_magnitude);
+
+                numberOfDistancesWithinCutoff += eval.getNumberWithinCutoff(r_a3b1_magnitude,
+                                                                            r_a3c1_magnitude,
+                                                                            r_a3b2_magnitude,
+                                                                            r_a3c2_magnitude);
+
+
+                // if there is only 1 intermolecular O-H distance within the cutoff, all terms will be zero
+                if (numberOfDistancesWithinCutoff >= 2) {
+                    // compute the force contribution from the A-type terms (see ref Kumar & Skinner, 2008 for list of terms)
+                    
 
 
 
@@ -172,7 +203,7 @@ __global__ void compute_three_body_iso
 
 
 
-
+                }
 
 
             }
