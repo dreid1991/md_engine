@@ -122,6 +122,17 @@ __global__ void compute_three_body_iso
                                                                            r_a1c2_magnitude,
                                                                            r_a2b1_magnitude,
                                                                            r_a2c1_magnitude);
+            // compute the exponential force scalar resulting from the a1b2, a1c2, a2b1, a2c1 contributions,
+            // so that we don't have to compute these in the k-molecule loop
+            if (numberOfDistancesWithinCutoff > 0) {
+                // compute the exponential factors (without the prefactor)
+                // -- we send to eval rather than computing the exponential here b/c we don't have the constant here
+                float fs_a1b2_scalar = eval.threeBodyForceScalar(r_a1b2_magnitude);
+                float fs_a1c2_scalar = eval.threeBodyForceScalar(r_a1c2_magnitude);
+                float fs_a2b1_scalar = eval.threeBodyForceScalar(r_a2b1_magnitude);
+                float fs_a2c1_scalar = eval.threeBodyForceScalar(r_a2b1_magnitude);
+            }
+
 
             // --> get molecule 'k' to complete the trimer
 
@@ -199,7 +210,12 @@ __global__ void compute_three_body_iso
                     //
                     // Note: because there are three atoms on which we compute the forces sum, we can't just return a value... because 
                     //       there are three.  So, pass by reference and modify within the force function itself.
+                    //
+                    // this is a long parameter list, but its kind of necessary... so. Could group in a struct, but 
+                    // this is explicit.
                     eval.threeBodyForce(fs_a1_sum, fs_b1_sum, fs_c1_sum,
+                                        fs_a1b2_scalar, fs_a1c2_scalar,
+                                        fs_a2b1_scalar, fs_a2c1_scalar,
                                         r_a1b2, r_a1b2_magnitude,
                                         r_a1c2, r_a1c2_magnitude,
                                         r_a1b3, r_a1b3_magnitude,

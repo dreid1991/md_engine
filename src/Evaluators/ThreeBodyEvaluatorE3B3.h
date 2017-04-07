@@ -87,7 +87,13 @@ class ThreeBodyEvaluatorE3B3 {
             }
         }
 
+        inline __device__ float threeBodyForceScalar(float magnitude) {
+            return expf(-k3 * magnitude);
+        }
+        // pass fs_a1_sum by reference b/c we return it to the function modified
         __device__ void threeBodyForce(float3 &fs_a1_sum, float3 &fs_b1_sum, float3 &fs_c1_sum,
+                                       float fs_a1b2_scalar, float fs_a1c2_scalar,
+                                       float fs_a2b1_scalar, float fs_a2c1_scalar,
                                        float3 r_a1b2, float r_a1b2_magnitude,
                                        float3 r_a1c2, float r_a1c2_magntiude,
                                        float3 r_a1b3, float r_a1b3_magnitude,
@@ -102,8 +108,8 @@ class ThreeBodyEvaluatorE3B3 {
                                        float3 r_a3c2, float r_a3c2_magnitude) {
 
 
-
-
+            // compute the scalar factors for the shared terms (see KS 2008 to see what terms are shared by a1, b1, c1)
+            
 
         } // end threeBodyForce(*bigArgsListHere)
                                         
