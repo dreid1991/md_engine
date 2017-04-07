@@ -87,6 +87,28 @@ class ThreeBodyEvaluatorE3B3 {
             }
         }
 
+        __device__ void threeBodyForce(float3 &fs_a1_sum, float3 &fs_b1_sum, float3 &fs_c1_sum,
+                                       float3 r_a1b2, float r_a1b2_magnitude,
+                                       float3 r_a1c2, float r_a1c2_magntiude,
+                                       float3 r_a1b3, float r_a1b3_magnitude,
+                                       float3 r_a1c3, float r_a1c3_magnitude,
+                                       float3 r_a2b1, float r_a2b1_magnitude,
+                                       float3 r_a2c1, float r_a2c1_magnitude,
+                                       float3 r_a2b3, float r_a2b3_magnitude,
+                                       float3 r_a2c3, float r_a2c3_magnitude,
+                                       float3 r_a3b1, float r_a3b1_magnitude,
+                                       float3 r_a3c1, float r_a3c1_magnitude, 
+                                       float3 r_a3b2, float r_a3b2_magnitude, 
+                                       float3 r_a3c2, float r_a3c2_magnitude) {
+
+
+
+
+
+        } // end threeBodyForce(*bigArgsListHere)
+                                        
+        // and we need separate functions to calculate the A,B,C force contributions
+
 }
 
 #endif /* THREE_BODY_EVALUATOR_E3B3 */
