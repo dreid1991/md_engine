@@ -7,6 +7,8 @@
 #include "Logging.h"
 #include "State.h"
 #include "Fix.h"
+#include "cutils_func.h"
+
 using namespace MD_ENGINE;
 
 namespace py = boost::python;
@@ -42,18 +44,26 @@ __global__ void nve_x_cu(int nAtoms, float4 *xs, float4 *vs, float dt) {
     }
 }
 
-__global__ void nve_xPIMD_cu(int nRingPoly, int nPerRingPoly, float omegaP, float4 *xs, float4 *vs, float dt) {
+__global__ void nve_xPIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, float4 *xs, float4 *vs, float dt) {
 
     // Declare relevant variables for NM transformation
-    int idx = GETIDX();
+    int idx = GETIDX(); 
     extern __shared__ float3 xsvs[];
-    float3 *xsNM = xsvs;					// normal-mode transform of position
-    float3 *vsNM = xsvs + PERBLOCK * nPerRingPoly;		// normal-mode transform of velocity
+    float3 *xsNM = xsvs;				// normal-mode transform of position
+    float3 *vsNM = xsvs + PERBLOCK;		// normal-mode transform of velocity
+    float3 *tbr  = xsvs + 2*PERBLOCK;   // working array to place variables "to be reduced"
+    bool useThread = idx < nAtoms;
+    float3 xn = make_float3(0, 0, 0);
+    float3 vn = make_float3(0, 0, 0);
 
-    if (idx < nRingPoly) {
-	int baseIdx = idx * nPerRingPoly;
+    // helpful reference indices/identifiers
+    bool   needSync= nPerRingPoly>warpSize;
+    bool   amRoot  = (threadIdx.x % nPerRingPoly) == 0;
+    int    rootIdx = (threadIdx.x / nPerRingPoly) * nPerRingPoly;
+    int    beadIdx = idx % nPerRingPoly;
+    int    n       = beadIdx + 1;
 	
-        // 1. Transform to normal mode positions and velocities
+    // 1. Transform to normal mode positions and velocities
 	// 	xNM_k = \sum_{n=1}^P x_n* Cnk
 	// 	Cnk = \sqrt(1/P)			k = 0
 	// 	Cnk = \sqrt(2/P) cos(2*pi*k*n/P)	1<= k <= P/2 -1
@@ -68,103 +78,150 @@ __global__ void nve_xPIMD_cu(int nRingPoly, int nPerRingPoly, float omegaP, floa
 	float sqrt2           = sqrt(2.0);
 	int   halfP           = nPerRingPoly / 2;	// P must be even for the following transformation!!!
 
-	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-	// 1. COORDINATE TRANSFORMATION
-	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    // 1. COORDINATE TRANSFORMATION
+    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    // first we will compute the normal mode coordinates for the positions, and then the velocities
+    // using an identical structure. Each thread (bead) will contribute to each mode index, and
+    // the strategy will be too store the results of each bead for a given mode in a working array
+    // reduce the result by summation and store that in the final array for generating the positions
+
+    // %%%%%%%%%%% POSITIONS %%%%%%%%%%%
+    if (useThread) {
+        xn = make_float3(xs[idx]);
+        vn = make_float3(vs[idx]);
+    }
+    // k = 0, n = 1,...,P
+    tbr[threadIdx.x]  = xn;
+    if (needSync)    __syncthreads();
+    reduceByN<float3>(tbr, nPerRingPoly, warpSize);
+    if (useThread && amRoot)     {xsNM[threadIdx.x] = tbr[threadIdx.x]*invSqrtP;}
+
+    // k = P/2, n = 1,...,P
+    if (threadIdx.x % 2 == 0) {
+        tbr[threadIdx.x] = xn * -1;
+    } else {
+        tbr[threadIdx.x] = xn ;
+    }
+    if (needSync)   { __syncthreads();}
+    reduceByN<float3>(tbr, nPerRingPoly, warpSize);
+    if (useThread && amRoot)     {xsNM[threadIdx.x+halfP] = tbr[threadIdx.x]*invSqrtP;}
+
+    // k = 1,...,P/2-1; n = 1,...,P
+    for (int k = 1; k < halfP; k++) {
+        float cosval = cos(twoPiInvP * k * n);	// cos(2*pi*k*n/P)
+        tbr[threadIdx.x] = xn*sqrt2*cosval;
+        reduceByN<float3>(tbr, nPerRingPoly, warpSize);
+        if (needSync)   { __syncthreads();}
+        if (useThread && amRoot)     {xsNM[threadIdx.x+k] = tbr[threadIdx.x]*invSqrtP;}
+    }
+
+    // k = P/2+1,...,P-1; n = 1,...,P
+    for (int k = halfP+1; k < nPerRingPoly; k++) {
+        float  sinval = sin(twoPiInvP * k * n);	// sin(2*pi*k*n/P)
+        tbr[threadIdx.x] = xn*sqrt2*sinval;
+        reduceByN<float3>(tbr, nPerRingPoly, warpSize);
+        if (needSync)   { __syncthreads();}
+        if (useThread && amRoot)     {xsNM[threadIdx.x+k] = tbr[threadIdx.x]*invSqrtP;}
+    }
+
+    // %%%%%%%%%%% VELOCITIES %%%%%%%%%%%
 	// k = 0, n = 1,...,P
-	for (int n = 0; n < nPerRingPoly; n++) {
-	  xsNM[0] += make_float3(xs[baseIdx+n]);
-	  vsNM[0] += make_float3(vs[baseIdx+n]);
-	}
-	// k = P/2, n = 1,...,P
-	for (int n = 2; n < nPerRingPoly+1; n+=2) {
-	  xsNM[halfP] -= make_float3(xs[baseIdx+n-2]);
-	  xsNM[halfP] += make_float3(vs[baseIdx+n-1]);
-	}
+    tbr[threadIdx.x]  = vn;
+    reduceByN<float3>(tbr, nPerRingPoly, warpSize);
+    if (needSync)   { __syncthreads();}
+    if (useThread && amRoot)     {vsNM[threadIdx.x] = tbr[threadIdx.x]*invSqrtP;}
+
+    // k = P/2, n = 1,...,P
+    if (threadIdx.x % 2 == 0) {
+        tbr[threadIdx.x] = vn * -1;
+    } else {
+        tbr[threadIdx.x] = vn ;
+    }
+    reduceByN<float3>(tbr, nPerRingPoly, warpSize);
+    if (needSync)   { __syncthreads();}
+    if (useThread && amRoot)     {vsNM[threadIdx.x+halfP] = tbr[threadIdx.x]*invSqrtP;}
+
 	// k = 1,...,P/2-1; n = 1,...,P
-        for (int k = 1; k < halfP; k++) {
-	  for (int n = 1; n < nPerRingPoly+1; n++) {
-	   float3 xn     = make_float3(xs[baseIdx+n-1]);
-	   float3 vn     = make_float3(vs[baseIdx+n-1]);
-	   float  cosval = cos(twoPiInvP * k * n);	// cos(2*pi*k*n/P)
-	   xsNM[k] += xn * sqrt2 * cosval;
-	   vsNM[k] += vn * sqrt2 * cosval;
-	  }
-	}
+    for (int k = 1; k < halfP; k++) {
+        float cosval = cos(twoPiInvP * k * n);	// cos(2*pi*k*n/P)
+        tbr[threadIdx.x] = vn*sqrt2*cosval;
+        reduceByN<float3>(tbr, nPerRingPoly, warpSize);
+        if (needSync)   { __syncthreads();}
+        if (useThread && amRoot)     {vsNM[threadIdx.x+k] = tbr[threadIdx.x]*invSqrtP;}
+    }
+
 	// k = P/2+1,...,P-1; n = 1,...,P
+    for (int k = halfP+1; k < nPerRingPoly; k++) {
+	    float  sinval = sin(twoPiInvP * k * n);	// sin(2*pi*k*n/P)
+        tbr[threadIdx.x] = vn*sqrt2*sinval;
+        reduceByN<float3>(tbr, nPerRingPoly, warpSize);
+        if (needSync)   { __syncthreads();}
+        if (useThread && amRoot)     {vsNM[threadIdx.x+k] = tbr[threadIdx.x]*invSqrtP;}
+    }
+
+    if (useThread ) {
+
+	    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	    // 2. NORMAL-MODE RP COORDINATE EVOLUTION
+	    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        // here each bead will handle the evolution of a particular normal-mode coordinate
+	    // xk(t+dt) = xk(t)*cos(om_k*dt) + vk(t)*sin(om_k*dt)/om_k
+	    // vk(t+dt) = vk(t)*cos(om_k*dt) - xk(t)*sin(om_k*dt)*om_k
+	    // k = 0
+        if (amRoot) {
+            xsNM[threadIdx.x] += vsNM[threadIdx.x] * dt; 
+        } else {
+	        float omegaK = 2.0f * omegaP * sin( beadIdx * twoPiInvP * 0.5);
+	        float cosdt  = cos(omegaK * dt);
+	        float sindt  = sin(omegaK * dt);
+	        float3 xsNMk = xsNM[threadIdx.x];
+	        float3 vsNMk = vsNM[threadIdx.x];
+	        xsNM[threadIdx.x] *= cosdt;
+	        vsNM[threadIdx.x] *= cosdt;
+	        xsNM[threadIdx.x] += vsNMk * sindt / omegaK;
+	        vsNM[threadIdx.x] -= xsNMk * sindt * omegaK;
+        }
+
+	    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	    // 3. COORDINATE BACK TRANSFORMATION
+	    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	    // k = 0
+        xn = xsNM[rootIdx];
+        vn = vsNM[rootIdx];
+	    // k = halfP
+	    // xn += xsNM[halfP]*(-1)**n
+        if (threadIdx.x % 2) {
+            xn += xsNM[rootIdx+halfP];
+            vn += vsNM[rootIdx+halfP];
+        } else {
+            xn -= xsNM[rootIdx+halfP];
+            vn -= vsNM[rootIdx+halfP];
+        }
+
+	    // k = 1,...,P/2-1; n = 1,...,P
+        for (int k = 1; k < halfP; k++) {
+	        float  cosval = cos(twoPiInvP * k * n);	// cos(2*pi*k*n/P)
+	        xn += xsNM[rootIdx+k] * sqrt2 * cosval;
+	        vn += vsNM[rootIdx+k] * sqrt2 * cosval;
+        }
+
+	    // k = P/2+1,...,P-1; n = 1,...,P
         for (int k = halfP+1; k < nPerRingPoly; k++) {
-	  for (int n = 1; n < nPerRingPoly+1; n++) {
-	   float3 xn     = make_float3(xs[baseIdx+n-1]);
-	   float3 vn     = make_float3(vs[baseIdx+n-1]);
-	   float  sinval = sin(twoPiInvP * k * n);	// sin(2*pi*k*n/P)
-	   xsNM[k] += xn * sqrt2 * sinval;
-	   vsNM[k] += vn * sqrt2 * sinval;
-	  }
-	}
-	// orthogonalize
-	for (int n = 0; n<nPerRingPoly; n++) {
-          xsNM[0] *= invSqrtP;
-          vsNM[0] *= invSqrtP;
-	}
+	        float  sinval = sin(twoPiInvP * k * n);	// cos(2*pi*k*n/P)
+	        xn += xsNM[rootIdx+k] * sqrt2 * sinval;
+	        vn += vsNM[rootIdx+k] * sqrt2 * sinval;
+        }
 
-	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-	// 2. NORMAL-MODE RP COORDINATE EVOLUTION
-	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-	// xk(t+dt) = xk(t)*cos(om_k*dt) + vk(t)*sin(om_k*dt)/om_k
-	// vk(t+dt) = vk(t)*cos(om_k*dt) - xk(t)*sin(om_k*dt)*om_k
-	// k = 0
-        xsNM[0] += vsNM[0] * dt; 
-	// k = 1,...,P-1
-	for (int k = 1; k< nPerRingPoly; k++) {
-	  float omegaK = 2.0f * omegaP * sin( k * twoPiInvP * 0.5);
-	  float cosdt  = cos(omegaK * dt);
-	  float sindt  = sin(omegaK * dt);
-	  float3 xsNMk = xsNM[k];
-	  float3 vsNMk = vsNM[k];
-	  xsNM[k] *= cosdt;
-	  vsNM[k] *= cosdt;
-	  xsNM[k] += vsNMk * sindt / omegaK;
-	  vsNM[k] -= xsNMk * sindt * omegaK;
-	}
-
-	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-	// 3. COORDINATE BACK TRANSFORMATION
-	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-	for (int n = 1; n < nPerRingPoly+1; n++) {
-	  // k = 0
-	  float3 xn = xsNM[0]; 
-	  float3 vn = vsNM[0]; 
-
-	  // k = halfP
-	  // xn += xsNM[halfP]*(-1)**n
-	  if ( n % 2 == 0) {
-	    xn += xsNM[halfP];
-	    vn += vsNM[halfP];}
-	  else {
-	    xn -= xsNM[halfP];
-	    vn -= vsNM[halfP];}
-
-	  // k = 1,...,P/2-1; n = 1,...,P
-	  for (int k = 1; k < halfP; k++) {
-	    float  cosval = cos(twoPiInvP * k * n);	// cos(2*pi*k*n/P)
-	    xn += xsNM[k] * sqrt2 * cosval;
-	    vn += vsNM[k] * sqrt2 * cosval;
-	  }
-
-	  // k = P/2+1,...,P-1; n = 1,...,P
-          for (int k = halfP+1; k < nPerRingPoly; k++) {
-	    float  sinval = sin(twoPiInvP * k * n);	// cos(2*pi*k*n/P)
-	    xn += xsNM[k] * sqrt2 * sinval;
-	    vn += vsNM[k] * sqrt2 * sinval;
-	  }
-
-	  // replace evolved back-transformation
-	  xs[baseIdx+n-1] = make_float4(xn*invSqrtP);
-	  vs[baseIdx+n-1] = make_float4(vn*invSqrtP);
-	}
+	    // replace evolved back-transformation
+        xn *= invSqrtP;
+        vn *= invSqrtP;
+	    xs[idx]   = make_float4(xn.x,xn.y,xn.z,xs[idx].w);
+	    vs[idx]   = make_float4(vn.x,vn.y,vn.z,vs[idx].w);
     }
 
 }
+
 //so preForce_cu is split into two steps (nve_v, nve_x) if any of the fixes (barostat, for example), need to throw a step in there (as determined by requiresPostNVE_V flag)
 __global__ void preForce_cu(int nAtoms, float4 *xs, float4 *vs, float4 *fs,
                             float dt, float dtf)
@@ -195,143 +252,209 @@ __global__ void preForce_cu(int nAtoms, float4 *xs, float4 *vs, float4 *fs,
 }
 
 // alternative version of preForce_cu which allows for normal-mode propagation of RP dynamics
-// need to pass nPerRingPoly and omega_w
-__global__ void preForcePIMD_cu(int nRingPoly, int nPerRingPoly, float omegaP, float4 *xs, float4 *vs, float4 *fs,
+// need to pass nPerRingPoly and omega_P
+__global__ void preForcePIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, float4 *xs, float4 *vs, float4 *fs,
                             float dt, float dtf)
 {
     // Declare relevant variables for NM transformation
-    int idx = GETIDX();
+    int idx = GETIDX(); 
     extern __shared__ float3 xsvs[];
-    float3 *xsNM = xsvs;					// normal-mode transform of position
-    float3 *vsNM = xsvs + PERBLOCK * nPerRingPoly;		// normal-mode transform of velocity
+    float3 *xsNM = xsvs;				// normal-mode transform of position
+    float3 *vsNM = xsvs + PERBLOCK;		// normal-mode transform of velocity
+    float3 *tbr  = xsvs + 2*PERBLOCK;   // working array to place variables "to be reduced"
+    bool useThread = idx < nAtoms;
+    float3 xn = make_float3(0, 0, 0);
+    float3 vn = make_float3(0, 0, 0);
+    // helpful reference indices/identifiers
+    bool   needSync= nPerRingPoly>warpSize;
+    bool   amRoot  = (threadIdx.x % nPerRingPoly) == 0;
+    int    rootIdx = (threadIdx.x / nPerRingPoly) * nPerRingPoly;
+    int    beadIdx = idx % nPerRingPoly;
+    int    n       = beadIdx + 1;
 
-    if (idx < nRingPoly) {
-	
-        // Update velocity by a half timestep for all beads in the ring polymer
-	int baseIdx = idx * nPerRingPoly;
-	for (int id = baseIdx; id< baseIdx + nPerRingPoly; id++) {
-        	float4 vel     = vs[id];
-        	float  invmass = vel.w;
-        	float4 force   = fs[id];
-        	float3 dv      = dtf * invmass * make_float3(force);
-        	vel           += dv;
-        	vs[id]         = vel;
-        	// Set forces to zero before force calculation
-		fs[id] = make_float4(0.0f,0.0f,0.0f,force.w);
-	}
+    // Update velocity by a half timestep for all beads in the ring polymer
+    if (useThread) {
+        float4 vel     = vs[idx];
+        float  invmass = vel.w;
+        float4 force   = fs[idx];
+        float3 dv      = dtf * invmass * make_float3(force);
+        vel           += dv;
+        vs[idx]        = vel;
+        fs[idx]        = make_float4(0.0f,0.0f,0.0f,force.w); // reset forces to zero before force calculation
+    }
 
-        // 1. Transform to normal mode positions and velocities
-	// 	xNM_k = \sum_{n=1}^P x_n* Cnk
-	// 	Cnk = \sqrt(1/P)			k = 0
-	// 	Cnk = \sqrt(2/P) cos(2*pi*k*n/P)	1<= k <= P/2 -1
-	// 	Cnk = \sqrt(1/P)(-1)^n			k = P/2
-	// 	Cnk = \sqrt(2/P) sin(2*pi*k*n/P)	P/2+1<= k <= P -1
-	// 2. advance positions/velocities by full timestep according
-	// to free ring-polymer evolution
-	// 3. back transform to regular coordinates
-	float invP            = 1.0 / (float) nPerRingPoly;
-	float twoPiInvP       = 2.0f * M_PI * invP;
-	float invSqrtP 	      = sqrt(invP);
-	float sqrt2           = sqrt(2.0);
-	int   halfP           = nPerRingPoly / 2;	// P must be even for the following transformation!!!
+    // 1. Transform to normal mode positions and velocities
+    // 	xNM_k = \sum_{n=1}^P x_n* Cnk
+    // 	Cnk = \sqrt(1/P)			k = 0
+    // 	Cnk = \sqrt(2/P) cos(2*pi*k*n/P)	1<= k <= P/2 -1
+    // 	Cnk = \sqrt(1/P)(-1)^n			k = P/2
+    // 	Cnk = \sqrt(2/P) sin(2*pi*k*n/P)	P/2+1<= k <= P -1
+    // 2. advance positions/velocities by full timestep according
+    // to free ring-polymer evolution
+    // 3. back transform to regular coordinates
+    float invP            = 1.0 / (float) nPerRingPoly;
+    float twoPiInvP       = 2.0f * M_PI * invP;
+    float invSqrtP 	      = sqrt(invP);
+    float sqrt2           = sqrt(2.0);
+    int   halfP           = nPerRingPoly / 2;	// P must be even for the following transformation!!!
 
-	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-	// 1. COORDINATE TRANSFORMATION
-	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    // 1. COORDINATE TRANSFORMATION
+    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    // first we will compute the normal mode coordinates for the positions, and then the velocities
+    // using an identical structure. Each thread (bead) will contribute to each mode index, and
+    // the strategy will be too store the results of each bead for a given mode in a working array
+    // reduce the result by summation and store that in the final array for generating the positions
+
+    // %%%%%%%%%%% POSITIONS %%%%%%%%%%%
+    if (useThread) {
+        xn = make_float3(xs[idx]);
+        vn = make_float3(vs[idx]);
+    }
+    // k = 0, n = 1,...,P
+    tbr[threadIdx.x]  = xn;
+    if (needSync)    __syncthreads();
+    reduceByN<float3>(tbr, nPerRingPoly, warpSize);
+    if (useThread && amRoot)     {xsNM[threadIdx.x] = tbr[threadIdx.x]*invSqrtP;}
+
+    // k = P/2, n = 1,...,P
+    if (threadIdx.x % 2 == 0) {
+        tbr[threadIdx.x] = xn * -1;
+    } else {
+        tbr[threadIdx.x] = xn ;
+    }
+    if (needSync)   { __syncthreads();}
+    reduceByN<float3>(tbr, nPerRingPoly, warpSize);
+    if (useThread && amRoot)     {xsNM[threadIdx.x+halfP] = tbr[threadIdx.x]*invSqrtP;}
+
+    // k = 1,...,P/2-1; n = 1,...,P
+    for (int k = 1; k < halfP; k++) {
+        float cosval = cos(twoPiInvP * k * n);	// cos(2*pi*k*n/P)
+        tbr[threadIdx.x] = xn*sqrt2*cosval;
+        reduceByN<float3>(tbr, nPerRingPoly, warpSize);
+        if (needSync)   { __syncthreads();}
+        if (useThread && amRoot)     {xsNM[threadIdx.x+k] = tbr[threadIdx.x]*invSqrtP;}
+    }
+
+    // k = P/2+1,...,P-1; n = 1,...,P
+    for (int k = halfP+1; k < nPerRingPoly; k++) {
+        float  sinval = sin(twoPiInvP * k * n);	// sin(2*pi*k*n/P)
+        tbr[threadIdx.x] = xn*sqrt2*sinval;
+        reduceByN<float3>(tbr, nPerRingPoly, warpSize);
+        if (needSync)   { __syncthreads();}
+        if (useThread && amRoot)     {xsNM[threadIdx.x+k] = tbr[threadIdx.x]*invSqrtP;}
+    }
+
+    // %%%%%%%%%%% VELOCITIES %%%%%%%%%%%
 	// k = 0, n = 1,...,P
-	for (int n = 0; n < nPerRingPoly; n++) {
-	  xsNM[0] += make_float3(xs[baseIdx+n]);
-	  vsNM[0] += make_float3(vs[baseIdx+n]);
-	}
-	// k = P/2, n = 1,...,P
-	for (int n = 2; n < nPerRingPoly+1; n+=2) {
-	  xsNM[halfP] -= make_float3(xs[baseIdx+n-2]);
-	  xsNM[halfP] += make_float3(vs[baseIdx+n-1]);
-	}
+    tbr[threadIdx.x]  = vn;
+    reduceByN<float3>(tbr, nPerRingPoly, warpSize);
+    if (needSync)   { __syncthreads();}
+    if (useThread && amRoot)     {vsNM[threadIdx.x] = tbr[threadIdx.x]*invSqrtP;}
+
+    // k = P/2, n = 1,...,P
+    if (threadIdx.x % 2 == 0) {
+        tbr[threadIdx.x] = vn * -1;
+    } else {
+        tbr[threadIdx.x] = vn ;
+    }
+    reduceByN<float3>(tbr, nPerRingPoly, warpSize);
+    if (needSync)   { __syncthreads();}
+    if (useThread && amRoot)     {vsNM[threadIdx.x+halfP] = tbr[threadIdx.x]*invSqrtP;}
+
 	// k = 1,...,P/2-1; n = 1,...,P
-        for (int k = 1; k < halfP; k++) {
-	  for (int n = 1; n < nPerRingPoly+1; n++) {
-	   float3 xn     = make_float3(xs[baseIdx+n-1]);
-	   float3 vn     = make_float3(vs[baseIdx+n-1]);
-	   float  cosval = cos(twoPiInvP * k * n);	// cos(2*pi*k*n/P)
-	   xsNM[k] += xn * sqrt2 * cosval;
-	   vsNM[k] += vn * sqrt2 * cosval;
-	  }
-	}
+    for (int k = 1; k < halfP; k++) {
+        float cosval = cos(twoPiInvP * k * n);	// cos(2*pi*k*n/P)
+        tbr[threadIdx.x] = vn*sqrt2*cosval;
+        reduceByN<float3>(tbr, nPerRingPoly, warpSize);
+        if (needSync)   { __syncthreads();}
+        if (useThread && amRoot)     {vsNM[threadIdx.x+k] = tbr[threadIdx.x]*invSqrtP;}
+    }
+
 	// k = P/2+1,...,P-1; n = 1,...,P
+    for (int k = halfP+1; k < nPerRingPoly; k++) {
+	    float  sinval = sin(twoPiInvP * k * n);	// sin(2*pi*k*n/P)
+        tbr[threadIdx.x] = vn*sqrt2*sinval;
+        reduceByN<float3>(tbr, nPerRingPoly, warpSize);
+        if (needSync)   { __syncthreads();}
+        if (useThread && amRoot)     {vsNM[threadIdx.x+k] = tbr[threadIdx.x]*invSqrtP;}
+    }
+
+    if (useThread ) {
+
+	    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	    // 2. NORMAL-MODE RP COORDINATE EVOLUTION
+	    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        // here each bead will handle the evolution of a particular normal-mode coordinate
+	    // xk(t+dt) = xk(t)*cos(om_k*dt) + vk(t)*sin(om_k*dt)/om_k
+	    // vk(t+dt) = vk(t)*cos(om_k*dt) - xk(t)*sin(om_k*dt)*om_k
+	    // k = 0
+        if (amRoot) {
+            xsNM[threadIdx.x] += vsNM[threadIdx.x] * dt; 
+        } else {
+	        float omegaK = 2.0f * omegaP * sin( beadIdx * twoPiInvP * 0.5);
+	        float cosdt  = cos(omegaK * dt);
+	        float sindt  = sin(omegaK * dt);
+	        float3 xsNMk = xsNM[threadIdx.x];
+	        float3 vsNMk = vsNM[threadIdx.x];
+	        xsNM[threadIdx.x] *= cosdt;
+	        vsNM[threadIdx.x] *= cosdt;
+	        xsNM[threadIdx.x] += vsNMk * sindt / omegaK;
+	        vsNM[threadIdx.x] -= xsNMk * sindt * omegaK;
+        }
+
+	    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	    // 3. COORDINATE BACK TRANSFORMATION
+	    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	    // k = 0
+        xn = xsNM[rootIdx];
+        vn = vsNM[rootIdx];
+	    // k = halfP
+	    // xn += xsNM[halfP]*(-1)**n
+        if (threadIdx.x % 2) {
+            xn += xsNM[rootIdx+halfP];
+            vn += vsNM[rootIdx+halfP];
+        } else {
+            xn -= xsNM[rootIdx+halfP];
+            vn -= vsNM[rootIdx+halfP];
+        }
+
+	    // k = 1,...,P/2-1; n = 1,...,P
+        for (int k = 1; k < halfP; k++) {
+	        float  cosval = cos(twoPiInvP * k * n);	// cos(2*pi*k*n/P)
+	        xn += xsNM[rootIdx+k] * sqrt2 * cosval;
+	        vn += vsNM[rootIdx+k] * sqrt2 * cosval;
+        }
+
+	    // k = P/2+1,...,P-1; n = 1,...,P
         for (int k = halfP+1; k < nPerRingPoly; k++) {
-	  for (int n = 1; n < nPerRingPoly+1; n++) {
-	   float3 xn     = make_float3(xs[baseIdx+n-1]);
-	   float3 vn     = make_float3(vs[baseIdx+n-1]);
-	   float  sinval = sin(twoPiInvP * k * n);	// sin(2*pi*k*n/P)
-	   xsNM[k] += xn * sqrt2 * sinval;
-	   vsNM[k] += vn * sqrt2 * sinval;
-	  }
-	}
-	// orthogonalize
-	for (int n = 0; n<nPerRingPoly; n++) {
-          xsNM[0] *= invSqrtP;
-          vsNM[0] *= invSqrtP;
-	}
+	        float  sinval = sin(twoPiInvP * k * n);	// cos(2*pi*k*n/P)
+	        xn += xsNM[rootIdx+k] * sqrt2 * sinval;
+	        vn += vsNM[rootIdx+k] * sqrt2 * sinval;
+        }
 
-	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-	// 2. NORMAL-MODE RP COORDINATE EVOLUTION
-	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-	// xk(t+dt) = xk(t)*cos(om_k*dt) + vk(t)*sin(om_k*dt)/om_k
-	// vk(t+dt) = vk(t)*cos(om_k*dt) - xk(t)*sin(om_k*dt)*om_k
-	// k = 0
-        xsNM[0] += vsNM[0] * dt; 
-	// k = 1,...,P-1
-	for (int k = 1; k< nPerRingPoly; k++) {
-	  float omegaK = 2.0f * omegaP * sin( k * twoPiInvP * 0.5);
-	  float cosdt  = cos(omegaK * dt);
-	  float sindt  = sin(omegaK * dt);
-	  float3 xsNMk = xsNM[k];
-	  float3 vsNMk = vsNM[k];
-	  xsNM[k] *= cosdt;
-	  vsNM[k] *= cosdt;
-	  xsNM[k] += vsNMk * sindt / omegaK;
-	  vsNM[k] -= xsNMk * sindt * omegaK;
-	}
-
-	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-	// 3. COORDINATE BACK TRANSFORMATION
-	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-	for (int n = 1; n < nPerRingPoly+1; n++) {
-	  // k = 0
-	  float3 xn = xsNM[0]; 
-	  float3 vn = vsNM[0]; 
-
-	  // k = halfP
-	  // xn += xsNM[halfP]*(-1)**n
-	  if ( n % 2 == 0) {
-	    xn += xsNM[halfP];
-	    vn += vsNM[halfP];}
-	  else {
-	    xn -= xsNM[halfP];
-	    vn -= vsNM[halfP];}
-
-	  // k = 1,...,P/2-1; n = 1,...,P
-	  for (int k = 1; k < halfP; k++) {
-	    float  cosval = cos(twoPiInvP * k * n);	// cos(2*pi*k*n/P)
-	    xn += xsNM[k] * sqrt2 * cosval;
-	    vn += vsNM[k] * sqrt2 * cosval;
-	  }
-
-	  // k = P/2+1,...,P-1; n = 1,...,P
-          for (int k = halfP+1; k < nPerRingPoly; k++) {
-	    float  sinval = sin(twoPiInvP * k * n);	// cos(2*pi*k*n/P)
-	    xn += xsNM[k] * sqrt2 * sinval;
-	    vn += vsNM[k] * sqrt2 * sinval;
-	  }
-
-	  // replace evolved back-transformation
-	  xs[baseIdx+n-1] = make_float4(xn*invSqrtP);
-	  vs[baseIdx+n-1] = make_float4(vn*invSqrtP);
-	}
-	
+	    // replace evolved back-transformation
+        xn *= invSqrtP;
+        vn *= invSqrtP;
+	    xs[idx]   = make_float4(xn.x,xn.y,xn.z,xs[idx].w);
+	    vs[idx]   = make_float4(vn.x,vn.y,vn.z,vs[idx].w);
     }
 }
+    //if (useThread && amRoot ) {
+    //    printf("--xx = %f\n",xs[idx].x);
+    //    printf("--vx = %f\n",vs[idx].x);
+    //    printf("--fx = %f\n",fs[idx].x);
+    //    printf("R = np.array([");
+    //    for (int i = 0; i <nPerRingPoly; i++) {
+    //        printf("%f, ",xs[threadIdx.x+i].x);
+    //    }
+    //    printf("])\n");
+    //    printf("V = np.array([");
+    //    for (int i = 0; i <nPerRingPoly; i++) {
+    //        printf("%f, ",vs[threadIdx.x+i].x);
+    //    }
+    //    printf("])\n");
+    //}
 
 __global__ void postForce_cu(int nAtoms, float4 *vs, float4 *fs, float dtf)
 {
@@ -438,24 +561,24 @@ void IntegratorVerlet::nve_x() {
     	        state->gpd.vs.getDevData(),
     	        state->dt); }
     else {
-	// get target temperature from thermostat fix
-	double temp;
-	for (Fix *f: state->fixes) {
-	  if ( f->isThermostat && f->groupHandle == "all" ) {
-	    std::string t = "temp";
-	    temp = f->getInterpolator(t)->getCurrentVal();
-	  }
-	}
-	int   nPerRingPoly = state->nPerRingPoly;
-    int   nRingPoly = state->atoms.size() / nPerRingPoly;
-	float omegaP    = (float) nPerRingPoly / state->units.hbar * state->units.boltz * temp;
-    	nve_xPIMD_cu<<<NBLOCK(nRingPoly), PERBLOCK, sizeof(float3) * 2 *PERBLOCK * nPerRingPoly>>>(
-	        nRingPoly,
-	 	nPerRingPoly,
-		omegaP,
-    	        state->gpd.xs.getDevData(),
-    	        state->gpd.vs.getDevData(),
-    	        state->dt); }
+	    // get target temperature from thermostat fix
+	    double temp;
+	    for (Fix *f: state->fixes) {
+	      if ( f->isThermostat && f->groupHandle == "all" ) {
+	        std::string t = "temp";
+	        temp = f->getInterpolator(t)->getCurrentVal();
+	      }
+	    }
+	    int   nPerRingPoly = state->nPerRingPoly;
+        int   nRingPoly = state->atoms.size() / nPerRingPoly;
+	    float omegaP    = (float) state->units.boltz * temp / state->units.hbar  ;
+    	SAFECALL((nve_xPIMD_cu<<<NBLOCK(state->atoms.size()), PERBLOCK, sizeof(float3) * 2 *PERBLOCK>>>(
+	        state->atoms.size(),
+	 	    nPerRingPoly,
+		    omegaP,
+    	    state->gpd.xs.getDevData(),
+    	    state->gpd.vs.getDevData(),
+    	    state->dt))); }
 }
 void IntegratorVerlet::preForce()
 {
@@ -469,28 +592,32 @@ void IntegratorVerlet::preForce()
     	        state->dt,
     	        dtf); }
     else {
+    
 	// get target temperature from thermostat fix
 	// XXX: need to think about how to handle if no thermostat
 	//      probably should not be allowed, tbh
 	double temp;
 	for (Fix *f: state->fixes) {
-	  if ( f->isThermostat && f->groupHandle == "all" ) {
-	    std::string t = "temp";
-	    temp = f->getInterpolator(t)->getCurrentVal();
-	  }
+	    if ( f->isThermostat && f->groupHandle == "all" ) {
+	        std::string t = "temp";
+	        temp = f->getInterpolator(t)->getCurrentVal();
+	    }
 	}
+    
 	int   nPerRingPoly = state->nPerRingPoly;
-        int   nRingPoly = state->atoms.size() / nPerRingPoly;
-	float omegaP    = (float) nPerRingPoly / state->units.hbar * state->units.boltz * temp;
-    	preForcePIMD_cu<<<NBLOCK(nRingPoly), PERBLOCK, sizeof(float3) * 2 *PERBLOCK * nPerRingPoly>>>(
-	        nRingPoly,
+    int   nRingPoly    = state->atoms.size() / nPerRingPoly;
+	float omegaP       = (float) state->units.boltz * temp / state->units.hbar ;
+   
+    // called on a per bead basis
+    SAFECALL((preForcePIMD_cu<<<NBLOCK(state->atoms.size()), PERBLOCK, sizeof(float3) * 3 *PERBLOCK >>>(
+	    state->atoms.size(),
 	 	nPerRingPoly,
 		omegaP,
-    	        state->gpd.xs.getDevData(),
-    	        state->gpd.vs.getDevData(),
-    	        state->gpd.fs.getDevData(),
-    	        state->dt,
-    	        dtf); }
+    	state->gpd.xs.getDevData(),
+    	state->gpd.vs.getDevData(),
+    	state->gpd.fs.getDevData(),
+    	state->dt,
+    	dtf ))); }
 }
 
 void IntegratorVerlet::postForce()

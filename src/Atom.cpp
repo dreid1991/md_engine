@@ -39,15 +39,15 @@ void Atom::setBeadPos(int n, int nPerRingPoly, std::vector<Vector> &xsNM) {
     float sqrt2           = sqrt(2.0);
     float invP            = 1.0 / (float) nPerRingPoly;
     float twoPiInvP       = 2.0f * M_PI * invP;
-    float invSqrtP        = sqrt(invP);
+    float invSqrtP        = sqrtf(invP);
     int halfP = nPerRingPoly/2;
 
     // k = 0
     Vector xn = xsNM[0];
     
     // k = halfP
-    // xn += xsNM[halfP]*(-1)**n
-    if ( n % 2 == 0) {
+    // xn += xsNM[halfP]*(-1)**n, for n = 1,...,P
+    if ( n % 2 == 0 ) {
       xn += xsNM[halfP];}
     else {
       xn -= xsNM[halfP];}

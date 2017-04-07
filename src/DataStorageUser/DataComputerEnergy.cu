@@ -25,7 +25,6 @@ void DataComputerEnergy::computeScalar_GPU(bool transferToCPU, uint32_t groupTag
     lastGroupTag = groupTag;
     int nAtoms = state->atoms.size();
     GPUData &gpd = state->gpd;
-    printf("in compute\n");
     for (boost::shared_ptr<Fix> fix : fixes) {
         fix->setEvalWrapperMode("self");
         fix->setEvalWrapper();

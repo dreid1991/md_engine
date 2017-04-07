@@ -792,7 +792,7 @@ Vector generateVector(State &s, py::list valsPy) {
 }
 
 
-bool State::preparePIMD() {
+bool State::preparePIMD(double temp) {
     if (nPerRingPoly > 1) {
         int nAtoms = atoms.size();          // this is current number of atoms in system
         int nTot   = nAtoms * nPerRingPoly; // this is the total number of beads for PIMD
@@ -800,16 +800,8 @@ bool State::preparePIMD() {
         RPatoms.reserve(nTot);              
         boost::python::list RPmolecules;    // new list of molecules to replace current list
 
-        // Extract temperature and spring frequency
-        double temp=1.0;
-        for (Fix *f: fixes) {
-          if ( f->isThermostat && f->groupHandle == "all" ) {
-            std::string t = "temp";
-            temp = f->getInterpolator(t)->getCurrentVal();
-          }
-        }
-        float betaP     = 1.0f / units.boltz / temp;
-        float omegaP    = (float) nPerRingPoly / units.hbar / betaP;
+        float betaP     = 1.0f / units.boltz / temp;        // Here simulation is run at betaP by default
+        float omegaP    = (float) units.boltz * temp / units.hbar  ;
         float invP            = 1.0 / (float) nPerRingPoly;
         float twoPiInvP       = 2.0f * M_PI * invP;
 
@@ -817,7 +809,7 @@ bool State::preparePIMD() {
         // UPDATE ATOMS
         //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         for (int i=0; i < nAtoms; i++) {
-            Atom   ai = atoms[i];
+            Atom   ai  = atoms[i];
             int baseId = ai.id;
             baseId    *= nPerRingPoly;      // stride the existing id's by nPerRingPoly
 
@@ -828,9 +820,10 @@ bool State::preparePIMD() {
             // a new set of coordinates with centroid at the initial position of the atoms
             std::vector<Vector> xsNM;       // vector for containing normal-mode coordinates
             xsNM.reserve(nPerRingPoly);
-            for (int k = 0; k < nPerRingPoly; k++) {
+            xsNM.push_back(ai.pos* sqrtf( (float) nPerRingPoly));
+            for (int k = 1; k < nPerRingPoly; k++) {
                 float omegak = 2.0f * omegaP * sinf( k * twoPiInvP * 0.5);
-                float sigmak = powf((float) nPerRingPoly  / betaP / ai.mass,0.5) / omegak; // sigma = sqrt(1/ beta_P * m *omegak^2)
+                float sigmak = sqrtf((float) 1.0  / betaP / ai.mass / units.mvv_to_eng) / omegak; // sigma = sqrt(1/ beta_P * m *omegak^2)
                 std::normal_distribution<float> distNM(0.0,sigmak);
                 float xk, yk, zk;
                 xk = distNM(randomNumberGenerator);
@@ -943,10 +936,12 @@ BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(State_seedRNG_overloads,State::seedRNG,0,
                 .def("zeroVelocities", &State::zeroVelocities)
                 .def("destroy", &State::destroy)
                 .def("seedRNG", &State::seedRNG, State_seedRNG_overloads())
+                .def("preparePIMD", &State::preparePIMD)
                 .def_readwrite("is2d", &State::is2d)
                 .def_readwrite("turn", &State::turn)
                 .def_readwrite("periodicInterval", &State::periodicInterval)
                 .def_readwrite("rCut", &State::rCut)
+                .def_readwrite("nPerRingPoly", &State::nPerRingPoly)
                 .def_readwrite("dt", &State::dt)
                 .def_readwrite("padding", &State::padding)
                 .def_readonly("groupTags", &State::groupTags)
