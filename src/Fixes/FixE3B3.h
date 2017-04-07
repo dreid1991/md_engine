@@ -92,9 +92,7 @@ class FixE3B3: public Fix {
         void setEvalWrapper();
         void setEvalWrapperOrig();
 
-        // the evaluators for the forces and energy contributions
-        EvaluatorE3B3 twoBodyEvaluator;
-        ThreeBodyEvaluatorE3B3 threeBodyEvaluator;
+        ThreeBodyEvaluatorE3B3 evaluator;
 
 };
 

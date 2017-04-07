@@ -194,25 +194,30 @@ __global__ void compute_three_body_iso
 
                 // if there is only 1 intermolecular O-H distance within the cutoff, all terms will be zero
                 if (numberOfDistancesWithinCutoff >= 2) {
-                    // compute the force contribution from the A-type terms (see ref Kumar & Skinner, 2008 for list of terms)
-                    
+                    // send our forces sum variable, the distance vectors, and their corresponding magnitude to the force evaluate function
+                    // -- then, we are done
+                    //
+                    // Note: because there are three atoms on which we compute the forces sum, we can't just return a value... because 
+                    //       there are three.  So, pass by reference and modify within the force function itself.
+                    eval.threeBodyForce(fs_a1_sum, fs_b1_sum, fs_c1_sum,
+                                        r_a1b2, r_a1b2_magnitude,
+                                        r_a1c2, r_a1c2_magnitude,
+                                        r_a1b3, r_a1b3_magnitude,
+                                        r_a1c3, r_a1c3_magnitude,
+                                        r_a2b1, r_a2b1_magnitude,
+                                        r_a2c1, r_a2c1_magnitude,
+                                        r_a2b3, r_a2b3_magnitude,
+                                        r_a2c3, r_a2c3_magnitude,
+                                        r_a3b1, r_a3b1_magnitude,
+                                        r_a3c1, r_a3c1_magnitude, 
+                                        r_a3b2, r_a3b2_magnitude, 
+                                        r_a3c2, r_a3c2_magnitude);
 
-
-
-
-
-
-
-                }
-
-
-            }
-        }
-    }
-}
-
-
-// also, need to compute the potential energy (in addition to the forces)
+                } // end if (numberOfDistancesWithinCutoff >= 2)
+            } // end for (int k = j+1; k < numNeighMolecules; k++) 
+        } // end for (int j = 0; j < (numNeighMolecules); j++) 
+    } // end if (idx < nMolecules) 
+} // end function compute
 
 #endif
 

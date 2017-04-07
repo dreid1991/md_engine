@@ -18,7 +18,13 @@
 /* Computes
    */
 void FixE3B3::compute(bool computeVirials) {
-    // first, the two-body contribution to force from E3B3..
+    // send the molecules to the e3b3 evaluator, where we compute both the two-body correction
+    // and the three-body interactions.
+    // -- send the correct neighbor list (specific to this potential) and the array of water molecules
+    //    local to this gpu
+
+    // note that at this point, the evaluator should have been instantiated, and with the proper units for this 
+    // simulation.
     int nAtoms = state->atoms.size();
     int numTypes = state->atomParams.numTypes;
     GPUData &gpd = state->gpd;
@@ -32,7 +38,6 @@ void FixE3B3::compute(bool computeVirials) {
                       gpd.virials.d_data.data(), computeVirials);
 
 
-    // and, the three body contribution
 
 }
 
