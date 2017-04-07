@@ -833,7 +833,7 @@ bool State::preparePIMD(double temp) {
             }
 
             // prepare for velocity initialization
-            std::normal_distribution<float> distVel(0.0,sqrtf(ai.mass / betaP));
+            std::normal_distribution<float> distVel(0.0,sqrtf(ai.mass / betaP / units.mvv_to_eng));
 
             // fill in atom copies
             for (int k=0; k < nPerRingPoly; k++) {
