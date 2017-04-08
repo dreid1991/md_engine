@@ -92,6 +92,7 @@ class FixE3B3: public Fix {
         void setEvalWrapper();
         void setEvalWrapperOrig();
 
+        // the evaluator for E3B3
         ThreeBodyEvaluatorE3B3 evaluator;
 
 };
