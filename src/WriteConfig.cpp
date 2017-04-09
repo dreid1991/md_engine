@@ -179,7 +179,7 @@ void writeXYZFile(State *state, string fn, int64_t turn, bool oneFilePerWrite, u
         outFile.open(fn.c_str(), ofstream::app);
     }
 	if (groupBit == 1) {
-		outFile << atoms.size() << endl;
+		outFile << atoms.size() <<  endl << "bounds lo " << state->bounds.lo << " hi " << (state->bounds.lo + state->bounds.rectComponents);
 	} else {
 		int count = 0;
 		for (Atom &a : atoms) {
@@ -187,7 +187,7 @@ void writeXYZFile(State *state, string fn, int64_t turn, bool oneFilePerWrite, u
 				count ++;
 			}
 		}
-		outFile << count << endl;
+		outFile << count <<  endl << "bounds lo " << state->bounds.lo << " hi " << (state->bounds.lo + state->bounds.rectComponents);
 	}
     for (Atom &a : atoms) {
 		if (a.groupTag & groupBit) {
