@@ -926,6 +926,7 @@ bool GridGPU::closerThan(const ExclusionList &exclude,
     return closerThan;
 }
 
+/*
 // allows us to extract any type of Bond from a BondVariant
 class bondDowncast : public boost::static_visitor<const Bond &> {
     const BondVariant &_bv;
@@ -936,7 +937,7 @@ class bondDowncast : public boost::static_visitor<const Bond &> {
             return boost::get<T>(_bv);
         }
 };
-
+*/
 GridGPU::ExclusionList GridGPU::generateExclusionList(const int16_t maxDepth) {
 
     ExclusionList exclude;
