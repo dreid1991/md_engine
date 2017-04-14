@@ -95,7 +95,7 @@ class ThreeBodyEvaluatorE3B3 {
                                        float fs_a1b2_scalar, float fs_a1c2_scalar,
                                        float fs_a2b1_scalar, float fs_a2c1_scalar,
                                        float3 r_a1b2, float r_a1b2_magnitude,
-                                       float3 r_a1c2, float r_a1c2_magntiude,
+                                       float3 r_a1c2, float r_a1c2_magnitude,
                                        float3 r_a1b3, float r_a1b3_magnitude,
                                        float3 r_a1c3, float r_a1c3_magnitude,
                                        float3 r_a2b1, float r_a2b1_magnitude,
@@ -107,6 +107,26 @@ class ThreeBodyEvaluatorE3B3 {
                                        float3 r_a3b2, float r_a3b2_magnitude, 
                                        float3 r_a3c2, float r_a3c2_magnitude) {
 
+            // so, first, we compute the force scalars associated with each of the 12 unique intermolecular OH distances
+            // -- note: we already passed in a1b2, a1c2, a2b1, and a2c1 evaluations of the exp(-k3 r) value
+
+            // get the a1b3 and a1c3 terms
+            float fs_a1b3_scalar = threeBodyForceScalar(r_a1b3_magnitude);
+            float fs_a1c3_scalar = threeBodyForceScalar(r_a1c3_magnitude);
+        
+            // get the a2b3 and a2c3 terms
+            float fs_a2b3_scalar = threeBodyForceScalar(r_a2b3_magnitude);
+            float fs_a2c3_scalar = threeBodyForceScalar(r_a2c3_magnitude);
+
+            // get the a3b1, a3c1, a3b2, and a3c2 terms
+            float fs_a3b1_scalar = threeBodyForceScalar(r_a3b1_magnitude);
+            float fs_a3c1_scalar = threeBodyForceScalar(r_a3c1_magnitude);
+            float fs_a3b2_scalar = threeBodyForceScalar(r_a3b2_magnitude);
+            float fs_a3c2_scalar = threeBodyForceScalar(r_a3c2_magnitude);
+
+            // now, compute the terms unique to a1, the oxygen atom on our reference molecule.
+            // ---- first, the A-type anti-cooperative contributions that are unique to a1
+            float3 local_a1_force_sum = make_float3(0.0, 0.0, 0.0);
 
             // compute the scalar factors for the shared terms (see KS 2008 to see what terms are shared by a1, b1, c1)
             
