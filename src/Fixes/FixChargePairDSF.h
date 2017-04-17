@@ -28,6 +28,7 @@ public:
 
     void setParameters(float alpha_, float r_cut_);
     void compute(bool);
+    void singlePointEng(float *);
     ChargeEvaluatorDSF generateEvaluator();
     void setEvalWrapper();
     std::vector<float> getRCuts();
