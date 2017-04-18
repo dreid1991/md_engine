@@ -198,19 +198,19 @@ __global__ void compute_three_body_iso
                 float3 pos_c3 = make_float3(pos_c3_whole);
                 
                 // compute the pertinent O-H distances for use in our potential (there are 8 that we have yet to compute)
-                // -- distances vector for b3a1 and c3a1
+                // -- distances vector for b3a1 and c3a1; a1 reference atom
                 float3 r_b3a1 = bounds.minImage(pos_b3 - pos_a1);
                 float3 r_c3a1 = bounds.minImage(pos_c3 - pos_a1);
                
-                // -- distances vector for b3a2 and c3a2
+                // -- distances vector for b3a2 and c3a2; a2 reference atom
                 float3 r_b3a2 = bounds.minImage(pos_b3 - pos_a2);
                 float3 r_c3a2 = bounds.minImage(pos_c3 - pos_a2);
 
-                // -- distances vector for b1a3 and c1a3
+                // -- distances vector for b1a3 and c1a3; a3 reference atom
                 float3 r_b1a3 = bounds.minImage(pos_b1 - pos_a3);
                 float3 r_c1a3 = bounds.minImage(pos_c1 - pos_a3);
 
-                // -- distance vector for b2a3 and c2a3
+                // -- distance vector for b2a3 and c2a3; a3 reference atom
                 float3 r_b2a3 = bounds.minImage(pos_b2 - pos_a3);
                 float3 r_c2a3 = bounds.minImage(pos_c2 - pos_a3);
                
