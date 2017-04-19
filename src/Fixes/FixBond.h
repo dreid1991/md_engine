@@ -124,7 +124,7 @@ class FixBond : public Fix, public TypedItemHolder {
                     //cout << "max existing type " << maxExistingType  << endl;
                     BONDTYPEHOLDER typeHolder = *(BONDTYPEHOLDER *) (&bond);
                     bool parameterFound = reverseMap.find(typeHolder) != reverseMap.end();
-                    //cout << "is found " << parameterFound << endl;
+                    //std::cout << "is found " << parameterFound << std::endl;
                     if (parameterFound) {
                         bond.type = reverseMap[typeHolder];
                     } else {
@@ -132,7 +132,7 @@ class FixBond : public Fix, public TypedItemHolder {
                         bondTypes[maxExistingType] = typeHolder;
                         reverseMap[typeHolder] = maxExistingType;
                         bond.type = maxExistingType;
-                        //cout << "assigning type of " << bond.type << endl;
+                    //    std::cout << "assigning type of " << bond.type << std::endl;
 
                     }
                 } 
@@ -256,10 +256,11 @@ class FixBond : public Fix, public TypedItemHolder {
                     RPcopy.ids[0] = asType.ids[0]*nPerRingPoly + j; // new id for RP atom1 in bond
                     RPcopy.ids[1] = asType.ids[1]*nPerRingPoly + j; // new id for RP atom2 in bond
                     RPbonds[i*nPerRingPoly+j] = RPcopy;             // place new member for RP bonds
+                    if (j > 0 ) {pyListInterface.updateAppendedMember(false);}
                 }
             }
             bonds = RPbonds;    // update the forcers
-            pyListInterface.requestRefreshPyList();
+            pyListInterface.requestRefreshPyList(true);
         }
 
 };

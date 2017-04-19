@@ -833,7 +833,7 @@ bool State::preparePIMD(double temp) {
             }
 
             // prepare for velocity initialization
-            std::normal_distribution<float> distVel(0.0,sqrtf(ai.mass / betaP / units.mvv_to_eng));
+            std::normal_distribution<float> distVel(0.0,sqrtf( (float) 1.0 / betaP / ai.mass / units.mvv_to_eng));
 
             // fill in atom copies
             for (int k=0; k < nPerRingPoly; k++) {
@@ -852,7 +852,10 @@ bool State::preparePIMD(double temp) {
 
         }
         // replace atoms with the new RPatoms list
-        atoms = RPatoms;
+        deleteAtoms();
+        for (Atom &a : RPatoms) {
+            addAtomDirect(a);
+        }
 
         //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         // UPDATE MOLECULES

@@ -578,7 +578,8 @@ void IntegratorVerlet::nve_x() {
 		    omegaP,
     	    state->gpd.xs.getDevData(),
     	    state->gpd.vs.getDevData(),
-    	    state->dt))); }
+    	    state->dt))); 
+    }
 }
 void IntegratorVerlet::preForce()
 {
@@ -593,31 +594,31 @@ void IntegratorVerlet::preForce()
     	        dtf); }
     else {
     
-	// get target temperature from thermostat fix
-	// XXX: need to think about how to handle if no thermostat
-	//      probably should not be allowed, tbh
-	double temp;
-	for (Fix *f: state->fixes) {
-	    if ( f->isThermostat && f->groupHandle == "all" ) {
-	        std::string t = "temp";
-	        temp = f->getInterpolator(t)->getCurrentVal();
+	    // get target temperature from thermostat fix
+	    // XXX: need to think about how to handle if no thermostat
+	    double temp;
+	    for (Fix *f: state->fixes) {
+	        if ( f->isThermostat && f->groupHandle == "all" ) {
+	            std::string t = "temp";
+	            temp = f->getInterpolator(t)->getCurrentVal();
+	        }
 	    }
-	}
-    
-	int   nPerRingPoly = state->nPerRingPoly;
-    int   nRingPoly    = state->atoms.size() / nPerRingPoly;
-	float omegaP       = (float) state->units.boltz * temp / state->units.hbar ;
+        
+	    int   nPerRingPoly = state->nPerRingPoly;
+        int   nRingPoly    = state->atoms.size() / nPerRingPoly;
+	    float omegaP       = (float) state->units.boltz * temp / state->units.hbar ;
    
-    // called on a per bead basis
-    SAFECALL((preForcePIMD_cu<<<NBLOCK(state->atoms.size()), PERBLOCK, sizeof(float3) * 3 *PERBLOCK >>>(
-	    state->atoms.size(),
-	 	nPerRingPoly,
-		omegaP,
-    	state->gpd.xs.getDevData(),
-    	state->gpd.vs.getDevData(),
-    	state->gpd.fs.getDevData(),
-    	state->dt,
-    	dtf ))); }
+        // called on a per bead basis
+        SAFECALL((preForcePIMD_cu<<<NBLOCK(state->atoms.size()), PERBLOCK, sizeof(float3) * 3 *PERBLOCK >>>(
+	        state->atoms.size(),
+	     	nPerRingPoly,
+	    	omegaP,
+        	state->gpd.xs.getDevData(),
+        	state->gpd.vs.getDevData(),
+        	state->gpd.fs.getDevData(),
+        	state->dt,
+        	dtf ))); 
+    }
 }
 
 void IntegratorVerlet::postForce()

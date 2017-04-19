@@ -253,7 +253,8 @@ __global__ void sortPerAtomArrays(
         }
         
         for (int i=0; i<nPerRingPoly; i++) {
-            idToIdxs[idsFrom[idx * nPerRingPoly + i]] = sortedIdx + i;
+            idToIdxs[idsFrom[idx * nPerRingPoly + i]] = sortedIdx*nPerRingPoly + i;
+            //idToIdxs[idsFrom[idx * nPerRingPoly + i]] = sortedIdx + i;
         }
 
         //idToIdxs[id] = sortedIdx;
@@ -604,7 +605,7 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
             //            state->gpd.xs(activeIdx), nAtoms,
             //            bounds.sides[0], bounds.sides[1], bounds.lo);
         }
-        periodicWrap<<<NBLOCK(nAtoms), PERBLOCK>>>(state->gpd.xs(activeIdx), nAtoms, boundsUnskewed);
+        SAFECALL((periodicWrap<<<NBLOCK(nAtoms), PERBLOCK>>>(state->gpd.xs(activeIdx), nAtoms, boundsUnskewed)));
 
         // increase number of grid cells if necessary
         int numGridCells = prod(ns);
@@ -616,9 +617,9 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
         perAtomArray.d_data.memset(0);//PER RP CENTROID
         float4 *centroids;
         if (nPerRingPoly > 1) {
-            computeCentroids<<<NBLOCK(nRingPoly), PERBLOCK>>>(rpCentroids.data(), state->gpd.xs(activeIdx), nAtoms, nPerRingPoly, boundsUnskewed);
+            SAFECALL((computeCentroids<<<NBLOCK(nRingPoly), PERBLOCK>>>(rpCentroids.data(), state->gpd.xs(activeIdx), nAtoms, nPerRingPoly, boundsUnskewed)));
             centroids = rpCentroids.data();
-            periodicWrap<<<NBLOCK(nRingPoly), PERBLOCK>>>(centroids, nRingPoly, boundsUnskewed);
+            SAFECALL((periodicWrap<<<NBLOCK(nRingPoly), PERBLOCK>>>(centroids, nRingPoly, boundsUnskewed)));
         } else {
             centroids = state->gpd.xs(activeIdx);
         }
