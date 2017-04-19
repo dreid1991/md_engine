@@ -1,4 +1,4 @@
-#include "GridGPU.h"
+#include "GridGPUE3B3.h"
 
 #include "State.h"
 #include "helpers.h"
@@ -10,9 +10,9 @@
 #include "cutils_math.h"
 
 
-/* GridGPU members */
+/* GridGPUE3B3 members */
 
-void GridGPU::initArrays() {
+void GridGPUE3B3::initArrays() {
     //this happens in adjust for new bounds
     //perCellArray = GPUArrayGlobal<uint32_t>(prod(ns) + 1);
     perAtomArray = GPUArrayGlobal<uint16_t>(state->atoms.size()+1);
@@ -27,7 +27,7 @@ void GridGPU::initArrays() {
     buildFlag.d_data.memset(0);
 }
 
-void GridGPU::setBounds(BoundsGPU &newBounds) {
+void GridGPUE3B3::setBounds(BoundsGPU &newBounds) {
     Vector trace = state->boundsGPU.rectComponents;  
     Vector attemptDDim = Vector(minGridDim);
     VectorInt nGrid = trace / attemptDDim;  // so rounding to bigger grid
@@ -52,21 +52,21 @@ void GridGPU::setBounds(BoundsGPU &newBounds) {
     boundsLastBuild = newBounds;
 }
 
-void GridGPU::initStream() {
+void GridGPUE3B3::initStream() {
     //std::cout << "initializing stream" << std::endl;
     //streamCreated = true;
     //CUCHECK(cudaStreamCreate(&rebuildCheckStream));
 }
 
 
-GridGPU::GridGPU() {
+GridGPUE3B3::GridGPUE3B3() {
     streamCreated = false;
     //initStream();
 }
 
 
 
-GridGPU::GridGPU(State *state_, float dx_, float dy_, float dz_, float neighCutoffMax_, int exclusionMode_)
+GridGPUE3B3::GridGPUE3B3(State *state_, float dx_, float dy_, float dz_, float neighCutoffMax_, int exclusionMode_)
   : state(state_) {
     neighCutoffMax = neighCutoffMax_;
 
@@ -84,13 +84,13 @@ GridGPU::GridGPU(State *state_, float dx_, float dy_, float dz_, float neighCuto
     handleExclusions();
 }
 
-GridGPU::~GridGPU() {
+GridGPUE3B3::~GridGPUE3B3() {
     if (streamCreated) {
         CUCHECK(cudaStreamDestroy(rebuildCheckStream));
     }
 }
 
-void GridGPU::copyPositionsAsync() {
+void GridGPUE3B3::copyPositionsAsync() {
 
     state->gpd.xs.d_data[state->gpd.activeIdx()].copyToDeviceArray((void *) xsLastBuild.data());//, rebuildCheckStream);
 
@@ -517,7 +517,7 @@ __global__ void setCumulativeSumPerBlock(int numBlocks, uint32_t *perBlockArray,
 }
 
 
-void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
+void GridGPUE3B3::periodicBoundaryConditions(float neighCut, bool forceBuild) {
 
     DeviceManager &devManager = state->devManager;
     int warpSize = devManager.prop.warpSize;
@@ -703,7 +703,7 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
 }
 
 
-bool GridGPU::verifyNeighborlists(float neighCut) {
+bool GridGPUE3B3::verifyNeighborlists(float neighCut) {
     std::cout << "going to verify" << std::endl;
     uint *nlist = (uint *) malloc(neighborlist.size()*sizeof(uint));
     neighborlist.get(nlist);
@@ -800,7 +800,7 @@ bool GridGPU::verifyNeighborlists(float neighCut) {
 }
 
 
-bool GridGPU::checkSorting(int gridIdx, int *gridIdxs,
+bool GridGPUE3B3::checkSorting(int gridIdx, int *gridIdxs,
                            GPUArrayDeviceGlobal<int> &gridIdxsDev) {
 
     int numGridIdxs = prod(ns);
@@ -843,7 +843,7 @@ bool GridGPU::checkSorting(int gridIdx, int *gridIdxs,
 }
 
 
-void GridGPU::handleExclusions() {
+void GridGPUE3B3::handleExclusions() {
 
     if (exclusionMode == EXCLUSIONMODE::DISTANCE) {
         handleExclusionsDistance();
@@ -853,7 +853,7 @@ void GridGPU::handleExclusions() {
 }
 
 
-void GridGPU::handleExclusionsForcers() {
+void GridGPUE3B3::handleExclusionsForcers() {
 
     std::vector<std::vector<BondVariant> *> allBonds;
        for (Fix *f : state->fixes) {
@@ -866,7 +866,7 @@ void GridGPU::handleExclusionsForcers() {
     
 }
 
-void GridGPU::handleExclusionsDistance() {
+void GridGPUE3B3::handleExclusionsDistance() {
 
     const ExclusionList exclList = generateExclusionList(4);
     std::vector<int> idxs;
@@ -913,7 +913,7 @@ void GridGPU::handleExclusionsDistance() {
 
     }
 
-bool GridGPU::closerThan(const ExclusionList &exclude,
+bool GridGPUE3B3::closerThan(const ExclusionList &exclude,
                          int atomid, int otherid, int16_t depthi) {
     bool closerThan = false;
     // because we want to check lower depths
@@ -939,7 +939,7 @@ class bondDowncast : public boost::static_visitor<const Bond &> {
         }
 };
 
-GridGPU::ExclusionList GridGPU::generateExclusionList(const int16_t maxDepth) {
+GridGPUE3B3::ExclusionList GridGPUE3B3::generateExclusionList(const int16_t maxDepth) {
 
     ExclusionList exclude;
     // not called depth because it's really the depth index, which is one

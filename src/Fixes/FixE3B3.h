@@ -8,6 +8,9 @@
 #include "PairEvaluatorE3B3.h"
 #include "ThreeBodyEvaluateIso.h"
 #include "ThreeBodyEvaluatorE3B3.h"
+#include "GridGPUE3B3.h"
+
+
 
 //! Make FixE3B3 available to the python interface
 void export_FixE3B3();
@@ -95,6 +98,7 @@ class FixE3B3: public Fix {
         // the evaluator for E3B3
         ThreeBodyEvaluatorE3B3 evaluator;
 
+        GridGPU
 };
 
 

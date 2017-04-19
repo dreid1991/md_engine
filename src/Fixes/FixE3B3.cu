@@ -7,7 +7,6 @@
 #include "cutils_math.h"
 #include "ThreeBodyEvaluateIso.h"
 
-
 /* Constructors
 
 
@@ -15,8 +14,11 @@
 
 
 
+
+
 /* Computes
    */
+
 void FixE3B3::compute(bool computeVirials) {
     // send the molecules to the e3b3 evaluator, where we compute both the two-body correction
     // and the three-body interactions.
@@ -37,20 +39,26 @@ void FixE3B3::compute(bool computeVirials) {
                       state->devManager.prop.warpSize, numTypes, state->boundsGPU,
                       gpd.virials.d_data.data(), computeVirials);
 
-
-
 }
 
+void FixE3B3::stepInit(bool computeVirialsInForce){
+    // we use this as an opportunity to re-create the local neighbor list, if necessary
+    int periodicInterval = state->periodicInterval;
+    if (state->turn % periodicInterval == 0) {
+        // do the re-creation of the neighborlist for E3B3
+        E3B3Grid.periodicBoundaryConditions();
+    }
+}
 
 
 /* Single Point Eng
    */
 void FixE3B3::singlePointEng(float *perParticleEng) {
-    // first, the two-body contribution to the energy from E3B3..
-
-
-
     // and, the three body contribution
+    // -- we still pass everything molecule by molecule... but add it to their particle arrays
+
+    // gonna need to look up how this is done..
+
 
 }
 

@@ -19,7 +19,7 @@ class State;
  * This class defines a simulation grid on the GPU. Typically, the GridGPU will
  * be created by AtomGrid::makeGPU().
  */
-class GridGPU {
+class GridGPUE3B3 {
 
 private:
     bool streamCreated; //!< True if a stream was created in initStream()
