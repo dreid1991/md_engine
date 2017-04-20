@@ -42,7 +42,7 @@ void FixLJCHARMM::compute(bool computeVirials) {
     GridGPU &grid = state->gridGPU;
     int activeIdx = gpd.activeIdx();
     uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
-    float neighborCoefs[4] = {1, 1, 1, 0};//see comment above
+    auto neighborCoefs = state->specialNeighborCoefs;
 
     evalWrap->compute(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx),
                       neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(),
@@ -57,8 +57,8 @@ void FixLJCHARMM::singlePointEng(float *perParticleEng) {
     GPUData &gpd = state->gpd;
     GridGPU &grid = state->gridGPU;
     int activeIdx = gpd.activeIdx();
+    auto neighborCoefs = state->specialNeighborCoefs;
     uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
-    float neighborCoefs[4] = {1, 1, 1, 0}; //see comment above
     evalWrap->energy(nAtoms, gpd.xs(activeIdx), perParticleEng, neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.qs(activeIdx), chargeRCut);
 
 
@@ -67,10 +67,10 @@ void FixLJCHARMM::singlePointEng(float *perParticleEng) {
 
 void FixLJCHARMM::setEvalWrapper() {
     if (evalWrapperMode == "orig") {
-        EvaluatorCHARMM eval;
+        EvaluatorCHARMM eval(state->specialNeighborCoefs[2]);
         evalWrap = pickEvaluator<EvaluatorCHARMM, 3, true>(eval, chargeCalcFix);
     } else if (evalWrapperMode == "self") {
-        EvaluatorCHARMM eval;
+        EvaluatorCHARMM eval(state->specialNeighborCoefs[2]);
         evalWrap = pickEvaluator<EvaluatorCHARMM, 3, true>(eval, nullptr);
     }
 }
@@ -113,12 +113,15 @@ bool FixLJCHARMM::prepareForRun() {
     std::vector<float> &eps14PreProc = *paramMap["eps14"];
     std::vector<float> &sig14PreProc = *paramMap["sig14"];
     assert(epsPreProc.size() == sigPreProc.size());
-    for (int i=0; i<epsPreProc.size(); i++) {
-        if (eps14PreProc[i] == DEFAULT_FILL) {
-            eps14PreProc[i] = epsPreProc[i]; //times some coefficient?
+    int numTypes = state->atomParams.numTypes;
+    for (int i=0; i<state->atomParams.numTypes; i++) {
+
+        if (squareVectorRef<float>(eps14PreProc.data(), numTypes, i, i) == DEFAULT_FILL) {
+            squareVectorRef<float>(eps14PreProc.data(), numTypes, i, i) = squareVectorRef<float>(epsPreProc.data(), numTypes, i, i) * state->specialNeighborCoefs[2]; 
         }
-        if (sig14PreProc[i] == DEFAULT_FILL) {
-            sig14PreProc[i] = sigPreProc[i]; 
+
+        if (squareVectorRef<float>(sig14PreProc.data(), numTypes, i, i) == DEFAULT_FILL) {
+            squareVectorRef<float>(sig14PreProc.data(), numTypes, i, i) = squareVectorRef<float>(sigPreProc.data(), numTypes, i, i) * state->specialNeighborCoefs[2]; 
         }
     }
 
@@ -131,6 +134,15 @@ bool FixLJCHARMM::prepareForRun() {
 
     sendAllToDevice();
     setEvalWrapper();
+    for (int i=0; i<2; i++) {
+        if (state->specialNeighborCoefs[i] == state->specialNeighborCoefs[2]) {
+            printf("Warning: FixLJCHARMM complains that 1-%d special neighbor coef is the same as the 1-4 coefficient.  Your 1-%d interactions will use 1-4 coefficients.\n", i+1, i+1);
+        }
+    }
+    if (state->specialNeighborCoefs[2] == 0) {
+        printf("Warning: FixLJCharmm complains that 1-4 neighbor coefficients cannot be 0\n");
+        assert(state->specialNeighborCoefs[2] != 0);
+    }
     return true;
 }
 

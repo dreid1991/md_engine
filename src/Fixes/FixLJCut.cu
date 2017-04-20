@@ -69,8 +69,6 @@ void FixLJCut::setEvalWrapper() {
         evalWrap = pickEvaluator<EvaluatorLJ, 3, true>(eval, nullptr);
     }
 }
-void FixLJCut::setEvalWrapperOrig() {
-}
 
 bool FixLJCut::prepareForRun() {
     //loop through all params and fill with appropriate lambda function, then send all to device
