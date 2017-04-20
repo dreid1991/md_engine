@@ -64,7 +64,10 @@ State::State() {
 
 
 uint State::groupTagFromHandle(std::string handle) {
-    assert(groupTags.find(handle) != groupTags.end());
+    if (groupTags.find(handle) == groupTags.end()) {
+        std::cout << "Count not find group " << handle << ".  Quitting. " << std::endl;
+        assert(groupTags.find(handle) != groupTags.end());
+    }
     return groupTags[handle];
 }
 
