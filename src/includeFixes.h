@@ -1,6 +1,4 @@
 #pragma once
-#ifndef INCLUDEFIXES_H
-#define INCLUDEFIXES_H
 
 #include "FixBondHarmonic.h"
 #include "FixBondFENE.h"
@@ -28,5 +26,5 @@
 #include "FixPressureBerendsen.h"
 #include "FixLinearMomentum.h"
 #include "FixRigid.h"
+#include "FixDeform.h"
 
-#endif

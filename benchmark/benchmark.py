@@ -38,12 +38,14 @@ integVerlet = IntegratorVerlet(state)
 #engData = state.dataManager.recordEnergy('all', 100)
 #boundsData = state.dataManager.recordBounds(100)
 
-#pressure = FixPressureBerendsen(state, "constP", 0.2, 5, 1);
+#pressure = FixPressureBerendsen(state, "constP", 2, 5, 1);
 #state.activateFix(pressure);
+deform = FixDeform(state, 'def', 'all', 1, Vector(1, 0, 0))
+state.activateFix(deform)
 
 writeconfig = WriteConfig(state, fn='test_out', writeEvery=100, format='xyz', handle='writer')
 state.activateWriteConfig(writeconfig)
-integVerlet.run(10000)
+integVerlet.run(1000)
 sumV = 0.
 for a in state.atoms:
     sumV += a.vel.lenSqr()

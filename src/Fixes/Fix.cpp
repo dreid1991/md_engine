@@ -73,7 +73,7 @@ pugi::xml_node Fix::getRestartNode() {
 }
 void Fix::updateGroupTag() {
     std::map<std::string, unsigned int> &groupTags = state->groupTags;
-    if (groupHandle == "None") {
+    if (groupHandle == "None" or groupHandle == "none") {
         groupTag = 0;
     } else {
         assert(groupTags.find(groupHandle) != groupTags.end());
