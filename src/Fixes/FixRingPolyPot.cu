@@ -31,13 +31,6 @@ void __global__ compute_RP_energy_cu(int nAtoms, int nPerRingPoly, float omegaP,
             float  eng  = 0.5 * mi * omegaP * omegaP * dr2;         // 0.5*mi*omegaP^2*(ri-rip1)^2 
                                                                     // note: each atom is assigned one bond
             perParticleEng[idx] += eng * mvv_to_eng;                // add energy contribution
-            if (idx == 1) {
-                printf("omegaP = %f\n",omegaP);
-                printf("thread: %d\n",idx);
-                printf("ri = %f %f %f\n",ri.x,ri.y,ri.z);
-                printf("rip1 = %f %f %f\n",rip1.x,rip1.y,rip1.z);
-                printf("eng = %f\n",eng * mvv_to_eng);
-            }
         }
     }
     
