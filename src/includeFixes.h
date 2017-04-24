@@ -31,5 +31,6 @@
 #include "FixRigid.h"
 #include "FixExternalHarmonic.h"
 #include "FixExternalQuartic.h"
+#include "FixRingPolyPot.h"
 
 #endif
