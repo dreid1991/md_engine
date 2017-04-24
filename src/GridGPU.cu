@@ -605,7 +605,7 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
             //            state->gpd.xs(activeIdx), nAtoms,
             //            bounds.sides[0], bounds.sides[1], bounds.lo);
         }
-        SAFECALL((periodicWrap<<<NBLOCK(nAtoms), PERBLOCK>>>(state->gpd.xs(activeIdx), nAtoms, boundsUnskewed)));
+        periodicWrap<<<NBLOCK(nAtoms), PERBLOCK>>>(state->gpd.xs(activeIdx), nAtoms, boundsUnskewed);
 
         // increase number of grid cells if necessary
         int numGridCells = prod(ns);
@@ -617,17 +617,17 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
         perAtomArray.d_data.memset(0);//PER RP CENTROID
         float4 *centroids;
         if (nPerRingPoly > 1) {
-            SAFECALL((computeCentroids<<<NBLOCK(nRingPoly), PERBLOCK>>>(rpCentroids.data(), state->gpd.xs(activeIdx), nAtoms, nPerRingPoly, boundsUnskewed)));
+            computeCentroids<<<NBLOCK(nRingPoly), PERBLOCK>>>(rpCentroids.data(), state->gpd.xs(activeIdx), nAtoms, nPerRingPoly, boundsUnskewed);
             centroids = rpCentroids.data();
-            SAFECALL((periodicWrap<<<NBLOCK(nRingPoly), PERBLOCK>>>(centroids, nRingPoly, boundsUnskewed)));
+            periodicWrap<<<NBLOCK(nRingPoly), PERBLOCK>>>(centroids, nRingPoly, boundsUnskewed);
         } else {
             centroids = state->gpd.xs(activeIdx);
         }
-        SAFECALL((countNumInGridCells<<<NBLOCK(nRingPoly), PERBLOCK>>>(
+        countNumInGridCells<<<NBLOCK(nRingPoly), PERBLOCK>>>(
                     centroids, nRingPoly,
                     perCellArray.d_data.data(), perAtomArray.d_data.data(),
                     os, ds, ns
-        )));//PER RP CENTROID
+        );//PER RP CENTROID
         perCellArray.dataToHost();
         cudaDeviceSynchronize();
 
@@ -639,7 +639,7 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
 
         //sort atoms by position, matching grid ordering
 
-        SAFECALL((sortPerAtomArrays<<<NBLOCK(nRingPoly), PERBLOCK>>>(
+        sortPerAtomArrays<<<NBLOCK(nRingPoly), PERBLOCK>>>(
                     centroids,
                     state->gpd.xs(activeIdx), state->gpd.xs(!activeIdx),
                     state->gpd.vs(activeIdx), state->gpd.vs(!activeIdx),
@@ -651,13 +651,13 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
                     perCellArray.d_data.data(), perAtomArray.d_data.data(),
                     nRingPoly, os, ds, ns,
                     nPerRingPoly
-        ))); //PER RP CENTROID
+        ); //PER RP CENTROID
         activeIdx = state->gpd.switchIdx();
         gridIdx = activeIdx;
 
 	// Must recompute the centroids since the order of atoms has changed
         if (nPerRingPoly > 1) {
-            SAFECALL((computeCentroids<<<NBLOCK(nRingPoly), PERBLOCK>>>(rpCentroids.data(), state->gpd.xs(activeIdx), nAtoms, nPerRingPoly, boundsUnskewed)));
+            computeCentroids<<<NBLOCK(nRingPoly), PERBLOCK>>>(rpCentroids.data(), state->gpd.xs(activeIdx), nAtoms, nPerRingPoly, boundsUnskewed);
             centroids = rpCentroids.data();
         } else {
 	    centroids = state->gpd.xs(activeIdx);
@@ -684,19 +684,19 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
          *     call this for ghosts too; everything after this has to be done on
          *     ghosts too
          */
-        SAFECALL((countNumNeighbors<<<NBLOCK(nRingPoly), PERBLOCK>>>(
+        countNumNeighbors<<<NBLOCK(nRingPoly), PERBLOCK>>>(
                     centroids, nRingPoly, 
                     perAtomArray.d_data.data(), perCellArray.d_data.data(),
-                    os, ds, ns, bounds.periodic, trace, neighCut*neighCut))); //PER RP CENTROID
+                    os, ds, ns, bounds.periodic, trace, neighCut*neighCut); //PER RP CENTROID
 
-        SAFECALL((computeMaxNumNeighPerBlock<<<NBLOCK(nRingPoly), PERBLOCK, PERBLOCK*sizeof(uint16_t)>>>(
+        computeMaxNumNeighPerBlock<<<NBLOCK(nRingPoly), PERBLOCK, PERBLOCK*sizeof(uint16_t)>>>(
                     nRingPoly, perAtomArray.d_data.data(),
-                    perBlockArray_maxNeighborsInBlock.data(), warpSize))); // MAKE NUM NP VARIABLE
+                    perBlockArray_maxNeighborsInBlock.data(), warpSize); // MAKE NUM NP VARIABLE
 
         int numBlocks = perBlockArray_maxNeighborsInBlock.size();
-        SAFECALL((setCumulativeSumPerBlock<<<NBLOCK(numBlocks+1), PERBLOCK>>>(
+        setCumulativeSumPerBlock<<<NBLOCK(numBlocks+1), PERBLOCK>>>(
                     numBlocks, perBlockArray.d_data.data(),
-                    perBlockArray_maxNeighborsInBlock.data())));
+                    perBlockArray_maxNeighborsInBlock.data());
         uint32_t cumulSumPerBlock;
         perBlockArray.d_data.get(&cumulSumPerBlock, numBlocks, 1);
         cudaDeviceSynchronize();
@@ -715,12 +715,12 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
             neighborlist = GPUArrayDeviceGlobal<uint>(totalNumNeighbors*1.5);
         }
     
-        SAFECALL((assignNeighbors<<<NBLOCK(nRingPoly), PERBLOCK, PERBLOCK*maxExclusionsPerAtom*sizeof(uint)>>>(
+        assignNeighbors<<<NBLOCK(nRingPoly), PERBLOCK, PERBLOCK*maxExclusionsPerAtom*sizeof(uint)>>>(
                 centroids, nRingPoly, nPerRingPoly, state->gpd.ids(gridIdx),
                 perCellArray.d_data.data(), perBlockArray.d_data.data(), os, ds, ns,
                 bounds.periodic, trace, neighCut*neighCut, neighborlist.data(), warpSize,
                 exclusionIndexes.data(), exclusionIds.data(), maxExclusionsPerAtom
-        ))); //PER RP CENTROID
+        ); //PER RP CENTROID
 
      
         if (bounds.isSkewed()) {

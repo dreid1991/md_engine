@@ -66,16 +66,16 @@ __global__ void nve_xPIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, float4 
     // 1. Transform to normal mode positions and velocities
 	// 	xNM_k = \sum_{n=1}^P x_n* Cnk
 	// 	Cnk = \sqrt(1/P)			k = 0
-	// 	Cnk = \sqrt(2/P) cos(2*pi*k*n/P)	1<= k <= P/2 -1
+	// 	Cnk = \sqrt(2/P) cosf(2*pi*k*n/P)	1<= k <= P/2 -1
 	// 	Cnk = \sqrt(1/P)(-1)^n			k = P/2
-	// 	Cnk = \sqrt(2/P) sin(2*pi*k*n/P)	P/2+1<= k <= P -1
+	// 	Cnk = \sqrt(2/P) sinf(2*pi*k*n/P)	P/2+1<= k <= P -1
 	// 2. advance positions/velocities by full timestep according
 	// to free ring-polymer evolution
 	// 3. back transform to regular coordinates
-	float invP            = 1.0 / (float) nPerRingPoly;
+	float invP            = 1.0f / (float) nPerRingPoly;
 	float twoPiInvP       = 2.0f * M_PI * invP;
-	float invSqrtP 	      = sqrt(invP);
-	float sqrt2           = sqrt(2.0);
+	float invSqrtP 	      = sqrtf(invP);
+	float sqrt2           = sqrtf(2.0f);
 	int   halfP           = nPerRingPoly / 2;	// P must be even for the following transformation!!!
 
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -109,7 +109,7 @@ __global__ void nve_xPIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, float4 
 
     // k = 1,...,P/2-1; n = 1,...,P
     for (int k = 1; k < halfP; k++) {
-        float cosval = cos(twoPiInvP * k * n);	// cos(2*pi*k*n/P)
+        float cosval = cosf(twoPiInvP * k * n);	// cos(2*pi*k*n/P)
         tbr[threadIdx.x] = xn*sqrt2*cosval;
         reduceByN<float3>(tbr, nPerRingPoly, warpSize);
         if (needSync)   { __syncthreads();}
@@ -118,7 +118,7 @@ __global__ void nve_xPIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, float4 
 
     // k = P/2+1,...,P-1; n = 1,...,P
     for (int k = halfP+1; k < nPerRingPoly; k++) {
-        float  sinval = sin(twoPiInvP * k * n);	// sin(2*pi*k*n/P)
+        float  sinval = sinf(twoPiInvP * k * n);	// sinf(2*pi*k*n/P)
         tbr[threadIdx.x] = xn*sqrt2*sinval;
         reduceByN<float3>(tbr, nPerRingPoly, warpSize);
         if (needSync)   { __syncthreads();}
@@ -144,7 +144,7 @@ __global__ void nve_xPIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, float4 
 
 	// k = 1,...,P/2-1; n = 1,...,P
     for (int k = 1; k < halfP; k++) {
-        float cosval = cos(twoPiInvP * k * n);	// cos(2*pi*k*n/P)
+        float cosval = cosf(twoPiInvP * k * n);	// cos(2*pi*k*n/P)
         tbr[threadIdx.x] = vn*sqrt2*cosval;
         reduceByN<float3>(tbr, nPerRingPoly, warpSize);
         if (needSync)   { __syncthreads();}
@@ -153,7 +153,7 @@ __global__ void nve_xPIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, float4 
 
 	// k = P/2+1,...,P-1; n = 1,...,P
     for (int k = halfP+1; k < nPerRingPoly; k++) {
-	    float  sinval = sin(twoPiInvP * k * n);	// sin(2*pi*k*n/P)
+	    float  sinval = sinf(twoPiInvP * k * n);	// sinf(2*pi*k*n/P)
         tbr[threadIdx.x] = vn*sqrt2*sinval;
         reduceByN<float3>(tbr, nPerRingPoly, warpSize);
         if (needSync)   { __syncthreads();}
@@ -166,15 +166,15 @@ __global__ void nve_xPIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, float4 
 	    // 2. NORMAL-MODE RP COORDINATE EVOLUTION
 	    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         // here each bead will handle the evolution of a particular normal-mode coordinate
-	    // xk(t+dt) = xk(t)*cos(om_k*dt) + vk(t)*sin(om_k*dt)/om_k
-	    // vk(t+dt) = vk(t)*cos(om_k*dt) - xk(t)*sin(om_k*dt)*om_k
+	    // xk(t+dt) = xk(t)*cos(om_k*dt) + vk(t)*sinf(om_k*dt)/om_k
+	    // vk(t+dt) = vk(t)*cosf(om_k*dt) - xk(t)*sinf(om_k*dt)*om_k
 	    // k = 0
         if (amRoot) {
             xsNM[threadIdx.x] += vsNM[threadIdx.x] * dt; 
         } else {
-	        float omegaK = 2.0f * omegaP * sin( beadIdx * twoPiInvP * 0.5);
-	        float cosdt  = cos(omegaK * dt);
-	        float sindt  = sin(omegaK * dt);
+	        float omegaK = 2.0f * omegaP * sinf( beadIdx * twoPiInvP * 0.5f);
+	        float cosdt  = cosf(omegaK * dt);
+	        float sindt  = sinf(omegaK * dt);
 	        float3 xsNMk = xsNM[threadIdx.x];
 	        float3 vsNMk = vsNM[threadIdx.x];
 	        xsNM[threadIdx.x] *= cosdt;
@@ -201,14 +201,14 @@ __global__ void nve_xPIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, float4 
 
 	    // k = 1,...,P/2-1; n = 1,...,P
         for (int k = 1; k < halfP; k++) {
-	        float  cosval = cos(twoPiInvP * k * n);	// cos(2*pi*k*n/P)
+	        float  cosval = cosf(twoPiInvP * k * n);	// cosf(2*pi*k*n/P)
 	        xn += xsNM[rootIdx+k] * sqrt2 * cosval;
 	        vn += vsNM[rootIdx+k] * sqrt2 * cosval;
         }
 
 	    // k = P/2+1,...,P-1; n = 1,...,P
         for (int k = halfP+1; k < nPerRingPoly; k++) {
-	        float  sinval = sin(twoPiInvP * k * n);	// cos(2*pi*k*n/P)
+	        float  sinval = sinf(twoPiInvP * k * n);	// cosf(2*pi*k*n/P)
 	        xn += xsNM[rootIdx+k] * sqrt2 * sinval;
 	        vn += vsNM[rootIdx+k] * sqrt2 * sinval;
         }
@@ -286,16 +286,16 @@ __global__ void preForcePIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, floa
     // 1. Transform to normal mode positions and velocities
     // 	xNM_k = \sum_{n=1}^P x_n* Cnk
     // 	Cnk = \sqrt(1/P)			k = 0
-    // 	Cnk = \sqrt(2/P) cos(2*pi*k*n/P)	1<= k <= P/2 -1
+    // 	Cnk = \sqrt(2/P) cosf(2*pi*k*n/P)	1<= k <= P/2 -1
     // 	Cnk = \sqrt(1/P)(-1)^n			k = P/2
-    // 	Cnk = \sqrt(2/P) sin(2*pi*k*n/P)	P/2+1<= k <= P -1
+    // 	Cnk = \sqrt(2/P) sinf(2*pi*k*n/P)	P/2+1<= k <= P -1
     // 2. advance positions/velocities by full timestep according
     // to free ring-polymer evolution
     // 3. back transform to regular coordinates
-    float invP            = 1.0 / (float) nPerRingPoly;
+    float invP            = 1.0f / (float) nPerRingPoly;
     float twoPiInvP       = 2.0f * M_PI * invP;
-    float invSqrtP 	      = sqrt(invP);
-    float sqrt2           = sqrt(2.0);
+    float invSqrtP 	      = sqrtf(invP);
+    float sqrt2           = sqrtf(2.0f);
     int   halfP           = nPerRingPoly / 2;	// P must be even for the following transformation!!!
 
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -329,7 +329,7 @@ __global__ void preForcePIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, floa
 
     // k = 1,...,P/2-1; n = 1,...,P
     for (int k = 1; k < halfP; k++) {
-        float cosval = cos(twoPiInvP * k * n);	// cos(2*pi*k*n/P)
+        float cosval = cosf(twoPiInvP * k * n);	// cosf(2*pi*k*n/P)
         tbr[threadIdx.x] = xn*sqrt2*cosval;
         reduceByN<float3>(tbr, nPerRingPoly, warpSize);
         if (needSync)   { __syncthreads();}
@@ -338,7 +338,7 @@ __global__ void preForcePIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, floa
 
     // k = P/2+1,...,P-1; n = 1,...,P
     for (int k = halfP+1; k < nPerRingPoly; k++) {
-        float  sinval = sin(twoPiInvP * k * n);	// sin(2*pi*k*n/P)
+        float  sinval = sinf(twoPiInvP * k * n);	// sinf(2*pi*k*n/P)
         tbr[threadIdx.x] = xn*sqrt2*sinval;
         reduceByN<float3>(tbr, nPerRingPoly, warpSize);
         if (needSync)   { __syncthreads();}
@@ -364,7 +364,7 @@ __global__ void preForcePIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, floa
 
 	// k = 1,...,P/2-1; n = 1,...,P
     for (int k = 1; k < halfP; k++) {
-        float cosval = cos(twoPiInvP * k * n);	// cos(2*pi*k*n/P)
+        float cosval = cosf(twoPiInvP * k * n);	// cosf(2*pi*k*n/P)
         tbr[threadIdx.x] = vn*sqrt2*cosval;
         reduceByN<float3>(tbr, nPerRingPoly, warpSize);
         if (needSync)   { __syncthreads();}
@@ -373,7 +373,7 @@ __global__ void preForcePIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, floa
 
 	// k = P/2+1,...,P-1; n = 1,...,P
     for (int k = halfP+1; k < nPerRingPoly; k++) {
-	    float  sinval = sin(twoPiInvP * k * n);	// sin(2*pi*k*n/P)
+	    float  sinval = sinf(twoPiInvP * k * n);	// sinf(2*pi*k*n/P)
         tbr[threadIdx.x] = vn*sqrt2*sinval;
         reduceByN<float3>(tbr, nPerRingPoly, warpSize);
         if (needSync)   { __syncthreads();}
@@ -386,15 +386,15 @@ __global__ void preForcePIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, floa
 	    // 2. NORMAL-MODE RP COORDINATE EVOLUTION
 	    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         // here each bead will handle the evolution of a particular normal-mode coordinate
-	    // xk(t+dt) = xk(t)*cos(om_k*dt) + vk(t)*sin(om_k*dt)/om_k
-	    // vk(t+dt) = vk(t)*cos(om_k*dt) - xk(t)*sin(om_k*dt)*om_k
+	    // xk(t+dt) = xk(t)*cosf(om_k*dt) + vk(t)*sinf(om_k*dt)/om_k
+	    // vk(t+dt) = vk(t)*cosf(om_k*dt) - xk(t)*sinf(om_k*dt)*om_k
 	    // k = 0
         if (amRoot) {
             xsNM[threadIdx.x] += vsNM[threadIdx.x] * dt; 
         } else {
-	        float omegaK = 2.0f * omegaP * sin( beadIdx * twoPiInvP * 0.5);
-	        float cosdt  = cos(omegaK * dt);
-	        float sindt  = sin(omegaK * dt);
+	        float omegaK = 2.0f * omegaP * sinf( beadIdx * twoPiInvP * 0.5);
+	        float cosdt  = cosf(omegaK * dt);
+	        float sindt  = sinf(omegaK * dt);
 	        float3 xsNMk = xsNM[threadIdx.x];
 	        float3 vsNMk = vsNM[threadIdx.x];
 	        xsNM[threadIdx.x] *= cosdt;
@@ -421,14 +421,14 @@ __global__ void preForcePIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, floa
 
 	    // k = 1,...,P/2-1; n = 1,...,P
         for (int k = 1; k < halfP; k++) {
-	        float  cosval = cos(twoPiInvP * k * n);	// cos(2*pi*k*n/P)
+	        float  cosval = cosf(twoPiInvP * k * n);	// cosf(2*pi*k*n/P)
 	        xn += xsNM[rootIdx+k] * sqrt2 * cosval;
 	        vn += vsNM[rootIdx+k] * sqrt2 * cosval;
         }
 
 	    // k = P/2+1,...,P-1; n = 1,...,P
         for (int k = halfP+1; k < nPerRingPoly; k++) {
-	        float  sinval = sin(twoPiInvP * k * n);	// cos(2*pi*k*n/P)
+	        float  sinval = sinf(twoPiInvP * k * n);	// sinf(2*pi*k*n/P)
 	        xn += xsNM[rootIdx+k] * sqrt2 * sinval;
 	        vn += vsNM[rootIdx+k] * sqrt2 * sinval;
         }
@@ -488,7 +488,7 @@ void IntegratorVerlet::run(int numTurns)
 	
     auto start = std::chrono::high_resolution_clock::now();
     DataManager &dataManager = state->dataManager;
-    dtf = 0.5 * state->dt * state->units.ftm_to_v;
+    dtf = 0.5f * state->dt * state->units.ftm_to_v;
     for (int i=0; i<numTurns; ++i) {
         if (state->turn % periodicInterval == 0) {
             state->gridGPU.periodicBoundaryConditions();
@@ -572,13 +572,13 @@ void IntegratorVerlet::nve_x() {
 	    int   nPerRingPoly = state->nPerRingPoly;
         int   nRingPoly = state->atoms.size() / nPerRingPoly;
 	    float omegaP    = (float) state->units.boltz * temp / state->units.hbar  ;
-    	SAFECALL((nve_xPIMD_cu<<<NBLOCK(state->atoms.size()), PERBLOCK, sizeof(float3) * 2 *PERBLOCK>>>(
+    	nve_xPIMD_cu<<<NBLOCK(state->atoms.size()), PERBLOCK, sizeof(float3) * 2 *PERBLOCK>>>(
 	        state->atoms.size(),
 	 	    nPerRingPoly,
 		    omegaP,
     	    state->gpd.xs.getDevData(),
     	    state->gpd.vs.getDevData(),
-    	    state->dt))); 
+    	    state->dt); 
     }
 }
 void IntegratorVerlet::preForce()
@@ -609,7 +609,7 @@ void IntegratorVerlet::preForce()
 	    float omegaP       = (float) state->units.boltz * temp / state->units.hbar ;
    
         // called on a per bead basis
-        SAFECALL((preForcePIMD_cu<<<NBLOCK(state->atoms.size()), PERBLOCK, sizeof(float3) * 3 *PERBLOCK >>>(
+        preForcePIMD_cu<<<NBLOCK(state->atoms.size()), PERBLOCK, sizeof(float3) * 3 *PERBLOCK >>>(
 	        state->atoms.size(),
 	     	nPerRingPoly,
 	    	omegaP,
@@ -617,7 +617,7 @@ void IntegratorVerlet::preForce()
         	state->gpd.vs.getDevData(),
         	state->gpd.fs.getDevData(),
         	state->dt,
-        	dtf ))); 
+        	dtf ); 
     }
 }
 
