@@ -43,13 +43,9 @@ __global__ void compute_force_bond(int nAtoms, float4 *xs, float4 *forces, int *
                 int otherIdx = idToIdxs[otherId];
 
                 float3 posOther = make_float3(xs[otherIdx]);
-                // printf("atom %d bond %d gets force %f\n", idx, i, harmonicForce(bounds, pos, posOther, b.k, b.rEq));
-                // printf("xs %f %f\n", pos.x, posOther.x);
                 float3 bondVec  = bounds.minImage(pos - posOther);
                 float rSqr = lengthSqr(bondVec);
-                //printf("my pos %f %f %f rsqr %f\n", pos.x, pos.y, pos.y, rSqr);
                 float3 force = T.force(bondVec, rSqr, bondType);
-
                 forceSum += force;
                 if (COMPUTEVIRIALS) {
                     computeVirial(virialsSum, force, bondVec);

@@ -37,8 +37,8 @@ public:
       : CPUMembers(CPUMembers_), pyList(pyList_), CPUData(CPUMembers->data())
     {   }
 
-    void requestRefreshPyList() {
-        if (CPUMembers->data() != CPUData) {
+    void requestRefreshPyList(bool force=false) {
+        if (CPUMembers->data() != CPUData || force) {
             refreshPyList();
             CPUData = CPUMembers->data();
         }

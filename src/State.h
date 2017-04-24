@@ -513,7 +513,7 @@ public:
 
     Units units;
 
-    bool preparePIMD();
+    bool preparePIMD(double temp);
     //! Extends current simulation state to a path-integral representation
     /*!
      * \return True always

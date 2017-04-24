@@ -94,10 +94,11 @@ class FixPotentialMultiAtom : public Fix, public TypedItemHolder {
                     RPcopy.ids[k] = asType.ids[k]*nPerRingPoly + j; // new id for RPatom
                 }
                 RPforcers[i*nPerRingPoly+j] = RPcopy;   // place new member for RP interactions
+                if (j > 0 ) {pyListInterface.updateAppendedMember(false);}
             }
         }
         forcers = RPforcers;    // update the forcers
-        pyListInterface.requestRefreshPyList();
+        pyListInterface.requestRefreshPyList(true);
     }
 
 	std::string restartChunk(std::string format) {

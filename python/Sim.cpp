@@ -88,9 +88,12 @@ BOOST_PYTHON_MODULE(Sim) {
 
     export_FixNoseHoover();
     export_FixNVTRescale();
+    export_FixNVTAndersen();
     export_FixLangevin();
 
     export_FixPressureBerendsen();
+
+    export_FixRingPolyPot();
 
     export_AtomParams();
     export_DataManager();

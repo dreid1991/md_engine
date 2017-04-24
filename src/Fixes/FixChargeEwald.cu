@@ -682,7 +682,7 @@ void FixChargeEwald::setTotalQ2() {
          state->devManager.prop.warpSize,
          SumSqr());
     tmp.dataToHost();   
-    total_Q2=conversion*tmp.h_data[0];
+    total_Q2=conversion*tmp.h_data[0]/state->nPerRingPoly;
 
     tmp.memsetByVal(0.0);
 
@@ -695,7 +695,7 @@ void FixChargeEwald::setTotalQ2() {
          SumSingle());
 
     tmp.dataToHost();   
-    total_Q=sqrt(conversion)*tmp.h_data[0];   
+    total_Q=sqrt(conversion)*tmp.h_data[0]/state->nPerRingPoly;   
     
     cout<<"total_Q "<<total_Q<<'\n';
     cout<<"total_Q2 "<<total_Q2<<'\n';

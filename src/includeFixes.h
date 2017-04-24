@@ -17,6 +17,7 @@
 #include "Fix2d.h"
 #include "Fix.h"
 #include "FixNoseHoover.h"
+#include "FixNVTAndersen.h"
 #include "FixNVTRescale.h"
 #include "FixSpringStatic.h"
 #include "FixWallHarmonic.h"
@@ -30,5 +31,6 @@
 #include "FixRigid.h"
 #include "FixExternalHarmonic.h"
 #include "FixExternalQuartic.h"
+#include "FixRingPolyPot.h"
 
 #endif
