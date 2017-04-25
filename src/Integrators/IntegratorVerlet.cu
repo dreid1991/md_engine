@@ -105,9 +105,9 @@ void IntegratorVerlet::run(int numTurns)
         if (state->turn % periodicInterval == 0) {
             state->gridGPU.periodicBoundaryConditions();
         }
-        bool computeVirialsInForce = dataManager.virialTurns.find(state->turn) != dataManager.virialTurns.end();
+        int virialMode = dataManager.getVirialModeForTurn(state->turn);
 
-        stepInit(computeVirialsInForce);
+        stepInit(virialMode==1 or virialMode==2);
 
         // Perform first half of velocity-Verlet step
         if (state->requiresPostNVE_V) {
@@ -123,7 +123,7 @@ void IntegratorVerlet::run(int numTurns)
         handleBoundsChange();
 
         // Recalculate forces
-        force(computeVirialsInForce);
+        force(virialMode);
 
 
         // Perform second half of velocity-Verlet step

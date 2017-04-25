@@ -898,7 +898,7 @@ void FixChargeEwald::handleBoundsChangeInternal(bool printError) {
     }
 }
 
-void FixChargeEwald::compute(bool computeVirials) {
+void FixChargeEwald::compute(int virialMode) {
  //   CUT_CHECK_ERROR("before FixChargeEwald kernel execution failed");
 
 //     cout<<"FixChargeEwald::compute..\n";
@@ -1056,7 +1056,7 @@ void FixChargeEwald::compute(bool computeVirials) {
     }
     CUT_CHECK_ERROR("Ewald_long_range_forces_cu  execution failed");
     //SHORT RANGE
-    if (computeVirials) {
+    if (virialMode) {
         int warpSize = state->devManager.prop.warpSize;
         BoundsGPU &b=state->boundsGPU;
         float volume=b.volume();          
@@ -1074,7 +1074,7 @@ void FixChargeEwald::compute(bool computeVirials) {
                   neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(),
                   state->devManager.prop.warpSize, nullptr, 0, state->boundsGPU, //PASSING NULLPTR TO GPU MAY CAUSE ISSUES
     //ALTERNATIVELy, COULD JUST GIVE THE PARMS SOME OTHER RANDOM POINTER, AS LONG AS IT'S VALID
-                  neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.virials.d_data.data(), gpd.qs(activeIdx), r_cut, computeVirials);
+                  neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.virials.d_data.data(), gpd.qs(activeIdx), r_cut, virialMode);
 
 
     CUT_CHECK_ERROR("Ewald_short_range_forces_cu  execution failed");

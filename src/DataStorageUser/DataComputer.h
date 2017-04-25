@@ -40,6 +40,7 @@ namespace MD_ENGINE {
         virtual void appendTensor(boost::python::list &) = 0;
 
         bool requiresVirials;
+        bool requiresPerAtomVirials;
 
         GPUArrayGlobal<float> gpuBuffer; //will be cast as virial if necessary
         GPUArrayGlobal<float> gpuBufferReduce; //target for reductions, also maybe cast as virial

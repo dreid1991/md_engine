@@ -51,7 +51,7 @@ std::vector<float> FixChargePairDSF::getRCuts() {
     return res;
 }
 
-void FixChargePairDSF::compute(bool computeVirials) {
+void FixChargePairDSF::compute(int virialMode) {
     int nAtoms = state->atoms.size();
     GPUData &gpd = state->gpd;
     GridGPU &grid = state->gridGPU;
@@ -61,7 +61,7 @@ void FixChargePairDSF::compute(bool computeVirials) {
     evalWrap->compute(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx),
                   neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(),
                   state->devManager.prop.warpSize, nullptr, 0, state->boundsGPU,
-                  neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.virials.d_data.data(), gpd.qs(activeIdx), r_cut, computeVirials);
+                  neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.virials.d_data.data(), gpd.qs(activeIdx), r_cut, virialMode);
 
 
 

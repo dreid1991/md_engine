@@ -17,12 +17,12 @@ FixImproperCVFF::FixImproperCVFF(SHARED(State) state_, string handle)
 }
 
 
-void FixImproperCVFF::compute(bool computeVirials) {
+void FixImproperCVFF::compute(int virialMode) {
     int nAtoms = state->atoms.size();
     GPUData &gpd = state->gpd;
     int activeIdx = gpd.activeIdx();
     if (forcersGPU.size()) {
-        if (computeVirials) {
+        if (virialMode) {
             compute_force_improper<ImproperCVFFType, ImproperEvaluatorCVFF, true> <<<NBLOCK(forcersGPU.size()), PERBLOCK, sharedMemSizeForParams>>>(forcersGPU.size(), gpd.xs(activeIdx), gpd.fs(activeIdx), gpd.idToIdxs.d_data.data(), forcersGPU.data(), state->boundsGPU, parameters.data(), parameters.size(), gpd.virials.d_data.data(), usingSharedMemForParams, evaluator);
 
         } else {

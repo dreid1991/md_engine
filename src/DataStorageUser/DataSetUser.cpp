@@ -57,7 +57,11 @@ void DataSetUser::setPyFunc(boost::python::object func_) {
 }
 
 bool DataSetUser::requiresVirials() {
+    printf("I AM QUERIED\n");
     return computer->requiresVirials;
+}
+bool DataSetUser::requiresPerAtomVirials() {
+    return computer->requiresPerAtomVirials;
 }
 
 void export_DataSetUser() {

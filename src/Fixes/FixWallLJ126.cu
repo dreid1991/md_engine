@@ -23,11 +23,11 @@ FixWallLJ126::FixWallLJ126(SHARED(State) state_, std::string handle_, std::strin
 
 
 // this refers to the template in the /Evaluators/ folder - 
-void FixWallLJ126::compute(bool computeVirials) {
+void FixWallLJ126::compute(int virialMode) {
 	GPUData &gpd = state->gpd;
 	int activeIdx = gpd.activeIdx();
 	int n = state->atoms.size();
-	if (computeVirials) {
+	if (virialMode) {
 		compute_wall_iso<EvaluatorWallLJ126, true> <<<NBLOCK(n), PERBLOCK>>>(n,  gpd.xs(activeIdx),
                     gpd.fs(activeIdx), origin.asFloat3(), forceDir.asFloat3(),  groupTag, evaluator);
 	} else {

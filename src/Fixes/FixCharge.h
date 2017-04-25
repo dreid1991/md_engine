@@ -18,7 +18,7 @@ public:
               std::string type_, bool forceSingle_);
 
     bool prepareForRun();
-    virtual void compute(bool) { };
+    virtual void compute(int) { };
 
 };
 

@@ -125,8 +125,8 @@ double IntegratorRelax::run(int numTurns, double fTol) {
         VDotV.memsetByVal(0.0);
         VDotF.memsetByVal(0.0);
         FDotF.memsetByVal(0.0);
-        bool computeVirialsInForce = dataManager.virialTurns.find(state->turn) != dataManager.virialTurns.end();
-
+        int virialMode = dataManager.getVirialModeForTurn(state->turn);
+        stepInit(virialMode==1 or virialMode==2);
         //vdotF calc
         if (! ((remainder + i) % periodicInterval)) {
             state->gridGPU.periodicBoundaryConditions();
@@ -221,7 +221,7 @@ double IntegratorRelax::run(int numTurns, double fTol) {
                             dt, dt*state->units.ftm_to_v);
         CUT_CHECK_ERROR("FIRE_preForce_cu kernel execution failed");
 
-        Integrator::forceSingle(computeVirialsInForce);
+        Integrator::forceSingle(virialMode);
 
         if (fTol > 0 and i > delay and not (i%delay)) { //only check every so often
             //total force calc

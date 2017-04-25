@@ -19,7 +19,7 @@ class FixWallLJ126 : public FixWall {
 		
         float epsilon;
 
-        void compute(bool);
+        void compute(int);
 
 		bool prepareForRun();
 		

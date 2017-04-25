@@ -23,7 +23,7 @@ class FixLJCutFS : public FixPair {
         FixLJCutFS(SHARED(State), std::string handle);
 
         //! Compute forces
-        void compute(bool);
+        void compute(int);
 
         //! Compute single point energy
         void singlePointEng(float *);

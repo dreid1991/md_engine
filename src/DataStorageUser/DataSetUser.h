@@ -29,6 +29,7 @@ public:
     int64_t nextCompute;
 
     bool requiresVirials();
+    bool requiresPerAtomVirials();
 
     void prepareForRun();
     void computeData();

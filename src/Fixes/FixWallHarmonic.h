@@ -17,7 +17,7 @@ class FixWallHarmonic : public FixWall {
 
 		float k;
 		
-        void compute(bool);
+        void compute(int);
 
 		bool prepareForRun();
 		

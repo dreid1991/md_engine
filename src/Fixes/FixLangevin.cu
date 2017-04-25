@@ -92,7 +92,7 @@ void FixLangevin::setParams(double seed_, double gamma_) {
         gamma = gamma_;
     }
 }
-void FixLangevin::compute(bool computeVirials) {
+void FixLangevin::compute(int virialMode) {
     computeCurrentVal(state->turn);
     double temp = getCurrentVal();
     compute_cu<<<NBLOCK(state->atoms.size()), PERBLOCK>>>(state->atoms.size(), state->gpd.vs.getDevData(), state->gpd.fs.getDevData(), randStates.data(), state->dt, temp, gamma, state->units.boltz, state->units.mvv_to_eng, state->units.ftm_to_v, true);

@@ -30,7 +30,7 @@ FixLJCut::FixLJCut(boost::shared_ptr<State> state_, string handle_)
     setEvalWrapper();
 }
 
-void FixLJCut::compute(bool computeVirials) {
+void FixLJCut::compute(int virialMode) {
     int nAtoms = state->atoms.size();
     int numTypes = state->atomParams.numTypes;
     GPUData &gpd = state->gpd;
@@ -42,7 +42,7 @@ void FixLJCut::compute(bool computeVirials) {
     evalWrap->compute(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx),
                       neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(),
                       state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU,
-                      neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.virials.d_data.data(), gpd.qs(activeIdx), chargeRCut, computeVirials);
+                      neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.virials.d_data.data(), gpd.qs(activeIdx), chargeRCut, virialMode);
 
 }
 

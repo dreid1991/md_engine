@@ -27,7 +27,7 @@ public:
                      std::string handle_, std::string groupHandle_);
 
     void setParameters(float alpha_, float r_cut_);
-    void compute(bool);
+    void compute(int);
     void singlePointEng(float *);
     ChargeEvaluatorDSF generateEvaluator();
     void setEvalWrapper();
