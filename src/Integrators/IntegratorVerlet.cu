@@ -111,8 +111,8 @@ __global__ void nve_xPIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, float4 
     for (int k = 1; k < halfP; k++) {
         float cosval = cosf(twoPiInvP * k * n);	// cos(2*pi*k*n/P)
         tbr[threadIdx.x] = xn*sqrt2*cosval;
-        reduceByN<float3>(tbr, nPerRingPoly, warpSize);
         if (needSync)   { __syncthreads();}
+        reduceByN<float3>(tbr, nPerRingPoly, warpSize);
         if (useThread && amRoot)     {xsNM[threadIdx.x+k] = tbr[threadIdx.x]*invSqrtP;}
     }
 
@@ -120,16 +120,16 @@ __global__ void nve_xPIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, float4 
     for (int k = halfP+1; k < nPerRingPoly; k++) {
         float  sinval = sinf(twoPiInvP * k * n);	// sinf(2*pi*k*n/P)
         tbr[threadIdx.x] = xn*sqrt2*sinval;
-        reduceByN<float3>(tbr, nPerRingPoly, warpSize);
         if (needSync)   { __syncthreads();}
+        reduceByN<float3>(tbr, nPerRingPoly, warpSize);
         if (useThread && amRoot)     {xsNM[threadIdx.x+k] = tbr[threadIdx.x]*invSqrtP;}
     }
 
     // %%%%%%%%%%% VELOCITIES %%%%%%%%%%%
 	// k = 0, n = 1,...,P
     tbr[threadIdx.x]  = vn;
-    reduceByN<float3>(tbr, nPerRingPoly, warpSize);
     if (needSync)   { __syncthreads();}
+    reduceByN<float3>(tbr, nPerRingPoly, warpSize);
     if (useThread && amRoot)     {vsNM[threadIdx.x] = tbr[threadIdx.x]*invSqrtP;}
 
     // k = P/2, n = 1,...,P
@@ -138,16 +138,16 @@ __global__ void nve_xPIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, float4 
     } else {
         tbr[threadIdx.x] = vn ;
     }
-    reduceByN<float3>(tbr, nPerRingPoly, warpSize);
     if (needSync)   { __syncthreads();}
+    reduceByN<float3>(tbr, nPerRingPoly, warpSize);
     if (useThread && amRoot)     {vsNM[threadIdx.x+halfP] = tbr[threadIdx.x]*invSqrtP;}
 
 	// k = 1,...,P/2-1; n = 1,...,P
     for (int k = 1; k < halfP; k++) {
         float cosval = cosf(twoPiInvP * k * n);	// cos(2*pi*k*n/P)
         tbr[threadIdx.x] = vn*sqrt2*cosval;
-        reduceByN<float3>(tbr, nPerRingPoly, warpSize);
         if (needSync)   { __syncthreads();}
+        reduceByN<float3>(tbr, nPerRingPoly, warpSize);
         if (useThread && amRoot)     {vsNM[threadIdx.x+k] = tbr[threadIdx.x]*invSqrtP;}
     }
 
@@ -155,8 +155,8 @@ __global__ void nve_xPIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, float4 
     for (int k = halfP+1; k < nPerRingPoly; k++) {
 	    float  sinval = sinf(twoPiInvP * k * n);	// sinf(2*pi*k*n/P)
         tbr[threadIdx.x] = vn*sqrt2*sinval;
-        reduceByN<float3>(tbr, nPerRingPoly, warpSize);
         if (needSync)   { __syncthreads();}
+        reduceByN<float3>(tbr, nPerRingPoly, warpSize);
         if (useThread && amRoot)     {vsNM[threadIdx.x+k] = tbr[threadIdx.x]*invSqrtP;}
     }
 
@@ -331,8 +331,8 @@ __global__ void preForcePIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, floa
     for (int k = 1; k < halfP; k++) {
         float cosval = cosf(twoPiInvP * k * n);	// cosf(2*pi*k*n/P)
         tbr[threadIdx.x] = xn*sqrt2*cosval;
-        reduceByN<float3>(tbr, nPerRingPoly, warpSize);
         if (needSync)   { __syncthreads();}
+        reduceByN<float3>(tbr, nPerRingPoly, warpSize);
         if (useThread && amRoot)     {xsNM[threadIdx.x+k] = tbr[threadIdx.x]*invSqrtP;}
     }
 
@@ -340,16 +340,16 @@ __global__ void preForcePIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, floa
     for (int k = halfP+1; k < nPerRingPoly; k++) {
         float  sinval = sinf(twoPiInvP * k * n);	// sinf(2*pi*k*n/P)
         tbr[threadIdx.x] = xn*sqrt2*sinval;
-        reduceByN<float3>(tbr, nPerRingPoly, warpSize);
         if (needSync)   { __syncthreads();}
+        reduceByN<float3>(tbr, nPerRingPoly, warpSize);
         if (useThread && amRoot)     {xsNM[threadIdx.x+k] = tbr[threadIdx.x]*invSqrtP;}
     }
 
     // %%%%%%%%%%% VELOCITIES %%%%%%%%%%%
 	// k = 0, n = 1,...,P
     tbr[threadIdx.x]  = vn;
-    reduceByN<float3>(tbr, nPerRingPoly, warpSize);
     if (needSync)   { __syncthreads();}
+    reduceByN<float3>(tbr, nPerRingPoly, warpSize);
     if (useThread && amRoot)     {vsNM[threadIdx.x] = tbr[threadIdx.x]*invSqrtP;}
 
     // k = P/2, n = 1,...,P
@@ -358,16 +358,16 @@ __global__ void preForcePIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, floa
     } else {
         tbr[threadIdx.x] = vn ;
     }
-    reduceByN<float3>(tbr, nPerRingPoly, warpSize);
     if (needSync)   { __syncthreads();}
+    reduceByN<float3>(tbr, nPerRingPoly, warpSize);
     if (useThread && amRoot)     {vsNM[threadIdx.x+halfP] = tbr[threadIdx.x]*invSqrtP;}
 
 	// k = 1,...,P/2-1; n = 1,...,P
     for (int k = 1; k < halfP; k++) {
         float cosval = cosf(twoPiInvP * k * n);	// cosf(2*pi*k*n/P)
         tbr[threadIdx.x] = vn*sqrt2*cosval;
-        reduceByN<float3>(tbr, nPerRingPoly, warpSize);
         if (needSync)   { __syncthreads();}
+        reduceByN<float3>(tbr, nPerRingPoly, warpSize);
         if (useThread && amRoot)     {vsNM[threadIdx.x+k] = tbr[threadIdx.x]*invSqrtP;}
     }
 
@@ -375,8 +375,8 @@ __global__ void preForcePIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, floa
     for (int k = halfP+1; k < nPerRingPoly; k++) {
 	    float  sinval = sinf(twoPiInvP * k * n);	// sinf(2*pi*k*n/P)
         tbr[threadIdx.x] = vn*sqrt2*sinval;
-        reduceByN<float3>(tbr, nPerRingPoly, warpSize);
         if (needSync)   { __syncthreads();}
+        reduceByN<float3>(tbr, nPerRingPoly, warpSize);
         if (useThread && amRoot)     {vsNM[threadIdx.x+k] = tbr[threadIdx.x]*invSqrtP;}
     }
 
