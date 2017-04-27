@@ -12,7 +12,7 @@ void __global__ compute_cu(float4 *xs, float4 *vs, float4 *fs, int nAtoms) {
 }
 //THIS NEEDS TO GO LAST
 
-void Fix2d::compute(bool computeVirials) {
+void Fix2d::compute(int virialMode) {
     //going to zero z in xs, vs, fs
     int nAtoms = state->atoms.size();
     GPUData &gpd = state->gpd;

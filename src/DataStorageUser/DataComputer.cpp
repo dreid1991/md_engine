@@ -7,6 +7,8 @@ DataComputer::DataComputer(State *state_, std::string computeMode_, bool require
     computeMode = computeMode_;
     requiresVirials = requiresVirials_;
     lastGroupTag = 0;
+
+    requiresPerAtomVirials = false; //though may be set to true by a derived class
 };
 
 

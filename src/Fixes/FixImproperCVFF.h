@@ -13,7 +13,7 @@ class FixImproperCVFF: public FixPotentialMultiAtom<ImproperVariant, ImproperCVF
 
         FixImproperCVFF(SHARED(State) state_, std::string handle);
 
-        void compute(bool);
+        void compute(int);
         void singlePointEng(float *);
         bool readFromRestart();
 

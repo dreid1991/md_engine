@@ -20,7 +20,7 @@ public:
 
     FixDihedralCHARMM(boost::shared_ptr<State> state_, std::string handle);
 
-    void compute(bool);
+    void compute(int);
     void singlePointEng(float *);
 
     void createDihedral(Atom *, Atom *, Atom *, Atom *, double, int, double, int);

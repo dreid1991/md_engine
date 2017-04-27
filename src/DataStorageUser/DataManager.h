@@ -7,6 +7,7 @@
 #include <vector>
 #include <string>
 #include <set>
+#include <utility>
 class State;
 void export_DataManager();
 namespace MD_ENGINE {
@@ -33,10 +34,10 @@ class DataManager {
 
         std::vector<boost::shared_ptr<DataSetUser> > dataSets;  //to be continually maintained
 
-
-        void addVirialTurn(int64_t);
+        int getVirialModeForTurn(int64_t t);
+        void addVirialTurn(int64_t, bool);
         void clearVirialTurn(int64_t);
-        std::set<int64_t> virialTurns;//!<Turns on which virial coefs will be calculated
+        std::set<std::pair<int64_t, bool> > virialTurns;//!<Turns on which virial coefs will be calculated
         int64_t turnVirialsComputed;//!<Turn virial coefs last computed
 //!flag for if fixes compute virials in the forst kernels or not.  Is true if any data or fixes need them
 

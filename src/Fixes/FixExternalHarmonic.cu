@@ -18,11 +18,11 @@ FixExternalHarmonic::FixExternalHarmonic(SHARED(State) state_, std::string handl
     k(k_.asFloat3()), r0(r0_.asFloat3()) { };
 
 // compute function
-void FixExternalHarmonic::compute(bool computeVirials) {
+void FixExternalHarmonic::compute(int virialMode) {
 	GPUData &gpd  = state->gpd;
 	int activeIdx = gpd.activeIdx();
 	int n         = state->atoms.size();
-	if (computeVirials) {
+	if (virialMode==2 or virialMode == 1) {
 		compute_force_external<EvaluatorExternalHarmonic, true> <<<NBLOCK(n), PERBLOCK>>>(n,  gpd.xs(activeIdx),
                     gpd.fs(activeIdx), groupTag, evaluator);
 	} else {

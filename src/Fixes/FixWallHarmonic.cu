@@ -24,11 +24,11 @@ FixWallHarmonic::FixWallHarmonic(SHARED(State) state_, std::string handle_, std:
 
 // this refers to the template in the /Evaluators/ folder - 
 // will need a template, and an implementation for Harmonic walls as well
-void FixWallHarmonic::compute(bool computeVirials) {
+void FixWallHarmonic::compute(int virialMode) {
 	GPUData &gpd = state->gpd;
 	int activeIdx = gpd.activeIdx();
 	int n = state->atoms.size();
-	if (computeVirials) {
+	if (virialMode) {
 		// I think we just need the evaluator and whether or not to compute the virials - correct? we'll see..
 		// ^ referring to what to pass in as template specifiers
 		compute_wall_iso<EvaluatorWallHarmonic, true> <<<NBLOCK(n), PERBLOCK>>>(n,  gpd.xs(activeIdx),

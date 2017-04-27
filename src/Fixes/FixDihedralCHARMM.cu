@@ -14,14 +14,14 @@ FixDihedralCHARMM::FixDihedralCHARMM(SHARED(State) state_, string handle) : FixP
 }
 
 
-void FixDihedralCHARMM::compute(bool computeVirials) {
+void FixDihedralCHARMM::compute(int virialMode) {
     int nAtoms = state->atoms.size();
     int activeIdx = state->gpd.activeIdx();
 
 
     GPUData &gpd = state->gpd;
     if (forcersGPU.size()) {
-        if (computeVirials) {
+        if (virialMode) {
             compute_force_dihedral<DihedralCHARMMType, DihedralEvaluatorCHARMM, true><<<NBLOCK(forcersGPU.size()), PERBLOCK, sharedMemSizeForParams>>>(forcersGPU.size(), gpd.xs(activeIdx), gpd.fs(activeIdx), gpd.idToIdxs.d_data.data(), forcersGPU.data(), state->boundsGPU, parameters.data(), parameters.size(), gpd.virials.d_data.data(), usingSharedMemForParams, evaluator);
         } else {
             compute_force_dihedral<DihedralCHARMMType, DihedralEvaluatorCHARMM, false><<<NBLOCK(forcersGPU.size()), PERBLOCK, sharedMemSizeForParams>>>(forcersGPU.size(), gpd.xs(activeIdx), gpd.fs(activeIdx), gpd.idToIdxs.d_data.data(), forcersGPU.data(), state->boundsGPU, parameters.data(), parameters.size(), gpd.virials.d_data.data(), usingSharedMemForParams, evaluator);

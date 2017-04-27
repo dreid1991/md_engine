@@ -4,6 +4,7 @@
 #include "Bond.h"
 #include "Angle.h"
 #include "Vector.h"
+#include "helpers.h"
 using namespace std;
 
 
@@ -71,7 +72,21 @@ __global__ void Mod::skewAtomsFromZero(float4 *xs, int nAtoms, float3 xFinal, fl
     }
 }
 
-__global__ void Mod::scaleSystem_cu(float4 *xs, int nAtoms, float3 lo, float3 rectLen, float scaleBy) {
+__global__ void FDotR_cu(int nAtoms, float4 *xs, float4 *fs, Virial *virials) {
+    int idx = GETIDX();
+    if (idx < nAtoms) {
+        float3 x = make_float3(xs[idx]);
+        //f only has pair-wise forces right now
+        float3 f = make_float3(fs[idx]);
+        //virial is zero at this point.  Only time f dot r in valid
+        Virial v(0, 0, 0, 0, 0, 0);
+        computeVirial(v, f, x);
+        virials[idx] = v;
+
+    }
+}
+
+__global__ void Mod::scaleSystem_cu(float4 *xs, int nAtoms, float3 lo, float3 rectLen, float3 scaleBy) {
     int idx = GETIDX();
     if (idx < nAtoms) {
         float4 posWhole = xs[idx];
@@ -86,9 +101,44 @@ __global__ void Mod::scaleSystem_cu(float4 *xs, int nAtoms, float3 lo, float3 re
 
     }
 }
-void Mod::scaleSystem(State *state, double scaleBy) {
-    scaleSystem_cu<<<NBLOCK(state->atoms.size()), PERBLOCK>>>(state->gpd.xs.getDevData(), state->atoms.size(), state->boundsGPU.lo, state->boundsGPU.rectComponents, scaleBy);
+__global__ void Mod::scaleSystemGroup_cu(float4 *xs, int nAtoms, float3 lo, float3 rectLen, float3 scaleBy, uint32_t groupTag, float4 *fs) {
+    int idx = GETIDX();
+    if (idx < nAtoms) {
+        uint32_t tag = * (uint32_t *) &(fs[idx].w);
+        if (tag & groupTag) {
+            
+            float4 posWhole = xs[idx];
+            float3 pos = make_float3(posWhole);
+            float3 center = lo + rectLen * 0.5f;
+            float3 newRel = (pos - center) * scaleBy;
+            pos = center + newRel;
+            posWhole.x = pos.x;
+            posWhole.y = pos.y;
+            posWhole.z = pos.z;
+            xs[idx] = posWhole;
+        }
+
+
+    }
+}
+void Mod::scaleSystem(State *state, float3 scaleBy, uint32_t groupTag) {
+    auto &gpd = state->gpd;
     state->boundsGPU.scale(scaleBy);
+    if (groupTag==1) {
+        scaleSystem_cu<<<NBLOCK(state->atoms.size()), PERBLOCK>>>(gpd.xs.getDevData(), state->atoms.size(), state->boundsGPU.lo, state->boundsGPU.rectComponents, scaleBy);
+    } else if (groupTag) {
+        scaleSystemGroup_cu<<<NBLOCK(state->atoms.size()), PERBLOCK>>>(gpd.xs.getDevData(), state->atoms.size(), state->boundsGPU.lo, state->boundsGPU.rectComponents, scaleBy, groupTag, gpd.fs.getDevData());
+    }
+}
+
+
+void Mod::FDotR(State *state) {
+    //printf("here!\n");
+    auto &gpd = state->gpd;
+    int nAtoms = state->atoms.size();
+    FDotR_cu<<<NBLOCK(nAtoms), PERBLOCK>>>(nAtoms, gpd.xs.getDevData(), gpd.fs.getDevData(), gpd.virials.getDevData());
+
+
 }
 // CPU versions
 /*

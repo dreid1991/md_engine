@@ -38,7 +38,7 @@ public:
     boost::python::object tetherFunc;
     Vector multiplier;
 
-    void compute(bool);
+    void compute(int);
     void updateTethers();
     bool dataToDevice();
     bool prepareForRun();

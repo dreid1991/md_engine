@@ -30,7 +30,7 @@ private:
 
     MD_ENGINE::DataComputerTemperature tempComputer;
     bool prepareForRun();
-    void compute(bool);
+    void compute(int);
     bool postRun();
 
 public:

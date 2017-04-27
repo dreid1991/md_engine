@@ -141,7 +141,6 @@ void Integrator::basicPrepare(int numTurns) {
     int nAtoms = state->atoms.size();
     state->runningFor = numTurns;
     state->runInit = state->turn;
-    //state->updateIdxFromIdCache();
     state->prepareForRun();
     state->atomParams.guessAtomicNumbers();
     setActiveData();
@@ -161,7 +160,7 @@ void Integrator::basicPrepare(int numTurns) {
     for (boost::shared_ptr<MD_ENGINE::DataSetUser> ds : state->dataManager.dataSets) {
         ds->prepareForRun(); //will also prepare those data sets' computers
         if (ds->requiresVirials()) {
-            state->dataManager.addVirialTurn(ds->nextCompute);
+            state->dataManager.addVirialTurn(ds->nextCompute, ds->requiresPerAtomVirials());
         }
     }
 }

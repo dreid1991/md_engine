@@ -7,6 +7,9 @@
 #include "DataComputerBounds.h"
 #include "DataSetUser.h"
 using namespace MD_ENGINE;
+using std::set;
+using std::pair;
+
 namespace py = boost::python;
 DataManager::DataManager(State * state_) : state(state_) {
     //turnLastEngs = state->turn-1;
@@ -88,11 +91,31 @@ boost::shared_ptr<DataSetUser> DataManager::recordBounds(int interval, py::objec
 
 
 }
-void DataManager::addVirialTurn(int64_t t) {
-    virialTurns.insert(t);
+void DataManager::addVirialTurn(int64_t t, bool perAtomVirials) {
+    if (perAtomVirials) {
+        clearVirialTurn(t); //to make sure there aren't two entries and that ones with perAtomVirials==true take priority
+    }
+    virialTurns.insert(std::make_pair(t, perAtomVirials));
 }
-void DataManager::clearVirialTurn(int64_t turn) {
-    auto it = virialTurns.find(turn);
+
+int DataManager::getVirialModeForTurn(int64_t t) {
+    auto it = virialTurns.find(std::make_pair(t, false));
+    if (it != virialTurns.end()) {
+        return 1;
+    }
+    it = virialTurns.find(std::make_pair(t, true));
+    if (it != virialTurns.end()) {
+        return 2;
+    }
+    return 0;
+}
+
+void DataManager::clearVirialTurn(int64_t t) {
+    auto it = virialTurns.find(std::make_pair(t, false));
+    if (it != virialTurns.end()) {
+        virialTurns.erase(it);
+    }
+    it = virialTurns.find(std::make_pair(t, true));
     if (it != virialTurns.end()) {
         virialTurns.erase(it);
     }

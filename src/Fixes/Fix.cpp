@@ -8,6 +8,7 @@
 #include "ReadConfig.h"
 #include "State.h"
 
+//requiresVirials is deprecated.  Should be removed.  Any virial stuff is handled via data computers.
 Fix::Fix(boost::shared_ptr<State> state_, std::string handle_, std::string groupHandle_,
          std::string type_, bool forceSingle_, bool requiresVirials_, bool requiresCharges_, int applyEvery_,
          int orderPreference_)
@@ -18,6 +19,8 @@ Fix::Fix(boost::shared_ptr<State> state_, std::string handle_, std::string group
 {
     updateGroupTag();
     requiresPostNVE_V = false;
+
+    requiresPerAtomVirials = false;
 
     canOffloadChargePairCalc = false;
     canAcceptChargePairCalc = false;
@@ -46,12 +49,12 @@ bool Fix::willFire(int64_t t) {
 void Fix::setVirialTurnPrepare() {
     if (requiresVirials) {
         double multiple = ceil(state->turn / applyEvery);
-        state->dataManager.addVirialTurn(multiple * applyEvery);
+        state->dataManager.addVirialTurn(multiple * applyEvery, requiresPerAtomVirials);
     }
 }
 void Fix::setVirialTurn() {
     if (requiresVirials) {
-        state->dataManager.addVirialTurn(state->turn + applyEvery);
+        state->dataManager.addVirialTurn(state->turn + applyEvery, requiresPerAtomVirials);
     }
 }
 
@@ -74,7 +77,7 @@ pugi::xml_node Fix::getRestartNode() {
 }
 void Fix::updateGroupTag() {
     std::map<std::string, unsigned int> &groupTags = state->groupTags;
-    if (groupHandle == "None") {
+    if (groupHandle == "None" or groupHandle == "none") {
         groupTag = 0;
     } else {
         assert(groupTags.find(groupHandle) != groupTags.end());

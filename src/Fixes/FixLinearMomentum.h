@@ -14,7 +14,7 @@ private:
     Vector dimensions;
 
     bool prepareForRun();
-    void compute(bool);
+    void compute(int);
 
 public:
     FixLinearMomentum(boost::shared_ptr<State>, std::string handle_, std::string groupHandle_,

@@ -77,7 +77,7 @@ public:
     }
 
     //! Compute forces
-    void compute(bool);
+    void compute(int);
     int setLongRangeInterval(int interval);
 
     //! Compute single point energy

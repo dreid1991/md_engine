@@ -1,6 +1,4 @@
 #pragma once
-#ifndef INCLUDEFIXES_H
-#define INCLUDEFIXES_H
 
 #include "FixBondHarmonic.h"
 #include "FixBondFENE.h"
@@ -32,5 +30,5 @@
 #include "FixExternalHarmonic.h"
 #include "FixExternalQuartic.h"
 #include "FixRingPolyPot.h"
+#include "FixDeform.h"
 
-#endif

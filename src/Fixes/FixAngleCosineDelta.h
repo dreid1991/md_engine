@@ -18,7 +18,7 @@ public:
 
     FixAngleCosineDelta(boost::shared_ptr<State> state_, std::string handle);
 
-    void compute(bool);
+    void compute(int);
     void singlePointEng(float *);
 
     void createAngle(Atom *, Atom *, Atom *, double, double, int type_);

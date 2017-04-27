@@ -14,14 +14,14 @@ FixDihedralOPLS::FixDihedralOPLS(SHARED(State) state_, string handle) : FixPoten
 }
 
 
-void FixDihedralOPLS::compute(bool computeVirials) {
+void FixDihedralOPLS::compute(int virialMode) {
     int nAtoms = state->atoms.size();
     int activeIdx = state->gpd.activeIdx();
 
 
     GPUData &gpd = state->gpd;
     if (forcersGPU.size()) {
-        if (computeVirials) {
+        if (virialMode) {
             compute_force_dihedral<DihedralOPLSType, DihedralEvaluatorOPLS, true><<<NBLOCK(forcersGPU.size()), PERBLOCK, sharedMemSizeForParams >>>(forcersGPU.size(), gpd.xs(activeIdx), gpd.fs(activeIdx), gpd.idToIdxs.d_data.data(), forcersGPU.data(), state->boundsGPU, parameters.data(), parameters.size(), gpd.virials.d_data.data(), usingSharedMemForParams, evaluator);
         } else {
             compute_force_dihedral<DihedralOPLSType, DihedralEvaluatorOPLS, false><<<NBLOCK(forcersGPU.size()), PERBLOCK, sharedMemSizeForParams >>>(forcersGPU.size(), gpd.xs(activeIdx), gpd.fs(activeIdx), gpd.idToIdxs.d_data.data(), forcersGPU.data(), state->boundsGPU, parameters.data(), parameters.size(), gpd.virials.d_data.data(), usingSharedMemForParams, evaluator);

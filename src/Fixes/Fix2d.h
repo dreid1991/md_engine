@@ -24,7 +24,7 @@ public:
             999)         // orderPreference
     {   }
 
-    void compute(bool);
+    void compute(int);
 
 };
 
