@@ -132,6 +132,10 @@ public:
     int exclusionMode; //!< Mode for handling bond list exclusions.  See comments for exclusions in GridGPU
     void setExclusionMode(std::string);
 
+    // Variables that enable extension to PIMD
+    int nPerRingPoly;			// RP discretization/number of time slices
+					// possibly later allow this to be vector per atom 
+
 
 
     //! Set the coefficients for bonded neighbor interactions
@@ -508,6 +512,16 @@ public:
     void handleChargeOffloading();
 
     Units units;
+
+    bool preparePIMD(double temp);
+    //! Extends current simulation state to a path-integral representation
+    /*!
+     * \return True always
+     *
+     * This function makes nPerRingPoly copies of the exiting atoms in the simulation
+     * and their interactions for use in path-integral molecular dynamics simultions
+     * currently, the same number of replicas are applied to all particles in the system.
+     */
 
 private:
     std::mt19937 randomNumberGenerator; //!< Random number generator

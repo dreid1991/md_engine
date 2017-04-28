@@ -24,13 +24,14 @@ FixLJCutFS::FixLJCutFS(SHARED(State) state_, std::string handle_)
 }
 void FixLJCutFS::compute(int virialMode) {
     int nAtoms = state->atoms.size();
+    int nPerRingPoly = state->nPerRingPoly;
     int numTypes = state->atomParams.numTypes;
     GPUData &gpd = state->gpd;
     GridGPU &grid = state->gridGPU;
     int activeIdx = gpd.activeIdx();
     uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
     float *neighborCoefs = state->specialNeighborCoefs;
-    evalWrap->compute(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx),
+    evalWrap->compute(nAtoms,nPerRingPoly, gpd.xs(activeIdx), gpd.fs(activeIdx),
                       neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(),
                       state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU,
                       neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.virials.d_data.data(), gpd.qs(activeIdx), chargeRCut, virialMode);
@@ -41,6 +42,7 @@ void FixLJCutFS::compute(int virialMode) {
 
 void FixLJCutFS::singlePointEng(float *perParticleEng) {
     int nAtoms = state->atoms.size();
+    int nPerRingPoly = state->nPerRingPoly;
     int numTypes = state->atomParams.numTypes;
     GPUData &gpd = state->gpd;
     GridGPU &grid = state->gridGPU;
@@ -48,7 +50,7 @@ void FixLJCutFS::singlePointEng(float *perParticleEng) {
     uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
     float *neighborCoefs = state->specialNeighborCoefs;
 
-    evalWrap->energy(nAtoms, gpd.xs(activeIdx), perParticleEng, neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.qs(activeIdx), chargeRCut);
+    evalWrap->energy(nAtoms,nPerRingPoly, gpd.xs(activeIdx), perParticleEng, neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.qs(activeIdx), chargeRCut);
 
 
 

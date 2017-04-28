@@ -37,6 +37,7 @@ FixLJCHARMM::FixLJCHARMM(boost::shared_ptr<State> state_, string handle_)
     // but we need to tell the evaluator if it's a 1-4 neighbor.  We do this by making a dummy neighborCoefs array, where all the values are 1 except the 1-4 value, which is zero.
 void FixLJCHARMM::compute(int virialMode) {
     int nAtoms = state->atoms.size();
+    int nPerRingPoly = state->nPerRingPoly;
     int numTypes = state->atomParams.numTypes;
     GPUData &gpd = state->gpd;
     GridGPU &grid = state->gridGPU;
@@ -44,7 +45,7 @@ void FixLJCHARMM::compute(int virialMode) {
     uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
     auto neighborCoefs = state->specialNeighborCoefs;
 
-    evalWrap->compute(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx),
+    evalWrap->compute(nAtoms,nPerRingPoly, gpd.xs(activeIdx), gpd.fs(activeIdx),
                       neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(),
                       state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU,
                       neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.virials.d_data.data(), gpd.qs(activeIdx), chargeRCut, virialMode);
@@ -53,13 +54,16 @@ void FixLJCHARMM::compute(int virialMode) {
 
 void FixLJCHARMM::singlePointEng(float *perParticleEng) {
     int nAtoms = state->atoms.size();
+    int nPerRingPoly = state->nPerRingPoly;
     int numTypes = state->atomParams.numTypes;
     GPUData &gpd = state->gpd;
     GridGPU &grid = state->gridGPU;
     int activeIdx = gpd.activeIdx();
     auto neighborCoefs = state->specialNeighborCoefs;
     uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
-    evalWrap->energy(nAtoms, gpd.xs(activeIdx), perParticleEng, neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.qs(activeIdx), chargeRCut);
+    //float neighborCoefs[4] = {1, 1, 1, 0}; //see comment above
+    //evalWrap->energy(nAtoms,nPerRingPoly, gpd.xs(activeIdx), perParticleEng, neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.qs(activeIdx), chargeRCut);
+    evalWrap->energy(nAtoms,nPerRingPoly, gpd.xs(activeIdx), perParticleEng, neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.qs(activeIdx), chargeRCut);
 
 
 

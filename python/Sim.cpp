@@ -73,6 +73,10 @@ BOOST_PYTHON_MODULE(Sim) {
     export_FixRigid();
     export_FixDeform();
 
+    export_FixExternal();
+    export_FixExternalHarmonic();
+    export_FixExternalQuartic();
+
     export_FixPair();
     export_FixLJCut(); //make there be a pair base class in boost!
     export_FixLJCutFS();
@@ -85,9 +89,12 @@ BOOST_PYTHON_MODULE(Sim) {
 
     export_FixNoseHoover();
     export_FixNVTRescale();
+    export_FixNVTAndersen();
     export_FixLangevin();
 
     export_FixPressureBerendsen();
+
+    export_FixRingPolyPot();
 
     export_AtomParams();
     export_DataManager();

@@ -83,6 +83,24 @@ class FixPotentialMultiAtom : public Fix, public TypedItemHolder {
             forcerTypes[n] = holder;
         }
 
+    void updateForPIMD(int nPerRingPoly) {
+        std::vector<CPUVariant> RPforcers(forcers.size()*nPerRingPoly);
+        for (int i=0; i<forcers.size(); i++) {
+            CPUVariant v      = forcers[i];
+            CPUMember  asType = boost::get<CPUMember>(v);
+            for (int j=0; j<nPerRingPoly; j++) {
+                CPUMember RPcopy = asType;                          // create copy of the forcer member
+                for (int k=0; k<N ; k++) {
+                    RPcopy.ids[k] = asType.ids[k]*nPerRingPoly + j; // new id for RPatom
+                }
+                RPforcers[i*nPerRingPoly+j] = RPcopy;   // place new member for RP interactions
+                if (j > 0 ) {pyListInterface.updateAppendedMember(false);}
+            }
+        }
+        forcers = RPforcers;    // update the forcers
+        pyListInterface.requestRefreshPyList(true);
+    }
+
 	std::string restartChunk(std::string format) {
 	  std::stringstream ss;
 	  ss << "<types>\n";

@@ -73,9 +73,11 @@ void DataComputerTemperature::computeScalar_CPU() {
         n = * (int *) asfloat;
     }
     if (state->is2d) {
-        ndf = 2*(n-1); //-1 is analagous to extra_dof in lammps
+        //ndf = 2*(n-1); //-1 is analagous to extra_dof in lammps
+        ndf = 2*n; // changed from a above to permit 1 particle thermostatting
     } else {
-        ndf = 3*(n-1);
+        //ndf = 3*(n-1);
+        ndf = 3*n; // changed from a above to permit 1 particle thermostatting
     }
     totalKEScalar = total * state->units.mvv_to_eng; 
     tempScalar = state->units.mvv_to_eng * total / (state->units.boltz * ndf); 

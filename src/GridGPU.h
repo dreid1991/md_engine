@@ -68,6 +68,7 @@ public:
     GPUArrayDeviceGlobal<uint16_t> perBlockArray_maxNeighborsInBlock; //!< array for holding max # neighs of atoms in a GPU block
     GPUArrayGlobal<uint16_t> perAtomArray;      //!< For each atom, store the place in the grid
     GPUArrayDeviceGlobal<float4> xsLastBuild;   //!< Contains the atom positions at
+    GPUArrayDeviceGlobal<float4> rpCentroids;
                                                 //!< the time of the last build.
     GPUArrayGlobal<int> buildFlag;  //!< If buildFlag[0] == true, neighbor list
                                     //!< will be rebuilt

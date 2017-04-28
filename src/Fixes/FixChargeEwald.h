@@ -62,6 +62,7 @@ private:
 
 
 public:
+    GPUArrayDeviceGlobal<float4> rpCentroids;
     int longRangeInterval;
     int64_t turnInit;
     void handleBoundsChange();
