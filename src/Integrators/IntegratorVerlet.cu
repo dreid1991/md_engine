@@ -55,6 +55,8 @@ __global__ void nve_xPIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, float4 
     bool useThread = idx < nAtoms;
     float3 xn = make_float3(0, 0, 0);
     float3 vn = make_float3(0, 0, 0);
+    float xW;
+    float vW;
 
     // helpful reference indices/identifiers
     bool   needSync= nPerRingPoly>warpSize;
@@ -88,8 +90,12 @@ __global__ void nve_xPIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, float4 
 
     // %%%%%%%%%%% POSITIONS %%%%%%%%%%%
     if (useThread) {
-        xn = make_float3(xs[idx]);
-        vn = make_float3(vs[idx]);
+        float4 xWhole = xs[idx];
+        float4 vWhole = vs[idx];
+        xn = make_float3(xWhole);
+        vn = make_float3(vWhole);
+        xW = xWhole.w;
+        vW = vWhole.w;
     }
     // k = 0, n = 1,...,P
     tbr[threadIdx.x]  = xn;
@@ -182,6 +188,10 @@ __global__ void nve_xPIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, float4 
 	        xsNM[threadIdx.x] += vsNMk * sindt / omegaK;
 	        vsNM[threadIdx.x] -= xsNMk * sindt * omegaK;
         }
+    }
+    if (needSync) {__syncthreads();}
+
+    if (useThread) {
 
 	    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	    // 3. COORDINATE BACK TRANSFORMATION
@@ -216,8 +226,8 @@ __global__ void nve_xPIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, float4 
 	    // replace evolved back-transformation
         xn *= invSqrtP;
         vn *= invSqrtP;
-	    xs[idx]   = make_float4(xn.x,xn.y,xn.z,xs[idx].w);
-	    vs[idx]   = make_float4(vn.x,vn.y,vn.z,vs[idx].w);
+	    xs[idx]   = make_float4(xn.x,xn.y,xn.z,xW);
+	    vs[idx]   = make_float4(vn.x,vn.y,vn.z,vW);
     }
 
 }
@@ -265,6 +275,8 @@ __global__ void preForcePIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, floa
     bool useThread = idx < nAtoms;
     float3 xn = make_float3(0, 0, 0);
     float3 vn = make_float3(0, 0, 0);
+    float xW;
+    float vW;
     // helpful reference indices/identifiers
     bool   needSync= nPerRingPoly>warpSize;
     bool   amRoot  = (threadIdx.x % nPerRingPoly) == 0;
@@ -282,6 +294,7 @@ __global__ void preForcePIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, floa
         vs[idx]        = vel;
         fs[idx]        = make_float4(0.0f,0.0f,0.0f,force.w); // reset forces to zero before force calculation
     }
+    //NOT SYNCED
 
     // 1. Transform to normal mode positions and velocities
     // 	xNM_k = \sum_{n=1}^P x_n* Cnk
@@ -308,14 +321,20 @@ __global__ void preForcePIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, floa
 
     // %%%%%%%%%%% POSITIONS %%%%%%%%%%%
     if (useThread) {
-        xn = make_float3(xs[idx]);
-        vn = make_float3(vs[idx]);
+        float4 xWhole = xs[idx];
+        float4 vWhole = vs[idx];
+        xn = make_float3(xWhole);
+        vn = make_float3(vWhole);
+        xW = xWhole.w;
+        vW = vWhole.w;
     }
+    //STILL NOT SYNCED
     // k = 0, n = 1,...,P
     tbr[threadIdx.x]  = xn;
     if (needSync)    __syncthreads();
     reduceByN<float3>(tbr, nPerRingPoly, warpSize);
     if (useThread && amRoot)     {xsNM[threadIdx.x] = tbr[threadIdx.x]*invSqrtP;}
+    //SYNCED
 
     // k = P/2, n = 1,...,P
     if (threadIdx.x % 2 == 0) {
@@ -402,7 +421,10 @@ __global__ void preForcePIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, floa
 	        xsNM[threadIdx.x] += vsNMk * sindt / omegaK;
 	        vsNM[threadIdx.x] -= xsNMk * sindt * omegaK;
         }
+    }
+    if (needSync) {__syncthreads();}
 
+    if (useThread) {
 	    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	    // 3. COORDINATE BACK TRANSFORMATION
 	    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -412,9 +434,10 @@ __global__ void preForcePIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, floa
 	    // k = halfP
 	    // xn += xsNM[halfP]*(-1)**n
         if (threadIdx.x % 2) {
+//POTENTIAL PROBLEM
             xn += xsNM[rootIdx+halfP];
             vn += vsNM[rootIdx+halfP];
-        } else {
+        } else {//THIS TOO
             xn -= xsNM[rootIdx+halfP];
             vn -= vsNM[rootIdx+halfP];
         }
@@ -436,8 +459,8 @@ __global__ void preForcePIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, floa
 	    // replace evolved back-transformation
         xn *= invSqrtP;
         vn *= invSqrtP;
-	    xs[idx]   = make_float4(xn.x,xn.y,xn.z,xs[idx].w);
-	    vs[idx]   = make_float4(vn.x,vn.y,vn.z,vs[idx].w);
+	    xs[idx]   = make_float4(xn.x,xn.y,xn.z,xW);
+	    vs[idx]   = make_float4(vn.x,vn.y,vn.z,vW);
     }
 }
     //if (useThread && amRoot ) {
@@ -572,7 +595,7 @@ void IntegratorVerlet::nve_x() {
 	    int   nPerRingPoly = state->nPerRingPoly;
         int   nRingPoly = state->atoms.size() / nPerRingPoly;
 	    float omegaP    = (float) state->units.boltz * temp / state->units.hbar  ;
-    	nve_xPIMD_cu<<<NBLOCK(state->atoms.size()), PERBLOCK, sizeof(float3) * 2 *PERBLOCK>>>(
+    	nve_xPIMD_cu<<<NBLOCK(state->atoms.size()), PERBLOCK, sizeof(float3) * 3 *PERBLOCK>>>(
 	        state->atoms.size(),
 	 	    nPerRingPoly,
 		    omegaP,
