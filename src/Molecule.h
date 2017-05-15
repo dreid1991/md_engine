@@ -15,6 +15,8 @@ private:
 public:
     std::vector<int> ids;
     Molecule(State *, std::vector<int> &ids_);
+    std::vector<int> getAtoms(int ids);
+
     void translate(Vector &);
     void rotate(Vector &around, Vector &axis, double theta);
     Vector COM();

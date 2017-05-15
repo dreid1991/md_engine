@@ -2,14 +2,13 @@
 #ifndef FIXE3B3_H
 #define FIXE3B3_H
 
-/* inherits from Fix.h, has a FixTIP4P member */
 #include "Fix.h"
 #include "GPUArrayGlobal.h"
 #include "PairEvaluatorE3B3.h"
 #include "ThreeBodyEvaluateIso.h"
 #include "ThreeBodyEvaluatorE3B3.h"
 #include "GridGPUE3B3.h"
-
+#include "Molecule.h"
 
 
 //! Make FixE3B3 available to the python interface
@@ -51,18 +50,22 @@ class FixE3B3: public Fix {
          * -- pointer to state
          * -- handle for the fix
          * -- group handle
-         * -- two-body cutoff 'rcut' - should be the same 
-         *    as LJ interactions on regular TIP4P!
-         * -- short cutoff for three body 'rs'
-         * -- far cutoff for three body 'rf'
+         *
+         *  In the constructor, we set the cutoffs required by this potential.
          */
         FixE3B3(boost::shared_ptr<State> state,
                   std::string handle,
-                  std::string groupHandle,
-                  float rcut, 
-                  float rs, 
-                  float rf);
+                  std::string groupHandle);
         
+        // far cutoff, rf = 5.2 Angstroms
+        double rf;
+
+        // short cutoff, rs = 5.0 Angstroms
+        double rs;
+
+        // cutoff of the neighborlist, rf + 2 Angstroms
+        double rc;
+
         //! Prepare Fix
         /*!
          * \returns Always returns True
@@ -86,19 +89,21 @@ class FixE3B3: public Fix {
         void handleBoundsChange();
         
         // we actually don't need the M-site for this..
-        void createRigid(int, int, int);
+        // -- takes atom IDs as O, H, H, M (see FixRigid.h, FixRigid.cu)
+        void addMolecule(int, int, int, int);
 
-        std::vector<BondVariant> *getBonds() {
-            return &bonds;
-        }
-        
         void setEvalWrapper();
         void setEvalWrapperOrig();
+ 
+        //!< List of all water molecules in simulation
+        std::vector<Molecule> waterMolecules;
+ 
+        // the local gridGPU for E3B3, where we make our molecule by molecule neighborlist
+        GridGPUE3B3 gridGPU;
 
         // the evaluator for E3B3
         ThreeBodyEvaluatorE3B3 evaluator;
 
-        GridGPU
 };
 
 

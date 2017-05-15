@@ -76,7 +76,9 @@ public:
     int3 ns;        //!< Number of grid points in each dimension
     GPUArrayDeviceGlobal<uint> neighborlist;    //!< List of atoms within cutoff radius of atom at GPU idx
     State *state;   //!< Pointer to the simulation state
+    GPUData *gpd;   //!< Pointer to the gpu data for this grid
     float neighCutoffMax;   //!< largest cutoff radius of any interacting pair + padding, default value for grid building
+
 
     /*! \brief Constructor
      *
@@ -90,7 +92,7 @@ public:
      * resolution will be the next larger value such that the box size is
      * a multiple of the resolution.
      */
-    GridGPU(State *state_, float dx, float dy, float dz, float neighCutoffMax, int exclusionMode_);
+    GridGPU(State *state_, float dx, float dy, float dz, float neighCutoffMax, int exclusionMode_, GPUData *gpd);
 
     /*! \brief Default constructor
      *

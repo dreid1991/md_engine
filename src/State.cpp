@@ -466,7 +466,9 @@ float State::getMaxRCut() {
 void State::initializeGrid() {
     double maxRCut = getMaxRCut();// ALSO PADDING PLS
     double gridDim = maxRCut + padding;
-    gridGPU = GridGPU(this, gridDim, gridDim, gridDim, gridDim, exclusionMode);
+
+    GPUData *gpuData = &gpd;
+    gridGPU = GridGPU(this, gridDim, gridDim, gridDim, gridDim, exclusionMode, gpuData);
 
 }
 
