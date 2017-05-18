@@ -49,28 +49,6 @@ __global__ void compute_force_iso
     // This assumes that all ring polymers are the same size
     // this will change in later implementations where a variable number of beads may be used per RP
     int idx = GETIDX();
-    //=========================================================================
-    //if (idx == 0) {
-    //  //for (int tid = 255 ; tid< nAtoms; tid+= 256) {
-    //  printf("####cumulsum, b0 = %d, b1 = %d\n",cumulSumMaxPerBlock[0],cumulSumMaxPerBlock[1]);
-    //  for (int tid = 0 ; tid< nAtoms; tid+= 1) {
-    //    int the_rp     = tid / nPerRingPoly;
-    //    int the_bead   = idx % nPerRingPoly;
-    //    int the_baseId = baseNeighlistIdxFromRPIndex(cumulSumMaxPerBlock, warpSize, the_rp);
-    //    int nn         = neighborCounts[the_rp];
-    //    printf("%d with %d\n",tid,nn);
-    //    //for (int i = 0; i< nn; i++) {
-    //    //  int the_nnId = the_baseId + warpSize*i;
-    //    //  uint otherIdxRaw = neighborlist[the_nnId];
-    //    //  uint otherRPIdx = otherIdxRaw & EXCL_MASK;
-    //    //  uint otherIdx   = nPerRingPoly*otherRPIdx + the_bead;  // atom = P*ring_polymer + k, k = 0,...,P-1
-    //    //  printf("i,j = (%d, %d) -- baseId = %d\n", tid, otherIdx, the_baseId);
-    //    //}
-    //  }
-    //}
-    //__syncthreads();    
-    //=========================================================================
-    //then if this is a valid atom
     if (idx < nAtoms) {
         Virial virialsSum = Virial(0, 0, 0, 0, 0, 0);
 	// information based on ring polymer and bead
@@ -258,6 +236,127 @@ __global__ void compute_energy_iso
                 //printf("eng is %f\n", eng);
                 sumEng += eng;
 
+            }
+
+
+        }   
+        perParticleEng[idx] += sumEng;
+
+    }
+
+}
+
+
+//this is the group-group energy computation kernel for isotropic pair potentials.  
+
+template <class PAIR_EVAL, bool COMP_PAIRS, int N, class CHARGE_EVAL, bool COMP_CHARGES>
+__global__ void compute_energy_iso_group_group
+        (int nAtoms, 
+	 int nPerRingPoly,
+         float4 *xs, 
+         float4 *fs, 
+         float *perParticleEng, 
+         uint16_t *neighborCounts, 
+         uint *neighborlist, 
+         uint32_t *cumulSumMaxPerBlock, 
+         int warpSize, 
+         float *parameters, 
+         int numTypes, 
+         BoundsGPU bounds, 
+         float onetwoStr, 
+         float onethreeStr, 
+         float onefourStr, 
+         float *qs, 
+         float qCutoffSqr, 
+         uint32_t tagA,
+         uint32_t tagB,
+         PAIR_EVAL pairEval, 
+         CHARGE_EVAL chargeEval) 
+{
+    float multipliers[4] = {1, onetwoStr, onethreeStr, onefourStr};
+    extern __shared__ float paramsAll[];
+    int sqrSize = numTypes*numTypes;
+    float *params_shr[N];
+    if (COMP_PAIRS) {
+        for (int i=0; i<N; i++) {
+            params_shr[i] = paramsAll + i * sqrSize;
+        }
+        copyToShared<float>(parameters, paramsAll, N*sqrSize);
+        __syncthreads();    
+    }
+
+    // MW: NEED TO CHANGE ACCESS OF NEIGHBOR LIST BASED ON THREAD ID
+    // This assumes that all ring polymers are the same size
+    // this will change in later implementations where a variable number of beads may be used per RP
+    int idx = GETIDX();
+    if (idx < nAtoms) {
+	// information based on ring polymer and bead
+        int ringPolyIdx = idx / nPerRingPoly;	// which ring polymer
+        int beadIdx     = idx % nPerRingPoly;	// which time slice
+
+	//int baseIdx = baseNeighlistIdx(cumulSumMaxPerBlock, warpSize);
+        int baseIdx = baseNeighlistIdxFromRPIndex(cumulSumMaxPerBlock, warpSize,ringPolyIdx);
+        uint32_t groupTagSelf = __float_as_uint(fs[idx].w);
+        uint32_t groupTagCheck;
+        if (groupTagSelf & tagA) {
+            groupTagCheck = tagB;
+        } else if (groupTagSelf & tagB) {
+            groupTagCheck = tagA;
+        } else {
+            return;
+
+        }
+        float4 posWhole = xs[idx];
+        //int type = * (int *) &posWhole.w;
+        int type = __float_as_int(posWhole.w);
+       // printf("type is %d\n", type);
+        float qi;
+        if (COMP_CHARGES) {
+            qi = qs[idx];
+        }
+        float3 pos = make_float3(posWhole);
+
+        float sumEng = 0;
+
+        int numNeigh = neighborCounts[idx];
+        for (int i=0; i<numNeigh; i++) {
+            int nlistIdx = baseIdx + warpSize * i;
+            uint otherIdxRaw = neighborlist[nlistIdx];
+            uint neighDist = otherIdxRaw >> 30;
+            float multiplier = multipliers[neighDist];
+            // Extract corresponding index for pair interaction (at same time slice)
+            uint otherRPIdx = otherIdxRaw & EXCL_MASK;
+	    uint otherIdx   = nPerRingPoly*otherRPIdx + beadIdx;  // atom = P*ring_polymer + k, k = 0,...,P-1
+            //uint otherIdx = otherIdxRaw & EXCL_MASK;
+            uint32_t otherGroupTag = __float_as_uint(fs[otherIdx].w);
+            if (otherGroupTag & groupTagCheck) {
+
+                float4 otherPosWhole = xs[otherIdx];
+                int otherType = __float_as_int(otherPosWhole.w);
+                float3 otherPos = make_float3(otherPosWhole);
+                float3 dr = bounds.minImage(pos - otherPos);
+                float lenSqr = lengthSqr(dr);
+                int sqrIdx = squareVectorIndex(numTypes, type, otherType);
+                float rCutSqr;
+                float params_pair[N];
+                if (COMP_PAIRS) {
+                    for (int pIdx=0; pIdx<N; pIdx++) {
+                        params_pair[pIdx] = params_shr[pIdx][sqrIdx];
+                    }
+                    rCutSqr = params_pair[0];
+                }
+                if (COMP_PAIRS && lenSqr < rCutSqr) {
+                    sumEng += pairEval.energy(params_pair, lenSqr, multiplier);
+                }
+                if (COMP_CHARGES && lenSqr < qCutoffSqr) {
+                    float qj = qs[otherIdx];
+                    float eng = chargeEval.energy(lenSqr, qi, qj, multiplier);
+                    //printf("len is %f\n", sqrtf(lenSqr));
+                    //printf("qi qj %f %f\n", qi, qj);
+                    //printf("eng is %f\n", eng);
+                    sumEng += eng;
+
+                }
             }
 
 

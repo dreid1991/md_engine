@@ -237,7 +237,7 @@ __global__ void sortPerAtomArrays(
     if (idx < nRingPoly) {
         float4 posWhole  = centroids[idx]; 
         float3 pos       = make_float3(posWhole);
-        uint   id        = idsFrom[idx * nPerRingPoly];
+        //uint   id        = idsFrom[idx * nPerRingPoly];
         int3   sqrIdx    = make_int3((pos - os) / ds);
         int    sqrLinIdx = LINEARIDX(sqrIdx, ns);
         int    sortedIdx = gridCellArrayIdxs[sqrLinIdx] + idxInGridCell[idx];

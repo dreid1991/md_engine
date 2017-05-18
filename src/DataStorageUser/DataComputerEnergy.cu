@@ -5,7 +5,10 @@
 namespace py = boost::python;
 using namespace MD_ENGINE;
 
-DataComputerEnergy::DataComputerEnergy(State *state_, py::list fixes_, std::string computeMode_) : DataComputer(state_, computeMode_, false) {
+DataComputerEnergy::DataComputerEnergy(State *state_, py::list fixes_, std::string computeMode_, std::string groupHandleB_) : DataComputer(state_, computeMode_, false), groupHandleB(groupHandleB_) {
+
+    uint32t groupTagB = state->groupTagFromHandle(groupHandleB);
+    otherIsAll = groupHandleB == "all";
     if (py::len(fixes_)) {
         int len = py::len(fixes_);
         for (int i=0; i<len; i++) {
@@ -28,7 +31,11 @@ void DataComputerEnergy::computeScalar_GPU(bool transferToCPU, uint32_t groupTag
     for (boost::shared_ptr<Fix> fix : fixes) {
         fix->setEvalWrapperMode("self");
         fix->setEvalWrapper();
-        fix->singlePointEng(gpuBuffer.getDevData());
+        if (otherIsAll) {
+            fix->singlePointEng(gpuBuffer.getDevData());
+        } else {
+            fix->singleGroupEngGroupGroup(gpuBuffer.getDevData(), groupTag, groupTagB);
+        }
         fix->setEvalWrapperMode("offload");
         fix->setEvalWrapper();
     }
@@ -54,7 +61,11 @@ void DataComputerEnergy::computeVector_GPU(bool transferToCPU, uint32_t groupTag
     for (boost::shared_ptr<Fix> fix : fixes) {
         fix->setEvalWrapperMode("self");
         fix->setEvalWrapper();
-        fix->singlePointEng(gpuBuffer.getDevData());
+        if (otherIsAll) {
+            fix->singlePointEng(gpuBuffer.getDevData());
+        } else {
+            fix->singleGroupEngGroupGroup(gpuBuffer.getDevData(), groupTag, groupTagB);
+        }
         fix->setEvalWrapperMode("offload");
         fix->setEvalWrapper();
     }
