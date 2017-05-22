@@ -39,16 +39,16 @@ class EvaluatorE3B3 {
         // takes input dr, the displacement vector $r_{ij}$
         inline __device__ float3 force(float3 dr) {
             float r = length(dr); // length from cutils_math.h
-            float forceScalar = k2 * E2 * expf(-k2 * r) / r
-            return dr * forceScalar
+            float forceScalar = k2 * E2 * expf(-k2 * r) / r;
+            return dr * forceScalar;
         }
 
-        inline __device__ float3 energy(float3 dr) {
+        inline __device__ float energy(float3 dr) {
             float r = length(dr);
             // factor of 0.5 to account for double counting; otherwise, simple exponential expression
-            return 0.5 * E2 * expf(-k2 * r);
+            return (0.5f * E2 * expf(-k2 * r));
         }
         
-}
+};
 #endif /* EVALUATOR_E3B3 */
 

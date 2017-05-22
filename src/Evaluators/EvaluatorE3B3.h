@@ -1,10 +1,10 @@
 #pragma once
-#ifndef THREE_BODY_EVALUATOR_E3B3
-#define THREE_BODY_EVALUATOR_E3B3
+#ifndef EVALUATOR_E3B3
+#define EVALUATOR_E3B3
 
 #include "cutils_math.h"
 
-class ThreeBodyEvaluatorE3B3 {
+class EvaluatorE3B3 {
     public:
 
         /* Evaluator for E3B3 potential for water; see
@@ -31,27 +31,29 @@ class ThreeBodyEvaluatorE3B3 {
         // the k2 and k3 parameters as presented in E3B3 paper (referenced above)
         // k2 = 4.872 A^-1, k3 = 1.907 A^-1
         float k2;
-        float k3
-        // delete our default constructor
-        ~ThreeBodyEvaluatorE3B3();
+        float k3;
+        
+        // default constructor, just to make FixE3B3 happy
+        EvaluatorE3B3();
 
         // handling of units is addressed in the instantiation of the evaluator in FixE3B3.cu
         // --> so, by now, it is safe to assume that our prefactors & cutoffs are consistent
         //     w.r.t units as the rest of the system
-        ThreeBodyEvaluatorE3B3(float rs_, float rf_, float E2_, 
-                               float Ea_, float Eb_, float Ec_
-                               float k2_, float k3_) {
+        EvaluatorE3B3(float rs_, float rf_, float E2_, 
+                      float Ea_, float Eb_, float Ec_,
+                      float k2_, float k3_) {
             rs = rs_;
             rf = rf_;
             E2 = E2_;
             Ea = Ea_;
             Eb = Eb_;
             Ec = Ec_;
-            float rfminusrs = rf_ - rs;
-            rfminusrs_cubed_inv = 1.0 / (rfminusrs * rfminusrs * rfminusrs);
-            rstimes3 = 3.0 * rs_;
             k2 = k2_;
             k3 = k3_;
+
+            float rfminusrs = rf_ - rs_;
+            rfminusrs_cubed_inv = 1.0 / (rfminusrs * rfminusrs * rfminusrs);
+            rstimes3 = 3.0 * rs_;
         };
 
         // implements one evaluation of the switching function for smooth cutoff of the potential
@@ -71,7 +73,7 @@ class ThreeBodyEvaluatorE3B3 {
 
 
         // this is f(r) and so must be accounted for in taking the derivative of the potential
-        inline __device__ float3 dswitchdr(float dist) {
+        inline __device__ float dswitchdr(float dist) {
             // should be simple since its a function of the polynomial..
             // -- need to check if this should return 0.0 if outside the range rs < r < rf. be careful here
             if (dist < rs) {
@@ -103,9 +105,11 @@ class ThreeBodyEvaluatorE3B3 {
 
             // and later we will multiply this by the scalar multiplier associated with the contribution 
             // -- i.e., type A, type B, or type C
-            float forceScalar = dswitchdr(rij_scalar) * switching(rik_scalar) * exp_rij_scalar * exp_rik_scalar ;
-            forceScalar -= (k3 * switching(rij_scalar) * switching(rik_scalar) * exp_rij_scalar * exp_rik_scalar);
-            forceScalar *= (1.0 / rij_scalar);
+            //float forceScalar =  dswitchdr(rij_scalar) * switching(rik_scalar) * exp_rij_scalar * exp_rik_scalar ;
+            //forceScalar -= (k3 * switching(rij_scalar) * switching(rik_scalar) * exp_rij_scalar * exp_rik_scalar);
+            float forceScalar =  dswitchdr(rij_scalar) ; 
+            forceScalar -= (k3 * switching(rij_scalar)) ;
+            forceScalar *=  ((switching(rik_scalar) * exp_rij_scalar * exp_rik_scalar) * (1.0 / rij_scalar));
             return forceScalar * rji;
         }
         
@@ -143,7 +147,7 @@ class ThreeBodyEvaluatorE3B3 {
                                         float3 r_b1a3, float r_b1a3_scalar,
                                         float3 r_c1a3, float r_c1a3_scalar, 
                                         float3 r_b2a3, float r_b2a3_scalar, 
-                                        float3 r_c2a3, float r_c2a3_scalar);
+                                        float3 r_c2a3, float r_c2a3_scalar) {
 
 
             // so, first, we compute the force scalars associated with each of the 12 unique intermolecular OH distances
@@ -193,10 +197,11 @@ class ThreeBodyEvaluatorE3B3 {
              *   r_b2a1 = vector from a1 to b2
              *   --- a1 is the reference atom from this perspective
              *   --- since the oxygens are always the reference atom in the distance vectors, and most 
-             *       of our force computations are w.r.t. b1 and c1 because theres two of them,
+             *       of our force computations are w.r.t. b1 and c1 because there are two of them,
              *       multiply by -1.0 and subsume this term in the force computations
              *
-             *  fs_b2a1_scalar is the expf(-k3 * r_b2a1_scalar) that has already been calculated
+             *  fs_b2a1_scalar is the expf(-k3 * r_b2a1_scalar) that has already been calculated,
+             *   and so on for other b*a* terms
              */
 
             // now, compute the terms unique to a1, the oxygen atom on our reference molecule.
@@ -234,29 +239,29 @@ class ThreeBodyEvaluatorE3B3 {
             // -- see KS 2008: 
             // compute force from 
             float3 local_a1_force_sum_B = threeBodyInteraction(r_b3a1_scalar, r_b1a2_scalar, fs_b3a1_scalar, fs_b1a2_scalar, -1.0 * r_b3a1);
-            local_a1_force_sum_b += threeBodyInteraction(r_c3a1_scalar, r_b1a2_scalar, fs_c3a1_scalar, fs_b1a2_scalar, -1.0 * r_c3a1);
-            local_a1_force_sum_b += threeBodyInteraction(r_b3a1_scalar, r_c1a2_scalar, fs_b3a1_scalar, fs_c1a2_scalar, -1.0 * r_b3a1);
+            local_a1_force_sum_B += threeBodyInteraction(r_c3a1_scalar, r_b1a2_scalar, fs_c3a1_scalar, fs_b1a2_scalar, -1.0 * r_c3a1);
+            local_a1_force_sum_B += threeBodyInteraction(r_b3a1_scalar, r_c1a2_scalar, fs_b3a1_scalar, fs_c1a2_scalar, -1.0 * r_b3a1);
            
             // -- see KS 2008: second row of B terms
-            local_a1_force_sum_b += threeBodyInteraction(r_c3a1_scalar, r_c1a2_scalar, fs_c3a1_scalar, fs_c1a2_scalar, -1.0 * r_c3a1);
-            local_a1_force_sum_b += threeBodyInteraction(r_b2a1_scalar, r_b1a3_scalar, fs_b2a1_scalar, fs_b1a3_scalar, -1.0 * r_b2a1);
-            local_a1_force_sum_b += threeBodyInteraction(r_c2a1_scalar, r_b1a3_scalar, fs_c2a1_scalar, fs_b1a3_scalar, -1.0 * r_c2a1);
+            local_a1_force_sum_B += threeBodyInteraction(r_c3a1_scalar, r_c1a2_scalar, fs_c3a1_scalar, fs_c1a2_scalar, -1.0 * r_c3a1);
+            local_a1_force_sum_B += threeBodyInteraction(r_b2a1_scalar, r_b1a3_scalar, fs_b2a1_scalar, fs_b1a3_scalar, -1.0 * r_b2a1);
+            local_a1_force_sum_B += threeBodyInteraction(r_c2a1_scalar, r_b1a3_scalar, fs_c2a1_scalar, fs_b1a3_scalar, -1.0 * r_c2a1);
            
             // third row of B terms
-            local_a1_force_sum_b += threeBodyInteraction(r_b2a1_scalar, r_c1a3_scalar, fs_b2a1_scalar, fs_c1a3_scalar, -1.0 * r_b2a1);
-            local_a1_force_sum_b += threeBodyInteraction(r_c2a1_scalar, r_c1a3_scalar, fs_c2a1_scalar, fs_c1a3_scalar, -1.0 * r_c2a1);
-            local_a1_force_sum_b += threeBodyInteraction(r_b2a1_scalar, r_b3a2_scalar, fs_b2a1_scalar, fs_b3a2_scalar, -1.0 * r_b2a1);
+            local_a1_force_sum_B += threeBodyInteraction(r_b2a1_scalar, r_c1a3_scalar, fs_b2a1_scalar, fs_c1a3_scalar, -1.0 * r_b2a1);
+            local_a1_force_sum_B += threeBodyInteraction(r_c2a1_scalar, r_c1a3_scalar, fs_c2a1_scalar, fs_c1a3_scalar, -1.0 * r_c2a1);
+            local_a1_force_sum_B += threeBodyInteraction(r_b2a1_scalar, r_b3a2_scalar, fs_b2a1_scalar, fs_b3a2_scalar, -1.0 * r_b2a1);
            
             // fourth row of B terms
-            local_a1_force_sum_b += threeBodyInteraction(r_b2a1_scalar, r_c3a2_scalar, fs_b2a1_scalar, fs_c3a2_scalar, -1.0 * r_b2a1);
-            local_a1_force_sum_b += threeBodyInteraction(r_c2a1_scalar, r_b3a2_scalar, fs_c2a1_scalar, fs_b3a2_scalar, -1.0 * r_c2a1);
-            local_a1_force_sum_b += threeBodyInteraction(r_c2a1_scalar, r_c3a2_scalar, fs_c2a1_scalar, fs_c3a2_scalar, -1.0 * r_c2a1);
+            local_a1_force_sum_B += threeBodyInteraction(r_b2a1_scalar, r_c3a2_scalar, fs_b2a1_scalar, fs_c3a2_scalar, -1.0 * r_b2a1);
+            local_a1_force_sum_B += threeBodyInteraction(r_c2a1_scalar, r_b3a2_scalar, fs_c2a1_scalar, fs_b3a2_scalar, -1.0 * r_c2a1);
+            local_a1_force_sum_B += threeBodyInteraction(r_c2a1_scalar, r_c3a2_scalar, fs_c2a1_scalar, fs_c3a2_scalar, -1.0 * r_c2a1);
            
             // and the last four
-            local_a1_force_sum_b += threeBodyInteraction(r_b3a1_scalar, r_b2a3_scalar, fs_b3a1_scalar, fs_b2a3_scalar, -1.0 * r_b3a1);
-            local_a1_force_sum_b += threeBodyInteraction(r_b3a1_scalar, r_c2a3_scalar, fs_b3a1_scalar, fs_c2a3_scalar, -1.0 * r_b3a1);
-            local_a1_force_sum_b += threeBodyInteraction(r_c3a1_scalar, r_b2a3_scalar, fs_c3a1_scalar, fs_b2a3_scalar, -1.0 * r_c3a1);
-            local_a1_force_sum_b += threeBodyInteraction(r_c3a1_scalar, r_c2a3_scalar, fs_c3a1_scalar, fs_b2a3_Scalar, -1.0 * r_c3a1);
+            local_a1_force_sum_B += threeBodyInteraction(r_b3a1_scalar, r_b2a3_scalar, fs_b3a1_scalar, fs_b2a3_scalar, -1.0 * r_b3a1);
+            local_a1_force_sum_B += threeBodyInteraction(r_b3a1_scalar, r_c2a3_scalar, fs_b3a1_scalar, fs_c2a3_scalar, -1.0 * r_b3a1);
+            local_a1_force_sum_B += threeBodyInteraction(r_c3a1_scalar, r_b2a3_scalar, fs_c3a1_scalar, fs_b2a3_scalar, -1.0 * r_c3a1);
+            local_a1_force_sum_B += threeBodyInteraction(r_c3a1_scalar, r_c2a3_scalar, fs_c3a1_scalar, fs_b2a3_scalar, -1.0 * r_c3a1);
            
             // -- and, multiply those contributions at the end by the corresponding prefactor!
             //
@@ -400,10 +405,10 @@ class ThreeBodyEvaluatorE3B3 {
 
         } // end threeBodyForce(*bigArgsListHere)
                                         
-}
+};
 
 // need to get a per particle energy kernel as well... copy and paste!
 
 
 
-#endif /* THREE_BODY_EVALUATOR_E3B3 */
+#endif /* EVALUATOR_E3B3 */

@@ -71,17 +71,17 @@ GridGPU::GridGPU() {
 
 
 
-GridGPU::GridGPU(State *state_, float dx_, float dy_, float dz_, float neighCutoffMax_, int exclusionMode_, GPUData *gpd_)
-  : state(state_) {
+GridGPU::GridGPU(State *state_, float dx_, float dy_, float dz_, float neighCutoffMax_, int exclusionMode_, double padding_, GPUData *gpd_)
+  : state(state_), gpd(gpd_) {
     neighCutoffMax = neighCutoffMax_;
 
+    padding = padding_;
     streamCreated = false;
     ns = make_int3(0, 0, 0);
     minGridDim = make_float3(dx_, dy_, dz_);
     boundsLastBuild = BoundsGPU(make_float3(0, 0, 0), make_float3(0, 0, 0), make_float3(0, 0, 0));
     setBounds(state->boundsGPU);
   
-    gpd(gpd_);
     initArrays(gpd);
     initStream();
     numChecksSinceLastBuild = 0;
@@ -532,7 +532,7 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
         neighCut = neighCutoffMax;
     }
 
-    int nAtoms = state->atoms.size();
+    int nAtoms = gpd->xs.size();
     int activeIdx = gpd->activeIdx();
     if (boundsLastBuild != state->boundsGPU) {
         setBounds(state->boundsGPU);
@@ -545,7 +545,7 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
     // multigpu: needs to rebuild if any proc needs to rebuild
     setBuildFlag<<<NBLOCK(nAtoms), PERBLOCK, PERBLOCK * sizeof(short)>>>(
                 gpd->xs(activeIdx), xsLastBuild.data(), nAtoms, bounds,
-                state->padding*state->padding, buildFlag.d_data.data(), numChecksSinceLastBuild, warpSize);
+                padding * padding, buildFlag.d_data.data(), numChecksSinceLastBuild, warpSize);
     buildFlag.dataToHost();
     cudaDeviceSynchronize();
 

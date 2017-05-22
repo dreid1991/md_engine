@@ -1,30 +1,27 @@
 #include "FixE3B3.h"
-
-
 #include "BoundsGPU.h"
 #include "GridGPU.h"
 #include "State.h"
 #include "boost_for_export.h"
 #include "cutils_math.h"
-#include "ThreeBodyEvaluateIso.h"
+#include "list_macro.h"
 
-const string E3B3Type = "E3B3";
+const std::string E3B3Type = "E3B3";
 /* Constructor
  * Makes an instance of the E3B3 fix
  */
 
-FixE3B3::FixE3B3(boost::shared_ptr<State> state,
-                  std::string handle,
-                  std::string groupHandle): Fix(state_, handle_, groupHandle_, E3B3Type, true, true, false, 1) { 
+FixE3B3::FixE3B3(boost::shared_ptr<State> state_,
+                  std::string handle_,
+                  std::string groupHandle_): Fix(state_, handle_, groupHandle_, E3B3Type, true, true, false, 1) { 
     // set the cutoffs used in this potential
-    rf = 5.2; // far cutoff for threebody interactions
-    rs = 5.0; // short cutoff for threebody interactions
-    rc = 7.2; // cutoff for our local neighborlist
-    int largeNumber = 500; // we don't need any exclusions, which are denoted by enum EXCLUSIONMODE in State.h
-
-    // gridGPU for E3B3 now instantiated
-    gridGPU = GridGPUE3B3(state, rc, rc, rc, rc, largeNumber);
-
+    rf = 5.2; // far cutoff for threebody interactions (Angstroms)
+    rs = 5.0; // short cutoff for threebody interactions (Angstroms)
+    rc = 7.2; // cutoff for our local neighborlist (Angstroms)
+    padding = 2.0; // implied since rc - rf = 2.0; pass this to local GridGPU on instantiation
+    // to do: set up the local gridGPU for this set of GPUData; 
+    // ---- which means we need to set up the local GPUData;
+    // ------- can't do this until we have all the atoms in simulation; so do it in prepareForRun
 };
     
 
@@ -34,19 +31,12 @@ void FixE3B3::compute(bool computeVirials) {
     // -- send the correct neighbor list (specific to this potential) and the array of water molecules
     //    local to this gpu
 
-    // note that at this point, the evaluator should have been instantiated, and with the proper units for this 
-    // simulation.
     
-    /*
-    int nAtoms = state->atoms.size();
-    int numTypes = state->atomParams.numTypes;
-    GPUData &gpd = state->gpd;
-    GridGPU &grid = state->gridGPU;
-    */
-
-    int nMolecules = waterMolecules.size();
-    GPUData &gpd = state->gpd;
     // some GPU data for the molecules?
+    // --- TODO: change to myGpd; make sure that this is changed every (turn%periodicInterval == 0) in stepInit
+    GPUData &gpd = state->gpd;
+
+    // obviously, we also need the gpu data for the /atoms/
 
 
     // and we have our GridGPU already
@@ -69,9 +59,6 @@ void FixE3B3::compute(bool computeVirials) {
     
     // we will pass the following to our compute function:
     
-
-
-
 }
 
 void FixE3B3::stepInit(bool computeVirialsInForce){
@@ -86,7 +73,7 @@ void FixE3B3::stepInit(bool computeVirialsInForce){
         //   So, maybe have the grid take in a pointer to a class; default option is to have 
         //   this pointer be to our 'state' intance; 
         //    ---- this is for future development
-        E3B3Grid.periodicBoundaryConditions(waterMolecules);
+        grid.periodicBoundaryConditions();
 
 
     }
@@ -108,15 +95,76 @@ void FixE3B3::singlePointEng(float *perParticleEng) {
 /* prepareForRun
 
    */
-void FixE3B3::prepareForRun(){
+bool FixE3B3::prepareForRun(){
     /* TODO:
-     * -- evaluator
      * -- assorted GPU data stuff?!
      * -- GridGPUE3B3?? (for the first turn)
      * -- ????
      */ 
-    return;
+    float rs = 5.0;
+    float rf = 5.2;
 
+    /* TODO: put in the real values for these parameters */
+    // the values for our E3B3 parameters.  should we call state->units here?
+    // ---- probably for the Ea, Eb, Ec, E2 constants! But, distance is always in angstroms.
+    float E2 = 1.0000;
+    float Ea = 1.0000;
+    float Eb = 1.0000;
+    float Ec = 1.0000;
+    float k2 = 1.0000;
+    float k3 = 1.0000;
+    evaluator = EvaluatorE3B3(rs, rf, E2,
+                              Ea, Eb, Ec,
+                              k2, k3);
+    
+    // for molecule in molecules list (we can assume it is populated at this point)
+    
+
+    
+    float maxRCut = rf;
+    /*
+    int nAtoms = state->atoms.size();
+    int numTypes = state->atomParams.numTypes;
+    GPUData &gpd = state->gpd;
+    GridGPU &grid = state->gridGPU;
+    */
+
+    // see State.cpp: State::prepareForRun(); most of this code is taken from there;
+    // but with molecules now
+    int nMolecules = waterMolecules.size();
+    std::vector<float4> xs_vec;
+    std::vector<uint> ids;
+
+    xs_vec.reserve(nMolecules);
+    ids.reserve(nMolecules);
+
+    for (const auto &molecule: waterMolecules)  {
+        xs_vec.push_back(molecule.COM());
+        ids.push_back(molecule.id);
+    }
+
+    // note that gpd is the /local/ gpd
+    gpd.xs.set(xs_vec);
+    gpd.ids.set(ids);
+   
+
+    std::vector<int> id_vec = LISTMAPREF(Molecule, int, m, waterMolecules, a.id);
+    std::vector<int> idToIdxs_vec;
+    int size = *std::max_element(id_vec.begin(), id_vec.end()) + 1;
+    idToIdxs_vec.reserve(size);
+    for (int i=0; i<size; i++) {
+        idToIdxs_vec.push_back(-1);
+    }
+    for (int i=0; i<id_vec.size(); i++) {
+        idToIdxs_vec[id_vec[i]] = i;
+    }
+
+    gpd.idToIdxsOnCopy = idToIdxs_vec;
+    gpd.idToIdxs.set(idToIdxs_vec);
+    
+
+
+    return;
 }
 
 

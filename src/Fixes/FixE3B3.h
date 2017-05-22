@@ -4,12 +4,14 @@
 
 #include "Fix.h"
 #include "GPUArrayGlobal.h"
-#include "PairEvaluatorE3B3.h"
-#include "ThreeBodyEvaluateIso.h"
-#include "ThreeBodyEvaluatorE3B3.h"
-#include "GridGPUE3B3.h"
-#include "Molecule.h"
 
+/* TODO: move pair interactions in to EvaluatorE3B3. */
+#include "PairEvaluatorE3B3.h"
+//#include "ThreeBodyE3B3.h"
+#include "EvaluatorE3B3.h"
+#include "GridGPU.h"
+#include "Molecule.h"
+#include "GPUData.h"
 
 //! Make FixE3B3 available to the python interface
 void export_FixE3B3();
@@ -27,19 +29,6 @@ void export_FixE3B3();
 class FixE3B3: public Fix {
     
     private:
-    
-        GPUArrayDeviceGlobal<int4> waterIdsGPU;
-        GPUArrayDeviceGlobal<float4> xs_0;
-        GPUArrayDeviceGlobal<float4> vs_0;
-        GPUArrayDeviceGlobal<float4> dvs_0;
-        GPUArrayDeviceGlobal<float4> fs_0;
-    
-    
-        GPUArrayDeviceGlobal<float4> fix_len;
-        std::vector<int4> waterIds;
-        std::vector<BondVariant> bonds;
-        std::vector<float4> invMassSums;
-    
     
     public:
 
@@ -65,6 +54,9 @@ class FixE3B3: public Fix {
 
         // cutoff of the neighborlist, rf + 2 Angstroms
         double rc;
+
+        // implicitly defined by rc - rf = padding = 2.0 Angstroms
+        double padding;
 
         //! Prepare Fix
         /*!
@@ -99,10 +91,13 @@ class FixE3B3: public Fix {
         std::vector<Molecule> waterMolecules;
  
         // the local gridGPU for E3B3, where we make our molecule by molecule neighborlist
-        GridGPUE3B3 gridGPU;
+        GridGPU myGridGPU;
+
+        // corresponding local GPU data; note that we only really need xs - no need for fs, vs, etc..
+        GPUData gpd;
 
         // the evaluator for E3B3
-        ThreeBodyEvaluatorE3B3 evaluator;
+        EvaluatorE3B3 evaluator;
 
 };
 

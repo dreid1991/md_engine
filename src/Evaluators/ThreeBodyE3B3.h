@@ -1,6 +1,6 @@
 #pragma once
-#ifndef THREE_BODY_EVALUATE_ISO.H
-#define THREE_BODY_EVALUATE_ISO.H
+#ifndef THREE_BODY_E3B3
+#define THREE_BODY_E3B3
 
 #include "BoundsGPU.h"
 #include "cutils_func.h"
@@ -13,7 +13,7 @@
 // ---- this neighborlist should be a list of integer molecule ids,
 //      for which there is a map organized by molecule id from which we 
 //      can extract the atom ids (and from there our usual pos, force, vel, etc.)
-__global__ void compute_three_body_iso 
+__global__ void compute_E3B3
         (int nMolecules, 
          const float4 *__restrict__ xs, 
          float4 *__restrict__ fs, 
@@ -46,7 +46,7 @@ __global__ void compute_three_body_iso
         // is this the correct way to access this...? assuming it will be of similar form to neighborlist,
         // except now we need a list of atoms corresponding to a given molecule..
         // additionally, we assume that the list of atoms in a molecule is ordered as {O, H1, H2}
-        uint* atomsMolecule1 = atomsFromMolecule[idx];
+        int4 atomsMolecule1 = atomsFromMolecule[idx];
     
         /* NOTE to others: see the notation used in 
          * Kumar and Skinner, J. Phys. Chem. B., 2008, 112, 8311-8318
@@ -56,8 +56,9 @@ __global__ void compute_three_body_iso
          * and decomposing the given trimer into the set of molecules 1,2,3 (water molecule 1, 2, and 3)
          */
        
+        //int4 atomIdxs = make_int4(idToIdx[atomMolecule.x]....)
         // copy the float4 vectors of the positions
-        float4 pos_a1_whole = xs[iAtoms[0]];
+        float4 pos_a1_whole = xs[atomIdxs.x]
         float4 pos_b1_whole = xs[iAtoms[1]];
         float4 pos_c1_whole = xs[iAtoms[2]];
 
@@ -347,9 +348,4 @@ __global__ void compute_three_body_iso
     } // end if (idx < nMolecules) 
 } // end function compute
 
-#endif
-
-
-
-
-
+#endif /* THREE_BODY_E3B3 */

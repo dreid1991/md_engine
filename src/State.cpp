@@ -468,7 +468,7 @@ void State::initializeGrid() {
     double gridDim = maxRCut + padding;
 
     GPUData *gpuData = &gpd;
-    gridGPU = GridGPU(this, gridDim, gridDim, gridDim, gridDim, exclusionMode, gpuData);
+    gridGPU = GridGPU(this, gridDim, gridDim, gridDim, gridDim, exclusionMode,padding, gpuData);
 
 }
 
