@@ -2,6 +2,8 @@
 
 #include <chrono>
 
+#undef _XOPEN_SOURCE
+#undef _POSIX_C_SOURCE
 #include <boost/python.hpp>
 #include <boost/shared_ptr.hpp>
 #include "Logging.h"

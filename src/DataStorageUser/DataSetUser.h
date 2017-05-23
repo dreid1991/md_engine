@@ -1,8 +1,12 @@
 #pragma once
 #ifndef DATASETUSER_H
 #define DATASETUSER_H
+#undef _XOPEN_SOURCE
+#undef _POSIX_C_SOURCE
 #include "Python.h"
 #include <boost/shared_ptr.hpp>
+#undef _XOPEN_SOURCE
+#undef _POSIX_C_SOURCE
 #include <boost/python.hpp>
 #include <string.h>
 class State;

@@ -1,5 +1,7 @@
 //based on: http://stackoverflow.com/questions/17885639/exposing-a-c-style-array-data-member-to-python-via-boost-python
 
+#undef _XOPEN_SOURCE
+#undef _POSIX_C_SOURCE
 #include <boost/python.hpp>
 #include <boost/python/suite/indexing/indexing_suite.hpp>
 

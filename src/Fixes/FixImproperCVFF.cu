@@ -116,7 +116,7 @@ bool FixImproperCVFF::readFromRestart() {
 }
 
 
-void export_FixImproperCVFF() {
+__host__ void export_FixImproperCVFF() {
 
     boost::python::class_<FixImproperCVFF,
                           SHARED(FixImproperCVFF),

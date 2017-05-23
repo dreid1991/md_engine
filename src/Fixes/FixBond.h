@@ -5,6 +5,8 @@
 #include <array>
 #include <unordered_map>
 
+#undef _XOPEN_SOURCE
+#undef _POSIX_C_SOURCE
 #include <boost/python/list.hpp>
 
 #include "Fix.h"

@@ -2,6 +2,8 @@
 #ifndef FIXDIHEDRALCHARMM_H
 #define FIXDIHEDRALCHARMM_H
 
+#undef _XOPEN_SOURCE
+#undef _POSIX_C_SOURCE
 #include <boost/python.hpp>
 
 #include "FixPotentialMultiAtom.h"

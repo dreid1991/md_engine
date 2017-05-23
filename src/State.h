@@ -21,6 +21,8 @@
 #include <boost/shared_ptr.hpp>
 #include <boost/type_traits/remove_cv.hpp> //boost 1.58 bug workaround
 #include <boost/variant/get.hpp>
+#undef _XOPEN_SOURCE
+#undef _POSIX_C_SOURCE
 #include <boost/python.hpp>
 
 #include "globalDefs.h"

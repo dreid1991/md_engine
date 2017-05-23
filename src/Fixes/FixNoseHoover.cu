@@ -3,6 +3,8 @@
 #include <cmath>
 #include <string>
 
+#undef _XOPEN_SOURCE
+#undef _POSIX_C_SOURCE
 #include <boost/python.hpp>
 
 #include "cutils_func.h"

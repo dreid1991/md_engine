@@ -5,6 +5,8 @@
 #include <vector>
 
 #include <boost/shared_ptr.hpp>
+#undef _XOPEN_SOURCE
+#undef _POSIX_C_SOURCE
 #include <boost/python.hpp>
 #include <boost/variant.hpp>
 

@@ -2,7 +2,11 @@
 #ifndef FIXNVTRESCALE_H
 #define FIXNVTRESCALE_H
 
+#undef _XOPEN_SOURCE
+#undef _POSIX_C_SOURCE
 #include <boost/python.hpp>
+#undef _XOPEN_SOURCE
+#undef _POSIX_C_SOURCE
 #include <boost/python/list.hpp>
 #include <string>
 #include <vector>

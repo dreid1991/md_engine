@@ -2,6 +2,8 @@
 #ifndef INTEGRATOR_H
 #define INTEGRATOR_H
 
+#undef _XOPEN_SOURCE
+#undef _POSIX_C_SOURCE
 #include <boost/python/list.hpp>
 #include <string>
 #include <vector>
