@@ -82,6 +82,7 @@ public:
 
     //! Compute single point energy
     void singlePointEng(float *);
+    //void singlePointEngGroupGroup(float *, uint32_t, uint32_t);
 
     bool prepareForRun();
     

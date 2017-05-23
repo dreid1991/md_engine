@@ -7,7 +7,7 @@ using namespace MD_ENGINE;
 
 DataComputerEnergy::DataComputerEnergy(State *state_, py::list fixes_, std::string computeMode_, std::string groupHandleB_) : DataComputer(state_, computeMode_, false), groupHandleB(groupHandleB_) {
 
-    uint32t groupTagB = state->groupTagFromHandle(groupHandleB);
+    uint32_t groupTagB = state->groupTagFromHandle(groupHandleB);
     otherIsAll = groupHandleB == "all";
     if (py::len(fixes_)) {
         int len = py::len(fixes_);
@@ -34,7 +34,8 @@ void DataComputerEnergy::computeScalar_GPU(bool transferToCPU, uint32_t groupTag
         if (otherIsAll) {
             fix->singlePointEng(gpuBuffer.getDevData());
         } else {
-            fix->singleGroupEngGroupGroup(gpuBuffer.getDevData(), groupTag, groupTagB);
+            fix->singlePointEngGroupGroup(gpuBuffer.getDevData(), groupTag, groupTagB);
+
         }
         fix->setEvalWrapperMode("offload");
         fix->setEvalWrapper();
@@ -64,7 +65,7 @@ void DataComputerEnergy::computeVector_GPU(bool transferToCPU, uint32_t groupTag
         if (otherIsAll) {
             fix->singlePointEng(gpuBuffer.getDevData());
         } else {
-            fix->singleGroupEngGroupGroup(gpuBuffer.getDevData(), groupTag, groupTagB);
+            fix->singlePointEngGroupGroup(gpuBuffer.getDevData(), groupTag, groupTagB);
         }
         fix->setEvalWrapperMode("offload");
         fix->setEvalWrapper();

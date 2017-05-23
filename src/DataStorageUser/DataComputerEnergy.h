@@ -20,7 +20,7 @@ namespace MD_ENGINE {
             DataComputerEnergy(State *, boost::python::list, std::string computeMode_, std::string groupHandleB_);
             void prepareForRun();
             double engScalar;
-            string groupHandleB; //second group if we're doing group-group interactions
+            std::string groupHandleB; //second group if we're doing group-group interactions
             uint32_t groupTagB;
             bool otherIsAll;
             std::vector<double> engVector;
