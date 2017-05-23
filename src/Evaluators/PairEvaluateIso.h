@@ -309,9 +309,7 @@ __global__ void compute_energy_iso_group_group
 
         }
         float4 posWhole = xs[idx];
-        //int type = * (int *) &posWhole.w;
         int type = __float_as_int(posWhole.w);
-       // printf("type is %d\n", type);
         float qi;
         if (COMP_CHARGES) {
             qi = qs[idx];

@@ -7,7 +7,7 @@ using namespace MD_ENGINE;
 
 DataComputerEnergy::DataComputerEnergy(State *state_, py::list fixes_, std::string computeMode_, std::string groupHandleB_) : DataComputer(state_, computeMode_, false), groupHandleB(groupHandleB_) {
 
-    uint32_t groupTagB = state->groupTagFromHandle(groupHandleB);
+    groupTagB = state->groupTagFromHandle(groupHandleB);
     otherIsAll = groupHandleB == "all";
     if (py::len(fixes_)) {
         int len = py::len(fixes_);
@@ -19,6 +19,7 @@ DataComputerEnergy::DataComputerEnergy(State *state_, py::list fixes_, std::stri
             fixes.push_back(fixPy);
         }
     }
+
 }
 
 
@@ -111,6 +112,20 @@ void DataComputerEnergy::appendVector(boost::python::list &vals) {
 void DataComputerEnergy::prepareForRun() {
     if (fixes.size() == 0) {
         fixes = state->fixesShr; //if none specified, use them all
+    } else {
+        //make sure that fixes are activated
+        for (auto fix : fixes) {
+            bool found = false;
+            for (auto fix2 : state->fixesShr) {
+                if (fix->handle == fix2->handle && fix->type == fix2->type) {
+                    found = true;
+                }
+            }
+            if (not found) {
+                std::cout << "Trying to record energy for inactive fix " << fix->handle << ".  Quitting" << std::endl;
+                assert(found);
+            }
+        }
     }
     DataComputer::prepareForRun();
 }

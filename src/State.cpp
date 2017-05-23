@@ -687,15 +687,15 @@ bool State::deleteGroup(std::string handle) {
     return true;
 }
 
-bool State::createGroup(std::string handle, py::list forGrp) {
+bool State::createGroup(std::string handle, py::list ids) {
     uint32_t res = addGroupTag(handle);
     if (!res) {
         std::cout << "Tried to create group " << handle
                   << " << that already exists" << std::endl;
         return false;
     }
-    if (py::len(forGrp)) {
-        addToGroupPy(handle, forGrp);
+    if (py::len(ids)) {
+        addToGroupPy(handle, ids);
     }
     return true;
 }
