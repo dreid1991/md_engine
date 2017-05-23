@@ -43,7 +43,7 @@ __global__ void rescale_group(int nAtoms, float4 *vs, float4 *fs, uint32_t group
     }
 }
 
-void FixLinearMomentum::compute(bool computeVirials) {
+void FixLinearMomentum::compute(int virialMode) {
     float3 dimsFloat3 = dimensions.asFloat3();
     int nAtoms = state->atoms.size();
     float4 *vs = state->gpd.vs.getDevData();

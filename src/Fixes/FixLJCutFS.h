@@ -23,10 +23,11 @@ class FixLJCutFS : public FixPair {
         FixLJCutFS(SHARED(State), std::string handle);
 
         //! Compute forces
-        void compute(bool);
+        void compute(int);
 
         //! Compute single point energy
         void singlePointEng(float *);
+        void singlePointEngGroupGroup(float *, uint32_t, uint32_t);
 
         //! Prepare Fix
         /*!

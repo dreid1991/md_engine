@@ -83,12 +83,12 @@ void IntegratorGradientDescent::run(int numTurns, double coef)
         if (state->turn % periodicInterval == 0) {
             state->gridGPU.periodicBoundaryConditions();
         }
-        bool computeVirialsInForce = dataManager.virialTurns.find(state->turn) != dataManager.virialTurns.end();
 
-        stepInit(computeVirialsInForce);
+        int virialMode = dataManager.getVirialModeForTurn(state->turn);
+        stepInit(virialMode==1 or virialMode==2);
 
         // Calculate forces
-        forceSingle(computeVirialsInForce);
+        forceSingle(virialMode);
 
         // Descend along gradient
         step(coef);

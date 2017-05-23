@@ -14,12 +14,12 @@ FixAngleHarmonic::FixAngleHarmonic(boost::shared_ptr<State> state_, string handl
 
 namespace py = boost::python;
 
-void FixAngleHarmonic::compute(bool computeVirials) {
+void FixAngleHarmonic::compute(int virialMode) {
     int nAtoms = state->atoms.size();
     int activeIdx = state->gpd.activeIdx();
     GPUData &gpd = state->gpd;
     if (forcersGPU.size()) {
-        if (computeVirials) {
+        if (virialMode) {
             compute_force_angle<AngleHarmonicType, AngleEvaluatorHarmonic, true> <<<NBLOCK(nAtoms), PERBLOCK, sizeof(AngleGPU) * maxForcersPerBlock + sharedMemSizeForParams>>>(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx), gpd.idToIdxs.d_data.data(), forcersGPU.data(), forcerIdxs.data(), state->boundsGPU, parameters.data(), parameters.size(), gpd.virials.d_data.data(), usingSharedMemForParams, evaluator);
         } else {
             compute_force_angle<AngleHarmonicType, AngleEvaluatorHarmonic, false> <<<NBLOCK(nAtoms), PERBLOCK, sizeof(AngleGPU) * maxForcersPerBlock + sharedMemSizeForParams>>>(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx), gpd.idToIdxs.d_data.data(), forcersGPU.data(), forcerIdxs.data(), state->boundsGPU, parameters.data(), parameters.size(), gpd.virials.d_data.data(), usingSharedMemForParams, evaluator);

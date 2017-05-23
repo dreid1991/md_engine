@@ -26,10 +26,11 @@ public:
      * \param groupHandle_ String specifying the group of Atoms to act on
      * \param type_ String specifying the type of the Fix
      * \param applyEvery_ Apply this Fix every this many timesteps
+     * \param orderPreference_ Fix pairs have order pref of -1.  They fire first so that we can compute virials for pairs via f dot r and then compute the rest of the fixs' virials
      */
     FixPair(SHARED(State) state_, std::string handle_, std::string groupHandle_,
             std::string type_, bool forceSingle_, bool requiresCharges_, int applyEvery_)
-        : Fix(state_, handle_, groupHandle_, type_, forceSingle_, false, requiresCharges_, applyEvery_), chargeCalcFix(nullptr)
+        : Fix(state_, handle_, groupHandle_, type_, forceSingle_, false, requiresCharges_, applyEvery_, -1), chargeCalcFix(nullptr)
         {
             // Empty constructor
         };

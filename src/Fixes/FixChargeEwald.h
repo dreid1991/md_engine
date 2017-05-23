@@ -62,6 +62,7 @@ private:
 
 
 public:
+    GPUArrayDeviceGlobal<float4> rpCentroids;
     int longRangeInterval;
     int64_t turnInit;
     void handleBoundsChange();
@@ -76,11 +77,12 @@ public:
     }
 
     //! Compute forces
-    void compute(bool);
+    void compute(int);
     int setLongRangeInterval(int interval);
 
     //! Compute single point energy
     void singlePointEng(float *);
+    //void singlePointEngGroupGroup(float *, uint32_t, uint32_t);
 
     bool prepareForRun();
     

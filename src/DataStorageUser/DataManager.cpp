@@ -7,6 +7,9 @@
 #include "DataComputerBounds.h"
 #include "DataSetUser.h"
 using namespace MD_ENGINE;
+using std::set;
+using std::pair;
+
 namespace py = boost::python;
 DataManager::DataManager(State * state_) : state(state_) {
     //turnLastEngs = state->turn-1;
@@ -53,10 +56,11 @@ boost::shared_ptr<DataSetUser> DataManager::recordTemperature(std::string groupH
 
 }
 
-boost::shared_ptr<DataSetUser> DataManager::recordEnergy(std::string groupHandle, std::string computeMode, int interval, py::object collectGenerator, py::list fixes) {
+boost::shared_ptr<DataSetUser> DataManager::recordEnergy(std::string groupHandle, std::string computeMode, int interval, py::object collectGenerator, py::list fixes, std::string groupHandleB) {
     int dataType = DATATYPE::ENERGY;
-    boost::shared_ptr<DataComputer> comp = boost::shared_ptr<DataComputer> ( (DataComputer *) new DataComputerEnergy(state, fixes, computeMode) );
+    boost::shared_ptr<DataComputer> comp = boost::shared_ptr<DataComputer> ( (DataComputer *) new DataComputerEnergy(state, fixes, computeMode, groupHandleB) );
     uint32_t groupTag = state->groupTagFromHandle(groupHandle);
+    
     boost::shared_ptr<DataSetUser> dataSet = createDataSet(comp, groupTag, interval, collectGenerator);
     dataSets.push_back(dataSet);
    
@@ -88,11 +92,31 @@ boost::shared_ptr<DataSetUser> DataManager::recordBounds(int interval, py::objec
 
 
 }
-void DataManager::addVirialTurn(int64_t t) {
-    virialTurns.insert(t);
+void DataManager::addVirialTurn(int64_t t, bool perAtomVirials) {
+    if (perAtomVirials) {
+        clearVirialTurn(t); //to make sure there aren't two entries and that ones with perAtomVirials==true take priority
+    }
+    virialTurns.insert(std::make_pair(t, perAtomVirials));
 }
-void DataManager::clearVirialTurn(int64_t turn) {
-    auto it = virialTurns.find(turn);
+
+int DataManager::getVirialModeForTurn(int64_t t) {
+    auto it = virialTurns.find(std::make_pair(t, false));
+    if (it != virialTurns.end()) {
+        return 1;
+    }
+    it = virialTurns.find(std::make_pair(t, true));
+    if (it != virialTurns.end()) {
+        return 2;
+    }
+    return 0;
+}
+
+void DataManager::clearVirialTurn(int64_t t) {
+    auto it = virialTurns.find(std::make_pair(t, false));
+    if (it != virialTurns.end()) {
+        virialTurns.erase(it);
+    }
+    it = virialTurns.find(std::make_pair(t, true));
     if (it != virialTurns.end()) {
         virialTurns.erase(it);
     }
@@ -133,7 +157,8 @@ void export_DataManager() {
              py::arg("mode") = "scalar",
              py::arg("interval") = 0,
              py::arg("collectGenerator") = py::object(),
-             py::arg("fixes") = py::list())
+             py::arg("fixes") = py::list(),
+             py::arg("handleB") = "all")
         )
     .def("recordPressure", &DataManager::recordPressure,
             (py::arg("handle") = "all",

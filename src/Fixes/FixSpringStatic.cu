@@ -62,7 +62,7 @@ void __global__ compute_cu(int nTethers, float4 *tethers, float4 *xs, float4 *fs
         fs[atomIdx] += force;
     }
 }
-void FixSpringStatic::compute(bool computeVirials) {
+void FixSpringStatic::compute(int virialMode) {
     GPUData &gpd = state->gpd;
     int activeIdx = state->gpd.activeIdx();
     compute_cu<<<NBLOCK(tethers.h_data.size()), PERBLOCK>>>(

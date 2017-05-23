@@ -1,6 +1,4 @@
 #pragma once
-#ifndef INCLUDEFIXES_H
-#define INCLUDEFIXES_H
 
 #include "FixBondHarmonic.h"
 #include "FixBondFENE.h"
@@ -17,6 +15,7 @@
 #include "Fix2d.h"
 #include "Fix.h"
 #include "FixNoseHoover.h"
+#include "FixNVTAndersen.h"
 #include "FixNVTRescale.h"
 #include "FixSpringStatic.h"
 #include "FixWallHarmonic.h"
@@ -28,5 +27,8 @@
 #include "FixPressureBerendsen.h"
 #include "FixLinearMomentum.h"
 #include "FixRigid.h"
+#include "FixExternalHarmonic.h"
+#include "FixExternalQuartic.h"
+#include "FixRingPolyPot.h"
+#include "FixDeform.h"
 
-#endif
