@@ -15,7 +15,7 @@ private:
 public:
     std::vector<int> ids;
     Molecule(State *, std::vector<int> &ids_);
-    std::vector<int> getAtoms(int ids);
+    std::vector<int> getAtoms();
     int id; // id of thsi molecule; useful for neighborlisting by molecule
     void translate(Vector &);
     void rotate(Vector &around, Vector &axis, double theta);

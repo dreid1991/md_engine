@@ -97,6 +97,12 @@ class FixE3B3: public Fix {
  
         //!< List of all water molecules in simulation
         std::vector<Molecule> waterMolecules;
+       
+        int nMolecules; // waterMolecules.size();
+        //!< List of int4 atom ids for the list of molecules;
+        //   The order of this list does /not/ change throughout the simulation
+        GPUArrayDeviceGlobal<int4> waterIdsGPU;
+        std::vector<int4> waterIds;
  
         // the local gridGPU for E3B3, where we make our molecule by molecule neighborlist
         GridGPU gridGPU;

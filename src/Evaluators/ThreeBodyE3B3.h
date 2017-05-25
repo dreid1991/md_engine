@@ -13,6 +13,7 @@
 // ---- this neighborlist should be a list of integer molecule ids,
 //      for which there is a map organized by molecule id from which we 
 //      can extract the atom ids (and from there our usual pos, force, vel, etc.)
+template <EVALUATOR, VIRIALS> 
 __global__ void compute_E3B3
         (int nMolecules, 
          const float4 *__restrict__ xs, 

@@ -24,7 +24,60 @@ FixE3B3::FixE3B3(boost::shared_ptr<State> state_,
     // ---- which means we need to set up the local GPUData;
     // ------- can't do this until we have all the atoms in simulation; so do it in prepareForRun
 };
+
+//
+// what arguments do we need here? we are updating the molecule positions from 
+// the current atom positions
+// __global__ void compute_COM(int4 *waterIds, float4 *xs, float4 *vs, int *idToIdxs, int nMols, float4 *com, BoundsGPU bounds) {
+
+
+// see FixRigid.cu! does the same thing. but now, we store it in their own gpd..
+ __global__ void update_xs(int nMolecules, int4 *waterIds, float4 *mol_xs,
+                           float4 *xs, float4 *vs, int *idToIdxs, BoundsGPU bounds) {
+
+     // now do pretty much the same as FixRigid computeCOM()
+     // --- remember to account for the M-site
+    int idx = GETIDX();
     
+    if (idx < nMolecules) {
+
+        // may as well make these arrays
+        int theseIds[4]; 
+        float3 pos[4];
+        float mass[4];
+
+        theseIds[0] = waterIds[idx].x;
+        theseIds[1] = waterIds[idx].y;
+        theseIds[2] = waterIds[idx].z;
+        theseIds[3] = waterIds[idx].w;
+
+        float ims = 0.0f;
+        for (int i = 0; i < 4; i++) {
+            int thisId = theseIds[i];
+            int thisIdx = idToIdxs[thisId];
+            float3 p = make_float3(xs[thisIdx]);
+            pos[i] = p;
+            ims += vs[thisIdx].w;
+            mass[i] = 1.0f / vs[thisIdx].w;
+        }
+
+        for (int i = 1; i < 4; i++) {
+            float3 delta = pos[i] - pos[0];
+            delta = bounds.minImage(delta);
+            pos[i] = pos[0] + delta;
+        }
+
+        xs[idx]  = make_float4(positionsToCOM(pos, mass,ims));
+        xs[idx].w = ims;
+    }
+
+}
+
+// from FixRigid.cu
+__device__ inline float3 positionsToCOM(float3 *pos, float *mass, float ims) {
+  return (pos[0]*mass[0] + pos[1]*mass[1] + pos[2]*mass[2] + pos[3]*mass[3])*ims;
+}
+
 
 void FixE3B3::compute(bool computeVirials) {
     // send the molecules to the e3b3 evaluator, where we compute both the two-body correction
@@ -35,15 +88,15 @@ void FixE3B3::compute(bool computeVirials) {
     
     // some GPU data for the molecules?
     // --- TODO: change to myGpd; make sure that this is changed every (turn%periodicInterval == 0) in stepInit
-    GPUData &gpd = state->gpd;
-
     // obviously, we also need the gpu data for the /atoms/
-
 
     // and we have our GridGPU already
 
 
     int activeIdx = gpd.activeIdx();
+
+    GPUData &gpdGlobal = state->gpd;
+    int globalActiveIdx = gpdGlobal.activeIdx();
     // we need a perMolecArray!
     // the original:
     //uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
@@ -67,16 +120,34 @@ bool FixE3B3::stepInit(){
     int periodicInterval = state->periodicInterval;
     if (state->turn % periodicInterval == 0) {
         // do the re-creation of the neighborlist for E3B3
-        // -- make vector of the centers of mass (~ the positions of the molecules..)
+        // -- the xs of the molecules is /not/ updated with the atoms!
+        //    but this is what we form our neighborlist off of (for the molecule-by-molecule neighborlist)
+        //    so, do a kernel call here to update them to the current positions
+        //    of their constituent atoms
+
+        // for each thread, we have one molecule
+        // -- get the atoms for this idx, compute COM, set the xs to the new value, and return
+        //    -- need idToIdx for atoms? I think so.  Also, this is easy place to check 
+        //       accessing the data arrays
+        uint activeIdx = gpd.activeIdx();
+
+        // get the global gpd and the bounds
+        uint globalActiveIdx = state->gpd.activeIdx();
+        GPUData &gpdGlobal = state->gpd;
+        BoundsGPU &bounds = state->boundsGPU;
+
+        // pass the local gpd (molecule by molecule) and the global (atom by atom) gpd
+        // -- -with this, our local gpd data for the molecule COM is up to date with 
+        //     the current atomic data
+        update_xs<<<NBLOCK(nMolecules), PERBLOCK>>>(
+            nMolecules, waterIdsGPU.data(), gpd.xs(activeIdx), waterIdsGPU, 
+            gpdGlobal.xs(globalActiveIdx), gpdGlobal.vs(globalActiveIdx), gpdGlobal.idToIdxs.d_data.data(),
+            bounds
+        );
+
         
-
-        // -----> this should not return anything. it should operate on class variables.
-        //   So, maybe have the grid take in a pointer to a class; default option is to have 
-        //   this pointer be to our 'state' intance; 
-        //    ---- this is for future development
+        // our grid now operates on the updated molecule xs to get a molecule by molecule neighborlist    
         gridGPU.periodicBoundaryConditions();
-
-
     }
     return true;
 }
@@ -98,11 +169,9 @@ void FixE3B3::singlePointEng(float *perParticleEng) {
 
    */
 bool FixE3B3::prepareForRun(){
-    /* TODO:
-     * -- assorted GPU data stuff?!
-     * -- GridGPUE3B3?? (for the first turn)
-     * -- ????
-     */ 
+    
+    // units for distance are always angstroms, 
+    // in the context of simulations that would use E3B3
     float rs = 5.0;
     float rf = 5.2;
 
@@ -115,13 +184,17 @@ bool FixE3B3::prepareForRun(){
     float Ec = 1.0000;
     float k2 = 1.0000;
     float k3 = 1.0000;
+    
+    // instantiate the evaluator
     evaluator = EvaluatorE3B3(rs, rf, E2,
                               Ea, Eb, Ec,
                               k2, k3);
     
-    // for molecule in molecules list (we can assume it is populated at this point)
-    
+    // set up the int4 waterMoleculeIds
+    int nMolecules = waterMolecules.size();
 
+    waterIdsGPU = GPUArrayDeviceGlobal<int4>(nMolecules);
+    
     
     /*
     int nAtoms = state->atoms.size();
@@ -132,17 +205,21 @@ bool FixE3B3::prepareForRun(){
 
     // see State.cpp: State::prepareForRun(); most of this code is taken from there;
     // but with molecules now!
-    int nMolecules = waterMolecules.size();
+    nMolecules = waterMolecules.size();
+    
     std::vector<float4> xs_vec;
     std::vector<uint> ids;
 
     xs_vec.reserve(nMolecules);
     ids.reserve(nMolecules);
 
-    for (const auto &molecule: waterMolecules)  {
+    for (auto &molecule: waterMolecules)  {
         Vector this_xs = molecule.COM();
         float4 new_xs = make_float4(this_xs[0], this_xs[1], this_xs[2], 0);
         xs_vec.push_back(new_xs);
+
+        int4 atomIds = waterIds[molecule.id]
+        waterIdsGPU[molecule.id] = atomIds;
         ids.push_back(molecule.id);
     }
 
@@ -169,6 +246,7 @@ bool FixE3B3::prepareForRun(){
     double padding = 2.0;
     double gridDim = maxRCut + padding;
 
+    // make a pointer to this gpudata, which we will pass to the local grid
     GPUData *gpuData = &gpd;
 
     // this number has no meaning whatsoever; it is completely arbitrary;
@@ -202,7 +280,7 @@ bool FixE3B3::prepareForRun(){
 
 
 /* postRun
-
+   * nothing to do hereeeee
 
    */
 
@@ -211,13 +289,15 @@ bool FixE3B3::prepareForRun(){
 void FixE3B3::addMolecule(int id_O, int id_H1, int id_H2, int id_M) {
     
     // id's are arranged as O, H, H, M
-    std::vector<int> waterIds;
+    std::vector<int> localWaterIds;
 
+    
     // add to waterIds vector the four atom ids
-    waterIds.push_back(id_O);
-    waterIds.push_back(id_H1);
-    waterIds.push_back(id_H2);
-    waterIds.push_back(id_M);
+    localWaterIds.push_back(id_O);
+    localWaterIds.push_back(id_H1);
+    localWaterIds.push_back(id_H2);
+    localWaterIds.push_back(id_M);
+
 
     // mass of O > mass H1 == mass H2 > mass M
     bool ordered = true;
@@ -241,6 +321,11 @@ void FixE3B3::addMolecule(int id_O, int id_H1, int id_H2, int id_M) {
     // append this molecule to the class variable waterMolecules
     // -- molecule id is implicit as the index in this list
     waterMolecules.push_back(thisWater);
+
+    // and add to the global list
+    waterIds.push_back(localWaterIds[0], localWaterIds[1], localWaterIds[2], localWaterIds[3]);
+
+
 }
 
 /* exports

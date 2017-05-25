@@ -19,7 +19,7 @@ void Molecule::rotate(Vector &around, Vector &axis, double theta) {
     //also this 
 }
 
-std::vector<int> Molecule::getAtoms(int &moleculeId) {
+std::vector<int> Molecule::getAtoms() {
     std::vector<int> atomIds;
     for (int id: ids) {
         atomIds.push_back(id);

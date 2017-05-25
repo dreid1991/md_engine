@@ -349,6 +349,7 @@ __device__ uint addExclusion(uint otherId, uint *exclusionIds_shr,
     return 0;
 }
 
+template <bool EXCLUSIONS>
 __device__ int assignFromCell(float3 pos, int idx, uint myId, float4 *xs, uint *ids,
                               uint32_t *gridCellArrayIdxs, int squareIdx,
                               float3 offset, float3 trace, float neighCutSqr,
@@ -365,11 +366,12 @@ __device__ int assignFromCell(float3 pos, int idx, uint myId, float4 *xs, uint *
 
         if (myId != otherId && dot(distVec, distVec) < neighCutSqr/* &&
             !(isExcluded(otherId, exclusions, numExclusions, maxExclusions))*/) {
-            uint exclusionTag = addExclusion(otherId, exclusionIds_shr, exclIdxLo_shr, exclIdxHi_shr);
-            // if (myId==16) {
-            //     printf("my id is 16 and my threadIdx is %d\n\n\n\n\n", threadIdx.x);
-            // }
-            neighborlist[currentNeighborIdx] = (i | exclusionTag);
+            if (EXCLUSIONS) {
+                uint exclusionTag = addExclusion(otherId, exclusionIds_shr, exclIdxLo_shr, exclIdxHi_shr);
+                neighborlist[currentNeighborIdx] = (i | exclusionTag);
+            } else {
+                neighborlist[currentNeighborIdx] = i;
+            }
             currentNeighborIdx += warpSize;
         }
 
@@ -377,6 +379,7 @@ __device__ int assignFromCell(float3 pos, int idx, uint myId, float4 *xs, uint *
 
     return currentNeighborIdx;
 }
+/*
 __device__ int assignFromCell_noExclusions(float3 pos, int idx, uint myId, float4 *xs, uint *ids,
                               uint32_t *gridCellArrayIdxs, int squareIdx,
                               float3 offset, float3 trace, float neighCutSqr,
@@ -390,8 +393,7 @@ __device__ int assignFromCell_noExclusions(float3 pos, int idx, uint myId, float
         float3 distVec = otherPos + (offset * trace) - pos;
         uint otherId = ids[i];
 
-        if (myId != otherId && dot(distVec, distVec) < neighCutSqr/* &&
-            !(isExcluded(otherId, exclusions, numExclusions, maxExclusions))*/) {
+        if (myId != otherId && dot(distVec, distVec) < neighCutSqr) {
             // if (myId==16) {
             //     printf("my id is 16 and my threadIdx is %d\n\n\n\n\n", threadIdx.x);
             // }
@@ -403,7 +405,9 @@ __device__ int assignFromCell_noExclusions(float3 pos, int idx, uint myId, float
 
     return currentNeighborIdx;
 }
+*/
 
+template <bool EXCLUSIONS>
 __global__ void assignNeighbors(float4 *xs, int nAtoms, uint *ids,
                                 uint32_t *gridCellArrayIdxs, uint32_t *cumulSumMaxPerBlock,
                                 float3 os, float3 ds, int3 ns,
@@ -437,20 +441,24 @@ __global__ void assignNeighbors(float4 *xs, int nAtoms, uint *ids,
     exclIdxLo_shr = threadIdx.x * maxExclusionsPerAtom;
     if (idx < nAtoms) {
         posWhole = xs[idx];
-        myId = ids[idx];
-        int exclIdxLo = exclusionIndexes[myId];
-        int exclIdxHi = exclusionIndexes[myId+1];
-        numExclusions = exclIdxHi - exclIdxLo;
-        exclIdxHi_shr = exclIdxLo_shr + numExclusions;
-        for (int i=exclIdxLo; i<exclIdxHi; i++) {
-            uint exclusion = exclusionIds[i];
-            exclusionIds_shr[maxExclusionsPerAtom*threadIdx.x + i - exclIdxLo] = exclusion;
-            //printf("I am thread %d and I am copying %u from global %d to shared %d\n",
-            //threadIdx.x, exclusion, i, maxExclusionsPerAtom*threadIdx.x+i-exclIdxLo);
+        if (EXCLUSIONS) {
+            myId = ids[idx];
+            int exclIdxLo = exclusionIndexes[myId];
+            int exclIdxHi = exclusionIndexes[myId+1];
+            numExclusions = exclIdxHi - exclIdxLo;
+            exclIdxHi_shr = exclIdxLo_shr + numExclusions;
+            for (int i=exclIdxLo; i<exclIdxHi; i++) {
+                uint exclusion = exclusionIds[i];
+                exclusionIds_shr[maxExclusionsPerAtom*threadIdx.x + i - exclIdxLo] = exclusion;
+                //printf("I am thread %d and I am copying %u from global %d to shared %d\n",
+                //threadIdx.x, exclusion, i, maxExclusionsPerAtom*threadIdx.x+i-exclIdxLo);
+            }
         }
     }
     //okay, now we have exclusions copied into shared
-    __syncthreads();
+    if (EXCLUSIONS) {
+        __syncthreads();
+    }
 
     //int cumulSumUpToMe = cumulSumMaxPerBlock[blockIdx.x];
     //int maxNeighInMyBlock = cumulSumMaxPerBlock[blockIdx.x+1] - cumulSumUpToMe;
@@ -466,7 +474,7 @@ __global__ void assignNeighbors(float4 *xs, int nAtoms, uint *ids,
         int xIdx, yIdx, zIdx;
         int xIdxLoop, yIdxLoop, zIdxLoop;
         float3 offset = make_float3(0, 0, 0);
-        currentNeighborIdx = assignFromCell(pos, idx, myId, xs, ids, gridCellArrayIdxs, LINEARIDX(sqrIdx, ns), offset, trace, neighCutSqr, currentNeighborIdx, neighborlist, exclusionIds_shr, exclIdxLo_shr, exclIdxHi_shr, warpSize);
+        currentNeighborIdx = assignFromCell<EXCLUSIONS>(pos, idx, myId, xs, ids, gridCellArrayIdxs, LINEARIDX(sqrIdx, ns), offset, trace, neighCutSqr, currentNeighborIdx, neighborlist, exclusionIds_shr, exclIdxLo_shr, exclIdxHi_shr, warpSize);
         for (xIdx=sqrIdx.x-1; xIdx<=sqrIdx.x+1; xIdx++) {
             offset.x = -floorf((float) xIdx / ns.x);
             xIdxLoop = xIdx + ns.x * offset.x;
@@ -485,7 +493,7 @@ __global__ void assignNeighbors(float4 *xs, int nAtoms, uint *ids,
 
                                     int3 sqrIdxOther = make_int3(xIdxLoop, yIdxLoop, zIdxLoop);
                                     int sqrIdxOtherLin = LINEARIDX(sqrIdxOther, ns);
-                                    currentNeighborIdx = assignFromCell(
+                                    currentNeighborIdx = assignFromCell<EXCLUSIONS>(
                                             pos, idx, myId, xs, ids, gridCellArrayIdxs,
                                             sqrIdxOtherLin, -offset, trace, neighCutSqr,
                                             currentNeighborIdx, neighborlist,
@@ -507,6 +515,7 @@ __global__ void assignNeighbors(float4 *xs, int nAtoms, uint *ids,
 
 
 
+/*
 __global__ void assignNeighbors_noExclusions(float4 *xs, int nAtoms, uint *ids,
                                 uint32_t *gridCellArrayIdxs, uint32_t *cumulSumMaxPerBlock,
                                 float3 os, float3 ds, int3 ns,
@@ -517,22 +526,7 @@ __global__ void assignNeighbors_noExclusions(float4 *xs, int nAtoms, uint *ids,
     float4 posWhole;
     int myId;
 
-    /*
-    if (idx < nAtoms) {
-        posWhole = xs[idx];
-        myId = ids[idx];
-        int exclIdxLo = exclusionIndexes[myId];
-        int exclIdxHi = exclusionIndexes[myId+1];
-        numExclusions = exclIdxHi - exclIdxLo;
-        exclIdxHi_shr = exclIdxLo_shr + numExclusions;
-        for (int i=exclIdxLo; i<exclIdxHi; i++) {
-            uint exclusion = exclusionIds[i];
-            exclusionIds_shr[maxExclusionsPerAtom*threadIdx.x + i - exclIdxLo] = exclusion;
-            //printf("I am thread %d and I am copying %u from global %d to shared %d\n",
-            //threadIdx.x, exclusion, i, maxExclusionsPerAtom*threadIdx.x+i-exclIdxLo);
-        }
-    }
-    */
+ 
     if (idx < nAtoms) {
         posWhole = xs[idx];
         myId = ids[idx];
@@ -579,7 +573,7 @@ __global__ void assignNeighbors_noExclusions(float4 *xs, int nAtoms, uint *ids,
 
     } // endif idx < natoms
 }
-
+*/
 void setPerBlockCounts(std::vector<uint16_t> &neighborCounts, std::vector<uint32_t> &numNeighborsInBlocks) {
     numNeighborsInBlocks[0] = 0;
     for (int i=0; i<numNeighborsInBlocks.size()-1; i++) {
@@ -746,6 +740,7 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
             );
         } else {
             // just the positions and ids.  All we need.
+
             sortPerAtomArrays_xsOnly<<<NBLOCK(nAtoms), PERBLOCK>>>(
                     gpd->xs(activeIdx), gpd->xs(!activeIdx),
                     gpd->ids(activeIdx), gpd->ids(!activeIdx),
@@ -813,7 +808,7 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
         }
    
         if (exclusions) {
-            assignNeighbors<<<NBLOCK(nAtoms), PERBLOCK, PERBLOCK*maxExclusionsPerAtom*sizeof(uint)>>>(
+            assignNeighbors<true> <<<NBLOCK(nAtoms), PERBLOCK, PERBLOCK*maxExclusionsPerAtom*sizeof(uint)>>>(
                 gpd->xs(gridIdx), nAtoms, gpd->ids(gridIdx),
                 perCellArray.d_data.data(), perBlockArray.d_data.data(), os, ds, ns,
                 bounds.periodic, trace, neighCut*neighCut, neighborlist.data(), warpSize,
@@ -822,11 +817,19 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
         } else {
 
             // no exclusions present (maxExclusionsPerAtom is 0)
+            assignNeighbors<false> <<<NBLOCK(nAtoms), PERBLOCK, PERBLOCK*maxExclusionsPerAtom*sizeof(uint)>>>(
+                gpd->xs(gridIdx), nAtoms, gpd->ids(gridIdx),
+                perCellArray.d_data.data(), perBlockArray.d_data.data(), os, ds, ns,
+                bounds.periodic, trace, neighCut*neighCut, neighborlist.data(), warpSize,
+                exclusionIndexes.data(), exclusionIds.data(), maxExclusionsPerAtom
+            );
+            /*
             assignNeighbors_noExclusions<<<NBLOCK(nAtoms), PERBLOCK, PERBLOCK*maxExclusionsPerAtom*sizeof(uint)>>>(
                 gpd->xs(gridIdx), nAtoms, gpd->ids(gridIdx),
                 perCellArray.d_data.data(), perBlockArray.d_data.data(), os, ds, ns,
                 bounds.periodic, trace, neighCut*neighCut, neighborlist.data(), warpSize
             );
+            */
         }
         /*
         assignNeighbors<<<NBLOCK(nAtoms), PERBLOCK, PERBLOCK*maxExclusionsPerAtom*sizeof(uint)>>>(
@@ -1018,6 +1021,11 @@ void GridGPU::handleExclusions() {
     } else {
         // set this to zero
         maxExclusionsPerAtom = 0;
+
+        exclusionIndexes = GPUArrayDeviceGlobal<int>(1);
+        exclusionIds = GPUArrayDeviceGlobal<uint>(1);
+        
+                //exclusionIndexes.data(), exclusionIds.data(), maxExclusionsPerAtom
         // -- this is called as an argument in a kernel call. are kernels permitted to have some dim 0?
         // no exclusions present
         // -- NOTE: need to make handleExclusion*() functions local to gpu data
