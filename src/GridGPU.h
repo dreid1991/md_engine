@@ -194,6 +194,25 @@ public:
     BoundsGPU boundsLastBuild;
     void setBounds(BoundsGPU &newBounds);
     float3 minGridDim;
+
+    /*! \brief Set flag to true/false
+     *
+     * \param bool the value of the flag
+     *
+     * The only GPUData that will be copied and sorted consists 
+     * of the positions, as opposed to the velocities and forces as well.
+     * Of course, atom/molecule id's are sorted as well.
+     *
+     */
+    void onlyPositions(bool);
+
+    // value of flag denoted by above function; defaults to false
+    bool onlyPositionsFlag;
+    
+    void doExclusions(bool);
+    bool exclusions;
+
+
     /*! \brief Copy atom positions to xsLastBuild
      *
      * Copies data from state->gpd.xs to xsLastBuild.

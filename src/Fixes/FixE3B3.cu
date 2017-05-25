@@ -49,7 +49,7 @@ void FixE3B3::compute(bool computeVirials) {
     
     // our grid data holding our molecule-by-molecule neighbor list
     // -- we need to copy over the molecule array as well.
-    uint16_t *neighborCounts = grid.perMolecArray.d_data.data();
+    uint16_t *neighborCounts = gridGPU.perAtomArray.d_data.data();
     /*
     evalWrap->compute(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx),
                       neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(),
@@ -130,7 +130,7 @@ bool FixE3B3::prepareForRun(){
     */
 
     // see State.cpp: State::prepareForRun(); most of this code is taken from there;
-    // but with molecules now
+    // but with molecules now!
     int nMolecules = waterMolecules.size();
     std::vector<float4> xs_vec;
     std::vector<uint> ids;
@@ -161,9 +161,34 @@ bool FixE3B3::prepareForRun(){
 
     gpd.idToIdxsOnCopy = idToIdxs_vec;
     gpd.idToIdxs.set(idToIdxs_vec);
+    bounds.handle2d();
+    boundsGPU = bounds.makeGPU();
+    float maxRCut = getMaxRCut();
+    initializeGrid();
+    //gridGPU = grid.makeGPU(maxRCut);  // uses os, ns, ds, dsOrig from AtomGrid
+    double maxRCut = rf;// cutoff of our potential (5.2 A)
+    double padding = 2.0;
+    double gridDim = maxRCut + padding;
+
+    GPUData *gpuData = &gpd;
+
+    // this number has no meaning whatsoever; it is completely arbitrary;
+    // -- we are not using exclusionMode for this grid or set of GPUData
+    int exclusionMode = 30;
+    gridGPU = GridGPU(state, gridDim, gridDim, gridDim, gridDim, exclusionMode, padding, gpuData);
+
+    // tell gridGPU that the only GPUData we need to sort are positions (and, of course, the molecule/atom id's)
+    gridGPU.onlyPositions(true);
+
+    // tell gridGPU not to do any exclusions stuff
+    gridGPU.doExclusions(false);
+
+    // so, the only buffers that we need are the xs and ids!
+    gpd.xsBuffer = GPUArrayGlobal<float4>(nMolecules);
+    //gpd.vsBuffer = GPUArrayGlobal<float4>(nMolecules);
+    //gpd.fsBuffer = GPUArrayGlobal<float4>(nMolecules);
+    gpd.idsBuffer = GPUArrayGlobal<uint>(nMolecules);
     
-
-
     return;
 }
 

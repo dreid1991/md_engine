@@ -34,7 +34,7 @@ class EvaluatorE3B3 {
         float k3;
         
         // default constructor, just to make FixE3B3 happy
-        EvaluatorE3B3();
+        EvaluatorE3B3() {};
 
         // handling of units is addressed in the instantiation of the evaluator in FixE3B3.cu
         // --> so, by now, it is safe to assume that our prefactors & cutoffs are consistent

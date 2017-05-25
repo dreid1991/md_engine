@@ -23,13 +23,16 @@ void export_FixE3B3();
  * J. Chem. Theory Comput. 2015, 11, 2268-2277
  *
  * Note that this fix should only be used in conjunction 
- * with water modeled as TIP4P-2005
+ * with water modeled as TIP4P/2005
  */
 
 class FixE3B3: public Fix {
     
     private:
-    
+   
+
+
+
     public:
 
         // delete the default constructor
@@ -72,6 +75,11 @@ class FixE3B3: public Fix {
          */
         bool postRun();
 
+
+        void stepInit(bool);
+
+        void singlePointEng(bool);
+
         void compute(bool);
         
         //! Reset parameters to before processing
@@ -91,7 +99,7 @@ class FixE3B3: public Fix {
         std::vector<Molecule> waterMolecules;
  
         // the local gridGPU for E3B3, where we make our molecule by molecule neighborlist
-        GridGPU myGridGPU;
+        GridGPU gridGPU;
 
         // corresponding local GPU data; note that we only really need xs - no need for fs, vs, etc..
         GPUData gpd;
