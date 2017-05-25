@@ -41,7 +41,7 @@ void DataComputerEnergy::computeScalar_GPU(bool transferToCPU, uint32_t groupTag
         fix->setEvalWrapperMode("offload");
         fix->setEvalWrapper();
     }
-    if (groupTag == 1) {
+    if (groupTag == 1 or !otherIsAll) { //if other isn't all, then only group-group energies got computed so need to sum them all up anyway.  If other is all then every eng gets computed so need to accumulate only things in group
          accumulate_gpu<float, float, SumSingle, N_DATA_PER_THREAD> <<<NBLOCK(nAtoms / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*PERBLOCK*sizeof(float)>>>
             (gpuBufferReduce.getDevData(), gpuBuffer.getDevData(), nAtoms, state->devManager.prop.warpSize, SumSingle());
     } else {
