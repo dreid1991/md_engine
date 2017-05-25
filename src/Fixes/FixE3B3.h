@@ -6,7 +6,7 @@
 #include "GPUArrayGlobal.h"
 
 /* TODO: move pair interactions in to EvaluatorE3B3. */
-#include "PairEvaluatorE3B3.h"
+//#include "PairEvaluatorE3B3.h"
 //#include "ThreeBodyE3B3.h"
 #include "EvaluatorE3B3.h"
 #include "GridGPU.h"
@@ -76,9 +76,9 @@ class FixE3B3: public Fix {
         bool postRun();
 
 
-        void stepInit(bool);
+        bool stepInit();
 
-        void singlePointEng(bool);
+        void singlePointEng(float *);
 
         void compute(bool);
         

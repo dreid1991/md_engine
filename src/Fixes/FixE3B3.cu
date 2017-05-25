@@ -7,6 +7,7 @@
 #include "list_macro.h"
 
 const std::string E3B3Type = "E3B3";
+namespace py = boost::python;
 /* Constructor
  * Makes an instance of the E3B3 fix
  */
@@ -61,7 +62,7 @@ void FixE3B3::compute(bool computeVirials) {
     
 }
 
-void FixE3B3::stepInit(bool computeVirialsInForce){
+bool FixE3B3::stepInit(){
     // we use this as an opportunity to re-create the local neighbor list, if necessary
     int periodicInterval = state->periodicInterval;
     if (state->turn % periodicInterval == 0) {
@@ -73,10 +74,11 @@ void FixE3B3::stepInit(bool computeVirialsInForce){
         //   So, maybe have the grid take in a pointer to a class; default option is to have 
         //   this pointer be to our 'state' intance; 
         //    ---- this is for future development
-        grid.periodicBoundaryConditions();
+        gridGPU.periodicBoundaryConditions();
 
 
     }
+    return true;
 }
 
 
@@ -121,7 +123,6 @@ bool FixE3B3::prepareForRun(){
     
 
     
-    float maxRCut = rf;
     /*
     int nAtoms = state->atoms.size();
     int numTypes = state->atomParams.numTypes;
@@ -139,7 +140,9 @@ bool FixE3B3::prepareForRun(){
     ids.reserve(nMolecules);
 
     for (const auto &molecule: waterMolecules)  {
-        xs_vec.push_back(molecule.COM());
+        Vector this_xs = molecule.COM();
+        float4 new_xs = make_float4(this_xs[0], this_xs[1], this_xs[2], 0);
+        xs_vec.push_back(new_xs);
         ids.push_back(molecule.id);
     }
 
@@ -148,7 +151,7 @@ bool FixE3B3::prepareForRun(){
     gpd.ids.set(ids);
    
 
-    std::vector<int> id_vec = LISTMAPREF(Molecule, int, m, waterMolecules, a.id);
+    std::vector<int> id_vec = LISTMAPREF(Molecule, int, m, waterMolecules, m.id);
     std::vector<int> idToIdxs_vec;
     int size = *std::max_element(id_vec.begin(), id_vec.end()) + 1;
     idToIdxs_vec.reserve(size);
@@ -161,10 +164,6 @@ bool FixE3B3::prepareForRun(){
 
     gpd.idToIdxsOnCopy = idToIdxs_vec;
     gpd.idToIdxs.set(idToIdxs_vec);
-    bounds.handle2d();
-    boundsGPU = bounds.makeGPU();
-    float maxRCut = getMaxRCut();
-    initializeGrid();
     //gridGPU = grid.makeGPU(maxRCut);  // uses os, ns, ds, dsOrig from AtomGrid
     double maxRCut = rf;// cutoff of our potential (5.2 A)
     double padding = 2.0;
@@ -175,6 +174,8 @@ bool FixE3B3::prepareForRun(){
     // this number has no meaning whatsoever; it is completely arbitrary;
     // -- we are not using exclusionMode for this grid or set of GPUData
     int exclusionMode = 30;
+    // I think this is doubly irrelevant, since we use a doExclusions(false) method later (below)
+
     gridGPU = GridGPU(state, gridDim, gridDim, gridDim, gridDim, exclusionMode, padding, gpuData);
 
     // tell gridGPU that the only GPUData we need to sort are positions (and, of course, the molecule/atom id's)
@@ -189,7 +190,7 @@ bool FixE3B3::prepareForRun(){
     //gpd.fsBuffer = GPUArrayGlobal<float4>(nMolecules);
     gpd.idsBuffer = GPUArrayGlobal<uint>(nMolecules);
     
-    return;
+    return true;
 }
 
 
@@ -220,12 +221,13 @@ void FixE3B3::addMolecule(int id_O, int id_H1, int id_H2, int id_M) {
 
     // mass of O > mass H1 == mass H2 > mass M
     bool ordered = true;
-    double massO = state->atoms[idToIdx[id_O]].mass;
-    double massH1 = state->atoms[idToIdx[id_H1]].mass;
-    double massH2 = state->atoms[idToIdx[id_H2]].mass;
-    double massM = state->atoms[idToIdx[id_M]].mass;
+    double massO = state->idToAtom(id_O).mass; 
+    double massH1 = state->idToAtom(id_H1).mass;
+    double massH2 = state->idToAtom(id_H2).mass;
+    double massM = state->idToAtom(id_M).mass;
 
-    if (! (massO > massH1 && massO > massH2)) {
+    // check the ordering
+    if (! (massO > massH1 && massO > massH2 )) {
         ordered = false;
     }
     if (massH1 != massH2) ordered = false;
@@ -249,12 +251,13 @@ void export_FixE3B3() {
   py::class_<FixE3B3, boost::shared_ptr<FixE3B3>, py::bases<Fix> > ( 
 								      "FixE3B3",
 								      py::init<boost::shared_ptr<State>, std::string, std::string>
-								      (py::args("state", "handle", "groupHandle", "rcut", "rs", "rf")
+								      (py::args("state", "handle", "groupHandle")
 								       ))
-    .def("createRigid", &FixRigid::createRigid,
-	     (py::arg("id_a"), 
-          py::arg("id_b"), 
-          py::arg("id_c")
+    .def("addMolecule", &FixE3B3::addMolecule,
+	     (py::arg("id_O"), 
+          py::arg("id_H1"), 
+          py::arg("id_H2"),
+          py::arg("id_M")
          )
 	 );
 }
