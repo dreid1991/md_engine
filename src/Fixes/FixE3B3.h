@@ -7,7 +7,7 @@
 
 /* TODO: move pair interactions in to EvaluatorE3B3. */
 //#include "PairEvaluatorE3B3.h"
-//#include "ThreeBodyE3B3.h"
+#include "ThreeBodyE3B3.h"
 #include "EvaluatorE3B3.h"
 #include "GridGPU.h"
 #include "Molecule.h"

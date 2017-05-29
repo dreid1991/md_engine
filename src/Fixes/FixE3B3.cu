@@ -104,6 +104,7 @@ void FixE3B3::compute(bool computeVirials) {
     /* data required for compute_e3b3:
        - nMolecules
        - moleculesIdsToIdxs
+       - waterIds (atom IDS in a given molecule)
        - molecules neighborcounts
        - molecules nlist
        - molecules - cumulSumMaxPerBlock (grid.perBlockArray.d_data.data())a
@@ -115,24 +116,54 @@ void FixE3B3::compute(bool computeVirials) {
     */
 
     if (computeVirials) {
-        compute_e3b3<evaluatorE3B3, true> <<<NBLOCK(nMolecules), PERBLOCK>>> (
-            nMolecules, gpd.idToIdxs.d_data.data(), 
-            neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(),
+        compute_E3B3<EvaluatorE3B3, true> <<<NBLOCK(nMolecules), PERBLOCK>>> (
+            nMolecules, 
+            gpd.idToIdxs.d_data.data(), 
+            waterIdsGPU.data(),
+            gridGPU.perAtomArray.d_data.data(),
+            gridGPU.neighborlist.data(), 
+            gridGPU.perBlockArray.d_data.data(),
             state->devManager.prop.warpSize,
-            gpdGlobal.idToIdxs.d_data.data(), gpdGlobal.xs(globalActiveIdx), 
-            state->boundsGPU, gpdGlobal.virials.d_data.data());
-
+            gpdGlobal.idToIdxs.d_data.data(), 
+            gpdGlobal.xs(globalActiveIdx), 
+            gpdGlobal.fs(globalActiveIdx),
+            state->boundsGPU, 
+            gpdGlobal.virials.d_data.data(),
+            evaluator);
+        /*
+        (int nMolecules, 
+         const int *__restrict__ molIdToIdxs,
+         const float4 *__restrict__ atomsFromMolecule,
+         const uint16_t *__restrict__ neighborCounts, 
+         const uint *__restrict__ neighborlist, 
+         const uint32_t * __restrict__ cumulSumMaxPerBlock, 
+         int warpSize, 
+         const int *__restrict__ idToIdxs,
+         const float4 *__restrict__ xs, 
+         float4 *__restrict__ fs, 
+         BoundsGPU bounds, 
+         Virial *__restrict__ virials,
+         EVALUATOR eval)
+        */
     } else {
-        compute_e3b3<evaluatorE3B3, false> <<<NBLOCK(nMolecules), PERBLOCK>>> (
-            nMolecules, gpd.idToIdxs.d_data.data(), 
-            neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(),
+        compute_E3B3<EvaluatorE3B3, false> <<<NBLOCK(nMolecules), PERBLOCK>>> (
+            nMolecules, 
+            gpd.idToIdxs.d_data.data(), 
+            waterIdsGPU.data(),
+            neighborCounts, 
+            gridGPU.neighborlist.data(), 
+            gridGPU.perBlockArray.d_data.data(),
             state->devManager.prop.warpSize,
-            gpdGlobal.idToIdxs.d_data.data(), gpdGlobal.xs(globalActiveIdx), 
-            state->boundsGPU, gpdGlobal.virials.d_data.data());
+            gpdGlobal.idToIdxs.d_data.data(), 
+            gpdGlobal.xs(globalActiveIdx), 
+            gpdGlobal.fs(globalActiveIdx),
+            state->boundsGPU, 
+            gpdGlobal.virials.d_data.data(),
+            evaluator);
     };
             /*
     evalWrap->compute(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx),
-                      neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(),
+                      neighborCounts, gridGPU.neighborlist.data(), gridGPU.perBlockArray.d_data.data(),
                       state->devManager.prop.warpSize, numTypes, state->boundsGPU,
                       gpd.virials.d_data.data(), computeVirials);
     */

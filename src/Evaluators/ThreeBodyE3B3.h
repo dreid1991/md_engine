@@ -13,17 +13,21 @@
 // ---- this neighborlist should be a list of integer molecule ids,
 //      for which there is a map organized by molecule id from which we 
 //      can extract the atom ids (and from there our usual pos, force, vel, etc.)
-template <EVALUATOR, VIRIALS> 
+template <class EVALUATOR, bool COMP_VIRIALS> 
 __global__ void compute_E3B3
         (int nMolecules, 
-         const float4 *__restrict__ xs, 
-         float4 *__restrict__ fs, 
+         const int *__restrict__ molIdToIdxs,
+         const int4 *__restrict__ atomsFromMolecule,
          const uint16_t *__restrict__ neighborCounts, 
          const uint *__restrict__ neighborlist, 
          const uint32_t * __restrict__ cumulSumMaxPerBlock, 
          int warpSize, 
+         const int *__restrict__ idToIdxs,
+         const float4 *__restrict__ xs, 
+         float4 *__restrict__ fs, 
          BoundsGPU bounds, 
-         Virial *__restrict__ virials) 
+         Virial *__restrict__ virials,
+         EVALUATOR eval)
 {
 
     __syncthreads();
@@ -34,19 +38,19 @@ __global__ void compute_E3B3
 
         // stuff with virials here as well
 
-        // so, we'll need to make baseMoleculeNeighList().. for now, just call it as if we have it
         // -- the purpose of this is to load the neighbors associated with this molecule ID
-        int baseMoleculeIdx = baseMoleculeNeighList(cumulSumMaxPerBlock, warpSize);
+        int baseMoleculeIdx =  baseNeighlistIdx(cumulSumMaxPerBlock, warpSize);
 
         // number of neighbors this molecule has, with which it can form trimers
-        int numNeighMolecules = neighborCountsMolecule[idx];
+        int numNeighMolecules = neighborCounts[idx];
        
         // here we should extract the positions of the O, H atoms of this water molecule
         // first, get the atom indices - maybe this will be stored as an array of ints?
 
-        // is this the correct way to access this...? assuming it will be of similar form to neighborlist,
         // except now we need a list of atoms corresponding to a given molecule..
         // additionally, we assume that the list of atoms in a molecule is ordered as {O, H1, H2}
+        int moleculeId = molIdToIdxs[idx];
+
         int4 atomsMolecule1 = atomsFromMolecule[idx];
     
         /* NOTE to others: see the notation used in 
@@ -60,8 +64,8 @@ __global__ void compute_E3B3
         //int4 atomIdxs = make_int4(idToIdx[atomMolecule.x]....)
         // copy the float4 vectors of the positions
         float4 pos_a1_whole = xs[atomIdxs.x]
-        float4 pos_b1_whole = xs[iAtoms[1]];
-        float4 pos_c1_whole = xs[iAtoms[2]];
+        float4 pos_b1_whole = xs[atomIdxs.y];
+        float4 pos_c1_whole = xs[atomIdxs.z];
 
         // now, get just positions in float3
         float3 pos_a1 = make_float3(pos_a1_whole);
