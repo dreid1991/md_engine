@@ -17,6 +17,7 @@ template <class EVALUATOR, bool COMP_VIRIALS>
 __global__ void compute_E3B3
         (int nMolecules, 
          const int *__restrict__ molIdToIdxs,
+         const uint *__restrict__ waterMolecIds,
          const int4 *__restrict__ atomsFromMolecule,
          const uint16_t *__restrict__ neighborCounts, 
          const uint *__restrict__ neighborlist, 
@@ -37,6 +38,14 @@ __global__ void compute_E3B3
     if (idx < nMolecules) {
 
         // stuff with virials here as well
+        //
+        // TODO: we use IDX to get data from the molec gpd arrays...
+        //       -- we use molIdToIdxs to get the ID, to access atomsFromMolecule[id]..
+        //       -- this yields atom [ids]...
+        //       -- we use the global atom idToIdxs[id] to get the atom idxs, and corresponding
+        //          positions, forces etc.?
+        //       -- repeat this for molecules 2 and 3?
+
 
         // -- the purpose of this is to load the neighbors associated with this molecule ID
         int baseMoleculeIdx =  baseNeighlistIdx(cumulSumMaxPerBlock, warpSize);
@@ -49,10 +58,14 @@ __global__ void compute_E3B3
 
         // except now we need a list of atoms corresponding to a given molecule..
         // additionally, we assume that the list of atoms in a molecule is ordered as {O, H1, H2}
-        int moleculeId = molIdToIdxs[idx];
+        int moleculeId = waterMolecIds[idx];
+        //int moleculeId = molIdToIdxs[idx];
 
-        int4 atomsMolecule1 = atomsFromMolecule[idx];
-    
+        int4 atomsMolecule1 = atomsFromMolecule[moleculeId];
+        
+        printf("molecule id %d atoms: %d, %d, %d \n", moleculeId, atomsMolecule1.x, atomsMolecule1.y, atomsMolecule1.z);
+   
+
         /* NOTE to others: see the notation used in 
          * Kumar and Skinner, J. Phys. Chem. B., 2008, 112, 8311-8318
          * "Water Simulation Model with Explicit 3 Body Interactions"
@@ -61,21 +74,20 @@ __global__ void compute_E3B3
          * and decomposing the given trimer into the set of molecules 1,2,3 (water molecule 1, 2, and 3)
          */
        
-        //int4 atomIdxs = make_int4(idToIdx[atomMolecule.x]....)
+        //int4 atomsMolecule1 = make_int4(idToIdx[atomMolecule.x]....)
         // copy the float4 vectors of the positions
-        float4 pos_a1_whole = xs[atomIdxs.x]
-        float4 pos_b1_whole = xs[atomIdxs.y];
-        float4 pos_c1_whole = xs[atomIdxs.z];
+        int idx_a1 = idToIdxs[atomsMolecule1.x];
+        int idx_b1 = idToIdxs[atomsMolecule1.y];
+        int idx_c1 = idToIdxs[atomsMolecule1.z];
+
+        float4 pos_a1_whole = xs[idx_a1];
+        float4 pos_b1_whole = xs[idx_b1];
+        float4 pos_c1_whole = xs[idx_c1];
 
         // now, get just positions in float3
         float3 pos_a1 = make_float3(pos_a1_whole);
         float3 pos_b1 = make_float3(pos_b1_whole);
         float3 pos_c1 = make_float3(pos_c1_whole);
-
-        // extract the initial forces on these atoms; these will be modified at the end of this function
-        float4 fs_a1_whole = fs[iAtoms[0]];
-        float4 fs_b1_whole = fs[iAtoms[1]];
-        float4 fs_c1_whole = fs[iAtoms[2]];
 
         // create a new force sum variable for these atoms
         float3 fs_a1_sum = make_float3(0.0, 0.0, 0.0);
@@ -87,15 +99,24 @@ __global__ void compute_E3B3
         for (int j = 0; j < (numNeighMolecules); j++) {
             
             // get idx of this molecule
-            // this does assume that molecules are grouped according to warpsize
             // -- then, the atomIDs that we need are somehow accessible via MoleculeID
-            int jlistMoleculeIdx = baseMoleculeIdx + warpSize * j;
-            int jrawIdx = neighborlist[jlistMoleculeIdx];
+            int nlistIdx = baseMoleculeIdx + warpSize * j;
+            uint jIdxRaw = neighborlist[nlistIdx];
+
+            // get the molecule id for this idx
+            int moleculeId2 = waterMolecIds[jIdxRaw];
             
-            uint* atomsMolecule2 = atomsFromMolecule[jrawIdx];
-            float4 pos_a2_whole = xs[jAtoms[0]];
-            float4 pos_b2_whole = xs[jAtoms[1]];
-            float4 pos_c2_whole = xs[jAtoms[2]];
+            // get the atom ids from this molecule id
+            int4 atomsMolecule2 = atomsFromMolecule[moleculeId2];
+
+            // get the atom idxs from the atom ids.. since the per-atom arrays are sorted by idx
+            int idx_a2 = idToIdxs[atomsMolecule2.x];
+            int idx_b2 = idToIdxs[atomsMolecule2.y];
+            int idx_c2 = idToIdxs[atomsMolecule2.z];
+
+            float4 pos_a2_whole = xs[idx_a2];
+            float4 pos_b2_whole = xs[idx_b2];
+            float4 pos_c2_whole = xs[idx_c2];
     
             // here we should extract the positions for the O, H atoms of this water molecule
             float3 pos_a2 = make_float3(pos_a2_whole);
@@ -111,39 +132,18 @@ __global__ void compute_E3B3
             
             float3 r_b1a2 = bounds.minImage(pos_b1 - pos_a2);
             float3 r_c1a2 = bounds.minImage(pos_c1 - pos_a2);
-            
-
-            // // old notation commented out.. making hydrogens the reference atom
-            //float3 r_a1b2 = bounds.minImage(pos_a1 - pos_b2);
-            //float3 r_a1c2 = bounds.minImage(pos_a1 - pos_c2);
-           
-            //float3 r_a2b1 = bounds.minImage(pos_a2 - pos_b1);
-            //float3 r_a2c1 = bounds.minImage(pos_a2 - pos_c1);
-
-            // and get magnitudes of the OH distances computed so far
-            // -- r_a1b2_magnitude is identical to r_b2a1_magnitude... no need to compute both
-            //
 
             float r_b2a1_magnitude = length(r_b2a1);
             float r_c2a1_magnitude = length(r_c2a1);
             float r_b1a2_magnitude = length(r_b1a2);
             float r_c1a2_magnitude = length(r_c1a2);
 
-
-            // // old notation
-            /*
-            float r_a1b2_magnitude = length(r_a1b2);
-            float r_a1c2_magnitude = length(r_a1c2);
-            float r_a2b1_magnitude = length(r_a2b1);
-            float r_a2c1_magnitude = length(r_a2c1);
-            */
-
             // we now have our molecule 'j'
             // compute the two-body correction term w.r.t the oxygens
             float3 r_a1a2 = bounds.minImage(pos_a1 - pos_a2);
             float r_a1a2_magnitude = length(r_a1a2);
 
-            fs_a1_sum += eval.twoBodyForce(r_a1a2,r_a1a2_magnitude)
+            fs_a1_sum += eval.twoBodyForce(r_a1a2,r_a1a2_magnitude);
            
             // compute the number of O-H distances computed so far that are within the range of the three-body cutoff
             // note: order really doesn't matter here; just checking if (val < 5.2 Angstroms)
@@ -153,14 +153,6 @@ __global__ void compute_E3B3
                                                                            r_c2a1_magnitude,
                                                                            r_b1a2_magnitude,
                                                                            r_c1a2_magnitude);
-
-            // // old notation
-            /*
-            int numberOfDistancesWithinCutoff = eval.getNumberWithinCutoff(r_a1b2_magnitude,
-                                                                           r_a1c2_magnitude,
-                                                                           r_a2b1_magnitude,
-                                                                           r_a2c1_magnitude);
-            */
 
             // compute the exponential force scalar resulting from the a1b2, a1c2, a2b1, a2c1 contributions,
             // so that we don't have to compute these in the k-molecule loop
@@ -172,32 +164,31 @@ __global__ void compute_E3B3
             float fs_b1a2_scalar = eval.threeBodyForceScalar(r_b1a2_magnitude);
             float fs_c1a2_scalar = eval.threeBodyForceScalar(r_c1a2_magnitude);
             
-            // old notation below
-            /*
-            float fs_a1b2_scalar = eval.threeBodyForceScalar(r_a1b2_magnitude);
-            float fs_a1c2_scalar = eval.threeBodyForceScalar(r_a1c2_magnitude);
-            float fs_a2b1_scalar = eval.threeBodyForceScalar(r_a2b1_magnitude);
-            float fs_a2c1_scalar = eval.threeBodyForceScalar(r_a2c1_magnitude);
-            */
-
             // --> get molecule 'k' to complete the trimer
 
             // we only wish to compute $-/nabla E_{ijk}$ for all unique combos of trimers, so this should range 
             // from k = j+1, while still less than numNeighMolecules w.r.t. baseMolecule ('i');
             
             for (int k = j+1; k < numNeighMolecules; k++) {
+                
                 // grab warp index corresponding to this 'k'
                 int klistMoleculeIdx = baseMoleculeIdx + warpSize * k;
                 // convert this index to a molecule index within our molecule array
                 int krawIdx = neighborlist[klistMoleculeIdx];
 
                 // we now have our k molecule
-                uint* atomsMolecule3 = atomsFromMolecule[krawIdx];
+                int moleculeId3 = waterMolecIds[krawIdx];
+
+                int4 atomsMolecule3 = atomsFromMolecule[moleculeId3];
+
+                int idx_a3 = idToIdxs[atomsMolecule3.x];
+                int idx_b3 = idToIdxs[atomsMolecule3.y];
+                int idx_c3 = idToIdxs[atomsMolecule3.z];
 
                 // extract positions of O, H atoms of this water molecule
-                float4 pos_a3_whole = xs[kAtoms[0]];
-                float4 pos_b3_whole = xs[kAtoms[1]];
-                float4 pos_c3_whole = xs[kAtoms[2]];
+                float4 pos_a3_whole = xs[idx_a3];
+                float4 pos_b3_whole = xs[idx_b3];
+                float4 pos_c3_whole = xs[idx_c3];
 
                 float3 pos_a3 = make_float3(pos_a3_whole);
                 float3 pos_b3 = make_float3(pos_b3_whole);
@@ -220,27 +211,6 @@ __global__ void compute_E3B3
                 float3 r_b2a3 = bounds.minImage(pos_b2 - pos_a3);
                 float3 r_c2a3 = bounds.minImage(pos_c2 - pos_a3);
                
-
-                /*
-                // // old notation below
-                // -- distances vector for a1b3 and a1c3:
-                float3 r_a1b3 = bounds.minImage(pos_a1 - pos_b3);
-                float3 r_a1c3 = bounds.minImage(pos_a1 - pos_c3);
-               
-                // -- distances vector for a2b3 and a2c3:
-                float3 r_a2b3 = bounds.minImage(pos_a2 - pos_b3);
-                float3 r_a2c3 = bounds.minImage(pos_a2 - pos_c3);
-
-                // -- distances vector for a3b1 and a3c1:
-                float3 r_a3b1 = bounds.minImage(pos_a3 - pos_b1);
-                float3 r_a3c1 = bounds.minImage(pos_a3 - pos_c1);
-
-                // -- distance vector for a3b2 and a3c2:
-                float3 r_a3b2 = bounds.minImage(pos_a3 - pos_b2);
-                float3 r_a3c2 = bounds.minImage(pos_a3 - pos_c2);
-                */
-
-
                 /*
                  *  get the magnitude of the new distance vectors, and check if we still need to compute this potential
                  *  (i.e., see if this is a valid trimer, that there will be some non-zero threebody contribution)
@@ -257,20 +227,6 @@ __global__ void compute_E3B3
                 float r_b2a3_magnitude = length(r_b2a3);
                 float r_c2a3_magnitude = length(r_c2a3);
 
-
-                /*
-                float r_a1b3_magnitude = length(r_a1b3);
-                float r_a1c3_magnitude = length(r_a1c3);
-                
-                float r_a2b3_magnitude = length(r_a2b3);
-                float r_a2c3_magnitude = length(r_a2c3);
-
-                float r_a3b1_magnitude = length(r_a3b1);
-                float r_a3c1_magnitude = length(r_a3c1);
-                float r_a3b2_magnitude = length(r_a3b2);
-                float r_a3c2_magnitude = length(r_a3c2);
-                */
-
                 // compute the number of additional distances within the cutoff;
                 // if the total is >= 2, we need to compute the force terms.
                 numberOfDistancesWithinCutoff += eval.getNumberWithinCutoff(r_b3a1_magnitude,
@@ -283,27 +239,15 @@ __global__ void compute_E3B3
                                                                             r_b2a3_magnitude,
                                                                             r_c2a3_magnitude);
 
-                /* old notation
-                numberOfDistancesWithinCutoff += eval.getNumberWithinCutoff(r_a1b3_magnitude,
-                                                                            r_a1c3_magnitude,
-                                                                            r_a2b3_magnitude,
-                                                                            r_a2c3_magnitude);
-
-                numberOfDistancesWithinCutoff += eval.getNumberWithinCutoff(r_a3b1_magnitude,
-                                                                            r_a3c1_magnitude,
-                                                                            r_a3b2_magnitude,
-                                                                            r_a3c2_magnitude);
-                */
-
                 // if there is only 1 intermolecular O-H distance within the cutoff, all terms will be zero
                 if (numberOfDistancesWithinCutoff >= 2) {
                     // send our forces sum variable, the distance vectors, and their corresponding magnitude to the force evaluate function
                     // -- also, for speed, we pre-compute the force scalar corresponding to the a1b2, a1c2, a2b1, and a2c1 distances
                     // -- then, we are done
                     // 
-                    //
                     // this is a long parameter list, but its kind of necessary... so. Could group in a struct, but 
                     // this is explicit. 
+                    // compute the exponential force scalar resulting from the a1b2, a1c2, a2b1, a2c1 contributions,
                     
                     eval.threeBodyForce(fs_a1_sum, fs_b1_sum, fs_c1_sum,
                                         fs_b2a1_scalar, fs_c2a1_scalar,
@@ -321,31 +265,23 @@ __global__ void compute_E3B3
                                         r_b2a3, r_b2a3_magnitude, 
                                         r_c2a3, r_c2a3_magnitude);
                    
-                    /* old notation 
-                    eval.threeBodyForce(fs_a1_sum, fs_b1_sum, fs_c1_sum,
-                                        fs_a1b2_scalar, fs_a1c2_scalar,
-                                        fs_a2b1_scalar, fs_a2c1_scalar,
-                                        r_a1b2, r_a1b2_magnitude,
-                                        r_a1c2, r_a1c2_magnitude,
-                                        r_a1b3, r_a1b3_magnitude,
-                                        r_a1c3, r_a1c3_magnitude,
-                                        r_a2b1, r_a2b1_magnitude,
-                                        r_a2c1, r_a2c1_magnitude,
-                                        r_a2b3, r_a2b3_magnitude,
-                                        r_a2c3, r_a2c3_magnitude,
-                                        r_a3b1, r_a3b1_magnitude,
-                                        r_a3c1, r_a3c1_magnitude, 
-                                        r_a3b2, r_a3b2_magnitude, 
-                                        r_a3c2, r_a3c2_magnitude);
-                    */
                 } // end if (numberOfDistancesWithinCutoff >= 2)
             } // end for (int k = j+1; k < numNeighMolecules; k++) 
         } // end for (int j = 0; j < (numNeighMolecules); j++) 
         
 
         // we now have the aggregate force sums for the three atoms a1, b1, c1; add them to the actual atoms data
+        float4 fs_a1_whole = fs[idx_a1];
+        float4 fs_b1_whole = fs[idx_b1];
+        float4 fs_c1_whole = fs[idx_c1];
 
-        
+        fs_a1_whole += fs_a1_sum;
+        fs_b1_whole += fs_b1_sum;
+        fs_c1_whole += fs_c1_sum;
+
+        fs[idx_a1] = fs_a1_whole;
+        fs[idx_b1] = fs_b1_whole;
+        fs[idx_c1] = fs_c1_whole;
 
 
 

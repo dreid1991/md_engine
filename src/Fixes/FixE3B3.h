@@ -73,8 +73,6 @@ class FixE3B3: public Fix {
         /*!
          * This function needs to be called after simulation run.
          */
-        bool postRun();
-
 
         bool stepInit();
 

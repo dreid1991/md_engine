@@ -55,6 +55,20 @@ class EvaluatorE3B3 {
             rfminusrs_cubed_inv = 1.0 / (rfminusrs * rfminusrs * rfminusrs);
             rstimes3 = 3.0 * rs_;
         };
+        inline __device__ int getNumberWithinCutoff(float d1, float d2, float d3, float d4) {
+            int count = 0;
+            if (d1 < rf) count += 1;
+            if (d2 < rf) count += 1;
+            if (d3 < rf) count += 1;
+            if (d4 < rf) count += 1;
+            return count;
+        }
+
+        // implements the O-O two-body correction to TIP4P/2005
+        inline __device__ float3 twoBodyForce(float3 dr, float r) {
+            float forceScalar = k2 * E2 * expf(-k2 * r) / r;
+            return dr * forceScalar;
+        }
 
         // implements one evaluation of the switching function for smooth cutoff of the potential
         inline __device__ float switching(float dist) {
