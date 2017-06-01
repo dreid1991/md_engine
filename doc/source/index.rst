@@ -13,7 +13,6 @@ Contents:
    :maxdepth: 2
 
    Introduction
-   This-is-content
    writing-trajectories
 
 
