@@ -1,6 +1,9 @@
 Writing Trajectories
 ====================
 
+Overview
+^^^^^^^^
+
 Write a restart file every ``writeEvery`` turns in ``xyz`` or DASH-specific ``xml`` format.  A ``WriteConfig`` object must be created as shown below.  At this point, the ``write()`` method can be called to immediately write a configuration, or the ``WriteConfig`` can be activated and configurations will be written every ``writeEvery`` turns.  
 
 Output is performed asynchonously, allowing restarts to be written frequently with minimal performance impact.

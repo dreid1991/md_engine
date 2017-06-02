@@ -1,6 +1,9 @@
 Reading trajectories
 ====================
 
+Overview
+^^^^^^^^
+
 Trajectories in xml format can be read in as follows:
 
 First load the file.  Every ``State`` object has a ``readConfig`` member.
@@ -25,6 +28,7 @@ Or to iterate to the last configuration
 To move by a certain number of trajectories
 
 .. code-block:: python
+
     #advance by 3 snapshots within this xml file
     state.readConfig.moveBy(3)
 
