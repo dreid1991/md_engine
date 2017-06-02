@@ -14,6 +14,7 @@ Contents:
 
    Introduction
    writing-trajectories
+   reading-trajectories
 
 
 
