@@ -150,7 +150,7 @@ void export_DataManager() {
             (py::arg("handle") = "all",
              py::arg("mode") = "scalar",
              py::arg("interval") = 0,
-             py::arg("turnGenerator") = py::object())
+             py::arg("collectGenerator") = py::object())
         )
     .def("recordEnergy", &DataManager::recordEnergy,
             (py::arg("handle") = "all",
