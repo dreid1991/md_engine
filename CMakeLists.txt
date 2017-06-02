@@ -10,6 +10,7 @@ project (MDengine)
 
 set(Boost_DEBUG 1)
 find_package(Boost
+	1.62
 	REQUIRED
 	COMPONENTS python 
 	)

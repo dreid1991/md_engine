@@ -13,4 +13,4 @@ export CC=/software/gcc-4.7-el6-x86_64/bin/gcc
 export CXX=/software/gcc-4.7-el6-x86_64/bin/g++
 $LD_LIBRARY_PATH
 cmake .. -DPYTHON=1
-make -j 10
+make -j 4 
