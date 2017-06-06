@@ -2,6 +2,8 @@
 #ifndef FIXDIHEDRALOPLS_H
 #define FIXDIHEDRALOPLS_H
 
+#undef _XOPEN_SOURCE
+#undef _POSIX_C_SOURCE
 #include <boost/python.hpp>
 
 #include "FixPotentialMultiAtom.h"

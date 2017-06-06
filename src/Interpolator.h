@@ -1,5 +1,7 @@
 #pragma once
 
+#undef _XOPEN_SOURCE
+#undef _POSIX_C_SOURCE
 #include <boost/python.hpp>
 #include "BoundsGPU.h"
 #include "cutils_math.h"

@@ -8,6 +8,7 @@ class EvaluatorWrapper {
 public:
     virtual void compute(int nAtoms, int nPerRingPoly, float4 *xs, float4 *fs, uint16_t *neighborCounts, uint *neighborlist, uint32_t *cumulSumMaxPerBlock, int warpSize, float *parameters, int numTypes,  BoundsGPU bounds, float onetwoStr, float onethreeStr, float onefourStr, Virial *virials, float *qs, float qCutoffSqr, int virialMode) {};
     virtual void energy(int nAtoms, int nPerRingPoly, float4 *xs, float *perParticleEng, uint16_t *neighborCounts, uint *neighborlist, uint32_t *cumulSumMaxPerBlock, int warpSize, float *parameters, int numTypes, BoundsGPU bounds, float onetwoStr, float onethreeStr, float onefourStr, float *qs, float qCutoffSqr) {};
+    virtual void energyGroupGroup(int nAtoms, int nPerRingPoly, float4 *xs, float4 *fs, float *perParticleEng, uint16_t *neighborCounts, uint *neighborlist, uint32_t *cumulSumMaxPerBlock, int warpSize, float *parameters, int numTypes, BoundsGPU bounds, float onetwoStr, float onethreeStr, float onefourStr, float *qs, float qCutoffSqr, uint32_t tagA, uint32_t tagB) {};
 };
 
 
@@ -33,6 +34,9 @@ public:
     }
     virtual void energy(int nAtoms, int nPerRingPoly, float4 *xs, float *perParticleEng, uint16_t *neighborCounts, uint *neighborlist, uint32_t *cumulSumMaxPerBlock, int warpSize, float *parameters, int numTypes, BoundsGPU bounds, float onetwoStr, float onethreeStr, float onefourStr, float *qs, float qCutoff) {
        compute_energy_iso<PAIR_EVAL, COMP_PAIRS, N_PARAM, CHARGE_EVAL, COMP_CHARGES> <<<NBLOCK(nAtoms), PERBLOCK, N_PARAM*numTypes*numTypes*sizeof(float)>>> (nAtoms, nPerRingPoly, xs, perParticleEng, neighborCounts, neighborlist, cumulSumMaxPerBlock, warpSize, parameters, numTypes, bounds, onetwoStr, onethreeStr, onefourStr, qs, qCutoff*qCutoff, pairEval, chargeEval);
+    }
+    virtual void energyGroupGroup(int nAtoms, int nPerRingPoly, float4 *xs, float4 *fs, float *perParticleEng, uint16_t *neighborCounts, uint *neighborlist, uint32_t *cumulSumMaxPerBlock, int warpSize, float *parameters, int numTypes, BoundsGPU bounds, float onetwoStr, float onethreeStr, float onefourStr, float *qs, float qCutoff, uint32_t tagA, uint32_t tagB) {
+       compute_energy_iso_group_group<PAIR_EVAL, COMP_PAIRS, N_PARAM, CHARGE_EVAL, COMP_CHARGES> <<<NBLOCK(nAtoms), PERBLOCK, N_PARAM*numTypes*numTypes*sizeof(float)>>> (nAtoms, nPerRingPoly, xs, fs, perParticleEng, neighborCounts, neighborlist, cumulSumMaxPerBlock, warpSize, parameters, numTypes, bounds, onetwoStr, onethreeStr, onefourStr, qs, qCutoff*qCutoff, tagA, tagB, pairEval, chargeEval);
     }
 
 };

@@ -132,6 +132,7 @@ public:
      * \todo Make this function purely virtual.
      */
     virtual void singlePointEng(float *perParticleEng) {}
+    virtual void singlePointEngGroupGroup(float *perParticleEng, uint32_t groupTagA, uint32_t groupTagB) {}
 
     //! Accomodate for new type of Atoms added to the system
     /*!
@@ -232,7 +233,6 @@ public:
 
     virtual void setEvalWrapper(){};
 
-    virtual void updateForPIMD(){};
 
     std::string evalWrapperMode;
     //self or offload

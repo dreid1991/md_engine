@@ -4,6 +4,8 @@
 
 #include "Fix.h"
 #include "GPUArrayGlobal.h"
+#undef _XOPEN_SOURCE
+#undef _POSIX_C_SOURCE
 #include <boost/python.hpp>
 #include <string>
 #include <vector>

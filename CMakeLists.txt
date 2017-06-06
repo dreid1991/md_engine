@@ -8,6 +8,12 @@
 cmake_minimum_required (VERSION 2.6)
 project (MDengine)
 
+set(Boost_DEBUG 1)
+find_package(Boost
+	1.62
+	REQUIRED
+	COMPONENTS python 
+	)
 # Set the version number
 set (VERSION_MAJOR 0)
 set (VERSION_MINOR 4)
@@ -32,7 +38,7 @@ set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fpic")
 # Find CUDA
 find_package(CUDA REQUIRED)
 set (CUDA_PROPAGATE_HOST_FLAGS OFF)
-set (custom_cuda_flags -std=c++11; -Xcompiler -fpic; --use_fast_math; --prec-div=true; --prec-sqrt=true; --Wno-deprecated-gpu-targets)
+set (custom_cuda_flags -std=c++11; -Xcompiler -fpic; --use_fast_math; --prec-div=true; --prec-sqrt=true;)
 #set (custom_cuda_flags -std=c++11; -Xcompiler -fpic; )
 list (APPEND CUDA_NVCC_FLAGS ${custom_cuda_flags})
 list (APPEND CUDA_NVCC_FLAGS ${CUDA_NVCC_DEBUG_FLAGS})
@@ -41,21 +47,17 @@ get_filename_component (CUDA_CUFFT_LIBRARY_PATH ${CUDA_CUFFT_LIBRARIES} DIRECTOR
 # Find Python libraries
 
 #set (PYTHON_LIBRARY "/software/python-2.7-2014q1-el6-x86_64/lib")
-#if (MIDWAY2)
-#	set (PYTHON_INCLUDE_DIR "/software/python-2.7.12-el7-x86_64/include/python2.7")
-#	set (PYTHON_LIBRARIES
-#		"/software/python-2.7.12-el7-x86_64/lib/libpython2.7.so")
-#else (MIDWAY2)
-#	set (PYTHON_INCLUDE_DIR "/software/python-2.7-2014q1-el6-x86_64/include/python2.7")
-#	set (PYTHON_LIBRARIES
-#		"/software/python-2.7-2014q1-el6-x86_64/lib/libpython2.7.so")
-#endif(MIDWAY2)
+#set (PYTHON_INCLUDE_DIR "/software/python-2.7-2014q1-el6-x86_64/include/python2.7")
+#set (PYTHON_LIBRARIES
+    #"/software/python-2.7-2014q1-el6-x86_64/lib/libpython2.7.so")
 find_package (PythonLibs 2.7 REQUIRED)
 include_directories (${PYTHON_INCLUDE_DIR}) #removed an S here
 #get_filename_component (PYTHON_LIBRARY_PATH ${PYTHON_LIBRARIES} DIRECTORY)
 
 # Find boost
-find_package (Boost COMPONENTS python REQUIRED)
+#find_package (Boost 1.62 REQUIRED COMPONENTS python)
+
+# Require Boost MPI.
 
 
 message (STATUS "Building MD_engine Version ${VERSION_MAJOR}.${VERSION_MINOR}")
@@ -75,9 +77,11 @@ add_subdirectory (src)
 #add src directory
 
 # Install Python library
-add_subdirectory (python)
-#add_custom_command (OUTPUT python/timestamp
-#    MAIN_DEPENDENCY python/Sim.cpp
-#    COMMAND ${PYTHON_BIN} python/setup.py build
-#    COMMAND ${CMAKE_COMMAND} -E touch ${OUTPUT})
+if (PYTHON)
+    add_subdirectory (python)
+    #add_custom_command (OUTPUT python/timestamp
+    #    MAIN_DEPENDENCY python/Sim.cpp
+    #    COMMAND ${PYTHON_BIN} python/setup.py build
+    #    COMMAND ${CMAKE_COMMAND} -E touch ${OUTPUT})
+endif (PYTHON)
 # Add tests
