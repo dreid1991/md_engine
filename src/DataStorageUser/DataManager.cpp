@@ -162,7 +162,7 @@ void export_DataManager() {
         )
     .def("recordPressure", &DataManager::recordPressure,
             (py::arg("handle") = "all",
-             py::arg("perParticle") = false,
+             py::arg("mode") = "scalar",
              py::arg("interval") = 0,
              py::arg("collectGenerator") = py::object())
         )

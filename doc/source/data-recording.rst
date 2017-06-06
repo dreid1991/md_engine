@@ -27,14 +27,126 @@ and as shown, access the recorded values through the ``vals`` member and the tur
 
 Details on recording specific data types is given below.
 
-Recording energies
-^^^^^^^^^^^^^^^^^^
+Recording energies and group-group energies
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Example
+
+.. code-block:: python
+
+    ljcut = FixLJCut(state, 'ljcut')
+    ewald = FixChargeEwald(state, 'chargeEwald', 'all')
+    def giveNextTurn(currentTurn):
+        if currentTurn==0:
+            return 1
+        else:
+            return currentTurn*2
+
+    #this will record the potential energy of all atoms every 100 turns
+    engDataSimple = state.dataManager.recordEnergy(handle='all', mode='scalar', interval=100)
+
+    #this will record per-particle energies (as denoted by the ``mode``) 
+    #every turn as given by the ``giveNextTurn`` function.  It will only 
+    #record contributions due to ``ljcut`` and ``ewald`` fixes.  Any fix 
+    #can be given in the ``fixes`` list.  
+    engDataLogSpacing = state.dataManager.recordEnergy(handle='all', mode='vector', collectGenerator=giveNextTurn, fixes=[ljcut, ewald])
+    
+    #computes LJ interactions between ``groupA`` and ``groupB``
+    engDataGroupGroup = state.dataManager.recordEnergy(handle='groupA', handleB='groupB', mode='scalar', interval=100, fixes=[ljcut])
+
+    verlet = IntergatorVerlet(state)
+
+    verlet.run(10000)
+
+    #prints list of per-particle energy lists
+    print engDataLogSpacing.vals 
+
+Arguments
+
+``handle``: Group handle for which energies will be compted.  Defaults to ``'all'``.
+
+``mode``: ``'scalar'`` or ``'vector'``.  ``'scalar'`` computes the sum of relevant energies while ``'vector'`` computes per-particle energies represented as a python list.  Defaults to ``'scalar'``
+
+``interval``: How often data is recorded.  Either ``interval`` or ``collectGenerator`` must be specified
+
+``collectGenerator``: Function which takes the current turn on which data is being recorded and returns the next turn on which it should be recorded.  Either ``interval`` or ``collectGenerator`` must be specified
+
+``fixes``: Fixes for which energy will be recorded.  Defaults to all active fixes
+
+``handleB``: For group-group energies, the handle of the other group.  This is the other parameter which must be specified to perform group-group energy calculations.
+    
 
 Recording temperatures and kinetic energies
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+.. code-block:: python
+
+    ljcut = FixLJCut(state, 'ljcut')
+    ewald = FixChargeEwald(state, 'chargeEwald', 'all')
+
+    #this will record the temperature of all atoms every 100 turns
+    tempDataScalar = state.dataManager.recordTemperature(handle='all', mode='scalar', interval=100)
+
+    #this will record per-particle kinetic energies (as denoted by the ``mode``) 
+    #every turn as given by the ``giveNextTurn`` function.  
+    tempDataVector = state.dataManager.recordEnergy(handle='all', mode='vector', interval=100)
+    
+    verlet = IntergatorVerlet(state)
+
+    verlet.run(10000)
+
+    #prints list of tenoeratures followed by the turns at which those 
+    #data points were recorded
+    print tempDataScalar.vals, tempDataScalar.turns
+
+Arguments
+
+``handle``: Group handle for which temperature will be compted.  Defaults to ``'all'``.
+
+``mode``: ``'scalar'`` or ``'vector'``.  ``'scalar'`` computes the temperature of the group given by ``handle`` while  ``'vector'`` computes per-particle kinetic energies represented as a python list.  Defaults to ``'scalar'``
+
+``interval``: How often data is recorded.  Either ``interval`` or ``collectGenerator`` must be specified
+
+``collectGenerator``: Function which takes the current turn on which data is being recorded and returns the next turn on which it should be recorded.  Either ``interval`` or ``collectGenerator`` must be specified
+
+
+
 Recording pressures and virial coefficients
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+.. code-block:: python
+
+    #this will record the system's pressure every 100 turns
+    pressureData = state.dataManager.recordPressure(handle='all', interval=100)
+
+    verlet = IntergatorVerlet(state)
+
+    verlet.run(10000)
+
+    #prints list of pressures
+    print pressureData.vals 
+
+Arguments
+
+``handle``: Group handle for which temperature will be compted.  Defaults to ``'all'``.
+
+``mode``: ``'scalar'`` or ``'vector'``.  ``'scalar'`` computes the temperature of the group given by ``handle`` while  ``'vector'`` computes per-particle kinetic energies represented as a python list.  Defaults to ``'scalar'``
+
+``interval``: How often data is recorded.  Either ``interval`` or ``collectGenerator`` must be specified
+
+``collectGenerator``: Function which takes the current turn on which data is being recorded and returns the next turn on which it should be recorded.  Either ``interval`` or ``collectGenerator`` must be specified
+
 Recording volume and boundaries
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Turning off recording
+^^^^^^^^^^^^^^^^^^^^^
+
+Recording of a data set can be stopped at any time by calling the ``stopRecord`` method of the ``DataManager`` 
+
+.. code-block:: python
+    
+    myDataSet = state.dataManager.recordTemperature(handle='all', mode='scalar', interval=100)
+
+    #turns off recording
+    state.dataManager.stopRecord(myDataSet)
