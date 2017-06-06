@@ -61,7 +61,7 @@ Example
     #prints list of per-particle energy lists
     print engDataLogSpacing.vals 
 
-Arguments
+**Arguments**
 
 ``handle``: Group handle for which energies will be compted.  Defaults to ``'all'``.
 
@@ -99,7 +99,7 @@ Recording temperatures and kinetic energies
     #data points were recorded
     print tempDataScalar.vals, tempDataScalar.turns
 
-Arguments
+**Arguments**
 
 ``handle``: Group handle for which temperature will be compted.  Defaults to ``'all'``.
 
@@ -117,7 +117,10 @@ Recording pressures and virial coefficients
 .. code-block:: python
 
     #this will record the system's pressure every 100 turns
-    pressureData = state.dataManager.recordPressure(handle='all', interval=100)
+    pressureData = state.dataManager.recordPressure(handle='all', mode='scalar', interval=100)
+
+    #records pressure tensor
+    pressureDataTensor = state.dataManager.recordPressure(handle='all', mode='tensor', interval=100)
 
     verlet = IntergatorVerlet(state)
 
@@ -126,11 +129,11 @@ Recording pressures and virial coefficients
     #prints list of pressures
     print pressureData.vals 
 
-Arguments
+**Arguments**
 
 ``handle``: Group handle for which temperature will be compted.  Defaults to ``'all'``.
 
-``mode``: ``'scalar'`` or ``'vector'``.  ``'scalar'`` computes the temperature of the group given by ``handle`` while  ``'vector'`` computes per-particle kinetic energies represented as a python list.  Defaults to ``'scalar'``
+``mode``: ``'scalar'`` or ``'tensor'``.  ``'scalar'`` computes the pressure of the group given by ``handle`` while  ``'tensor'`` computes pressuretensor due to that group.  Defaults to ``'scalar'``
 
 ``interval``: How often data is recorded.  Either ``interval`` or ``collectGenerator`` must be specified
 
@@ -138,6 +141,33 @@ Arguments
 
 Recording volume and boundaries
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The system bounding box can also be recorded.  From this volume, side lens, rates of volume change, etc, can easily be computed.
+
+.. code-block:: python
+
+    #this will record the system's pressure every 100 turns
+    boundsData = state.dataManager.recordBounds(interval=100)
+
+    verlet = IntergatorVerlet(state)
+
+    verlet.run(10000)
+
+    #prints list of pressures
+    volumes = []
+    xSideLengths = []
+    for bounds in boundsData.vals:
+        volumes.append(bounds.volume())
+        xSideLengths.append(bounds.hi[0] - bounds.lo[0])
+
+    #all the volumes computed
+    print volumes 
+
+**Arguments**
+
+``interval``: How often data is recorded.  Either ``interval`` or ``collectGenerator`` must be specified
+
+``collectGenerator``: Function which takes the current turn on which data is being recorded and returns the next turn on which it should be recorded.  Either ``interval`` or ``collectGenerator`` must be specified
 
 Turning off recording
 ^^^^^^^^^^^^^^^^^^^^^
