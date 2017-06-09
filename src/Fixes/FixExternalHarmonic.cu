@@ -24,10 +24,10 @@ void FixExternalHarmonic::compute(int virialMode) {
 	int n         = state->atoms.size();
 	if (virialMode==2 or virialMode == 1) {
 		compute_force_external<EvaluatorExternalHarmonic, true> <<<NBLOCK(n), PERBLOCK>>>(n,  gpd.xs(activeIdx),
-                    gpd.fs(activeIdx), groupTag, evaluator);
+                    gpd.fs(activeIdx), groupTag, gpd.virials.d_data.data(), evaluator);
 	} else {
 		compute_force_external<EvaluatorExternalHarmonic, false> <<<NBLOCK(n), PERBLOCK>>>(n, gpd.xs(activeIdx),
-                    gpd.fs(activeIdx), groupTag, evaluator);
+                    gpd.fs(activeIdx), groupTag, gpd.virials.d_data.data(), evaluator);
 	}
 };
 
