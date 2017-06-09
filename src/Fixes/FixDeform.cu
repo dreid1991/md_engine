@@ -35,7 +35,6 @@ bool FixDeform::stepFinal() {
     float3 deltaBounds = (multiplier * rate * state->dt).asFloat3();
     float3 newTrace = state->boundsGPU.rectComponents + deltaBounds;
     float3 scaleBy = newTrace / state->boundsGPU.rectComponents;
-    cout << Vector(scaleBy) << endl; 
     Mod::scaleSystem(state, scaleBy, groupTag);
     return true;
 

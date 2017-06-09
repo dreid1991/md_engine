@@ -23,7 +23,7 @@ Interpolator::Interpolator(py::list intervals_, py::list vals_) {
 Interpolator::Interpolator(double val_) {
     mode = thermoType::constant;
     constVal = val_;
-    mdAssert(constVal > 0, "Invalid value given to interpolator");
+    //mdAssert(constVal > 0, "Invalid value given to interpolator");
 }
 Interpolator::Interpolator(py::object valFunc_) {
     mode = thermoType::pyFunc;
