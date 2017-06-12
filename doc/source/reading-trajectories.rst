@@ -40,7 +40,6 @@ Calling these commands again will iterate forwards or backwards over the set of 
 It is important that you initialize fixes **after** the configuration has been read such that bonds, angles, etc, are property read in.  This restriction will be removed in future releases.
 
 
-Other way to read trajectories
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+**Other ways to read trajectories**
 
-One can also read in LAMMPS trajectories LINK, or manually assign atom configurations using the python interface.
+One can also read in LAMMPS trajectories using the :doc:`LAMMPS reader</lammps-reader>`, or manually assign atom configurations using the python interface.
