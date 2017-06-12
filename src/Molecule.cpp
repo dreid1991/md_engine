@@ -3,7 +3,7 @@
 namespace py = boost::python;
 
 #include "State.h"
-#include <Eigen/Dense>
+#include "../Eigen/Dense"
 
 Molecule::Molecule(State *state_, std::vector<int> &ids_) {
     state = state_;
