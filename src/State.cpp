@@ -501,8 +501,13 @@ bool State::prepareForRun() {
     for (const auto &a : atoms) {
         xs_vec.push_back(make_float4(a.pos[0], a.pos[1], a.pos[2],
                                      *(float *)&a.type));
-        vs_vec.push_back(make_float4(a.vel[0], a.vel[1], a.vel[2],
-                                     1/a.mass));
+        if (a.mass == 0) {
+            vs_vec.push_back(make_float4(a.vel[0], a.vel[1], a.vel[2],
+                                         0));
+        } else {
+            vs_vec.push_back(make_float4(a.vel[0], a.vel[1], a.vel[2],
+                                         1/a.mass));
+        }
         fs_vec.push_back(make_float4(a.force[0], a.force[1], a.force[2],
                                      *(float *)&a.groupTag));
         ids.push_back(a.id);

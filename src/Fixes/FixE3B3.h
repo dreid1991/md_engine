@@ -84,14 +84,14 @@ class FixE3B3: public Fix {
         /*!
         * \param handle String specifying the parameter
         */
-        void handleBoundsChange();
+        //void handleBoundsChange();
         
         // we actually don't need the M-site for this..
         // -- takes atom IDs as O, H, H, M (see FixRigid.h, FixRigid.cu)
         void addMolecule(int, int, int, int);
 
-        void setEvalWrapper();
-        void setEvalWrapperOrig();
+        //void setEvalWrapper();
+        //void setEvalWrapperOrig();
  
         //!< List of all water molecules in simulation
         std::vector<Molecule> waterMolecules;

@@ -125,7 +125,6 @@ void IntegratorVerlet::run(int numTurns)
         // Recalculate forces
         force(computeVirialsInForce);
 
-
         // Perform second half of velocity-Verlet step
         postForce();
 

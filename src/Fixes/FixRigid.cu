@@ -606,6 +606,46 @@ __global__ void compute_SETTLE(int4 *waterIds, float4 *xs, float4 *xs_0, float4 
   }
 }
 
+void FixRigid::createRigid(int id_a, int id_b, int id_c, int id_d) {
+    int4 waterMol = make_int4(0,0,0,0);
+    Vector a = state->idToAtom(id_a).pos;
+    Vector b = state->idToAtom(id_b).pos;
+    Vector c = state->idToAtom(id_c).pos;
+    Vector d = state->idToAtom(id_d).pos;
+
+    double ma = state->idToAtom(id_a).mass;
+    double mb = state->idToAtom(id_b).mass;
+    double mc = state->idToAtom(id_c).mass;
+    double md = state->idToAtom(id_d).mass;
+
+
+    double ims = 1.0 / (ma + mb + mc + md);
+    float4 ims4 = make_float4(0.0f, 0.0f, 0.0f, float(ims));
+    invMassSums.push_back(ims4);
+
+    bool ordered = true;
+    if (! (ma > mb && ma > mc)) ordered = false;
+    if (! (mb == mc) ) ordered = false;
+    if (! (mb > md) )  ordered = false;
+
+    if (! (ordered)) mdError("Ids in FixRigid::createRigid must be as O, H1, H2, M");
+
+    waterIds.push_back(waterMol);
+    Bond bondOH1;
+    Bond bondOH2;
+    Bond bondHH;
+    bondOH1.ids = { {waterMol.x,waterMol.y} };
+    bondOH2.ids = { {waterMol.x,waterMol.z} };
+    bondHH.ids =  { {waterMol.y,waterMol.z} };
+    bonds.push_back(bondOH1);
+    bonds.push_back(bondOH2);
+    bonds.push_back(bondHH);
+
+
+    // and we need to do something else here as well. what is it tho
+
+}
+
 void FixRigid::createRigid(int id_a, int id_b, int id_c) {
   int4 waterMol = make_int4(0,0,0,0);
   Vector a = state->idToAtom(id_a).pos;
@@ -619,6 +659,7 @@ void FixRigid::createRigid(int id_a, int id_b, int id_c) {
   float4 ims4 = make_float4(0.0f, 0.0f, 0.0f, float(ims));
   invMassSums.push_back(ims4);
 
+  // this discovers the order of the id's that was passed in, i.e. OHH, HOH, HHO, etc.
   float det = a[0]*b[1]*c[2] - a[0]*c[1]*b[2] - b[0]*a[1]*c[2] + b[0]*c[1]*a[2] + c[0]*a[1]*b[2] - c[0]*b[1]*a[2];
   if (state->idToAtom(id_a).mass == state->idToAtom(id_b).mass) {
     waterMol = make_int4(id_c,id_a,id_b,0);
@@ -654,23 +695,23 @@ void FixRigid::createRigid(int id_a, int id_b, int id_c) {
 
 
 bool FixRigid::prepareForRun() {
-  int n = waterIds.size();
-  waterIdsGPU = GPUArrayDeviceGlobal<int4>(n);
-  waterIdsGPU.set(waterIds.data());
+    int n = waterIds.size();
+    waterIdsGPU = GPUArrayDeviceGlobal<int4>(n);
+    waterIdsGPU.set(waterIds.data());
 
-  xs_0 = GPUArrayDeviceGlobal<float4>(3*n);
-  vs_0 = GPUArrayDeviceGlobal<float4>(3*n);
-  dvs_0 = GPUArrayDeviceGlobal<float4>(3*n);
-  fs_0 = GPUArrayDeviceGlobal<float4>(3*n);
-  com = GPUArrayDeviceGlobal<float4>(n);
-  com.set(invMassSums.data());
-  fix_len = GPUArrayDeviceGlobal<float4>(n);
-  GPUData &gpd = state->gpd;
-  int activeIdx = gpd.activeIdx();
-  BoundsGPU &bounds = state->boundsGPU;
-  compute_COM<<<NBLOCK(n), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), gpd.vs(activeIdx), gpd.idToIdxs.d_data.data(), n, com.data(), bounds);
-  set_fixed_sides<<<NBLOCK(n), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), com.data(), fix_len.data(), n, gpd.idToIdxs.d_data.data());
-  set_init_vel_correction<<<NBLOCK(n), PERBLOCK>>>(waterIdsGPU.data(), dvs_0.data(), n);
+    xs_0 = GPUArrayDeviceGlobal<float4>(3*n);
+    vs_0 = GPUArrayDeviceGlobal<float4>(3*n);
+    dvs_0 = GPUArrayDeviceGlobal<float4>(3*n);
+    fs_0 = GPUArrayDeviceGlobal<float4>(3*n);
+    com = GPUArrayDeviceGlobal<float4>(n);
+    com.set(invMassSums.data());
+    fix_len = GPUArrayDeviceGlobal<float4>(n);
+    GPUData &gpd = state->gpd;
+    int activeIdx = gpd.activeIdx();
+    BoundsGPU &bounds = state->boundsGPU;
+    compute_COM<<<NBLOCK(n), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), gpd.vs(activeIdx), gpd.idToIdxs.d_data.data(), n, com.data(), bounds);
+    set_fixed_sides<<<NBLOCK(n), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), com.data(), fix_len.data(), n, gpd.idToIdxs.d_data.data());
+    set_init_vel_correction<<<NBLOCK(n), PERBLOCK>>>(waterIdsGPU.data(), dvs_0.data(), n);
   return true;
 }
 
@@ -688,21 +729,29 @@ bool FixRigid::stepInit() {
 }
 
 bool FixRigid::stepFinal() {
-  int nMols = waterIdsGPU.size();
-  float dt = state->dt;
-  GPUData &gpd = state->gpd;
-  int activeIdx = gpd.activeIdx();
-  BoundsGPU &bounds = state->boundsGPU;
-  //float4 cpu_xs[nMols*3];
-  //gpd.xs.dataToHost(activeIdx);
-  //std::cout << "before settle: " << cpu_xs[0] << "\n";
-  compute_SETTLE<<<NBLOCK(nMols), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), xs_0.data(), gpd.vs(activeIdx), vs_0.data(), dvs_0.data(), gpd.fs(activeIdx), fs_0.data(), com.data(), fix_len.data(), nMols, dt, gpd.idToIdxs.d_data.data(), bounds);
-  //xs_0.get(cpu_xs);
-  //std::cout << cpu_xs[0] << "\n";
-  return true;
+    int nMols = waterIdsGPU.size();
+    float dt = state->dt;
+    GPUData &gpd = state->gpd;
+    int activeIdx = gpd.activeIdx();
+    BoundsGPU &bounds = state->boundsGPU;
+    //float4 cpu_xs[nMols*3];
+    //gpd.xs.dataToHost(activeIdx);
+    //std::cout << "before settle: " << cpu_xs[0] << "\n";
+
+    
+
+
+
+
+    compute_SETTLE<<<NBLOCK(nMols), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), xs_0.data(), gpd.vs(activeIdx), vs_0.data(), dvs_0.data(), gpd.fs(activeIdx), fs_0.data(), com.data(), fix_len.data(), nMols, dt, gpd.idToIdxs.d_data.data(), bounds);
+    //xs_0.get(cpu_xs);
+    //std::cout << cpu_xs[0] << "\n";
+    return true;
 }
 
-
+// export the overloaded function
+void (FixRigid::*cr1) (int, int int) = &FixRigid::createRigid;
+void (FixRigid::*cr2) (int, int, int, int) = &FixRigid::createRigid;
 
 void export_FixRigid() {
   py::class_<FixRigid, boost::shared_ptr<FixRigid>, py::bases<Fix> > ( 
@@ -710,34 +759,14 @@ void export_FixRigid() {
 								      py::init<boost::shared_ptr<State>, std::string, std::string>
 								      (py::args("state", "handle", "groupHandle")
 								       ))
-    .def("createRigid", &FixRigid::createRigid,
-	 (py::arg("id_a"), py::arg("id_b"), py::arg("id_c"))
-	 );
-}
+    .def("createRigid", cr1,
+	    (py::arg("id_a"), py::arg("id_b"), py::arg("id_c"))
+	 )
+    .def("createRigid", cr2,
+        (py::arg("id_a"), py::arg("id_b"), py::arg("id_c"), py::arg("id_d"))
+     );
     
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+}
 
 
 
