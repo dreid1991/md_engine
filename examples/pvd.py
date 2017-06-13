@@ -1,6 +1,6 @@
 import sys
 sys.path.append('../build/python/build/lib.linux-x86_64-2.7')
-from Sim import *
+from DASH import *
 from math import *
 import re
 import argparse

@@ -9,5 +9,4 @@ gcc --version
 export CC=gcc
 export CXX=g++
 $LD_LIBRARY_PATH
-cmake .. -DPYTHON=1 -DMIDWAY2=1
-make -j 10
+cmake .. 

@@ -10,7 +10,7 @@ project (MDengine)
 
 set(Boost_DEBUG 1)
 find_package(Boost
-	1.62
+    #1.62
 	REQUIRED
 	COMPONENTS python 
 	)
@@ -47,10 +47,10 @@ get_filename_component (CUDA_CUFFT_LIBRARY_PATH ${CUDA_CUFFT_LIBRARIES} DIRECTOR
 # Find Python libraries
 
 #set (PYTHON_LIBRARY "/software/python-2.7-2014q1-el6-x86_64/lib")
-set (PYTHON_INCLUDE_DIR "/software/python-2.7-2014q1-el6-x86_64/include/python2.7")
-set (PYTHON_LIBRARIES
-    "/software/python-2.7-2014q1-el6-x86_64/lib/libpython2.7.so")
-#find_package (PythonLibs 2.7 REQUIRED)
+#set (PYTHON_INCLUDE_DIR "/software/python-2.7-2014q1-el6-x86_64/include/python2.7")
+#set (PYTHON_LIBRARIES
+#    "/software/python-2.7-2014q1-el6-x86_64/lib/libpython2.7.so")
+find_package (PythonLibs 2.7 REQUIRED)
 include_directories (${PYTHON_INCLUDE_DIR}) #removed an S here
 #get_filename_component (PYTHON_LIBRARY_PATH ${PYTHON_LIBRARIES} DIRECTORY)
 
@@ -71,17 +71,10 @@ configure_file (
 include_directories ("${PROJECT_BINARY_DIR}")
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}")
-set (MD_ENGINE_LIB_NAME Sim)
+set (MD_ENGINE_LIB_NAME DASH)
 
 add_subdirectory (src)
 #add src directory
 
 # Install Python library
-if (PYTHON)
-    add_subdirectory (python)
-    #add_custom_command (OUTPUT python/timestamp
-    #    MAIN_DEPENDENCY python/Sim.cpp
-    #    COMMAND ${PYTHON_BIN} python/setup.py build
-    #    COMMAND ${CMAKE_COMMAND} -E touch ${OUTPUT})
-endif (PYTHON)
-# Add tests
+add_subdirectory (python)

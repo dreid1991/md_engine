@@ -1,7 +1,7 @@
 import sys
 sys.path = sys.path + ['../build/python/build/lib.linux-x86_64-2.7']
-#from Sim import *
-from Sim import *
+#from DASH import *
+from DASH import *
 state = State()
 state.deviceManager.setDevice(0)
 state.bounds = Bounds(state, lo = Vector(0, 0, 0), hi = Vector(55.12934875488, 55.12934875488, 55.12934875488))

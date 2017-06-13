@@ -1,7 +1,7 @@
 import sys
 sys.path = sys.path + ['../../build/python/build/lib.linux-x86_64-2.7' ]
 sys.path.append('../../util_py')
-from Sim import *
+from DASH import *
 from LAMMPS_Reader import LAMMPS_Reader
 import argparse
 import re
