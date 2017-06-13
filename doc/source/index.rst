@@ -5,7 +5,7 @@
 
 Welcome to DASH's documentation!
 ================================
-Brief into
+
 
 
 Basic usage:

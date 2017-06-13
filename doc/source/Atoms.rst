@@ -6,7 +6,46 @@ Overview
 
 Whether you are performing atomisitic or coarse-grained simulations, the ``Atom`` class represents the particles that are interacting with each other in the system.  The ``state.atoms`` attribute is a list of ``Atom`` objects, which can be directly accessed.  Each ``Atom`` stores the dynamic data for that particle - position, velocity, and force - which are updated over the course of the simulation.  It also stores the static properties of the particle - mass, charge, atom type, and id - which do not change during the simulation.
 
+Adding Atoms to the Simulation
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Atoms can be introduced into the simulation by adding them directly to the ``state`` or by using the ``InitializeAtoms`` tools.  The first method is described below and the second is discussed in the next section.
+
+**state.addAtom(** handle, pos, q **)**
+
+Adds an atom to the ``state``.  The atom is only added if a valid atom handle is supplied.
+
+**Arguments**
+
+``handle``: The string representation of the corresponding atom type in the ``AtomParams`` object.
+
+``pos``: A Vector specifying the position of the new atom.
+
+``q``: The charge for this atom (optional).
+
+**Returns**
+
+``id``: The id of the newly added atom. Returns ``-1`` if the atom could not be added (invalid atom type).
+
+
+**Example**
+
+The following code demonstrates this method of inserting atoms into the simulation using the water example from above:
+
+.. code-block:: python
+
+	#Suppose our AtomParams object has atom types 'spc1' and 'spc2'
+    
+	#create new positions for the atoms
+	posO = Vector(1,1,1)
+	posH1 = Vector(1.240,0.814,1)
+	posH2 = Vector(1.240,1.186,1)
+	
+	#add in the atoms
+	state.addAtom('spc1', posO, -0.834)
+	state.addAtom('spc2', posH1, 0.417)
+	state.addAtom('spc2', posH2, 0.417)
+	
 
 Accessing and Updating Atom Data
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -144,46 +183,7 @@ The following example illustrates the syntax used to set atom parameters and upd
 
 
 
-Adding Atoms to the Simulation
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Atoms can be introduced into the simulation by adding them directly to the ``state`` or by using the ``InitializeAtoms`` tools.  The first method is described below and the second is discussed in the next section.
-
-**state.addAtom(** handle, pos, q **)**
-
-Adds an atom to the ``state``.  The atom is only added if a valid atom handle is supplied.
-
-**Arguments**
-
-``handle``: The string representation of the corresponding atom type in the ``AtomParams`` object.
-
-``pos``: A Vector specifying the position of the new atom.
-
-``q``: The charge for this atom (optional).
-
-**Returns**
-
-``id``: The id of the newly added atom. Returns ``-1`` if the atom could not be added (invalid atom type).
-
-
-**Example**
-
-The following code demonstrates this method of inserting atoms into the simulation using the water example from above:
-
-.. code-block:: python
-
-	#Suppose our AtomParams object has atom types 'spc1' and 'spc2'
-    
-	#create new positions for the atoms
-	posO = Vector(1,1,1)
-	posH1 = Vector(1.240,0.814,1)
-	posH2 = Vector(1.240,1.186,1)
-	
-	#add in the atoms
-	state.addAtom('spc1', posO, -0.834)
-	state.addAtom('spc2', posH1, 0.417)
-	state.addAtom('spc2', posH2, 0.417)
-	
 
 
 
