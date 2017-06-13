@@ -19,6 +19,7 @@ src/src/CMakeFiles
 *~
 # Documentation:
 doc/html/
+doc/documentation/
 doc/latex/
 # Build directory:
 build/
