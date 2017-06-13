@@ -108,6 +108,17 @@ private:
      */
     void updateMasses();
 
+    //! This function gets the instantaneous pressure from the pressure computer 
+    /*!
+     * The instantaneous pressure is required for barostatting.
+     * It should be updated prior integrating the barostat momenta.
+     *
+     * This function assumes that the virials and temperature are up to date.
+     * This is also where partitioning of the internal stress tensor occurs - 
+     * e.g., coupling of the XYZ dimensions, or no coupling.
+     */
+    void getCurrentPressure();
+
     Interpolator *getInterpolator(std::string);
     //! Rescale particle velocities
     /*!
@@ -123,6 +134,7 @@ private:
     float ke_current; //!< Current kinetic energy
     size_t ndf; //!< Number of degrees of freedom
 
+    Virial currentPressure; //!< Current pressure, with (or without) coupling
     size_t chainLength; //!< Number of thermostats in the Nose-Hoover chain
     size_t nTimesteps; //!< Number of timesteps for multi-timestep method
 
@@ -135,12 +147,11 @@ private:
     std::vector<double> thermForce; //!< Force on the Nose-Hoover thermostats
     std::vector<double> thermMass; //!< Masses of the Nose-Hoover thermostats
 
+
     std::vector<double> omega;
     std::vector<double> omegaVel;
     std::vector<double> omegaMass;
     std::vector<double> pressFreq;
-    std::vector<double> pressCurrent;
-    void setPressCurrent();
     void thermostatIntegrate(double, double, bool);
     void omegaIntegrate();
     void scaleVelocitiesOmega();
