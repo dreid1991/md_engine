@@ -101,12 +101,14 @@ bool FixWCA::prepareForRun() {
 }
 
 void FixWCA::setEvalWrapper() {
-    EvaluatorWCA eval;
-    evalWrap = pickEvaluator<EvaluatorWCA, 3, true>(eval, chargeCalcFix);
-}
-void FixWCA::setEvalWrapperOrig() {
-    EvaluatorWCA eval;
-    evalWrap = pickEvaluator<EvaluatorWCA, 3, true>(eval, nullptr);
+    if (evalWrapperMode == "offload") {
+        EvaluatorWCA eval;
+        evalWrap = pickEvaluator<EvaluatorWCA, 3, true>(eval, chargeCalcFix);
+    } else if (evalWrapperMode == "self") {
+        EvaluatorWCA eval;
+        evalWrap = pickEvaluator<EvaluatorWCA, 3, true>(eval, nullptr);
+    }
+
 }
 
 std::string FixWCA::restartChunk(std::string format) {

@@ -77,7 +77,6 @@ class FixLJCHARMM : public FixPair {
         std::vector<float> getRCuts();
     public:
         void setEvalWrapper();
-        void setEvalWrapperOrig();
         const std::string epsHandle; //!< Handle for parameter epsilon
         const std::string sigHandle; //!< Handle for parameter sigma
         const std::string eps14Handle; //!< Handle for parameter epsilon for 1-4 interactions

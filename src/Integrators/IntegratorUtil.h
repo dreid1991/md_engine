@@ -39,6 +39,8 @@ public:
      */
     void forceSingle(int virialMode);
     void handleBoundsChange();
+
+    void checkQuit();
 };
 
 #endif

@@ -163,7 +163,7 @@ void Integrator::basicPrepare(int numTurns) {
             state->dataManager.addVirialTurn(ds->nextCompute, ds->requiresPerAtomVirials());
         }
     }
-    printf("Beginning run for %d turns with timestep of %03f\n", numTurns, state->dt);
+    printf("Running for %d turns with timestep of %03f\n", numTurns, state->dt);
 }
 
 

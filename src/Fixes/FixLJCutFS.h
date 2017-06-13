@@ -73,7 +73,6 @@ class FixLJCutFS : public FixPair {
         std::vector<float> FCuts; //!< vector storing force at cutoff distance
 
         void setEvalWrapper();
-        void setEvalWrapperOrig();
 };
 
 #endif
