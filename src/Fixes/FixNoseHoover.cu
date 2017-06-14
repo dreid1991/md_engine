@@ -90,7 +90,7 @@ FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state_, std::string handle
 
     // this is a thermostat (if we are barostatting, we are also thermostatting)
     isThermostat = true;
-    
+    identity = Virial(1,1,1,0,0,0); //as xx, yy, zz, xy, xz, yz
     // 
     barostatThermostatChainLengthSpecified = false;
     coupleStyleSpecified = false;
@@ -216,7 +216,6 @@ bool FixNoseHoover::prepareForRun()
     updateMasses();
 
     // Update thermostat forces
-    double boltz = state->units.boltz;
     double temp = tempInterpolator.getCurrentVal();
     thermForce.at(0) = (ke_current - ndf * boltz * temp) / thermMass.at(0);
     for (size_t k = 1; k < chainLength; ++k) {
@@ -254,7 +253,7 @@ bool FixNoseHoover::prepareForRun()
         // call prepareForRun on our pressComputer
         pressComputer.prepareForRun();
 
-        // compute the hydrostatic pressure - average of $\sigma_{ii}$, i = 1,2,3
+        // compute the hydrostatic pressure - average of $\sigma_{ii}$, i = 1,2,3 (in 3d)
         computeHydrostaticPressure();
 
         // using external temperature... so send tempNDF and temperature scalar/tensor 
@@ -304,7 +303,7 @@ bool FixNoseHoover::prepareForRun()
 
         // initialize the pressMass, pressVel, pressForce
         
-
+        // TODO
         // and barostat thermostat variables: pressThermMass, pressThermVel, and pressThermForce, respectively
 
 
@@ -326,19 +325,128 @@ bool FixNoseHoover::postRun()
 
 bool FixNoseHoover::stepInit()
 {
-    return halfStep(true);
+
+    // see Martyna et. al. 2006 for clarification of notation, p. 5641
+    // lists the complete propagator used here.
+
+    // -- step init: update set points and associated variables before we do anything else
+    if (barostatting) {
+
+        // update the set points for:
+        // - pressures (--> and barostat mass variables accordingly)
+        // - temperatures (--> barostat thermostat's masses, particle thermostat's masses)
+
+        // save old values before computing new ones
+        oldSetPointPressure = setPointPressure;
+        oldSetPointTemperature = setPointTemperature;
+
+        // compute set point pressure, and save it to our local variable setPointPressure
+        pressInterpolator.computeCurrentVal(state->turn);
+        setPointPressure = identity * pressInterpolator.getCurrentVal();
+
+        // compute set point temperature, and save it to our local variable setPointTemperature
+        tempInterpolator.computeCurrentVal(state->turn);
+        setPointTemperature = identity * tempInterpolator.getCurrentVal();
+        
+        // compare values and update accordingly
+        if (oldSetPointPressure != setPointPressure) {
+            updateBarostatMasses();
+        }
+
+        // compare values and update accordingly
+        if (oldSetPointTemperature != setPointTemperature) {
+            // update the masses associated with thermostats for the barostats and the particles
+            updateBarostatThermalMasses();
+            updateThermalmasses();
+        }
+
+        // exp(iL_{T_{BARO} \frac{\Delta t}{2})
+        barostatThermostatIntegrate();
+
+        // exp(iL_{T_{PART}} \frac{\Delta t}{2})
+        // - does thermostat scaling of particle velocities
+        thermostatIntegrate();
+
+        // exp(iL_{\epsilon_2} \frac{\Delta t}{2})
+        // -- barostat velocities from virial, including the $\alpha$ factor 1+ 1/N_f
+        // -- note that we modified the kinetic energy above via the thermostat
+        barostatVelocityIntegrate();
+
+        // exp(iL_2 \frac{\Delta t}{2})
+        // do barostat scaling of the particle momenta (velocities). 
+        scaleVelocitiesBarostat();
+
+        // after this, we exit stepInit, because we need IntegratorVerlet() to do a velocity timestep
+        return true;
+
+    } else {
+        
+        oldSetPointTemperature = setPointTemperature;
+        tempInterpolator.computeCurrentVal();
+        setPointTemperature = identity * tempInterpolator.getCurrentVal();
+        // compare values and update accordingly
+        
+        if (oldSetPointTemperature != setPointTemperature) {
+            // update the masses associated with thermostats for the particles
+            updateThermalmasses();
+        }
+
+        thermostatIntegrate();
+        
+
+        return true;
+        
+    }
+
+}
+
+bool FixNoseHoover::postNVE_V() {
+   
+    if (barostatting) {
+        rescaleVolume();
+    }
+    return true;
+
+}
+
+bool FixNoseHoover::postNVE_X() {
+    if (barostatting) {
+        rescaleVolume() 
+    }
+
+    return true;
 }
 
 bool FixNoseHoover::stepFinal()
 {
-    return halfStep(false);
+    // at this point we have performed our second velocity verlet update of the particle velocities
+
+    // - do barostat scaling of velocities
+    if (barostatting) {
+        
+        // exp(iL_2 \frac{\Delta t}{2}) -- barostat rescaling of velocities component
+        scaleVelocitiesBarostat();
+
+        // exp(iL_{\epsilon_2} \frac{\Delta t}{2})
+        // integration of barostat velocities
+        barostatVelocityIntegrate();
+
+        // exp(iL_{T_{PART}} \frac{\Delta t}{2})
+        // scaling of particle velocities from particle thermostats
+        thermostatIntegrate();
+
+        // exp(iL_{T_{BARO}} \frac{\Delta t}{2})
+        // scaling of barostat velocities from barostat thermostats
+        barostatThermostatIntegrate();
+    }
+
 }
 
 // save instantaneous pressure locally, and partition according to COUPLESTYLE::{XYZ,NONE}
 void FixNoseHoover::getCurrentPressure() {
 
-    // have some  identity tensor.. see /src/Virial.h: [xx,yy,zz,xy,xz,yz]
-    Virial identity = Virial(1,1,1,0,0,0);
+    // identity is a tensor made in constructor, since we use it throughout.
+    // based off of the virial class
     if (pressMode == PRESSMODE::ISO) {
         double pressureScalar = pressComputer.pressureScalar;
         currentPressure = identity * pressureScalar;

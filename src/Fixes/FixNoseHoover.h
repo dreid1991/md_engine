@@ -21,12 +21,16 @@ void export_FixNoseHoover();
  * Fix to sample the canonical ensemble of a given system. Implements the
  * popular Nose-Hoover thermostat and barostat.
  *
+ *
  * The implementation is based on the algorithm proposed by Martyna et al.
  * \cite MartynaEtal:MP1996 .
  *
+ * The barostat implementation is based off of Martyna et. al.,
+ * J. Phys. A: Math. Gen. 39 (2006) 5629-5651.
+ *
  * Note that the Nose-Hoover thermostat should only be used with the
  * IntegratorVerlet.
- *
+ * 
  * \todo Allow to specify desired length of Nose-Hoover chain
  * \todo Allow to set multiple-timestep integration
  * \todo Allow to use higher-order approximations
@@ -135,6 +139,10 @@ private:
     size_t ndf; //!< Number of degrees of freedom
 
     Virial currentPressure; //!< Current pressure, with (or without) coupling
+    Virial setPointPressure; //!< Our current set point pressure, from pressInterpolator
+    Virial setPointTemperature; //!< Our current set point temperature, from tempInterpolator
+
+
     size_t chainLength; //!< Number of thermostats in the Nose-Hoover chain
     size_t nTimesteps; //!< Number of timesteps for multi-timestep method
 
@@ -147,6 +155,8 @@ private:
     std::vector<double> thermForce; //!< Force on the Nose-Hoover thermostats
     std::vector<double> thermMass; //!< Masses of the Nose-Hoover thermostats
 
+    double boltz; //!< Local copy of our boltzmann constant with proper units
+    Virial identity; //!< identity tensor made using our Virial class (6-value vector)
 
     std::vector<double> omega;
     std::vector<double> omegaVel;
@@ -165,9 +175,6 @@ private:
     bool thermostatting;
     bool barostatting;
     int pressMode;
-
-    float mtkTerm1;
-    float mtkTerm2;
 
 };
 
