@@ -33,6 +33,20 @@ class Virial {
                 vals[i] /= n;
             }
         }
+
+        // element-wise division by another 6 element vector
+        inline __host__ __device__ void operator /= (Virial a) {
+            for (int i=0; i<6; i++) {
+                vals[i] /= a[i];
+            }
+        }
+
+        // element-wise multiplication by another 6 element vector (Virial)
+        inline __host__ __device__ void operator *= (Virial &other) {
+            for (int i = 0; i<6; i++) {
+                vals[i] *= other[i]
+            }
+        }
         /*
         float operator[] (int n) { //for python interface
             if (n > 0 and n < 6) {

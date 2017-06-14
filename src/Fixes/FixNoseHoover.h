@@ -110,7 +110,7 @@ private:
      * This function assumes that ke_current and ndf have already been
      * calculated and are up to date.
      */
-    void updateMasses();
+    void updateThermalMasses();
 
     //! This function gets the instantaneous pressure from the pressure computer 
     /*!
@@ -123,6 +123,24 @@ private:
      */
     void getCurrentPressure();
 
+
+    //! This function updates the mass variables associated with the barostat/cell parameters
+    /*!
+     * The mass variables associated with the barostat/cell parameters are functions
+     * of the externally imposed temperature, and thus vary as the set point varies.
+     *
+     * This function uses the set point temperature and the user-specified frequencies
+     * to compute the masses of the barostat/cell parameters.
+     */
+    void updateBarostatMasses(bool);
+
+    //! This function updates the mass variables associated with the barostat thermostats
+    /*!
+     * See 'updateThermalMasses' documentation above.
+     */
+    void updateBarostatThermalMasses(bool);
+
+
     Interpolator *getInterpolator(std::string);
     //! Rescale particle velocities
     /*!
@@ -132,7 +150,7 @@ private:
     void setPressure(double pressure);
 
     float frequency; //!< Frequency of the Nose-Hoover thermostats
-
+    Virial pFreq; //!< Frequency of the Nose-Hoover barostats
     GPUArrayGlobal<float> kineticEnergy; //!< Stores kinetic energy and
                                          //!< number of atoms in Fix group
     float ke_current; //!< Current kinetic energy
@@ -141,7 +159,8 @@ private:
     Virial currentPressure; //!< Current pressure, with (or without) coupling
     Virial setPointPressure; //!< Our current set point pressure, from pressInterpolator
     Virial setPointTemperature; //!< Our current set point temperature, from tempInterpolator
-
+    Virial oldSetPointPressure; //!< The set point pressure from the previous turn
+    Virial oldSetPointTemperature; //!< The set point temperature from the previous turn
 
     size_t chainLength; //!< Number of thermostats in the Nose-Hoover chain
     size_t nTimesteps; //!< Number of timesteps for multi-timestep method
@@ -155,12 +174,18 @@ private:
     std::vector<double> thermForce; //!< Force on the Nose-Hoover thermostats
     std::vector<double> thermMass; //!< Masses of the Nose-Hoover thermostats
 
+    // note to others: we use Virial class for convenience for any vector of floats 
+    // that is required to have 6 and only 6 values
+    // -- allows for convenient mathematical operations via class-defined operators
+    Virial pressMass; //!< Masses of the Nose-Hoover barostats
+    std::vector<double> pressThermMass; //!< Masses of the Nose-Hoover barostats' thermostats
+    std::vector<double> pressThermVel; //!< Velocity of the Nose-Hoover barostats' thermostats
+    std::vector<double> pressThermForce; //!< Force on the Nose-Hoover barostats' thermostats
+
     double boltz; //!< Local copy of our boltzmann constant with proper units
     Virial identity; //!< identity tensor made using our Virial class (6-value vector)
 
-    std::vector<double> omega;
-    std::vector<double> omegaVel;
-    std::vector<double> omegaMass;
+
     std::vector<double> pressFreq;
     void thermostatIntegrate(double, double, bool);
     void omegaIntegrate();

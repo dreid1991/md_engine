@@ -132,7 +132,6 @@ void FixNoseHoover::parseKeyword(std::string keyword) {
     // regulating pressure for X, Y dims
     pFlags[0] = true;
     pFlags[1] = true;
-
     // set Z flag to true if we are not a 2d system
     if (! (state->is2d)) {
         pFlags[2] = true;
@@ -333,7 +332,7 @@ bool FixNoseHoover::stepInit()
     if (barostatting) {
 
         // update the set points for:
-        // - pressures (--> and barostat mass variables accordingly)
+        // - pressures    (--> and barostat mass variables accordingly)
         // - temperatures (--> barostat thermostat's masses, particle thermostat's masses)
 
         // save old values before computing new ones
@@ -349,14 +348,10 @@ bool FixNoseHoover::stepInit()
         setPointTemperature = identity * tempInterpolator.getCurrentVal();
         
         // compare values and update accordingly
-        if (oldSetPointPressure != setPointPressure) {
-            updateBarostatMasses();
-        }
-
-        // compare values and update accordingly
         if (oldSetPointTemperature != setPointTemperature) {
             // update the masses associated with thermostats for the barostats and the particles
-            updateBarostatThermalMasses();
+            updateBarostatMasses(true);
+            updateBarostatThermalMasses(true);
             updateThermalmasses();
         }
 
@@ -468,7 +463,64 @@ void FixNoseHoover::getCurrentPressure() {
     }
 }
 
+// update barostat masses to reflect a change in the set point pressure
+void FixNoseHoover::updateBarostatMasses(bool stepInit) {
 
+    // set point temperature is of class Virial
+    Virial t_external = setPointTemperature;
+    if (stepInit) {
+        // if we are at the initial step, use the old set point
+        // -- this is due to ordering of the louiviliian propagators
+        t_external = oldSetPointTemperature;
+    }
+    
+    // the barostat mass expression is given in MTK 1994: Constant Pressure molecular dynamics algorithms
+    // (1) isotropic: W = (N_f + d) kT / \omega_b^2
+    // (2) anisotropic: W_g = W_g_0 = (N_f + d) kT / (d \omega_b^2)
+
+    // 'N_f' number of degrees of freedom
+    double ndf = double (tempComputer.ndf);
+
+    // 'd' - dimensionality of the system
+    double d = 3.0;
+
+    if (state->is2d) {
+        d = 2.0;
+    }
+
+    Virial kt = boltz * t_external;
+    // from MTK 1994
+    if (pressMode == PRESSMODE::ISO) {
+        // then we set the masses to case (1)
+        pressMass = (ndf + d) * kt / (pFreq * pFreq);
+    } else {
+        pressMass = (ndf + d) * kt / (d * pFreq * pFreq);
+    }
+}
+
+void FixNoseHoover::updateBarostatThermalMasses(bool stepInit) {
+
+    // from MTK 1994:
+    // Q_b_1 = d(d+1)kT/(2 \omega_b^2)
+    double t_external = setPointTemperature[0];
+    if (stepInit) {
+        t_external = oldSetPointTemperature[0];
+    }
+
+    double kt = boltz * t_external;
+
+    double d = 3.0;
+    if (state->is2d) {
+        d = 2.0;
+    }
+
+    pressThermMass[0] = d*(d+1.0) * kt / (2.0 * pFreq[0]);
+
+    for (int i = 1; i < pchainLength; i++) {
+        pressThermMass[i] = kt / (pFreq[i] * pFreq[i]);
+    }
+
+}
 
 };
 void FixNoseHoover::thermostatIntegrate(double temp, double boltz, bool firstHalfStep) {
@@ -644,9 +696,8 @@ void FixNoseHoover::setPressCurrent() {
     }
 
 }
-void FixNoseHoover::updateMasses()
+void FixNoseHoover::updateThermalMasses()
 {
-    double boltz = state->units.boltz;
     double temp = tempInterpolator.getCurrentVal();
     thermMass.at(0) = ndf * boltz * temp / (frequency*frequency);
     for (size_t i = 1; i < chainLength; ++i) {
