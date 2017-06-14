@@ -37,8 +37,15 @@ Potentials:
    fix-angle-cosinedelta
    fix-dihedral-opls
    fix-dihedral-charmm
+
+External potentials:
+
+.. toctree::
+   :maxdepth: 2
+
    fix-external-harmonic
    fix-external-quartic
+   springs
    
 Utilities and external functionality:
 
