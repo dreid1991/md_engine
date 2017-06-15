@@ -356,11 +356,13 @@ bool FixNoseHoover::stepInit()
         }
 
         // exp(iL_{T_{BARO} \frac{\Delta t}{2})
-        barostatThermostatIntegrate();
+        // -- variables that must be initialized/up-to-date:
+        //    etaPressureMass, etaPressureVel, etaPressForce must all be /initialized (updated here)
+        barostatThermostatIntegrate(true);
 
         // exp(iL_{T_{PART}} \frac{\Delta t}{2})
         // - does thermostat scaling of particle velocities
-        thermostatIntegrate();
+        thermostatIntegrate(true);
 
         // exp(iL_{\epsilon_2} \frac{\Delta t}{2})
         // -- barostat velocities from virial, including the $\alpha$ factor 1+ 1/N_f
@@ -432,7 +434,7 @@ bool FixNoseHoover::stepFinal()
 
         // exp(iL_{T_{BARO}} \frac{\Delta t}{2})
         // scaling of barostat velocities from barostat thermostats
-        barostatThermostatIntegrate();
+        barostatThermostatIntegrate(false);
     }
 
 }
@@ -479,7 +481,8 @@ void FixNoseHoover::updateBarostatMasses(bool stepInit) {
     // (2) anisotropic: W_g = W_g_0 = (N_f + d) kT / (d \omega_b^2)
 
     // 'N_f' number of degrees of freedom
-    double ndf = double (tempComputer.ndf);
+    // -- held in our class variable ndf, from the tempComputer.ndf value
+    //    (see ::calculateKineticEnergy())
 
     // 'd' - dimensionality of the system
     double d = 3.0;
@@ -516,18 +519,115 @@ void FixNoseHoover::updateBarostatThermalMasses(bool stepInit) {
 
     pressThermMass[0] = d*(d+1.0) * kt / (2.0 * pFreq[0]);
 
+    // Q_b_i = kt/(\omega_i^2)
     for (int i = 1; i < pchainLength; i++) {
         pressThermMass[i] = kt / (pFreq[i] * pFreq[i]);
     }
 
 }
 
-};
-void FixNoseHoover::thermostatIntegrate(double temp, double boltz, bool firstHalfStep) {
+void FixNoseHoover::barostatThermostatIntegrate(bool stepInit) {
+
+    // as thermostatIntegrate, get the set point temperature
+    double kt = boltz * setPointTemperature;
+
+    if (stepInit) {
+        kt = boltz * oldSetPointTemperature;
+    }
+
+    // calculate the kinetic energy of our barostats - 
+    //   only the dimensions we are barostatting.
+    //   e.g., if 2D, we don't count Z (although it should be zero anyways)
+    double ke_barostats = 0.0;
+    for (int i = 0; i < 6; i++) {
+        if (pFlags[i]) {
+            ke_barostats += (pressMass[i] * pressVel[i] * pressVel[i]);
+        }
+    }
+
+    // 
+    
+    if (!stepInit) {
+        pressThermForce[0] = (ke_barostats - kt) / (pressThermMass[0]);
+    }
+
+
+    // this is the same routine as in thermostatIntegrate
+    double ploop_weight = 1.0 / ( (double) nTimesteps_b);
+
+    for (size_t i = 0; i < nTimesteps_b; ++i) {
+        for (size_t j = 0; j < n_ys_b; ++j) {
+            double timestep = weight.at(j)*state->dt / nTimesteps;
+            double timestep2 = 0.5*timestep;
+            double timestep4 = 0.25*timestep;
+            double timestep8 = 0.125*timestep;
+
+            // Update thermostat velocities
+            pressThermVel.back() += timestep4*pressThermForce.back();
+            for (size_t k = pchainLength-2; k > 0; --k) {
+                double preFactor = std::exp( -timestep8*pressThermVel.at(k+1) );
+                pressThermVel.at(k) *= preFactor;
+                pressThermVel.at(k) += timestep4 * pressThermForce.at(k);
+                pressThermVel.at(k) *= preFactor;
+            }
+
+            double preFactor = std::exp( -timestep8*pressThermVel.at(1) );
+            pressThermVel.at(0) *= preFactor;
+            pressThermVel.at(0) += timestep4*pressThermForce.at(0);
+            pressThermVel.at(0) *= preFactor;
+
+            // Update particle (barostat) velocities
+            double barostatScaleFactor = std::exp( -timestep2*pressThermVel.at(0) );
+
+            // apply the scaling of the barostat velocities
+            for (int i = 0; i < 6; i++) {
+                if (pFlags[i]) {
+                    pressVel[i] *= barostatScaleFactor;
+                }
+            }
+
+            // as done in particle thermostatting, get new ke_current (ke_barostats)
+            ke_barostats = 0.0;
+            for (int i = 0; i < 6; i++) {
+                if (pFlags[i]) {
+                    ke_barostats += (pressMass[i] * pressVel[i] * pressVel[i]);
+                }
+            }
+
+            // Update the forces
+            pressThermVel.at(0) *= preFactor;
+            pressThermForce.at(0) = (ke_barostats - kt) / pressThermMass.at(0);
+            pressThermVel.at(0) += timestep4 * pressThermForce.at(0);
+            pressThermVel.at(0) *= preFactor;
+
+            // Update thermostat velocities
+            for (size_t k = 1; k < chainLength-1; ++k) {
+                preFactor = std::exp( -timestep8*pressThermVel.at(k+1) );
+                pressThermVel.at(k) *= preFactor;
+                pressThermForce.at(k) = (
+                        pressThermMass.at(k-1) *
+                        pressThermVel.at(k-1) *
+                        pressThermVel.at(k-1) - kt
+                    ) / pressThermMass.at(k);
+                pressThermVel.at(k) += timestep4 * pressThermForce.at(k);
+                pressThermVel.at(k) *= preFactor;
+            }
+
+            pressThermForce.at(chainLength-1) = (
+                    pressThermMass.at(chainLength-2) *
+                    pressThermVel.at(chainLength-2) *
+                    pressThermVel.at(chainLength-2) - kt
+                ) / pressThermMass.at(chainLength-1);
+            pressThermVel.at(chainLength-1) += timestep4*pressThermForce.at(chainLength-1);
+        }
+    }
+}
+
+void FixNoseHoover::thermostatIntegrate(bool stepInit) {
  // Equipartition at desired temperature
     double nkt = ndf * boltz * temp;
 
-    if (!firstHalfStep) {
+    if (!stepInit) {
         thermForce.at(0) = (ke_current - nkt) / thermMass.at(0);
       //  printf("ke_current %f, nkt %f\n", ke_current, nkt);
     }

@@ -140,6 +140,10 @@ private:
      */
     void updateBarostatThermalMasses(bool);
 
+    //! This function integrates the thermostat variables for the barostats
+    void barostatThermostatIntegrate(bool);
+
+
 
     Interpolator *getInterpolator(std::string);
     //! Rescale particle velocities
