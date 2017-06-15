@@ -46,6 +46,57 @@ __global__ void rescale_no_tags_cu(int nAtoms, float4 *vs, float3 scale)
     }
 }
 
+
+__global__ void barostat_vel_no_tags_cu(int nAtoms, float4 *vs,
+                                        float4 *fs, float3 addScale,
+                                        float3 multScale, float dtf) {
+
+    int idx = GETIDX();
+    if (idx < nAtoms) {
+        uint groupTagAtom = ((uint *) (fs+idx))[3];
+        if (groupTag & groupTagAtom) {
+            float4 vel = vs[idx];
+            float invmass = vel.w;
+            float4 force = fs[idx];
+
+            // apply the additive scaling (additive w.r.t. vel)
+            float3 dv = dtf * invmass * make_float3(force) * addScale;
+            vel += dv;
+
+            // apply the multiplicative scaling to the aggregated quantity
+            float3 v = make_float3(vel);
+            v *= multScale;
+            
+            float4 newV = make_float4(v.x, v.y, v.z, invmass);
+            vs[idx] = newV;
+
+            
+
+}
+
+__global__ void barostat_vel_cu(int nAtoms, uint groupTag, float4 *vs, 
+                                float4 *fs, float3 addScale, float3 multScale, float dtf) {
+
+    int idx = GETIDX();
+    if (idx < nAtoms) {
+        float4 vel = vs[idx];
+        float invmass = vel.w;
+        float4 force = fs[idx];
+
+        // apply the additive scaling (additive w.r.t. vel)
+        float3 dv = dtf * invmass * make_float3(force) * addScale;
+        vel += dv;
+
+        // apply the multiplicative scaling to the aggregated quantity
+        float3 v = make_float3(vel);
+        v *= multScale;
+        
+        float4 newV = make_float4(v.x, v.y, v.z, invmass);
+        vs[idx] = newV;
+
+
+}
+
 // general constructor; may be a thermostat, or a barostat-thermostat
 FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state_, std::string handle_,
                              std::string groupHandle_)
@@ -205,6 +256,8 @@ bool FixNoseHoover::prepareForRun()
     // get our boltzmann constant
     boltz = state->units.boltz;
 
+    // get number of atoms in the system
+    nAtoms = state->atoms.size();
     // Calculate current kinetic energy
     tempInterpolator.turnBeginRun = state->runInit;
     tempInterpolator.turnFinishRun = state->runInit + state->runningFor;
@@ -253,7 +306,8 @@ bool FixNoseHoover::prepareForRun()
         // call prepareForRun on our pressComputer
         pressComputer.prepareForRun();
 
-        // our P_{ext}, the set point pressure
+        // our P_{ext}, the set point pressure; this will need to change when we have 
+        // varying cell parameters; but for now we just do the normal stresses anyways
         hydrostaticPressure = pressInterpolator.getCurrentVal();
 
         // using external temperature... so send tempNDF and temperature scalar/tensor 
@@ -365,7 +419,7 @@ bool FixNoseHoover::stepInit()
         // - does thermostat scaling of particle velocities
         thermostatIntegrate(true);
 
-        // apply the scaling to the velocities
+        // apply the thermostat scaling to the velocities
         rescale();
 
         // compute the kinetic energy of the particles
@@ -400,11 +454,8 @@ bool FixNoseHoover::stepInit()
         // -- note that we modified the kinetic energy above via the thermostat
         barostatVelocityIntegrate();
 
-        // exp(iL_2 \frac{\Delta t}{2})
-        // do barostat scaling of the particle momenta (velocities). 
-        scaleVelocitiesBarostat();
-
         // after this, we exit stepInit, because we need IntegratorVerlet() to do a velocity timestep
+        // --- THEN, we do barostat rescaling of velocities
         return true;
 
     } else {
@@ -431,6 +482,13 @@ bool FixNoseHoover::stepInit()
 bool FixNoseHoover::postNVE_V() {
    
     if (barostatting) {
+        // exp(iL_2 \frac{\Delta t}{2}
+        // -- we have done our velocity integration in the integrator
+        //    we now do the additive scaling of the forces (sinh(x)/x)
+        //    followed by a multiplicative scaling of the resulting velocities
+
+        // scale particle velocities due to barostat variables
+        scaleVelocitiesBarostat(true);
         rescaleVolume();
     }
     return true;
@@ -739,101 +797,81 @@ void FixNoseHoover::barostatVelocityIntegrate() {
     //  also, note that the deformations of slant vectors are not affected 
     //  by the external pressure P_{ext}, should we incorporate this later
 
-    // --- note: the anisotropy is incorporated
-    // We evolve the barostat momenta according to this
+    double alpha = 1.0 + (1.0 / (double (state->atoms.size())));
+    Virial P_inst = currentPressure;
+    Virial P_ext = setPointPressure;
+    double volume = state->boundsGPU.volume();
     
+    // our sum over the particles: 
+    double ke_contribution = 0.0;
+    
+    for (int i = 0; i < 3; i++) {
+        // doing something here
+
+    }
 
 
 
 }
 
-void FixNoseHoover::scaleVelocitiesOmega() {
-    float timestep4 = state->dt * 0.25;
-    //so... if we're going to do triclinic this is going to get worse, b/c can't just lump all scale factors together into one number.  
-    //see nh_v_press in LAMMPS
-    float vals[3];
-    for (int i=0; i<3; i++) {
-        vals[i] = std::exp(-timestep4*(omegaVel[i] + mtkTerm2));
-    }
-    scale.x *= vals[0]*vals[0];
-    scale.y *= vals[1]*vals[1];
-    scale.z *= vals[2]*vals[2];
+void FixNoseHoover::scaleVelocitiesBarostat(bool preNVE_X) {
+    // bool input denotes whether we are pre or post integration of positions in the 
+    // velocity-verlet step
+    // --- does anything change pre- versus post- NVE_X ?
+    
+    float alpha = 1.0 + (1.0 / (float (state->atoms.size())));
+    // at this point, velocities of the barostat variables are up-to-date
+    float3 velScaleAdditive = make_float3(0.0, 0.0, 0.0);
 
-}
+    float timestep2 = state->dt * 0.5f;
+    float timestep4 = state->dt * 0.25f;
 
-bool FixNoseHoover::halfStep(bool firstHalfStep)
-{
-    if (chainLength == 0) {
-        mdWarning("Call of FixNoseHoover with zero thermostats in "
-                  "the Nose-Hoover chain.");
-        return false;
-    }
+    // compute the additive velocity scale... sinh(x) / x power series
+    float3 v_eps = make_float3(pressVel[0], pressVel[1], pressVel[2]);
+    float3 x = v_eps * alpha * timestep4;
 
-    double boltz = state->units.boltz;
+    // get our terms
+    float3 x2 = x*x ;
+    float3 x4 = x2*x2;
+    float3 x6 = x4*x2;
+    float3 x8 = x4*x4;
 
-    // Update the desired temperature
-    double temp;
-    if (firstHalfStep) {
-        double currentTemp = tempInterpolator.getCurrentVal();
-        //printf("CURRENT TEMP IS %f\n", currentTemp);
-        tempInterpolator.computeCurrentVal(state->turn);
-        temp = tempInterpolator.getCurrentVal();
-        //printf("SET PT IS %f\n", temp);
-        if (currentTemp != temp) {
-            updateMasses();
-        }
-    }
+    x2 /= 6.0;
+    x4 /= 120.0;
+    x6 /= 5040.0;
+    x8 /= 362880.0;
 
-    // Get the total kinetic energy
-    if (!firstHalfStep) {
-        //! \todo This optimization assumes that the velocities are not changed
-        //!       between stepFinal() and stepInit(). Can we add a check to make
-        //!       sure this is indeed the case?
-        temp = tempInterpolator.getCurrentVal();
-        calculateKineticEnergy();
-    }
-    thermostatIntegrate(temp, boltz, firstHalfStep);
+    // note that there is a +1.0 term leading the expansion.
+    // but, we subtract 1.0 from the entire series, so we omit that here
+    velScaleAdditive = x2 + x4 + x6 + x8;
 
-    if (barostatting) {
-        //THIS WILL HAVE TO BE CHANGED FOR ANISO
-        //if iso, all the pressure stuff is the same in every dimension
-        /*
-        if (pressMode == PRESSMODE::ISO) {
-            double scaledTemp = tempScalar_current * scale.x;//keeping track of it for barostat so I don't have to re-sum
-            pressComputer.tempNDF = ndf;
-            pressComputer.tempScalar = scaledTemp;
-            pressComputer.computeScalar_GPU(true, groupTag);
-        } else if (pressMode == PRESSMODE::ANISO) {
-            //not worrying about cross-terms for now
-            Virial scaledTemp = Virial(tempTensor_current[0] * scale.x, tempTensor_current[1] * scale.y, tempTensor_current[2] * scale.z, 0, 0, 0);
-            pressComputer.tempNDF = ndf;
-            pressComputer.tempTensor = scaledTemp;
-            pressComputer.computeScalar_GPU(true, groupTag);
+    // and now do the velScaleMultiplicative
+    // exp(-\alpha v_{\epsilon} dt / 2.0)
+    // we write it here in terms of our variable 'x' define above
+    float3 velScaleMultiplicative = make_float3(std::exp(-2.0*x.x),
+                                                std::exp(-2.0*x.y),
+                                                std::exp(-2.0*x.z));
 
-        }
-            */
-        pressInterpolator.computeCurrentVal(state->turn);
-        cudaDeviceSynchronize();
-        if (pressMode == PRESSMODE::ISO) {
-            pressComputer.computeScalar_CPU();
-        } else if (pressMode == PRESSMODE::ANISO) {
-            pressComputer.computeTensor_CPU();
-        }
-        setPressCurrent();
-        omegaIntegrate();
-        scaleVelocitiesOmega();
+    // and now send the atoms velocities and forces to a kernel and do the computations
+    float dtf = 0.5f * state->dt * state->units.ftm_to_v;
+    if (groupTag == 1) {
+        barostat_vel_no_tags_cu<<<NBLOCK(nAtoms), PERBLOCK>>>(
+                                                 nAtoms,
+                                                 state->gpd.vs.getDevData(),
+                                                 state->gpd.fs.getDevData(),
+                                                 velScaleAdditive,
+                                                 velScaleMultiplicative,
+                                                 dtf);
+    } else {
+        barostat_vel_cu<<<NBLOCK(nAtoms), PERBLOCK>>>(nAtoms,
+                                                 groupTag,
+                                                 state->gpd.vs.getDevData(),
+                                                 state->gpd.fs.getDevData(),
+                                                 velScaleAdditive,
+                                                 velScaleMultiplicative,
+                                                 dtf);
     }
 
-    if (firstHalfStep) { 
-        rescale();
-    }
-   
-    // Update particle velocites
-    //! \todo In this optimization, I assume that velocities are not accessed
-    //!       between stepFinal() and stepInitial(). Can we ensure that this is
-    //!       indeed the case?
-
-    return true;
 }
 
 
@@ -846,6 +884,7 @@ void FixNoseHoover::setPressCurrent() {
     }
 
 }
+
 void FixNoseHoover::updateThermalMasses()
 {
     double temp = tempInterpolator.getCurrentVal();
@@ -894,7 +933,6 @@ void FixNoseHoover::rescale()
         return;
     }
 
-    size_t nAtoms = state->atoms.size();
     if (groupTag == 1) {
         rescale_no_tags_cu<<<NBLOCK(nAtoms), PERBLOCK>>>(
                                                  nAtoms,

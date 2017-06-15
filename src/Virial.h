@@ -44,7 +44,7 @@ class Virial {
         // element-wise multiplication by another 6 element vector (Virial)
         inline __host__ __device__ void operator *= (Virial &other) {
             for (int i = 0; i<6; i++) {
-                vals[i] *= other[i]
+                vals[i] *= other[i];
             }
         }
         /*
