@@ -12,6 +12,7 @@
 #include "Interpolator.h"
 #include "DataComputerTemperature.h"
 #include "DataComputerPressure.h"
+namespace py = boost::python;
 
 //! Make FixNoseHoover available to the python interface
 void export_FixNoseHoover();
@@ -47,25 +48,10 @@ public:
      * \param state Pointer to the simulation state
      * \param handle "Name" of the Fix
      * \param groupHandle String specifying group of atoms this Fix acts on
-     * \param temp Desired temperature of the system
-     * \param timeConstant Time constant of the Nose-Hoover thermostat
      */
     FixNoseHoover(boost::shared_ptr<State> state,
                   std::string handle,
-                  std::string groupHandle,
-                  double temp,
-                  double timeConstant);
-    FixNoseHoover(boost::shared_ptr<State> state,
-                  std::string handle,
-                  std::string groupHandle,
-                  boost::python::list intervals,
-                  boost::python::list temps,
-                  double timeConstant);
-    FixNoseHoover(boost::shared_ptr<State> state,
-                  std::string handle,
-                  std::string groupHandle,
-                  boost::python::object tempFunc,
-                  double timeConstant);
+                  std::string groupHandle);
 
     //! Prepare Nose-Hoover thermostat for simulation run
     bool prepareForRun();
@@ -84,6 +70,57 @@ public:
      * \return Result of FixNoseHoover::halfStep() call.
      */
     bool stepFinal();
+
+    bool postNVE_V();
+
+    bool postNVE_X();
+    //! Set the pressure, time constant, and pressure mode for this barostat
+    /*!
+     * \param pressMode Box deformation mode: isotropic or anisotropic ("ISO" or "ANISO")
+     * \param press The pressure set point
+     * \param timeconstant The time constant associated with this barostat
+     */
+    void setPressure(std::string, double, double);
+    
+    //! Set the pressure, time constant, and pressure mode for this barostat
+    /*!
+     * \param pressMode Box deformation mode: isotropic or anisotropic ("ISO" or "ANISO")
+     * \param pressFunc The pressure set point, as a python function
+     * \param timeconstant The time constant associated with this barostat
+     */
+    void setPressure(std::string, py::object, double);
+    
+    //! Set the pressure, time constant, and pressure mode for this barostat
+    /*!
+     * \param pressMode Box deformation mode: isotropic or anisotropic ("ISO" or "ANISO")
+     * \param pressures The pressure set point, as a list of intervals
+     * \param intervals The time intervals for which the above list of pressures constitute the set point
+     * \param timeconstant The time constant associated with this barostat
+     */
+    void setPressure(std::string, py::list, py::list, double);
+
+    //! Set the temperature set point and associated time constant for this thermostat
+    /*!
+     * \param temperature The set point temperature
+     * \param timeConstant The time constant associated with this thermostat
+     */
+    void setTemperature(double, double);
+
+    //! Set the temperature set point and associated time constant for this thermostat
+    /*!
+     * \param tempFunc The set point temperature, as a python function
+     * \param timeConstant The time constant associated with this thermostat
+     */
+    void setTemperature(py::object, double);
+    
+    //! Set the temperature set point and associated time constant for this thermostat
+    /*!
+     * \param temps The set point temperature as a list of temperature set points
+     * \param intervals The list of timestep intervals for the list of temperature set points
+     * \param timeConstant The time constant associated with this thermostat
+     */
+    void setTemperature(py::list, py::list, double);
+    
 
 private:
     //! Perform one half step of the Nose-Hoover thermostatting
@@ -144,7 +181,9 @@ private:
     void barostatThermostatIntegrate(bool);
 
 
-
+    void parseKeyword(std::string);
+    int couple;
+    bool firstPrepareCalled;
     Interpolator *getInterpolator(std::string);
     //! Rescale particle velocities
     /*!
@@ -154,22 +193,29 @@ private:
     void setPressure(double pressure);
 
     float frequency; //!< Frequency of the Nose-Hoover thermostats
+    double pFrequency;
     Virial pFreq; //!< Frequency of the Nose-Hoover barostats
     GPUArrayGlobal<float> kineticEnergy; //!< Stores kinetic energy and
                                          //!< number of atoms in Fix group
     float ke_current; //!< Current kinetic energy
     size_t ndf; //!< Number of degrees of freedom
 
+    double hydrostaticPressure;
+    double currentTempScalar;
     Virial currentPressure; //!< Current pressure, with (or without) coupling
-    Virial setPointPressure; //!< Our current set point pressure, from pressInterpolator
-    Virial setPointTemperature; //!< Our current set point temperature, from tempInterpolator
-    Virial oldSetPointPressure; //!< The set point pressure from the previous turn
-    Virial oldSetPointTemperature; //!< The set point temperature from the previous turn
+    double setPointPressure; //!< Our current set point pressure, from pressInterpolator
+    double setPointTemperature; //!< Our current set point temperature, from tempInterpolator
+    double oldSetPointPressure; //!< The set point pressure from the previous turn
+    double oldSetPointTemperature; //!< The set point temperature from the previous turn
 
     size_t chainLength; //!< Number of thermostats in the Nose-Hoover chain
     size_t nTimesteps; //!< Number of timesteps for multi-timestep method
 
+    size_t nTimesteps_b;
+    size_t pchainLength;
     size_t n_ys; //!< n_ys from \cite MartynaEtal:MP1996
+    size_t n_ys_b;
+
     std::vector<double> weight; //!< Weights for closer approximation
 
     //std::vector<double> thermPos; //!< Position (= Energy) of the Nose-Hoover
@@ -181,7 +227,9 @@ private:
     // note to others: we use Virial class for convenience for any vector of floats 
     // that is required to have 6 and only 6 values
     // -- allows for convenient mathematical operations via class-defined operators
-    Virial pressMass; //!< Masses of the Nose-Hoover barostats
+    std::vector<double> pressMass; //!< Masses of the Nose-Hoover barostats
+    std::vector<double> pressVel;
+    std::vector<double> pressForce;
     std::vector<double> pressThermMass; //!< Masses of the Nose-Hoover barostats' thermostats
     std::vector<double> pressThermVel; //!< Velocity of the Nose-Hoover barostats' thermostats
     std::vector<double> pressThermForce; //!< Force on the Nose-Hoover barostats' thermostats
@@ -195,12 +243,15 @@ private:
     int nDimsBarostatted; //!< The number of dimensions that are barostatted
 
     std::vector<double> pressFreq;
-    void thermostatIntegrate(double, double, bool);
+    void thermostatIntegrate(bool);
+    void barostatVelocityIntegrate();
+    void scaleVelocitiesBarostat(bool);
     void omegaIntegrate();
     void scaleVelocitiesOmega();
     std::vector<bool> pFlags;
     Interpolator tempInterpolator;
     Interpolator pressInterpolator;
+    std::string barostatErrorMessage;
 
     float3 scale; //!< Factor by which the velocities are rescaled
     MD_ENGINE::DataComputerTemperature tempComputer;

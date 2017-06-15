@@ -12,6 +12,7 @@
 #include "Mod.h"
 
 enum PRESSMODE {ISO, ANISO};
+enum COUPLESTYLE {NONE, XYZ};
 namespace py = boost::python;
 
 std::string NoseHooverType = "NoseHoover";
@@ -47,7 +48,7 @@ __global__ void rescale_no_tags_cu(int nAtoms, float4 *vs, float3 scale)
 }
 
 
-__global__ void barostat_vel_no_tags_cu(int nAtoms, float4 *vs,
+__global__ void barostat_vel_cu(int nAtoms,uint groupTag, float4 *vs,
                                         float4 *fs, float3 addScale,
                                         float3 multScale, float dtf) {
 
@@ -69,12 +70,11 @@ __global__ void barostat_vel_no_tags_cu(int nAtoms, float4 *vs,
             
             float4 newV = make_float4(v.x, v.y, v.z, invmass);
             vs[idx] = newV;
-
-            
-
+        }
+    }
 }
 
-__global__ void barostat_vel_cu(int nAtoms, uint groupTag, float4 *vs, 
+__global__ void barostat_vel_no_tags_cu(int nAtoms, float4 *vs, 
                                 float4 *fs, float3 addScale, float3 multScale, float dtf) {
 
     int idx = GETIDX();
@@ -93,8 +93,7 @@ __global__ void barostat_vel_cu(int nAtoms, uint groupTag, float4 *vs,
         
         float4 newV = make_float4(v.x, v.y, v.z, invmass);
         vs[idx] = newV;
-
-
+    }
 }
 
 // general constructor; may be a thermostat, or a barostat-thermostat
@@ -122,11 +121,7 @@ FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state_, std::string handle
                 thermForce(std::vector<double>(chainLength,0.0)),
                 thermMass(std::vector<double>(chainLength,0.0)),
                 scale(make_float3(1.0f, 1.0f, 1.0f)),
-                omega(std::vector<double>(6)),
-                omegaVel(std::vector<double>(6)),
-                omegaMass(std::vector<double>(6)),
                 pressFreq(6, 0),
-                pressCurrent(6, 0),
                 pFlags(6, false),
                 tempComputer(state, "scalar"), 
                 pressComputer(state, "scalar"), 
@@ -142,10 +137,6 @@ FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state_, std::string handle
     // this is a thermostat (if we are barostatting, we are also thermostatting)
     isThermostat = true;
     identity = Virial(1,1,1,0,0,0); //as xx, yy, zz, xy, xz, yz
-    // 
-    barostatThermostatChainLengthSpecified = false;
-    coupleStyleSpecified = false;
-    barostattedDimensionsSpecified = false;
 
     // denote whether or not this is the first time prepareForRun was called
     // --- need this, because we need to initialize this with proper virials
@@ -166,8 +157,8 @@ void FixNoseHoover::parseKeyword(std::string keyword) {
         pressMode = PRESSMODE::ANISO;
         couple = COUPLESTYLE::NONE;
         // change the state of our pressComputer - and tempComputer - to "tensor"
-        pressComputer = DataComputerPressure(state,"tensor");
-        tempComputer = DataComputerTemperature(state,"tensor");
+        pressComputer = MD_ENGINE::DataComputerPressure(state,"tensor");
+        tempComputer  = MD_ENGINE::DataComputerTemperature(state,"tensor");
         // and assert again that we are using an external temperature computer (tempComputer) for
         // our pressure computer
         pressComputer.usingExternalTemperature = true;
@@ -178,7 +169,7 @@ void FixNoseHoover::parseKeyword(std::string keyword) {
         printf(barostatErrorMessage.c_str());
         mdError("See above error message");
 
-    };
+    }
 
     // regulating pressure for X, Y dims
     // set nDimsBarostatted to 2
@@ -199,7 +190,6 @@ void FixNoseHoover::setPressure(std::string pressMode, double press, double time
     parseKeyword(pressMode);
     pressInterpolator = Interpolator(press);
     barostatting = true;
-    //pressFreq[0] = pressFreq[1] = pressFreq[2] = 1.0 / timeConstant;
     pFrequency = 1.0 / timeConstant;
 }
 
@@ -208,7 +198,6 @@ void FixNoseHoover::setPressure(std::string pressMode, py::object pressFunc, dou
     parseKeyword(pressMode);
     pressInterpolator = Interpolator(pressFunc);
     barostatting = true;
-    //pressFreq[0] = pressFreq[1] = pressFreq[2] = 1.0 / timeConstant;
     pFrequency = 1.0 / timeConstant;
 }
 
@@ -217,7 +206,6 @@ void FixNoseHoover::setPressure(std::string pressMode, py::list pressures, py::l
     parseKeyword(pressMode);
     pressInterpolator = Interpolator(pressures, intervals);
     barostatting = true;
-    //pressFreq[0] = pressFreq[1] = pressFreq[2] = 1.0 / timeConstant;
     pFrequency = 1.0 / timeConstant; 
 }
 
@@ -266,7 +254,7 @@ bool FixNoseHoover::prepareForRun()
     calculateKineticEnergy();
     
     tempInterpolator.computeCurrentVal(state->runInit);
-    updateMasses();
+    updateThermalMasses();
 
     // Update thermostat forces
     double temp = tempInterpolator.getCurrentVal();
@@ -345,7 +333,7 @@ bool FixNoseHoover::prepareForRun()
         if (pressMode == PRESSMODE::ISO) {
             pressComputer.computeScalar_CPU();
         } else {
-            pressComputer.computeTensor_GPU();
+            pressComputer.computeTensor_CPU();
         }
 
         // get the instantaneous pressure from pressComputer; store it locally as a tensor
@@ -396,11 +384,11 @@ bool FixNoseHoover::stepInit()
 
         // compute set point pressure, and save it to our local variable setPointPressure
         pressInterpolator.computeCurrentVal(state->turn);
-        setPointPressure = identity * pressInterpolator.getCurrentVal();
+        setPointPressure = pressInterpolator.getCurrentVal();
 
         // compute set point temperature, and save it to our local variable setPointTemperature
         tempInterpolator.computeCurrentVal(state->turn);
-        setPointTemperature = identity * tempInterpolator.getCurrentVal();
+        setPointTemperature = tempInterpolator.getCurrentVal();
         
         // compare values and update accordingly
         if (oldSetPointTemperature != setPointTemperature) {
@@ -461,16 +449,18 @@ bool FixNoseHoover::stepInit()
     } else {
         
         oldSetPointTemperature = setPointTemperature;
-        tempInterpolator.computeCurrentVal();
-        setPointTemperature = identity * tempInterpolator.getCurrentVal();
+        tempInterpolator.computeCurrentVal(state->turn);
+        setPointTemperature = tempInterpolator.getCurrentVal();
         // compare values and update accordingly
         
         if (oldSetPointTemperature != setPointTemperature) {
             // update the masses associated with thermostats for the particles
-            updateThermalmasses();
+            updateThermalMasses();
         }
 
-        thermostatIntegrate();
+        thermostatIntegrate(true);
+        
+        rescale();
         
 
         return true;
@@ -489,7 +479,7 @@ bool FixNoseHoover::postNVE_V() {
 
         // scale particle velocities due to barostat variables
         scaleVelocitiesBarostat(true);
-        rescaleVolume();
+        //rescaleVolume();
     }
     return true;
 
@@ -497,7 +487,7 @@ bool FixNoseHoover::postNVE_V() {
 
 bool FixNoseHoover::postNVE_X() {
     if (barostatting) {
-        rescaleVolume() 
+        //rescaleVolume() 
     }
 
     return true;
@@ -511,7 +501,7 @@ bool FixNoseHoover::stepFinal()
     if (barostatting) {
         
         // exp(iL_2 \frac{\Delta t}{2}) -- barostat rescaling of velocities component
-        scaleVelocitiesBarostat();
+        scaleVelocitiesBarostat(false);
 
         // exp(iL_{\epsilon_2} \frac{\Delta t}{2})
         // integration of barostat velocities
@@ -519,12 +509,14 @@ bool FixNoseHoover::stepFinal()
 
         // exp(iL_{T_{PART}} \frac{\Delta t}{2})
         // scaling of particle velocities from particle thermostats
-        thermostatIntegrate();
+        thermostatIntegrate(false);
 
         // exp(iL_{T_{BARO}} \frac{\Delta t}{2})
         // scaling of barostat velocities from barostat thermostats
         barostatThermostatIntegrate(false);
     }
+
+    return true;
 
 }
 
@@ -535,7 +527,7 @@ void FixNoseHoover::getCurrentPressure() {
     // based off of the virial class
     if (pressMode == PRESSMODE::ISO) {
         double pressureScalar = pressComputer.pressureScalar;
-        currentPressure = identity * pressureScalar;
+        currentPressure = Virial(pressureScalar, pressureScalar, pressureScalar, 0, 0, 0);
     } else {
         Virial pressureTensor = pressComputer.pressureTensor;
 
@@ -544,7 +536,7 @@ void FixNoseHoover::getCurrentPressure() {
             // the virial pressure tensor in pressComputer goes as [xx,yy,zz,xy,xz,yz] 
             // (same as /src/Virial.h)
             double pressureScalar = (1.0 / 3.0) * (pressureTensor[0] + pressureTensor[1] + pressureTensor[2]);
-            currentPressure = identity * pressureScalar;
+            currentPressure = Virial(pressureScalar, pressureScalar, pressureScalar, 0, 0, 0);
         } else {
             currentPressure = pressureTensor;
             // explicitly set slant vectors to zero for now
@@ -558,7 +550,7 @@ void FixNoseHoover::getCurrentPressure() {
 void FixNoseHoover::updateBarostatMasses(bool stepInit) {
 
     // set point temperature is of class Virial
-    Virial t_external = setPointTemperature;
+    double t_external = setPointTemperature;
     if (stepInit) {
         // if we are at the initial step, use the old set point
         // -- this is due to ordering of the louiviliian propagators
@@ -580,13 +572,18 @@ void FixNoseHoover::updateBarostatMasses(bool stepInit) {
         d = 2.0;
     }
 
-    Virial kt = boltz * t_external;
+    double kt = boltz * t_external;
     // from MTK 1994
+    // this has to be turned in to a \sum yadda yadda
     if (pressMode == PRESSMODE::ISO) {
+        for (int i = 0; i < 3; i++) {
         // then we set the masses to case (1)
-        pressMass = (ndf + d) * kt / (pFreq * pFreq);
+            pressMass[i] = (ndf + d) * kt / (pFrequency * pFrequency);
+        }
     } else {
-        pressMass = (ndf + d) * kt / (d * pFreq * pFreq);
+        for (int i = 0; i < 3; i++) {
+            pressMass[i] = (ndf + d) * kt / (d * pFrequency * pFrequency);
+        }
     }
 }
 
@@ -594,9 +591,9 @@ void FixNoseHoover::updateBarostatThermalMasses(bool stepInit) {
 
     // from MTK 1994:
     // Q_b_1 = d(d+1)kT/(2 \omega_b^2)
-    double t_external = setPointTemperature[0];
+    double t_external = setPointTemperature;
     if (stepInit) {
-        t_external = oldSetPointTemperature[0];
+        t_external = oldSetPointTemperature;
     }
 
     double kt = boltz * t_external;
@@ -610,7 +607,7 @@ void FixNoseHoover::updateBarostatThermalMasses(bool stepInit) {
 
     // Q_b_i = kt/(\omega_i^2)
     for (int i = 1; i < pchainLength; i++) {
-        pressThermMass[i] = kt / (pFreq[i] * pFreq[i]);
+        pressThermMass[i] = kt / (pFrequency * pFrequency);
     }
 
 }
@@ -642,8 +639,6 @@ void FixNoseHoover::barostatThermostatIntegrate(bool stepInit) {
 
 
     // this is the same routine as in thermostatIntegrate
-    double ploop_weight = 1.0 / ( (double) nTimesteps_b);
-
     for (size_t i = 0; i < nTimesteps_b; ++i) {
         for (size_t j = 0; j < n_ys_b; ++j) {
             double timestep = weight.at(j)*state->dt / nTimesteps;
@@ -715,8 +710,9 @@ void FixNoseHoover::barostatThermostatIntegrate(bool stepInit) {
 void FixNoseHoover::thermostatIntegrate(bool stepInit) {
  // Equipartition at desired temperature
     // setPointTemperature should be up to date.
-    double nkt = ndf * boltz * setPointTemperature[0];
+    double nkt = ndf * boltz * setPointTemperature;
 
+    double temp = setPointTemperature;
     if (!stepInit) {
         thermForce.at(0) = (ke_current - nkt) / thermMass.at(0);
       //  printf("ke_current %f, nkt %f\n", ke_current, nkt);
@@ -799,7 +795,7 @@ void FixNoseHoover::barostatVelocityIntegrate() {
 
     double alpha = 1.0 + (1.0 / (double (state->atoms.size())));
     Virial P_inst = currentPressure;
-    Virial P_ext = setPointPressure;
+    double P_ext = setPointPressure;
     double volume = state->boundsGPU.volume();
     
     // our sum over the particles: 
@@ -874,17 +870,6 @@ void FixNoseHoover::scaleVelocitiesBarostat(bool preNVE_X) {
 
 }
 
-
-void FixNoseHoover::setPressCurrent() {
-    for (int i=0; i<3; i++) {
-        pressCurrent[i] = pressComputer.pressureScalar;
-    }
-    for (int i=3; i<6; i++) {
-        pressCurrent[0] = pressComputer.pressureScalar;
-    }
-
-}
-
 void FixNoseHoover::updateThermalMasses()
 {
     double temp = tempInterpolator.getCurrentVal();
@@ -955,6 +940,17 @@ Interpolator *FixNoseHoover::getInterpolator(std::string type) {
     }
     return nullptr;
 }
+
+// setting up a few exports for BOOST
+void (FixNoseHoover::*setTemperature_x1) (double, double) = &FixNoseHoover::setTemperature;
+void (FixNoseHoover::*setTemperature_x2) (py::object, double) = &FixNoseHoover::setTemperature;
+void (FixNoseHoover::*setTemperature_x3) (py::list, py::list, double) = &FixNoseHoover::setTemperature;
+
+void (FixNoseHoover::*setPressure_x1) (std::string, double, double) = &FixNoseHoover::setPressure;
+void (FixNoseHoover::*setPressure_x2) (std::string, py::object, double) = &FixNoseHoover::setPressure;
+void (FixNoseHoover::*setPressure_x3) (std::string, py::list, py::list, double) = &FixNoseHoover::setPressure;
+
+
 void export_FixNoseHoover()
 {
     py::class_<FixNoseHoover,                    // Class
@@ -963,20 +959,45 @@ void export_FixNoseHoover()
                boost::noncopyable>
     (
         "FixNoseHoover",
-        py::init<boost::shared_ptr<State>, std::string, std::string, py::object, double>(
-            py::args("state", "handle", "groupHandle", "tempFunc", "timeConstant")
+        py::init<boost::shared_ptr<State>, std::string, std::string>(
+            py::args("state", "handle", "groupHandle")
         )
     )
-    .def(py::init<boost::shared_ptr<State>, std::string, std::string, py::list, py::list, double>(
-                py::args("state", "handle", "groupHandle", "intervals", "temps", "timeConstant")
-
-                )
+    .def("setTemperature", setTemperature_x1,
+         (py::arg("temperature"),
+          py::arg("timeConstant")
+         )
         )
-    .def(py::init<boost::shared_ptr<State>, std::string, std::string, double, double>(
-                py::args("state", "handle", "groupHandle", "temp", "timeConstant")
-
-                )
+    .def("setTemperature", setTemperature_x2,
+         (py::arg("temperature"),
+          py::arg("timeConstant")
+         )
         )
-
+    .def("setTemperature", setTemperature_x3,
+         (py::arg("temperature"),
+          py::arg("intervals"),
+          py::arg("timeConstant")
+         )
+        )
+    .def("setPressure", setPressure_x1,
+         (py::arg("mode"), 
+          py::arg("pressure"),
+          py::arg("timeConstant")
+         )
+        )
+    .def("setPressure", setPressure_x2,
+         (py::arg("mode"), 
+          py::arg("pressure"),
+          py::arg("timeConstant")
+         )
+        )
+    .def("setPressure", setPressure_x3,
+         (py::arg("mode"), 
+          py::arg("pressure"),
+          py::arg("intervals"),
+          py::arg("timeConstant")
+         )
+        )
     ;
+
 }
