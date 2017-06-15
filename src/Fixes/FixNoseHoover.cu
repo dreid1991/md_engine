@@ -130,6 +130,7 @@ void FixNoseHoover::parseKeyword(std::string keyword) {
     };
 
     // regulating pressure for X, Y dims
+    // set nDimsBarostatted to 2
     pFlags[0] = true;
     pFlags[1] = true;
     // set Z flag to true if we are not a 2d system
@@ -252,8 +253,8 @@ bool FixNoseHoover::prepareForRun()
         // call prepareForRun on our pressComputer
         pressComputer.prepareForRun();
 
-        // compute the hydrostatic pressure - average of $\sigma_{ii}$, i = 1,2,3 (in 3d)
-        computeHydrostaticPressure();
+        // our P_{ext}, the set point pressure
+        hydrostaticPressure = pressInterpolator.getCurrentVal();
 
         // using external temperature... so send tempNDF and temperature scalar/tensor 
         // to the pressComputer, then call [computeScalar/computeTensor]_GPU() 
@@ -352,7 +353,7 @@ bool FixNoseHoover::stepInit()
             // update the masses associated with thermostats for the barostats and the particles
             updateBarostatMasses(true);
             updateBarostatThermalMasses(true);
-            updateThermalmasses();
+            updateThermalMasses();
         }
 
         // exp(iL_{T_{BARO} \frac{\Delta t}{2})
@@ -363,6 +364,36 @@ bool FixNoseHoover::stepInit()
         // exp(iL_{T_{PART}} \frac{\Delta t}{2})
         // - does thermostat scaling of particle velocities
         thermostatIntegrate(true);
+
+        // apply the scaling to the velocities
+        rescale();
+
+        // compute the kinetic energy of the particles
+        // --- TODO: simple optimization here - we can save the scale factor and do the rescaling later
+        calculateKineticEnergy();
+
+        // a brief diversion from the propagators: we need to tell the GPU to do the summations of
+        // of the virials to get the current pressure tensor
+        if (pressMode == PRESSMODE::ISO) {
+            pressComputer.tempNDF = ndf;
+            pressComputer.tempScalar = currentTempScalar;
+            pressComputer.computeScalar_GPU(true, groupTag);
+            cudaDeviceSynchronize();
+            pressComputer.computeScalar_CPU();
+        } else if (pressMode == PRESSMODE::ANISO) {
+            Virial tempTensor_current = tempComputer.tempTensor;
+            pressComputer.tempNDF = ndf;
+            pressComputer.tempTensor = tempTensor_current;
+            pressComputer.computeTensor_GPU(true,groupTag);
+            cudaDeviceSynchronize();
+            pressComputer.computeScalar_CPU();
+        }
+
+        // and get the current pressure to our local variables
+        getCurrentPressure();
+
+        // and the current hydrostatic pressure
+        hydrostaticPressure = pressInterpolator.getCurrentVal();
 
         // exp(iL_{\epsilon_2} \frac{\Delta t}{2})
         // -- barostat velocities from virial, including the $\alpha$ factor 1+ 1/N_f
@@ -625,7 +656,8 @@ void FixNoseHoover::barostatThermostatIntegrate(bool stepInit) {
 
 void FixNoseHoover::thermostatIntegrate(bool stepInit) {
  // Equipartition at desired temperature
-    double nkt = ndf * boltz * temp;
+    // setPointTemperature should be up to date.
+    double nkt = ndf * boltz * setPointTemperature[0];
 
     if (!stepInit) {
         thermForce.at(0) = (ke_current - nkt) / thermMass.at(0);
@@ -694,6 +726,24 @@ void FixNoseHoover::thermostatIntegrate(bool stepInit) {
             thermVel.at(chainLength-1) += timestep4*thermForce.at(chainLength-1);
         }
     }
+
+}
+
+void FixNoseHoover::barostatVelocityIntegrate() {
+
+    // $G_{\epsilon}$ = \alpha * (ke_current) + (Virial - P_{ext})*V
+
+    // so, we need to have the /current pressure/
+    //  we need to have the /current kinetic energy of the particles/
+    //  we need to have the instantaneous volume
+    //  also, note that the deformations of slant vectors are not affected 
+    //  by the external pressure P_{ext}, should we incorporate this later
+
+    // --- note: the anisotropy is incorporated
+    // We evolve the barostat momenta according to this
+    
+
+
 
 }
 

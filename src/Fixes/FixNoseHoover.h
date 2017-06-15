@@ -187,8 +187,11 @@ private:
     std::vector<double> pressThermForce; //!< Force on the Nose-Hoover barostats' thermostats
 
     double boltz; //!< Local copy of our boltzmann constant with proper units
+    double epsilon; //!< Epsilon, ratio of V/V0; alternatively, our volume scaling parameter
+
     Virial identity; //!< identity tensor made using our Virial class (6-value vector)
 
+    int nDimsBarostatted; //!< The number of dimensions that are barostatted
 
     std::vector<double> pressFreq;
     void thermostatIntegrate(double, double, bool);
