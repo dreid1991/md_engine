@@ -147,6 +147,7 @@ std::vector<bool> Integrator::basicPrepare(int numTurns) {
     for (GPUArray *dat : activeData) {
         dat->dataToDevice();
     }
+    std::vector<bool> prepared;
     for (Fix *f : state->fixes) {
         f->updateGroupTag();
         prepared.push_back(f->prepareForRun());

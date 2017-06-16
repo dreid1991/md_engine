@@ -276,6 +276,8 @@ bool FixNoseHoover::prepareForRun()
         // pressComputer, tempComputer were already set to appropriate "scalar"/"tensor" values
         // in the parseKeyword() call in the pertinent setPressure() function
         
+        epsilon = make_float3(0.0, 0.0, 0.0);
+
         // get the number of dimensions barostatted
         nDimsBarostatted = 0;
         // go up to 6 - eventually we'll want Rahman-Parinello stress ensemble
@@ -340,17 +342,27 @@ bool FixNoseHoover::prepareForRun()
         // --- some redundancy here if we are using a scalar
         getCurrentPressure();
 
-        // following Julian's notation, denote barostat variables by press______ etc.
-
-
         // initialize the pressMass, pressVel, pressForce
-        
-        // TODO
+        // -- one for each: xx yy zz xy xz yz
+        //    although we really only care about the normal components in this implementation
+        pressMass = std::vector<double> (6, 0.0);
+        pressVel  = std::vector<double> (6, 0.0);
+        pressForce= std::vector<double> (6, 0.0);
+
         // and barostat thermostat variables: pressThermMass, pressThermVel, and pressThermForce, respectively
+        pressThermMass = std::vector<double> (pchainLength, 0.0);
+        pressThermVel  = std::vector<double> (pchainLength, 0.0);
+        pressThermForce= std::vector<double> (pchainLength, 0.0);
 
-
-
-
+        // set barostat masses; forces and velocities should be zero, which we just initialized them to
+        // -- set to the current set point
+        //    we computed the set point above prior to calling updateThermalMasses()
+        setPointTemperature = tempInterpolator.getCurrentVal();
+        updateBarostatMasses(false);
+        updateBarostatThermalMasses(false);
+        
+        // set epsilon float3 to zeros - corresponding to no volume scaling
+        epsilon = make_float3(0.0, 0.0, 0.0);
 
     }
 
@@ -412,6 +424,7 @@ bool FixNoseHoover::stepInit()
 
         // compute the kinetic energy of the particles
         // --- TODO: simple optimization here - we can save the scale factor and do the rescaling later
+        //           - just need to make sure that we send the correct external temperature to pressComputer immediately below
         calculateKineticEnergy();
 
         // a brief diversion from the propagators: we need to tell the GPU to do the summations of
@@ -441,6 +454,7 @@ bool FixNoseHoover::stepInit()
         // exp(iL_{\epsilon_2} \frac{\Delta t}{2})
         // -- barostat velocities from virial, including the $\alpha$ factor 1+ 1/N_f
         // -- note that we modified the kinetic energy above via the thermostat
+        //    - but, we also called calculateKineticEnergy() which updated this. so, nothing to do here right now
         barostatVelocityIntegrate();
 
         // after this, we exit stepInit, because we need IntegratorVerlet() to do a velocity timestep
@@ -580,7 +594,7 @@ void FixNoseHoover::updateBarostatMasses(bool stepInit) {
 
     double kt = boltz * t_external;
     // from MTK 1994
-    // this has to be turned in to a \sum yadda yadda
+    // this has to be turned in to a \sum 
     if (pressMode == PRESSMODE::ISO) {
         for (int i = 0; i < 3; i++) {
         // then we set the masses to case (1)
@@ -797,19 +811,67 @@ void FixNoseHoover::barostatVelocityIntegrate() {
     //  also, note that the deformations of slant vectors are not affected 
     //  by the external pressure P_{ext}, should we incorporate this later
 
-    double alpha = 1.0 + (1.0 / (double (state->atoms.size())));
+    // we already incorporated one summation of the kinetic energy in to our virials
+    double alpha = (1.0 / (double (state->atoms.size())));
+
+    // instantaneous pressure
     Virial P_inst = currentPressure;
+
+    // external pressure (the set point)
     double P_ext = setPointPressure;
+    
+    // current volume of our simulation cell
     double volume = state->boundsGPU.volume();
     
     // our sum over the particles: 
-    double ke_contribution = 0.0;
-    
-    for (int i = 0; i < 3; i++) {
-        // doing something here
+    std::vector<double> aggregate = std::vector<double> (6, 0.0);
 
+    // for dN factor in denominator
+    double d = 3.0;
+    if (state->is2d) d = 2.0;
+   
+    
+    Virial G_e = Virial(0, 0, 0, 0, 0, 0);
+    Virial mvv = Virial(0, 0, 0, 0, 0, 0);
+
+    // get the extraneous alpha * mvv contribution; note that 
+    // the temperature is either as a tensor or a scalar, so make considerations for that here
+    // TODO: should nAtoms, ndf be considered only from number of atoms to which this fix is being applied?
+    //       i.e. what is we are not thermostatting all particles in the simulation? needs further consideration
+    if (pressMode == PRESSMODE::ISO) {
+        for (int i = 0; i < 3; i++) {
+            // currentTempScalar in ::calculateKineticEnergy is the scalar temperature
+            mvv[i] = ndf * boltz * currentTempScalar / (d * nAtoms) ;
+        }
+    } else {
+        // this should be up-to-date at this point
+        Virial tempTensor = tempComputer.tempTensor;
+        for (int i = 0; i < 3; i++) {
+            // tempTensor incorporates tdof
+            mvv[i] = tempTensor[i] / (pressMass[i] * nAtoms);
+        }
+    }
+                
+    // get the pressure differential contribution
+    // -- add the mvv*alpha contribution. unit conversion?
+    // -- divide by pressMass, because we are evolving the velocity - not the momenta            
+    for (int i = 0; i < 3; i++) {
+        G_e[i] = alpha * mvv[i];
+        G_e[i] += ( (P_inst[i] - P_ext) * volume / (pressMass[i] * state->units.nktv_to_press));
+        // doing something here
     }
 
+    // for completeness, propagate the skew vectors as well
+    for (int i = 3; i < 6; i++) {
+        G_e[i] += ( (P_inst[i]  * volume) / (pressMass[i] * state->units.nktv_to_press));
+    }
+
+    // and evolve the velocity of the barostat variables according to G_e[i]
+    // here we recognize the action of the following operator:
+    // exp(iL_{\epsilon_2} \frac{\Delta t}{2}) in MTK 2006
+    for (int i = 0; i < 6; i++) {
+        pressVel[i] += (G_e[i] * state->dt * 0.5) ;
+    }
 
 
 }
@@ -823,7 +885,6 @@ void FixNoseHoover::scaleVelocitiesBarostat(bool preNVE_X) {
     // at this point, velocities of the barostat variables are up-to-date
     float3 velScaleAdditive = make_float3(0.0, 0.0, 0.0);
 
-    float timestep2 = state->dt * 0.5f;
     float timestep4 = state->dt * 0.25f;
 
     // compute the additive velocity scale... sinh(x) / x power series
