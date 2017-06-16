@@ -248,6 +248,7 @@ private:
     void scaleVelocitiesBarostat(bool);
     void omegaIntegrate();
     void scaleVelocitiesOmega();
+    void rescaleVolume();
     std::vector<bool> pFlags;
     Interpolator tempInterpolator;
     Interpolator pressInterpolator;

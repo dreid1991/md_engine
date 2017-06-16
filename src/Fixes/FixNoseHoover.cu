@@ -495,6 +495,9 @@ bool FixNoseHoover::postNVE_V() {
         // scale particle velocities due to barostat variables
         scaleVelocitiesBarostat(true);
         //rescaleVolume();
+
+        // and our operator acting on epsilon (volume rescale) --> changes particle positions as well
+        rescaleVolume();
     }
     return true;
 
@@ -515,13 +518,33 @@ bool FixNoseHoover::stepFinal()
     // - do barostat scaling of velocities
     if (barostatting) {
         
-        // we need the updated
-        calculateKineticEnergy();
-
         // exp(iL_2 \frac{\Delta t}{2}) -- barostat rescaling of velocities component
         scaleVelocitiesBarostat(false);
 
+        // update the kinetic energy, and compute the internal pressure
         calculateKineticEnergy();
+        
+        if (pressMode == PRESSMODE::ISO) {
+            pressComputer.tempNDF = ndf;
+            pressComputer.tempScalar = currentTempScalar;
+            pressComputer.computeScalar_GPU(true, groupTag);
+            cudaDeviceSynchronize();
+            pressComputer.computeScalar_CPU();
+        } else if (pressMode == PRESSMODE::ANISO) {
+            Virial tempTensor_current = tempComputer.tempTensor;
+            pressComputer.tempNDF = ndf;
+            pressComputer.tempTensor = tempTensor_current;
+            pressComputer.computeTensor_GPU(true,groupTag);
+            cudaDeviceSynchronize();
+            pressComputer.computeScalar_CPU();
+        }
+
+        // and get the current pressure to our local variables; here we do the partitioning according to 
+        // the couple style: {NONE,XYZ}
+        getCurrentPressure();
+
+        // and the current hydrostatic pressure
+        hydrostaticPressure = pressInterpolator.getCurrentVal();
 
         // exp(iL_{\epsilon_2} \frac{\Delta t}{2})
         // integration of barostat velocities
@@ -534,7 +557,18 @@ bool FixNoseHoover::stepFinal()
         // exp(iL_{T_{BARO}} \frac{\Delta t}{2})
         // scaling of barostat velocities from barostat thermostats
         barostatThermostatIntegrate(false);
+
+    } else {
+        // just thermostatting
+        calculateKineticEnergy();
+
+        thermostatIntegrate(false);
+
+
+
+
     }
+     
 
     return true;
 
@@ -937,6 +971,23 @@ void FixNoseHoover::scaleVelocitiesBarostat(bool preNVE_X) {
                                                  velScaleMultiplicative,
                                                  dtf);
     }
+
+}
+
+void FixNoseHoover::rescaleVolume() {
+
+    float3 volScaleXYZ = make_float3(1.0, 1.0, 1.0);
+    float dt = state->dt;
+
+    // set the x, y scale factors; if this is a 3d simulation, pFlags[2] will evaluate to true
+    volScaleXYZ.x = std::exp(pressVel[0] * dt);
+    volScaleXYZ.y = std::exp(pressVel[1] * dt);
+
+    if (pFlags[2]) {
+        volScaleXYZ.z = std::exp(pressVel[2] * dt);
+    }
+    
+    Mod::scaleSystem(state, volScaleXYZ, groupTag);
 
 }
 
