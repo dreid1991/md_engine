@@ -11,7 +11,8 @@ Welcome to DASH's documentation!
 Basic usage:
 
 .. toctree::
-   :maxdepth 2
+   :maxdepth: 2
+   
    Introduction
    state
    data-recording
@@ -37,7 +38,12 @@ Potentials:
    fix-angle-cosinedelta
    fix-dihedral-opls
    fix-dihedral-charmm
-
+   fix-pair-LJ
+   fix-pair-LJFS
+   fix-pair-TICG
+   fix-charge-DSF
+   fix-charge-Ewald
+   
 External potentials:
 
 .. toctree::
@@ -46,6 +52,16 @@ External potentials:
    fix-external-harmonic
    fix-external-quartic
    springs
+
+Integrators:
+
+.. toctree::
+   :maxdepth: 2
+   
+   integrator-Verlet
+   integrator-relax
+   fix-Langevin
+
    
 Utilities and external functionality:
 

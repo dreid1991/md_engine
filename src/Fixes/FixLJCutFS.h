@@ -6,7 +6,6 @@
 #include "PairEvaluatorLJFS.h"
 #include "xml_func.h"
 
-//! Make FixLJCut available to the pair base class in boost
 void export_FixLJCutFS();
 
 //! Fix for truncated Lennard-Jones interactions
