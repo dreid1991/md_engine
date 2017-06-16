@@ -60,7 +60,7 @@ protected:
      * includes copying all data to the GPU device and calling prepareForRun()
      * on all fixes.
      */
-    void basicPrepare(int numTurns);
+    std::vector<bool> basicPrepare(int numTurns);
 
     //! Finish simulation run
     /*!

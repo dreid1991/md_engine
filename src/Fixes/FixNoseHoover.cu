@@ -431,7 +431,8 @@ bool FixNoseHoover::stepInit()
             pressComputer.computeScalar_CPU();
         }
 
-        // and get the current pressure to our local variables
+        // and get the current pressure to our local variables; here we do the partitioning according to 
+        // the couple style: {NONE,XYZ}
         getCurrentPressure();
 
         // and the current hydrostatic pressure
@@ -500,8 +501,13 @@ bool FixNoseHoover::stepFinal()
     // - do barostat scaling of velocities
     if (barostatting) {
         
+        // we need the updated
+        calculateKineticEnergy();
+
         // exp(iL_2 \frac{\Delta t}{2}) -- barostat rescaling of velocities component
         scaleVelocitiesBarostat(false);
+
+        calculateKineticEnergy();
 
         // exp(iL_{\epsilon_2} \frac{\Delta t}{2})
         // integration of barostat velocities
@@ -631,8 +637,6 @@ void FixNoseHoover::barostatThermostatIntegrate(bool stepInit) {
         }
     }
 
-    // 
-    
     if (!stepInit) {
         pressThermForce[0] = (ke_barostats - kt) / (pressThermMass[0]);
     }
@@ -832,6 +836,9 @@ void FixNoseHoover::scaleVelocitiesBarostat(bool preNVE_X) {
     float3 x6 = x4*x2;
     float3 x8 = x4*x4;
 
+    // 6.0, 120.0, 5040.0, 362880.0, are 3!, 5!, 7!, and 9!, respectively, (!) being the factorial operator
+    // -- this is a simple power series expansion of sinh(x)/x, where 
+    // x is $v_{\epsilon}  \alpha  \frac{\Delta t}{4}$ as in MTK 2006
     x2 /= 6.0;
     x4 /= 120.0;
     x6 /= 5040.0;
@@ -844,6 +851,8 @@ void FixNoseHoover::scaleVelocitiesBarostat(bool preNVE_X) {
     // and now do the velScaleMultiplicative
     // exp(-\alpha v_{\epsilon} dt / 2.0)
     // we write it here in terms of our variable 'x' define above
+    // -- for the multiplicative velocity scaling, we have -dt/2 factor rather than dt/4
+    //    so just multiply by -2.0
     float3 velScaleMultiplicative = make_float3(std::exp(-2.0*x.x),
                                                 std::exp(-2.0*x.y),
                                                 std::exp(-2.0*x.z));

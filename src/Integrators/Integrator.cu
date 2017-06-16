@@ -137,7 +137,7 @@ void Integrator::basicPreRunChecks() {
 }
 
 
-void Integrator::basicPrepare(int numTurns) {
+std::vector<bool> Integrator::basicPrepare(int numTurns) {
     int nAtoms = state->atoms.size();
     state->runningFor = numTurns;
     state->runInit = state->turn;
@@ -149,7 +149,7 @@ void Integrator::basicPrepare(int numTurns) {
     }
     for (Fix *f : state->fixes) {
         f->updateGroupTag();
-        f->prepareForRun();
+        prepared.push_back(f->prepareForRun());
         f->setVirialTurnPrepare();
     }
     state->handleChargeOffloading();
@@ -163,6 +163,8 @@ void Integrator::basicPrepare(int numTurns) {
             state->dataManager.addVirialTurn(ds->nextCompute, ds->requiresPerAtomVirials());
         }
     }
+
+    return prepared;
 }
 
 
