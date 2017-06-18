@@ -166,7 +166,6 @@ void FixNoseHoover::parseKeyword(std::string keyword) {
     } else {
         barostatErrorMessage = "Invalid keyword in FixNoseHoover::setPressure():\n";
         barostatErrorMessage += "Valid options are \"ISO\", \"ANISO\";";
-        printf(barostatErrorMessage.c_str());
         mdError("See above error message");
 
     }
@@ -986,7 +985,8 @@ void FixNoseHoover::rescaleVolume() {
     if (pFlags[2]) {
         volScaleXYZ.z = std::exp(pressVel[2] * dt);
     }
-    
+    printf("pressVel: %f %f %f\n", pressVel[0], pressVel[1], pressVel[2]);
+    printf("volScaleXYZ: %f %f %f\n", volScaleXYZ.x, volScaleXYZ.y, volScaleXYZ.z);
     Mod::scaleSystem(state, volScaleXYZ, groupTag);
 
 }
@@ -1085,17 +1085,17 @@ void export_FixNoseHoover()
         )
     )
     .def("setTemperature", setTemperature_x1,
-         (py::arg("temperature"),
+         (py::arg("temp"),
           py::arg("timeConstant")
          )
         )
     .def("setTemperature", setTemperature_x2,
-         (py::arg("temperature"),
+         (py::arg("tempFunc"),
           py::arg("timeConstant")
          )
         )
     .def("setTemperature", setTemperature_x3,
-         (py::arg("temperature"),
+         (py::arg("tempList"),
           py::arg("intervals"),
           py::arg("timeConstant")
          )
@@ -1108,13 +1108,13 @@ void export_FixNoseHoover()
         )
     .def("setPressure", setPressure_x2,
          (py::arg("mode"), 
-          py::arg("pressure"),
+          py::arg("pressureFunc"),
           py::arg("timeConstant")
          )
         )
     .def("setPressure", setPressure_x3,
          (py::arg("mode"), 
-          py::arg("pressure"),
+          py::arg("pressureList"),
           py::arg("intervals"),
           py::arg("timeConstant")
          )
