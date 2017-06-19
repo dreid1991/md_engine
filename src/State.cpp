@@ -27,7 +27,7 @@ using std::endl;
 using namespace MD_ENGINE;
 
 namespace py = boost::python;
-State::State() {
+State::State() : units(&dt) {
     groupTags["all"] = (unsigned int) 1;
     is2d = false;
     rCut = RCUT_INIT;
@@ -36,7 +36,6 @@ State::State() {
     maxIdExisting = -1;
     maxExclusions = 0;
     dangerousRebuilds = 0;
-    dt = .005;
     periodicInterval = 50;
     shoutEvery = 5000;
     for (int i=0; i<3; i++) {
@@ -57,7 +56,6 @@ State::State() {
     specialNeighborCoefs[2] = 0.5;
     rng_is_seeded = false;
     nPerRingPoly  = 1;
-    units.setLJ();//default units are lj
     exclusionMode = EXCLUSIONMODE::DISTANCE;
 
 

@@ -169,6 +169,7 @@ std::vector<bool> Integrator::basicPrepare(int numTurns) {
             state->dataManager.addVirialTurn(ds->nextCompute, ds->requiresPerAtomVirials());
         }
     }
+    printf("Running for %d turns with timestep of %03f\n", numTurns, state->dt);
 
     return prepared;
 }

@@ -115,3 +115,9 @@ void IntegratorUtil::handleBoundsChange() {
     }
 }
 
+void IntegratorUtil::checkQuit() {
+    if (PyErr_CheckSignals() == -1) {
+        exit(1);
+    }
+}
+

@@ -95,6 +95,5 @@ public:
 
     ChargeEvaluatorEwald generateEvaluator();
     void setEvalWrapper();
-    void setEvalWrapperOrig();
 };
 

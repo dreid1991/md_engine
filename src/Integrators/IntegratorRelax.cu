@@ -121,6 +121,7 @@ double IntegratorRelax::run(int numTurns, double fTol) {
     state->gridGPU.periodicBoundaryConditions(-1, true);
     DataManager &dataManager = state->dataManager;
     for (int i=0; i<numTurns; i++) {
+        checkQuit();
         //init to 0 on cpu and gpu
         VDotV.memsetByVal(0.0);
         VDotF.memsetByVal(0.0);

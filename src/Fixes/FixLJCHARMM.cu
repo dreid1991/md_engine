@@ -44,7 +44,6 @@ void FixLJCHARMM::compute(int virialMode) {
     int activeIdx = gpd.activeIdx();
     uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
     auto neighborCoefs = state->specialNeighborCoefs;
-
     evalWrap->compute(nAtoms,nPerRingPoly, gpd.xs(activeIdx), gpd.fs(activeIdx),
                       neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(),
                       state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU,
@@ -82,12 +81,12 @@ void FixLJCHARMM::singlePointEngGroupGroup(float *perParticleEng, uint32_t tagA,
 }
 
 void FixLJCHARMM::setEvalWrapper() {
-    if (evalWrapperMode == "orig") {
+    if (evalWrapperMode == "offload") {
         EvaluatorCHARMM eval(state->specialNeighborCoefs[2]);
-        evalWrap = pickEvaluator<EvaluatorCHARMM, 3, true>(eval, chargeCalcFix);
+        evalWrap = pickEvaluator<EvaluatorCHARMM, 5, true>(eval, chargeCalcFix);
     } else if (evalWrapperMode == "self") {
         EvaluatorCHARMM eval(state->specialNeighborCoefs[2]);
-        evalWrap = pickEvaluator<EvaluatorCHARMM, 3, true>(eval, nullptr);
+        evalWrap = pickEvaluator<EvaluatorCHARMM, 5, true>(eval, nullptr);
     }
 }
 

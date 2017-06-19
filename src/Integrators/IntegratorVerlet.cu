@@ -552,6 +552,9 @@ void IntegratorVerlet::run(int numTurns)
         // Recalculate forces
         force(virialMode);
 
+        //quits if ctrl+c has been pressed
+        checkQuit();
+
 
         // Perform second half of velocity-Verlet step
         postForce();

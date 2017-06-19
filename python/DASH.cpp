@@ -80,6 +80,7 @@ BOOST_PYTHON_MODULE(DASH) {
     export_FixPair();
     export_FixLJCut(); //make there be a pair base class in boost!
     export_FixLJCutFS();
+    export_FixLJCHARMM();
     export_FixTICG();
     export_FixWCA();
     
