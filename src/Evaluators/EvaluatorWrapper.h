@@ -45,7 +45,6 @@ template<class PAIR_EVAL, int N_PARAM, bool COMP_PAIRS>
 boost::shared_ptr<EvaluatorWrapper> pickEvaluator_CHARGE(PAIR_EVAL pairEval, Fix *chargeFix) {
     if (chargeFix == nullptr) {
         ChargeEvaluatorNone none;
-        printf("HERE!\n");
         return boost::shared_ptr<EvaluatorWrapper> (dynamic_cast<EvaluatorWrapper *>( new EvaluatorWrapperImplement<PAIR_EVAL, COMP_PAIRS, N_PARAM, ChargeEvaluatorNone, false>(pairEval, none)));
     } else if (chargeFix->type == chargeEwaldType) {
         FixChargeEwald *f = dynamic_cast<FixChargeEwald *>(chargeFix);

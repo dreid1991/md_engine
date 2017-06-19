@@ -1,5 +1,0 @@
-Initialize Atoms
-================
-
-Overview
-^^^^^^^^
