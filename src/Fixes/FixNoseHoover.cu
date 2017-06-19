@@ -879,10 +879,8 @@ void FixNoseHoover::barostatVelocityIntegrate() {
     // TODO: should nAtoms, ndf be considered only from number of atoms to which this fix is being applied?
     //       i.e. what is we are not thermostatting all particles in the simulation? needs further consideration
     if (pressMode == PRESSMODE::ISO) {
-        for (int i = 0; i < 3; i++) {
-            // currentTempScalar in ::calculateKineticEnergy is the scalar temperature
-            alphaAddition = boltz * currentTempScalar * ndf / (state->atoms.size() * d);
-        }   
+        // currentTempScalar in ::calculateKineticEnergy is the scalar temperature
+        alphaAddition = boltz * currentTempScalar * ndf / (state->atoms.size() * d);
     } else {
         // this should be up-to-date at this point
         // --take the average as the alpha contribution
