@@ -59,13 +59,13 @@ __global__ void barostat_vel_cu(int nAtoms,uint groupTag, float4 *vs,
             float4 vel = vs[idx];
             float invmass = vel.w;
             float4 force = fs[idx];
-
+            float3 v = make_float3(vel);
+            v *= multScale;
             // apply the additive scaling (additive w.r.t. vel)
             float3 dv = dtf * invmass * make_float3(force) * addScale;
-            vel += dv;
+            v += dv;
 
             // apply the multiplicative scaling to the aggregated quantity
-            float3 v = make_float3(vel);
             v *= multScale;
             
             float4 newV = make_float4(v.x, v.y, v.z, invmass);
@@ -82,13 +82,15 @@ __global__ void barostat_vel_no_tags_cu(int nAtoms, float4 *vs,
         float4 vel = vs[idx];
         float invmass = vel.w;
         float4 force = fs[idx];
+        float3 v = make_float3(vel);
+
+        v *= multScale;
 
         // apply the additive scaling (additive w.r.t. vel)
         float3 dv = dtf * invmass * make_float3(force) * addScale;
-        vel += dv;
+        v += dv;
 
         // apply the multiplicative scaling to the aggregated quantity
-        float3 v = make_float3(vel);
         v *= multScale;
         
         float4 newV = make_float4(v.x, v.y, v.z, invmass);
@@ -126,6 +128,7 @@ FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state_, std::string handle
                 tempComputer(state, "scalar"), 
                 pressComputer(state, "scalar"), 
                 pressMode(PRESSMODE::ISO),
+                couple(COUPLESTYLE::XYZ),
                 thermostatting(true),
                 barostatting(false)
 {
@@ -136,7 +139,6 @@ FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state_, std::string handle
 
     // this is a thermostat (if we are barostatting, we are also thermostatting)
     isThermostat = true;
-    identity = Virial(1,1,1,0,0,0); //as xx, yy, zz, xy, xz, yz
 
     // denote whether or not this is the first time prepareForRun was called
     // --- need this, because we need to initialize this with proper virials
@@ -174,10 +176,13 @@ void FixNoseHoover::parseKeyword(std::string keyword) {
     // set nDimsBarostatted to 2
     pFlags[0] = true;
     pFlags[1] = true;
-    // set Z flag to true if we are not a 2d system
-    if (! (state->is2d)) {
-        pFlags[2] = true;
+    pFlags[2] = true;
+
+    // set Z flag to false if we are a 2d system
+    if ( (state->is2d)) {
+        pFlags[2] = false;
     }
+    requiresVirials = true;
 }
 
 
@@ -248,11 +253,15 @@ bool FixNoseHoover::prepareForRun()
     // Calculate current kinetic energy
     tempInterpolator.turnBeginRun = state->runInit;
     tempInterpolator.turnFinishRun = state->runInit + state->runningFor;
+
     tempComputer.prepareForRun();
     
     calculateKineticEnergy();
     
     tempInterpolator.computeCurrentVal(state->runInit);
+    setPointTemperature = tempInterpolator.getCurrentVal();
+    oldSetPointTemperature = setPointTemperature;
+
     updateThermalMasses();
 
     // Update thermostat forces
@@ -275,8 +284,6 @@ bool FixNoseHoover::prepareForRun()
         // pressComputer, tempComputer were already set to appropriate "scalar"/"tensor" values
         // in the parseKeyword() call in the pertinent setPressure() function
         
-        epsilon = make_float3(0.0, 0.0, 0.0);
-
         // get the number of dimensions barostatted
         nDimsBarostatted = 0;
         // go up to 6 - eventually we'll want Rahman-Parinello stress ensemble
@@ -291,12 +298,14 @@ bool FixNoseHoover::prepareForRun()
         pressInterpolator.turnBeginRun = state->runInit;
         pressInterpolator.turnFinishRun = state->runInit + state->runningFor;
         pressInterpolator.computeCurrentVal(state->runInit);
-
+        
+        setPointPressure = pressInterpolator.getCurrentVal();
+        oldSetPointPressure = setPointPressure;
         // call prepareForRun on our pressComputer
         pressComputer.prepareForRun();
 
         // our P_{ext}, the set point pressure; this will need to change when we have 
-        // varying cell parameters; but for now we just do the normal stresses anyways
+        // the iso-stress ensemble; but, it suffices for now.
         hydrostaticPressure = pressInterpolator.getCurrentVal();
 
         // using external temperature... so send tempNDF and temperature scalar/tensor 
@@ -319,10 +328,7 @@ bool FixNoseHoover::prepareForRun()
             pressComputer.tempTensor = scaledTemp;
             pressComputer.computeTensor_GPU(true, groupTag);
 
-        } else {
-            // to be implemented
-            mdError("Only ISO and ANISO supported at this time");
-        }
+        } 
 
         // synchronize devices after computing the pressure..
         cudaDeviceSynchronize();
@@ -353,16 +359,27 @@ bool FixNoseHoover::prepareForRun()
         pressThermVel  = std::vector<double> (pchainLength, 0.0);
         pressThermForce= std::vector<double> (pchainLength, 0.0);
 
-        // set barostat masses; forces and velocities should be zero, which we just initialized them to
+        // sanity check, set the above to zero
+        for (int i = 0; i<pressMass.size(); i++) {
+            pressMass[i]  = 0.0;
+            pressVel[i]   = 0.0;
+            pressForce[i] = 0.0;
+        }
+
+        // and same for the barostat thermostats
+        for (int i = 0; i<pressThermMass.size(); i++) {
+            pressThermMass[i] = 0.0;
+            pressThermVel[i]  = 0.0;
+            pressThermForce[i]= 0.0;
+        }
+
         // -- set to the current set point
         //    we computed the set point above prior to calling updateThermalMasses()
         setPointTemperature = tempInterpolator.getCurrentVal();
+        oldSetPointTemperature = setPointTemperature;
         updateBarostatMasses(false);
         updateBarostatThermalMasses(false);
         
-        // set epsilon float3 to zeros - corresponding to no volume scaling
-        epsilon = make_float3(0.0, 0.0, 0.0);
-
     }
 
 
@@ -384,7 +401,6 @@ bool FixNoseHoover::stepInit()
 
     // -- step init: update set points and associated variables before we do anything else
     if (barostatting) {
-
         // update the set points for:
         // - pressures    (--> and barostat mass variables accordingly)
         // - temperatures (--> barostat thermostat's masses, particle thermostat's masses)
@@ -402,13 +418,10 @@ bool FixNoseHoover::stepInit()
         setPointTemperature = tempInterpolator.getCurrentVal();
         
         // compare values and update accordingly
-        if (oldSetPointTemperature != setPointTemperature) {
             // update the masses associated with thermostats for the barostats and the particles
-            updateBarostatMasses(true);
-            updateBarostatThermalMasses(true);
-            updateThermalMasses();
-        }
-
+        updateBarostatMasses(true);
+        updateBarostatThermalMasses(true);
+        updateThermalMasses();
         // exp(iL_{T_{BARO} \frac{\Delta t}{2})
         // -- variables that must be initialized/up-to-date:
         //    etaPressureMass, etaPressureVel, etaPressForce must all be /initialized (updated here)
@@ -440,15 +453,14 @@ bool FixNoseHoover::stepInit()
             pressComputer.tempTensor = tempTensor_current;
             pressComputer.computeTensor_GPU(true,groupTag);
             cudaDeviceSynchronize();
-            pressComputer.computeScalar_CPU();
+            pressComputer.computeTensor_CPU();
         }
-
+        
+        // and the current hydrostatic pressure (we computed this above already)
+        hydrostaticPressure = setPointPressure;
         // and get the current pressure to our local variables; here we do the partitioning according to 
         // the couple style: {NONE,XYZ}
         getCurrentPressure();
-
-        // and the current hydrostatic pressure
-        hydrostaticPressure = pressInterpolator.getCurrentVal();
 
         // exp(iL_{\epsilon_2} \frac{\Delta t}{2})
         // -- barostat velocities from virial, including the $\alpha$ factor 1+ 1/N_f
@@ -503,10 +515,8 @@ bool FixNoseHoover::postNVE_V() {
 }
 
 bool FixNoseHoover::postNVE_X() {
-    if (barostatting) {
-        //rescaleVolume() 
-    }
-
+    // nothing to do here for these equations of motion.  We return immediately to integration of the 
+    // velocities.
     return true;
 }
 
@@ -535,7 +545,7 @@ bool FixNoseHoover::stepFinal()
             pressComputer.tempTensor = tempTensor_current;
             pressComputer.computeTensor_GPU(true,groupTag);
             cudaDeviceSynchronize();
-            pressComputer.computeScalar_CPU();
+            pressComputer.computeTensor_CPU();
         }
 
         // and get the current pressure to our local variables; here we do the partitioning according to 
@@ -543,7 +553,7 @@ bool FixNoseHoover::stepFinal()
         getCurrentPressure();
 
         // and the current hydrostatic pressure
-        hydrostaticPressure = pressInterpolator.getCurrentVal();
+        hydrostaticPressure = setPointPressure;
 
         // exp(iL_{\epsilon_2} \frac{\Delta t}{2})
         // integration of barostat velocities
@@ -555,6 +565,8 @@ bool FixNoseHoover::stepFinal()
 
         // exp(iL_{T_{BARO}} \frac{\Delta t}{2})
         // scaling of barostat velocities from barostat thermostats
+        updateBarostatMasses(false);
+        updateBarostatThermalMasses(false);
         barostatThermostatIntegrate(false);
 
     } else {
@@ -562,9 +574,6 @@ bool FixNoseHoover::stepFinal()
         calculateKineticEnergy();
 
         thermostatIntegrate(false);
-
-
-
 
     }
      
@@ -576,14 +585,12 @@ bool FixNoseHoover::stepFinal()
 // save instantaneous pressure locally, and partition according to COUPLESTYLE::{XYZ,NONE}
 void FixNoseHoover::getCurrentPressure() {
 
-    // identity is a tensor made in constructor, since we use it throughout.
     // based off of the virial class
     if (pressMode == PRESSMODE::ISO) {
         double pressureScalar = pressComputer.pressureScalar;
         currentPressure = Virial(pressureScalar, pressureScalar, pressureScalar, 0, 0, 0);
     } else {
         Virial pressureTensor = pressComputer.pressureTensor;
-
         // partition the pressure;
         if (couple == COUPLESTYLE::XYZ) {
             // the virial pressure tensor in pressComputer goes as [xx,yy,zz,xy,xz,yz] 
@@ -592,9 +599,6 @@ void FixNoseHoover::getCurrentPressure() {
             currentPressure = Virial(pressureScalar, pressureScalar, pressureScalar, 0, 0, 0);
         } else {
             currentPressure = pressureTensor;
-            // explicitly set slant vectors to zero for now
-            currentPressure[3] = currentPressure[4] = currentPressure[5] = 0.0;
-
         }
     }
 }
@@ -656,12 +660,20 @@ void FixNoseHoover::updateBarostatThermalMasses(bool stepInit) {
         d = 2.0;
     }
 
-    pressThermMass[0] = d*(d+1.0) * kt / (2.0 * pFreq[0]);
+    pressThermMass[0] = d*(d+1.0) * kt / (2.0 * pFrequency);
 
     // Q_b_i = kt/(\omega_i^2)
     for (int i = 1; i < pchainLength; i++) {
         pressThermMass[i] = kt / (pFrequency * pFrequency);
     }
+
+    // the forces are functions of the thermal masses; update these as well
+    // -- pressThermForce[0] is not acted upon here
+    for (int i = 1; i < pchainLength; i++) {
+        pressThermForce[i] = ((pressThermMass[i-1] * pressThermVel[i-1] * 
+                               pressThermVel[i-1] - kt) / (pressThermMass[i]));
+    }
+
 
 }
 
@@ -688,11 +700,11 @@ void FixNoseHoover::barostatThermostatIntegrate(bool stepInit) {
         pressThermForce[0] = (ke_barostats - kt) / (pressThermMass[0]);
     }
 
-
+    
     // this is the same routine as in thermostatIntegrate
     for (size_t i = 0; i < nTimesteps_b; ++i) {
         for (size_t j = 0; j < n_ys_b; ++j) {
-            double timestep = weight.at(j)*state->dt / nTimesteps;
+            double timestep = weight.at(j)*state->dt / nTimesteps_b;
             double timestep2 = 0.5*timestep;
             double timestep4 = 0.25*timestep;
             double timestep8 = 0.125*timestep;
@@ -736,7 +748,7 @@ void FixNoseHoover::barostatThermostatIntegrate(bool stepInit) {
             pressThermVel.at(0) *= preFactor;
 
             // Update thermostat velocities
-            for (size_t k = 1; k < chainLength-1; ++k) {
+            for (size_t k = 1; k < pchainLength-1; ++k) {
                 preFactor = std::exp( -timestep8*pressThermVel.at(k+1) );
                 pressThermVel.at(k) *= preFactor;
                 pressThermForce.at(k) = (
@@ -748,12 +760,12 @@ void FixNoseHoover::barostatThermostatIntegrate(bool stepInit) {
                 pressThermVel.at(k) *= preFactor;
             }
 
-            pressThermForce.at(chainLength-1) = (
-                    pressThermMass.at(chainLength-2) *
-                    pressThermVel.at(chainLength-2) *
-                    pressThermVel.at(chainLength-2) - kt
-                ) / pressThermMass.at(chainLength-1);
-            pressThermVel.at(chainLength-1) += timestep4*pressThermForce.at(chainLength-1);
+            pressThermForce.at(pchainLength-1) = (
+                    pressThermMass.at(pchainLength-2) *
+                    pressThermVel.at(pchainLength-2) *
+                    pressThermVel.at(pchainLength-2) - kt
+                ) / pressThermMass.at(pchainLength-1);
+            pressThermVel.at(pchainLength-1) += timestep4*pressThermForce.at(pchainLength-1);
         }
     }
 }
@@ -766,10 +778,8 @@ void FixNoseHoover::thermostatIntegrate(bool stepInit) {
     double temp = setPointTemperature;
     if (!stepInit) {
         thermForce.at(0) = (ke_current - nkt) / thermMass.at(0);
-      //  printf("ke_current %f, nkt %f\n", ke_current, nkt);
     }
 
-    //printf("temp %f boltz %f ndf %d\n", temp, boltz, int(ndf));
     // Multiple timestep procedure
     for (size_t i = 0; i < nTimesteps; ++i) {
         for (size_t j = 0; j < n_ys; ++j) {
@@ -795,7 +805,6 @@ void FixNoseHoover::thermostatIntegrate(bool stepInit) {
             // Update particle velocities
             double scaleFactor = std::exp( -timestep2*thermVel.at(0) );
             scale *= scaleFactor;
-            //printf("factor %f %f\n", scale.x, scaleFactor);
 
             ke_current *= scaleFactor*scaleFactor;
 
@@ -844,9 +853,6 @@ void FixNoseHoover::barostatVelocityIntegrate() {
     //  also, note that the deformations of slant vectors are not affected 
     //  by the external pressure P_{ext}, should we incorporate this later
 
-    // we already incorporated one summation of the kinetic energy in to our virials
-    double alpha = (1.0 / (double (state->atoms.size())));
-
     // instantaneous pressure
     Virial P_inst = currentPressure;
 
@@ -867,6 +873,7 @@ void FixNoseHoover::barostatVelocityIntegrate() {
     Virial G_e = Virial(0, 0, 0, 0, 0, 0);
     Virial mvv = Virial(0, 0, 0, 0, 0, 0);
 
+    double alphaAddition = 0.0;
     // get the extraneous alpha * mvv contribution; note that 
     // the temperature is either as a tensor or a scalar, so make considerations for that here
     // TODO: should nAtoms, ndf be considered only from number of atoms to which this fix is being applied?
@@ -874,29 +881,35 @@ void FixNoseHoover::barostatVelocityIntegrate() {
     if (pressMode == PRESSMODE::ISO) {
         for (int i = 0; i < 3; i++) {
             // currentTempScalar in ::calculateKineticEnergy is the scalar temperature
-            mvv[i] = ndf * boltz * currentTempScalar / (d * nAtoms) ;
-        }
+            alphaAddition = boltz * currentTempScalar * ndf / (state->atoms.size() * d);
+        }   
     } else {
         // this should be up-to-date at this point
+        // --take the average as the alpha contribution
         Virial tempTensor = tempComputer.tempTensor;
         for (int i = 0; i < 3; i++) {
             // tempTensor incorporates tdof
-            mvv[i] = tempTensor[i] / (pressMass[i] * nAtoms);
+            alphaAddition += tempTensor[i];
         }
+
+        alphaAddition /= (d * state->atoms.size());
     }
                 
     // get the pressure differential contribution
     // -- add the mvv*alpha contribution. unit conversion?
     // -- divide by pressMass, because we are evolving the velocity - not the momenta            
     for (int i = 0; i < 3; i++) {
-        G_e[i] = alpha * mvv[i];
-        G_e[i] += ( (P_inst[i] - P_ext) * volume / (pressMass[i] * state->units.nktv_to_press));
-        // doing something here
+        if (pFlags[i]) {
+            G_e[i] = alphaAddition / pressMass[i];
+            G_e[i] += ( (P_inst[i] - P_ext) * volume / (pressMass[i] * state->units.nktv_to_press));
+        }
     }
 
     // for completeness, propagate the skew vectors as well
     for (int i = 3; i < 6; i++) {
-        G_e[i] += ( (P_inst[i]  * volume) / (pressMass[i] * state->units.nktv_to_press));
+        if (pFlags[i]) {
+            G_e[i] += ( (P_inst[i]  * volume) / (pressMass[i] * state->units.nktv_to_press));
+        }
     }
 
     // and evolve the velocity of the barostat variables according to G_e[i]
@@ -913,16 +926,24 @@ void FixNoseHoover::scaleVelocitiesBarostat(bool preNVE_X) {
     // bool input denotes whether we are pre or post integration of positions in the 
     // velocity-verlet step
     // --- does anything change pre- versus post- NVE_X ?
-    
-    float alpha = 1.0 + (1.0 / (float (state->atoms.size())));
+    float d = 3.0;
+    if (state->is2d) d = 2.0;
+
+    float alphaAddition = 0.0;
+    for (int i = 0; i < 3; i++) {
+        alphaAddition += pressVel[i];
+    }
+    alphaAddition /= (d * nAtoms);
     // at this point, velocities of the barostat variables are up-to-date
     float3 velScaleAdditive = make_float3(0.0, 0.0, 0.0);
 
     float timestep4 = state->dt * 0.25f;
 
     // compute the additive velocity scale... sinh(x) / x power series
-    float3 v_eps = make_float3(pressVel[0], pressVel[1], pressVel[2]);
-    float3 x = v_eps * alpha * timestep4;
+    float3 v_eps = make_float3(pressVel[0] + alphaAddition, 
+                               pressVel[1] + alphaAddition, 
+                               pressVel[2] + alphaAddition);
+    float3 x = 1.0 * v_eps * timestep4;
 
     // get our terms
     float3 x2 = x*x ;
@@ -947,9 +968,9 @@ void FixNoseHoover::scaleVelocitiesBarostat(bool preNVE_X) {
     // we write it here in terms of our variable 'x' define above
     // -- for the multiplicative velocity scaling, we have -dt/2 factor rather than dt/4
     //    so just multiply by -2.0
-    float3 velScaleMultiplicative = make_float3(std::exp(-2.0*x.x),
-                                                std::exp(-2.0*x.y),
-                                                std::exp(-2.0*x.z));
+    float3 velScaleMultiplicative = make_float3(std::exp(-1.0*x.x),
+                                                std::exp(-1.0*x.y),
+                                                std::exp(-1.0*x.z));
 
     // and now send the atoms velocities and forces to a kernel and do the computations
     float dtf = 0.5f * state->dt * state->units.ftm_to_v;
@@ -985,8 +1006,6 @@ void FixNoseHoover::rescaleVolume() {
     if (pFlags[2]) {
         volScaleXYZ.z = std::exp(pressVel[2] * dt);
     }
-    printf("pressVel: %f %f %f\n", pressVel[0], pressVel[1], pressVel[2]);
-    printf("volScaleXYZ: %f %f %f\n", volScaleXYZ.x, volScaleXYZ.y, volScaleXYZ.z);
     Mod::scaleSystem(state, volScaleXYZ, groupTag);
 
 }

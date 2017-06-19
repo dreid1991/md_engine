@@ -194,7 +194,6 @@ private:
 
     float frequency; //!< Frequency of the Nose-Hoover thermostats
     double pFrequency;
-    Virial pFreq; //!< Frequency of the Nose-Hoover barostats
     GPUArrayGlobal<float> kineticEnergy; //!< Stores kinetic energy and
                                          //!< number of atoms in Fix group
     float ke_current; //!< Current kinetic energy
