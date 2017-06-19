@@ -1,5 +1,5 @@
 DSF Charge Pair potential
-====================
+=========================
 
 Overview
 ^^^^^^^^
