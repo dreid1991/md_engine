@@ -3,10 +3,10 @@ Andersen Thermostat
 
 Overview
 ^^^^^^^^
+Implements the Andersen thermostat for maintaining a set point temperature through stochastic collisions with a heat bath at some set point temperature ``T``.
 
-
-Constructor
-^^^^^^^^^^^
+Constructors
+^^^^^^^^^^^^
 .. code-block:: python
     FixNVTAndersen(state,handle,groupHandle,temp,nu,applyEvery)
     FixNVTAndersen(state,handle,groupHandle,tempFunc,nu,applyEvery)
@@ -17,22 +17,31 @@ Constructor
 Arguments
 
 ``state``
+    The simulation State to which this fix is to be applied.
 
 ``handle``
+    A name for this fix.  String type.
 
 ``groupHandle``
+    The group of atoms to which the fix is applied.  String type.
 
 ``temp``
+    The temperature of the heat bath (the set point temperature).  Double type.
 
 ``nu``
+    A parameter describing the collision frequency of the system with the heat bath.  Float type.
 
 ``applyEvery``
+    The number of turns to elapse between applications of this fix.  Integer type.
 
 ``tempFunc``
+    The temperature of the heat bath, as a python function.  Python function.
 
 ``intervals``
+    The turns corresponding to the intervals over which the list of temperature set points will be applied.  List of integers.
 
 ``temps``
+    The list of temperature set points for the simulation.  List of floats.
 
 Python Member Functions
 ^^^^^^^^^^^^^^^^^^^^^^^
