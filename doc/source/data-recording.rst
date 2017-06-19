@@ -4,7 +4,7 @@ Recording Data
 Overview
 ^^^^^^^^
 
-Several types of data can be recorded using GPU-accelerated methods in DASH, including energies on an aggregate or fine-grained bases, temperature, kinetic energy, pressture, virial coefficients, volume, and simulation boundaries.  Other data types can be recorded via Python Operations (LINK) with minimal performance overhead.
+Several types of data can be recorded using GPU-accelerated methods in DASH, including energies on an aggregate or fine-grained bases, temperature, kinetic energy, pressture, virial coefficients, volume, and simulation boundaries.  Other data types can be recorded via :doc:`Python Operation<python-operation>` with minimal performance overhead.
 
 Recording data
 ^^^^^^^^^^^^^^

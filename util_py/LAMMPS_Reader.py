@@ -25,7 +25,7 @@ class LAMMPS_Reader:
         self.LMPTypeToSimTypeDihedral = {}
         self.LMPTypeToSimTypeImproper = {}
 
-    def read(self, dataFn='', inputFns=[]):
+    def read(self, dataFn='', inputFns=[], isMolecular=True):
         if dataFn != '':
             assert(os.path.isfile(dataFn))
         for fn in inputFns:
