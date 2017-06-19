@@ -24,16 +24,21 @@ __global__ void zeroVectorPreserveW(float4 *xs, int n) {
 
 void Integrator::stepInit(bool computeVirials)
 {
+    /*
     if (computeVirials) {
         //reset virials each turn
         state->gpd.virials.d_data.memset(0);
     }
-
+    */
 
     for (Fix *f : state->fixes) {
         if (state->turn % f->applyEvery == 0) {
             f->stepInit();
         }
+    }
+    if (computeVirials) {
+        //reset virials each turn
+        state->gpd.virials.d_data.memset(0);
     }
 }
 
@@ -137,7 +142,7 @@ void Integrator::basicPreRunChecks() {
 }
 
 
-void Integrator::basicPrepare(int numTurns) {
+std::vector<bool> Integrator::basicPrepare(int numTurns) {
     int nAtoms = state->atoms.size();
     state->runningFor = numTurns;
     state->runInit = state->turn;
@@ -147,9 +152,10 @@ void Integrator::basicPrepare(int numTurns) {
     for (GPUArray *dat : activeData) {
         dat->dataToDevice();
     }
+    std::vector<bool> prepared;
     for (Fix *f : state->fixes) {
         f->updateGroupTag();
-        f->prepareForRun();
+        prepared.push_back(f->prepareForRun());
         f->setVirialTurnPrepare();
     }
     state->handleChargeOffloading();
@@ -164,6 +170,8 @@ void Integrator::basicPrepare(int numTurns) {
         }
     }
     printf("Running for %d turns with timestep of %03f\n", numTurns, state->dt);
+
+    return prepared;
 }
 
 

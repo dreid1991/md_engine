@@ -508,6 +508,20 @@ void IntegratorVerlet::run(int numTurns)
     basicPreRunChecks();
     basicPrepare(numTurns); //nlist built here
     force(false);
+
+    std::vector<bool> prepared = basicPrepare(numTurns);
+    force(true);
+
+    for (int i = 0; i<prepared.size(); i++) {
+        if (!prepared[i]) {
+            for (Fix *f : state->fixes) {
+                bool isPrepared = f->prepareForRun();
+                if (!isPrepared) {
+                    mdError("A fix is unable to be instantiated correctly.");
+                }
+            }
+        }
+    }
     int periodicInterval = state->periodicInterval;
 
 	
