@@ -61,7 +61,40 @@ Examples
 
 Example 1: creating an instance of FixWallLJ126
 
-Example 2: Modifying the force constant of the above wall
+.. code-block:: python
 
-Example 3: Modifying the forceDir of the above wall
+    # create a simulation state to which we will add the fix
+    state = State()
+
+    # set the bounds of the state
+    state.bounds = Bounds(state, lo=Vector(0,0,0), hi=Vector(30,30,30))
+
+    # put the wall at (0,0,0)
+    origin = Vector(0,0,0)
+
+    # have the wall be acting in the +x direction
+    forceDir = Vector(1,0,0)
+
+    # cutoff distance of 15 units
+    dist = 15
+
+    # sigma and LJ
+    sigma = 2.4
+    epsilon = 1.0
+
+    # create an instance of the fix
+    fixWall = FixWallLJ126(state,"ljwall","all",origin,forceDir,dist,sigma,epsilon)
+
+    # activate the fix
+    state.activateFix(fixWall)
+
+Example 2: Modifying the LJ constants of the above wall
+
+.. code-block:: python
+
+    # referring to the instances created above..
+    # change the sigma parameter
+    fixWall.sigma=3.0
+
+
 

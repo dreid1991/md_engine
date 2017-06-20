@@ -48,4 +48,37 @@ Python Member Functions
 
 Examples
 ^^^^^^^^
+Example 1: Creating an instance of FixWallHarmonic
 
+.. code-block:: python
+
+    # create a simulation state to which we will add the fix
+    state = state()
+    
+    # set the bounds of the state
+    state.bounds = Bounds(state, lo=Vector(0,0,0), hi=Vector(30,30,30))
+
+    # put the wall at (0,0,0)
+    origin = Vector(0,0,0)
+
+    # have the wall be acting in the +x direction
+    forceDir = Vector(1,0,0)
+
+    # cutoff distance of 15 units
+    dist = 15
+
+    # set a spring constant k = 2.5
+    k = 2.5
+
+    # create an instance of the fix
+    fixWall = FixWallHarmonic(state,"wall","all",origin,forceDir,dist,k)
+
+    # activate the fix
+    state.activateFix(fixWall)
+
+Example 2: Modifying the force constant after instantiation
+
+.. code-block:: python
+
+    # increase the spring constant to k = 3.5
+    fixWall.k = 3.5
