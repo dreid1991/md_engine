@@ -59,8 +59,10 @@ Potentials
    fix-pair-TICG
    fix-charge-DSF
    fix-charge-Ewald
-   
-External potentials
+   fix-wall-LJ126
+   fix-wall-harmonic
+
+External potentials:
 
 .. toctree::
    :maxdepth: 2
@@ -69,7 +71,17 @@ External potentials
    fix-external-quartic
    springs
 
-Integrators
+Thermostats and Barostats:
+
+.. toctree::
+   :maxdepth: 2
+
+   fix-pressure-Berendsen
+   fix-NoseHoover
+   fix-NVT-Andersen
+   fix-NVT-rescale
+
+Integrators:
 
 .. toctree::
    :maxdepth: 2
