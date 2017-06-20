@@ -8,7 +8,11 @@ The FixNVTRescale permits rescaling of the velocities every :math: `applyEvery` 
 
 Constructor
 ^^^^^^^^^^^
+
+An isokinetic thermostat may be instantiated using any of the following constructors:
+
 .. code-block:: python
+
     FixNVTRescale(state,handle,groupHandle,temp,applyEvery)
     FixNVTRescale(state,handle,groupHandle,tempFunc,applyEvery)
     FixNVTRescale(state,handle,groupHandle,intervals,temps,applyEvery)
@@ -42,6 +46,7 @@ Arguments
 
 Python Member Functions
 ^^^^^^^^^^^^^^^^^^^^^^^
+
 This Fix contains no python member functions.
 
 

@@ -12,6 +12,7 @@ Implements a harmonic potential energy wall at a specified origin ``origin`` wit
 Constructor
 ^^^^^^^^^^^
 .. code-block:: python
+
     FixWallHarmonic(state,handle,groupHandle,origin,forceDir,dist,k)
 
 

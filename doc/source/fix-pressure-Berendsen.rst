@@ -8,7 +8,8 @@ Implements the Berendsen barostat for maintaining pressure at a specified set po
 Constructor
 ^^^^^^^^^^^
 .. code-block:: python
-    FixPressureBerendsen(state,handle,pressure,period,applyEvery)
+    
+   FixPressureBerendsen(state,handle,pressure,period,applyEvery)
 
 Arguments
 
@@ -35,6 +36,7 @@ Python Member Functions
 ^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: python
+
     setParameters(maxDilation)
 
 Arguments

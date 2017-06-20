@@ -18,6 +18,7 @@ where :math:`r_{ij}` is the distance between a particle and the wall, :math:`\va
 Constructor
 ^^^^^^^^^^^
 .. code-block:: python
+
     FixWallLJ126(state,handle,groupHandle,origin,forceDir,dist,sigma,epsilon)
 
 
