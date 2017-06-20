@@ -3,7 +3,7 @@ Isokinetic Thermostat
 
 Overview
 ^^^^^^^^
-The FixNVTRescale permits rescaling of the velocities every :math: `applyEvery` turn in the simulation for maintaining the temperature at some specified set point ``T``.  Temperature set points may be specified as a constant double value, as a list of temperatures with associated time intervals, or as a python function.  
+The FixNVTRescale permits rescaling of the velocities every ``applyEvery`` turn in the simulation for maintaining the temperature at some specified set point ``T``.  Temperature set points may be specified as a constant double value, as a list of temperatures with associated time intervals, or as a python function.  
 
 
 Constructor
@@ -53,4 +53,14 @@ This Fix contains no python member functions.
 Examples
 ^^^^^^^^
 
+.. code-block:: python
+
+    # create a simulation state to which we will apply the fix
+    state = State()
+
+    # make an instance of the fix; T = 250.0 K, applyEvery = 7
+    fixNVT = fixNVTRescale(state,"nvt","all",250.0,7)
+
+    # activate the fix
+    state.activateFix(fixNVT)
 

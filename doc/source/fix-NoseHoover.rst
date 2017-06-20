@@ -157,6 +157,3 @@ Example 2: Nose-Hoover Barostat & Thermostat (NPT Ensemble) - constant set point
     state.activateFix(fixNPT)
 
 
-.. rubric:: References
-
-

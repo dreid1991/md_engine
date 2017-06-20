@@ -3,11 +3,13 @@ Andersen Thermostat
 
 Overview
 ^^^^^^^^
-Implements the Andersen thermostat for maintaining a set point temperature through stochastic collisions with a heat bath at some set point temperature ``T``.
+Implements the Andersen thermostat for maintaining a set point temperature through stochastic collisions with a heat bath at some set point temperature ``T`` with a specified frequency :math:`\nu`.
 
 Constructors
 ^^^^^^^^^^^^
+
 .. code-block:: python
+
     FixNVTAndersen(state,handle,groupHandle,temp,nu,applyEvery)
     FixNVTAndersen(state,handle,groupHandle,tempFunc,nu,applyEvery)
     FixNVTAndersen(state,handle,groupHandle,intervals,temps,nu,applyEvery)
@@ -17,31 +19,31 @@ Constructors
 Arguments
 
 ``state``
-    The simulation State to which this fix is to be applied.
+The simulation State to which this fix is to be applied.
 
 ``handle``
-    A name for this fix.  String type.
+A name for this fix.  String type.
 
 ``groupHandle``
-    The group of atoms to which the fix is applied.  String type.
+The group of atoms to which the fix is applied.  String type.
 
 ``temp``
-    The temperature of the heat bath (the set point temperature).  Double type.
+The temperature of the heat bath (the set point temperature).  Double type.
 
 ``nu``
-    A parameter describing the collision frequency of the system with the heat bath.  Float type.
+A parameter describing the collision frequency of the system with the heat bath.  Float type.
 
 ``applyEvery``
-    The number of turns to elapse between applications of this fix.  Integer type.
+The number of turns to elapse between applications of this fix.  Integer type.
 
 ``tempFunc``
-    The temperature of the heat bath, as a python function.  Python function.
+The temperature of the heat bath, as a python function.  Python function.
 
 ``intervals``
-    The turns corresponding to the intervals over which the list of temperature set points will be applied.  List of integers.
+The turns corresponding to the intervals over which the list of temperature set points will be applied.  List of integers.
 
 ``temps``
-    The list of temperature set points for the simulation.  List of floats.
+The list of temperature set points for the simulation.  List of floats.
 
 Python Member Functions
 ^^^^^^^^^^^^^^^^^^^^^^^
@@ -50,14 +52,24 @@ The Andersen Thermostat allows for user-specification of the seed for the PRNG u
 Setting the seed for the PRNG is done with ``setParameters``:
 
 .. code-block:: python
+
     setParameters(seed)
 
 Arguments
 
 ``seed``
-    The seed to be used by the PRNG.  Integer value.
+The seed to be used by the PRNG.  Integer value.
 
 Examples
 ^^^^^^^^
 
+.. code-block:: python
 
+    # set up a simulation state to which we will apply the fix
+    state = State()
+
+    # create an instance of the fix
+    fixNVT = FixNVTAndersen(state,"nvt","all",250.0,0.5,5)
+
+    # activate the fix
+    state.activateFix(fixNVT)

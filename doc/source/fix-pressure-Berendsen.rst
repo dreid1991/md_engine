@@ -47,4 +47,18 @@ Arguments
 Examples
 ^^^^^^^^
 
+.. code-block:: python
+
+    # create a simulation state to which we will apply the fix
+    state = State()
+
+    # make an instance of the fix; specify pressure of 0.5, period of 10, applyEvery 1
+    fixPressure = FixPressureBerendsen(state,"npt",0.5,10,1)
+
+    # call set parameters to change maxDilation to 0.0001
+    fixPressure.setParameters(0.0001)
+
+    # activate the fix
+    state.activateFix(fixPressure)
+
 
