@@ -3,6 +3,7 @@ import sys
 import math
 DEGREES_TO_RADIANS = math.pi / 180.
 
+print 'WARNING: THE NAMD READER IS NOT COMPLETE'
 
 class NAMD_Bonded_Forcer:
     def __init__(self, type, atomTypes):

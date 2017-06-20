@@ -1,5 +1,5 @@
 Ewald potential with long-range Coulomb interactions
-====================
+====================================================
 
 Overview
 ^^^^^^^^

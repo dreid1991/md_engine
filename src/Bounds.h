@@ -41,6 +41,7 @@ public:
     void setLoPy(Vector &v);
     Vector getLoPy();
 
+    Vector getRectComponentsPy();
     void init(State *, Vector lo_, Vector hi_);
 
     bool operator==(const Bounds &other) {

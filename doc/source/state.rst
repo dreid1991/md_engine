@@ -91,7 +91,49 @@ Python Member Functions
     #deletes all bonds, dihedrals, etc as well
     state.deleteAtom(anAtom)
 
-:doc:`Initialize Atoms</initialize-atoms>` also provides tools for initializing groups of atoms.
+:doc:`Atoms</Atoms>` also provides tools for initializing groups of atoms.
+
+Python members
+^^^^^^^^^^^^^^
+
+**Current turn**
+
+.. code-block:: python
+
+    turn = state.turn 
+    #reset current turn to 0
+    state.turn = 0
+
+**Simulation timestep**
+
+.. code-block:: python
+
+    #Setting simulation timestep
+    #This will be in femptoseconds or LJ time units
+    #depending on the current units 
+    state.dt = 2 
+
+**Cutoff radius**
+
+    Cutoff distance for non-bonded forces, except for charge forces which have their cutoff specially set
+
+.. code-block:: python
+
+    state.rCut = 10.0
+
+**Neighborlist padding**
+
+     Distant past ``rCut`` for which neighborlists are built.  This parameter can be manipulated to optimize performance.  Suggested values are ``0.5`` in Lennard-Jones units and ``2.0`` Angstroms in real units
+
+.. code-block:: python
+
+    state.padding = 2.0
+
+
+
+
+Groups and Molecules
+^^^^^^^^^^^^^^^^^^^^
 
 **Creating groups of atoms**
 
@@ -139,10 +181,14 @@ See :doc:`Molecules</molecule>`.
 Most force fields scale down forces for atoms which are topologically nearby.  The 1-2, 1-3, and 1-4 neighbor coefficients can be set as follows:
 
 .. code-block:: python
+
     #1-2, 1-3, 1-4 neighbor coefficients
     state.setSpecialNeighborCoefs(0, 0, 0.5)
 
 *Note*: When using the :doc:'CHARMM</ljcharmm>' potential, the 1-4 coefficient must be different than 1-2 and 1-3.
+
+Managing fixes, configuration writers, and python operations
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 **Activating fixes**
 
@@ -191,41 +237,21 @@ Most force fields scale down forces for atoms which are topologically nearby.  T
     state.setPeriodic(0, False)
     isPeriodicZ = state.getPeriodic(2)
 
-Python members
+Selecting GPUs
 ^^^^^^^^^^^^^^
 
-**Current turn**
+    At runtime, you can set which GPU to run on using 
 
 .. code-block:: python
 
-    turn = state.turn 
-    #reset current turn to 0
-    state.turn = 0
+    #set DASH to run on GPU index 0
+    state.deviceManager.setDevice(0)
 
-**Simulation timestep**
+    #set DASH to run on GPU index 1
+    state.deviceManager.setDevice(1)
 
-.. code-block:: python
+By default it will select device index nDevices-1.  You can query the indeces of your devices by running ``nvidia-smi`` in the terminal. 
 
-    #Setting simulation timestep
-    #This will be in femptoseconds or LJ time units
-    #depending on the current units 
-    state.dt = 2 
-
-**Cutoff radius**
-
-    Cutoff distance for non-bonded forces, except for charge forces which have their cutoff specially set
-
-.. code-block:: python
-
-    state.rCut = 10.0
-
-**Neighborlist padding**
-
-     Distant past ``rCut`` for which neighborlists are built.  This parameter can be manipulated to optimize performance.  Suggested values are ``0.5`` in Lennard-Jones units and ``2.0`` Angstroms in real units
-
-.. code-block:: python
-
-    state.padding = 2.0
 
 
     
