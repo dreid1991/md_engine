@@ -3,7 +3,7 @@ Nose-Hoover Thermostat and Barostat
 
 Overview
 ^^^^^^^^
-Implements Nose-Hoover dynamics using the equations of motion as outlined in MTK 2006.  Allows for dynamics from the NVT or NPT ensembles to be simulated.  The total Liouville operator implemented for NPT dynamics is given by (from MTK 2006, p.5641):
+Implements Nose-Hoover dynamics using the equations of motion as outlined in Tuckerman et. al, J. Phys. A: Math. Gen 39 (2006) 5629-5651..  Allows for dynamics from the NVT or NPT ensembles to be simulated.  The total Liouville operator implemented for NPT dynamics is given by (from Tuckerman et. al 2006, p.5641):
 
 .. math:: 
 
