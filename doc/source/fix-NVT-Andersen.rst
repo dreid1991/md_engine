@@ -7,11 +7,7 @@ Implements the Andersen thermostat for maintaining a set point temperature throu
 
 Constructors
 ^^^^^^^^^^^^
-
-An Andersen thermostat may be instantiated via any of the following constructors:
-
 .. code-block:: python
-
     FixNVTAndersen(state,handle,groupHandle,temp,nu,applyEvery)
     FixNVTAndersen(state,handle,groupHandle,tempFunc,nu,applyEvery)
     FixNVTAndersen(state,handle,groupHandle,intervals,temps,nu,applyEvery)
@@ -54,7 +50,6 @@ The Andersen Thermostat allows for user-specification of the seed for the PRNG u
 Setting the seed for the PRNG is done with ``setParameters``:
 
 .. code-block:: python
-
     setParameters(seed)
 
 Arguments
