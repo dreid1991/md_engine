@@ -770,8 +770,17 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
             //            bounds.sides[0], bounds.sides[1], bounds.lo);
         }
         periodicWrap<<<NBLOCK(nAtoms), PERBLOCK>>>(gpd->xs(activeIdx), nAtoms, boundsUnskewed);
+        
+        // remove all below statements after done debugging TODO
         printf("After periodicWrap in GridGPU at turn %d \n", state->turn);
+        cudaDeviceSynchronize();
         printGPD<<<NBLOCK(nAtoms), PERBLOCK>>>(gpd->ids(activeIdx),gpd->xs(activeIdx),gpd->vs(activeIdx),gpd->fs(activeIdx),nAtoms);
+        cudaDeviceSynchronize();
+        
+        printf("and state->gpd.xxxxx on turn %d says\n", state->turn);
+        printGPD<<<NBLOCK(nAtoms), PERBLOCK>>>(state->gpd.ids(activeIdx), state->gpd.xs(activeIdx),state->gpd.vs(activeIdx), state->gpd.fs(activeIdx), nAtoms);
+        cudaDeviceSynchronize();
+        // end statements to remove; end TODO
 
         // increase number of grid cells if necessary
         int numGridCells = prod(ns);

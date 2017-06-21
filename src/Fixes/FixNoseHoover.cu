@@ -1080,12 +1080,12 @@ Interpolator *FixNoseHoover::getInterpolator(std::string type) {
 }
 
 // setting up a few exports for BOOST
-void (FixNoseHoover::*setTemperature_x1) (double, double) = &FixNoseHoover::setTemperature;
 void (FixNoseHoover::*setTemperature_x2) (py::object, double) = &FixNoseHoover::setTemperature;
+void (FixNoseHoover::*setTemperature_x1) (double, double) = &FixNoseHoover::setTemperature;
 void (FixNoseHoover::*setTemperature_x3) (py::list, py::list, double) = &FixNoseHoover::setTemperature;
 
-void (FixNoseHoover::*setPressure_x1) (std::string, double, double) = &FixNoseHoover::setPressure;
 void (FixNoseHoover::*setPressure_x2) (std::string, py::object, double) = &FixNoseHoover::setPressure;
+void (FixNoseHoover::*setPressure_x1) (std::string, double, double) = &FixNoseHoover::setPressure;
 void (FixNoseHoover::*setPressure_x3) (std::string, py::list, py::list, double) = &FixNoseHoover::setPressure;
 
 
@@ -1101,13 +1101,13 @@ void export_FixNoseHoover()
             py::args("state", "handle", "groupHandle")
         )
     )
-    .def("setTemperature", setTemperature_x1,
-         (py::arg("temp"),
+    .def("setTemperature", setTemperature_x2,
+         (py::arg("tempFunc"),
           py::arg("timeConstant")
          )
         )
-    .def("setTemperature", setTemperature_x2,
-         (py::arg("tempFunc"),
+    .def("setTemperature", setTemperature_x1,
+         (py::arg("temp"),
           py::arg("timeConstant")
          )
         )
@@ -1117,15 +1117,15 @@ void export_FixNoseHoover()
           py::arg("timeConstant")
          )
         )
-    .def("setPressure", setPressure_x1,
-         (py::arg("mode"), 
-          py::arg("pressure"),
-          py::arg("timeConstant")
-         )
-        )
     .def("setPressure", setPressure_x2,
          (py::arg("mode"), 
           py::arg("pressureFunc"),
+          py::arg("timeConstant")
+         )
+        )
+    .def("setPressure", setPressure_x1,
+         (py::arg("mode"), 
+          py::arg("pressure"),
           py::arg("timeConstant")
          )
         )
