@@ -48,13 +48,13 @@ boundsData = state.dataManager.recordBounds(100)
 
 writeconfig = WriteConfig(state, fn='test_out', writeEvery=1000, format='xyz', handle='writer')
 state.activateWriteConfig(writeconfig)
-integVerlet.run(100)
+integVerlet.run(50000)
 sumV = 0.
 for a in state.atoms:
     sumV += a.vel.lenSqr()
 print state.bounds.volume()
 
-#print pressureData.vals
+print pressureData.vals
 #print engData.vals
 #print sumV / len(state.atoms)/3.0
 plt.plot(pressureData.turns, pressureData.vals)

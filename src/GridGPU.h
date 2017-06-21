@@ -29,9 +29,9 @@ private:
 
     /*! \brief Initialize arrays 
      * 
-     * \param gpd The GPUData for this grid
+     *  Acts on the pointer to GPUData given to this GridGPU instance in the GridGPU constructor
      */
-    void initArrays(GPUData *gpd);
+    void initArrays();
 
     /*! \brief Initialize strem
      *
@@ -97,7 +97,7 @@ public:
      * resolution will be the next larger value such that the box size is
      * a multiple of the resolution.
      */
-    GridGPU(State *state_, float dx, float dy, float dz, float neighCutoffMax, int exclusionMode_, double padding_, GPUData *gpd, int nPerRingPoly=1);
+    GridGPU(State *state_, float dx, float dy, float dz, float neighCutoffMax, int exclusionMode_, double padding_, GPUData *gpd_, int nPerRingPoly=1);
 
     /*! \brief Default constructor
      *

@@ -12,7 +12,7 @@
 
 /* GridGPU members */
 
-void GridGPU::initArrays(GPUData *gpd) {
+void GridGPU::initArrays() {
     //this happens in adjust for new bounds
     //perCellArray = GPUArrayGlobal<uint32_t>(prod(ns) + 1);
     int nRingPoly = gpd->xs.size() / nPerRingPoly;   // number of ring polymers/atom representations
@@ -69,13 +69,27 @@ GridGPU::GridGPU() {
     streamCreated = false;
     //initStream();
 }
+__global__ void printGPD(float4 *xs, float4 *vs, float4 *fs, int nAtoms) {
+    int idx = GETIDX();
+    if (idx < nAtoms) {
+        if (idx < 2) {
+            float4 pos = xs[idx];
+            float4 vel = vs[idx];
+            float4 force = fs[idx];
+            float id = pos.w;
+            printf("atom id %d at coords %f %f %f\n", id, pos.x, pos.y, pos.z);
+            printf("atom id %d with vel  %f %f %f\n", id, vel.x, vel.y, vel.z);
+            printf("atom id %d with force %f %f %f\n", id, force.x, force.y, force.z);
+        }
+    }
+}
 
 
 
 GridGPU::GridGPU(State *state_, float dx_, float dy_, float dz_, float neighCutoffMax_, int exclusionMode_, double padding_, GPUData *gpd_, int nPerRingPoly_)
-  : state(state_), nPerRingPoly(nPerRingPoly_), gpd(gpd_) {
+  : state(state_), nPerRingPoly(nPerRingPoly_) {
     neighCutoffMax = neighCutoffMax_;
-
+    gpd = gpd_;
     padding = padding_;
     streamCreated = false;
     onlyPositionsFlag = false;
@@ -83,12 +97,17 @@ GridGPU::GridGPU(State *state_, float dx_, float dy_, float dz_, float neighCuto
     minGridDim = make_float3(dx_, dy_, dz_);
     boundsLastBuild = BoundsGPU(make_float3(0, 0, 0), make_float3(0, 0, 0), make_float3(0, 0, 0));
     setBounds(state->boundsGPU);
-    initArrays(gpd);
+    initArrays();
     initStream();
     numChecksSinceLastBuild = 0;
     exclusionMode = exclusionMode_;
-
+    
+    int activeIdx = gpd->activeIdx();
     handleExclusions();
+    int nAtoms = gpd->xs.size();
+    //printf("nAtoms value in ::GridGPU ctor: %d\n", nAtoms);
+    //printGPD<<<NBLOCK(nAtoms), PERBLOCK>>>(gpd->xs(activeIdx),gpd->vs(activeIdx),gpd->fs(activeIdx),nAtoms);
+
 }
 
 void GridGPU::onlyPositions(bool flag) {
@@ -699,6 +718,8 @@ __global__ void setCumulativeSumPerBlock(int numBlocks, uint32_t *perBlockArray,
 
 void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
 
+    //printf("in periodicBoundaryConditions\n");
+    //printf("gpd->xs.size(): %d", gpd->xs.size());
     DeviceManager &devManager = state->devManager;
     int warpSize = devManager.prop.warpSize;
 
@@ -747,6 +768,8 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
             //            bounds.sides[0], bounds.sides[1], bounds.lo);
         }
         periodicWrap<<<NBLOCK(nAtoms), PERBLOCK>>>(gpd->xs(activeIdx), nAtoms, boundsUnskewed);
+        //printf("After periodicWrap in GridGPU\n");
+        //printGPD<<<NBLOCK(nAtoms), PERBLOCK>>>(gpd->xs(activeIdx),gpd->vs(activeIdx),gpd->fs(activeIdx),nAtoms);
 
         // increase number of grid cells if necessary
         int numGridCells = prod(ns);
@@ -1063,7 +1086,7 @@ void GridGPU::handleExclusions() {
 
         exclusionIndexes = GPUArrayDeviceGlobal<int>(1);
         exclusionIds = GPUArrayDeviceGlobal<uint>(1);
-        printf("made it to instantiation of the GridGPU with GPUData, line 1068ish");
+        //printf("made it to instantiation of the GridGPU with GPUData, line 1068ish");
                 //exclusionIndexes.data(), exclusionIds.data(), maxExclusionsPerAtom
         // -- this is called as an argument in a kernel call. are kernels permitted to have some dim 0?
         // no exclusions present
@@ -1124,6 +1147,7 @@ void GridGPU::handleExclusionsDistance() {
 
     // std::cout << "max excl per atom is " << maxExclusionsPerAtom << std::endl;
     exclusionIndexes = GPUArrayDeviceGlobal<int>(idxs.size());
+    //printf("in ::handleExclusionsDistance(), size of exclusionIndexes: %d\n", idxs.size());
     exclusionIndexes.set(idxs.data());
     exclusionIds = GPUArrayDeviceGlobal<uint>(excludedById.size());
     exclusionIds.set(excludedById.data());

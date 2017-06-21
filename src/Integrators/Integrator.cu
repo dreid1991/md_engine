@@ -146,19 +146,19 @@ std::vector<bool> Integrator::basicPrepare(int numTurns) {
     int nAtoms = state->atoms.size();
     state->runningFor = numTurns;
     state->runInit = state->turn;
-    printf("cudaDeviceSynchronize() to see if the problem is elsewhere; Integrator::basicPrepare()\n");
-    cudaDeviceSynchronize();
-    printf("Integrator::basicPrepare, print statement 1\n");
+    //printf("cudaDeviceSynchronize() to see if the problem is elsewhere; Integrator::basicPrepare()\n");
+    //cudaDeviceSynchronize();
+    //printf("Integrator::basicPrepare, print statement 1\n");
     state->prepareForRun();
-    printf("Integrator::basicPrepare, print statement 2\n");
+    //printf("Integrator::basicPrepare, print statement 2\n");
     state->atomParams.guessAtomicNumbers();
-    printf("Integrator::basicPrepare, print statement 3\n");
+    //printf("Integrator::basicPrepare, print statement 3\n");
     setActiveData();
-    printf("Integrator::basicPrepare, print statement 4\n");
+    //printf("Integrator::basicPrepare, print statement 4\n");
     for (GPUArray *dat : activeData) {
         dat->dataToDevice();
     }
-    printf("Integrator::basicPrepare, print statement 5\n");
+    //printf("Integrator::basicPrepare, print statement 5\n");
     std::vector<bool> prepared;
     for (Fix *f : state->fixes) {
         f->updateGroupTag();
