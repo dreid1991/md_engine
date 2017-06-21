@@ -78,7 +78,7 @@ __device__ inline float3 positionsToCOM(float3 *pos, float *mass, float ims) {
 
 }
 
-void FixE3B3::compute(bool computeVirials) {
+void FixE3B3::compute(int VirialMode) {
     
     // send the molecules to the e3b3 evaluator, where we compute both the two-body correction
     // and the three-body interactions.
@@ -86,6 +86,9 @@ void FixE3B3::compute(bool computeVirials) {
     //    local to this gpu
     // -- still need to send the global simulation data, which contains the atoms itself
     
+    // TODO: correct this ; figure out what VirialMode is exactly
+    bool computeVirials = true;
+    // end TODO
     // get the activeIdx for our local gpd (the molecule-by-molecule stuff);
     int activeIdx = gpd.activeIdx();
 
@@ -285,15 +288,12 @@ bool FixE3B3::prepareForRun(){
     double padding = 2.0;
     double gridDim = maxRCut + padding;
 
-    // make a pointer to this gpudata, which we will pass to the local grid
-    GPUData *gpuData = &gpd;
-
     // this number has no meaning whatsoever; it is completely arbitrary;
     // -- we are not using exclusionMode for this grid or set of GPUData
     int exclusionMode = 30;
     // I think this is doubly irrelevant, since we use a doExclusions(false) method later (below)
 
-    gridGPU = GridGPU(state, gridDim, gridDim, gridDim, gridDim, exclusionMode, padding, gpuData);
+    gridGPU = GridGPU(state, gridDim, gridDim, gridDim, gridDim, exclusionMode, padding, &gpd);
 
     // tell gridGPU that the only GPUData we need to sort are positions (and, of course, the molecule/atom id's)
     gridGPU.onlyPositions(true);

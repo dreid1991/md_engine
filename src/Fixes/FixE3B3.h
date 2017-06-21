@@ -78,7 +78,7 @@ class FixE3B3: public Fix {
 
         void singlePointEng(float *);
 
-        void compute(bool);
+        void compute(int);
         
         //! Reset parameters to before processing
         /*!

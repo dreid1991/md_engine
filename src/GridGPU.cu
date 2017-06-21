@@ -73,7 +73,7 @@ GridGPU::GridGPU() {
 
 
 GridGPU::GridGPU(State *state_, float dx_, float dy_, float dz_, float neighCutoffMax_, int exclusionMode_, double padding_, GPUData *gpd_, int nPerRingPoly_)
-  : state(state_), gpd(gpd_), nPerRingPoly(nPerRingPoly_) {
+  : state(state_), nPerRingPoly(nPerRingPoly_), gpd(gpd_) {
     neighCutoffMax = neighCutoffMax_;
 
     padding = padding_;
@@ -83,7 +83,6 @@ GridGPU::GridGPU(State *state_, float dx_, float dy_, float dz_, float neighCuto
     minGridDim = make_float3(dx_, dy_, dz_);
     boundsLastBuild = BoundsGPU(make_float3(0, 0, 0), make_float3(0, 0, 0), make_float3(0, 0, 0));
     setBounds(state->boundsGPU);
-  
     initArrays(gpd);
     initStream();
     numChecksSinceLastBuild = 0;

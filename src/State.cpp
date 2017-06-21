@@ -476,10 +476,8 @@ void State::initializeGrid() {
     double maxRCut = getMaxRCut();// ALSO PADDING PLS
     double gridDim = maxRCut + padding;
 
-    GPUData *gpuData = &gpd;
-
     // copy value of nPerRingPoly to make it local to gpd instance
-    gridGPU = GridGPU(this, gridDim, gridDim, gridDim, gridDim, exclusionMode,padding, gpuData,nPerRingPoly);
+    gridGPU = GridGPU(this, gridDim, gridDim, gridDim, gridDim, exclusionMode,padding, &gpd,nPerRingPoly);
 
 }
 

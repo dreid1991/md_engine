@@ -1,4 +1,5 @@
 import sys
+import matplotlib.pyplot as plt
 sys.path = sys.path + ['../build/python/build/lib.linux-x86_64-2.7']
 #from DASH import *
 from DASH import *
@@ -47,11 +48,12 @@ boundsData = state.dataManager.recordBounds(100)
 
 writeconfig = WriteConfig(state, fn='test_out', writeEvery=1000, format='xyz', handle='writer')
 state.activateWriteConfig(writeconfig)
-integVerlet.run(1000)
+integVerlet.run(100)
 sumV = 0.
 for a in state.atoms:
     sumV += a.vel.lenSqr()
 print state.bounds.volume()
+
 #print pressureData.vals
 #print engData.vals
 #print sumV / len(state.atoms)/3.0
