@@ -21,7 +21,9 @@ In addition to these features, DASH provides all the standard functionality user
 Getting started
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
+
+    compiling
 
     
 
