@@ -38,21 +38,21 @@ Arguments
 ``group_handle``
   A group name to apply potential. 
 
-Setting parameters from within the Python environment is done with ``setParameter``. 
+Setting parameters from within the Python environment is done with ``setParameters``. 
 
 .. code-block:: python
 
-    setParameter(alpha=...,r_cut=...)
+    setParameters(alpha=...,r_cut=...)
 
 Arguments 
 
-``param``
+``alpha``
     name of parameter to set. Can be ``eps``, ``sig``, ``rCut``.
     
     ``rCut`` parameter has a default value equal to ``state.rCut``. 
     
-``handleA``, ``handleB``
-    a pair of type names to set parameters. 
+``r_cut``
+    Cutoff radius for charge calculations
 
 Default parameter values are :math:`\alpha=0.25`, :math:`r_{\rm cut}=9.0`, assuming :math:`\sigma_{\rm LJ}=1.0` 
 

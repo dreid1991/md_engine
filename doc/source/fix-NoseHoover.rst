@@ -3,7 +3,7 @@ Nose-Hoover Thermostat and Barostat
 
 Overview
 ^^^^^^^^
-Implements Nose-Hoover dynamics using the equations of motion as outlined in Tuckerman et. al, J. Phys. A: Math. Gen 39 (2006) 5629-5651..  Allows for dynamics from the NVT or NPT ensembles to be simulated.  The total Liouville operator implemented for NPT dynamics is given by (from Tuckerman et. al 2006, p.5641):
+Implements Nose-Hoover dynamics using the equations of motion as outlined in Tuckerman et. al, J. Phys. A: Math. Gen 39 (2006) 5629-5651.  Allows for dynamics from the NVT or NPT ensembles to be simulated.  The total Liouville operator implemented for NPT dynamics is given by (from Tuckerman et. al 2006, p.5641):
 
 .. math:: 
 
@@ -57,7 +57,7 @@ Python Member Functions
 ^^^^^^^^^^^^^^^^^^^^^^^
 The Nose-Hoover Barostat/Thermostat set points are set via the Python member functions.  
 
-Specification of a set point temperature may be accomplished through any of the following commands:
+Temperature set points may be input through any of the following commands:
 
 .. code-block:: python
 
@@ -65,19 +65,21 @@ Specification of a set point temperature may be accomplished through any of the 
    setTemperature(temps,intervals,timeConstant)
    setTemperature(tempFunc, timeConstant)
 
+The first method holds the temperature of ``groupHandle`` at a set point of ``temp``.  The second linearly interpolates between the temperatures given in the list ``temps`` at the fractions through the current run given by ``intervals``.  The third allows the set point to be determined at each turn via ``tempFunc``.  The same scheme is used to set pressure.
+
 Arguments: 
 
 ``temp``
-    The temperature set point for the simulation.  Double type.
+    The temperature set point for the simulation.  Float type.
 
 ``timeConstant``
-    The time constant associated with the thermostat variables.  Double type.
+    The time constant associated with the thermostat variables.  Float type.
 
 ``temps``
-    A list of temperature set points to be used throughout the simulation.  List of doubles.
+    A list of temperature set points to be used throughout the simulation.  List of floats.
  
 ``intervals``
-    A list of turns at which temperature set points change.  List of integers.
+    A list of fractions through the next run which correspond to the temperatures given in ``temps``. List of floats.
  
 ``tempFunc``
     The temperature set point, implemented as a python function. 
@@ -98,22 +100,22 @@ Arguments:
     The mode in which cell deformations occur; options are "ISO" or "ANISO".  With mode "ISO", the internal stress tensor is averaged across the three normal components (or 2, for 2D simulations), and a uniform scale factor for the dimensions emerges.  For "ANISO", the components of the internal stress tensor are not averaged and the individual dimensions are scaled independently.
 
 ``pressure``
-    The set point pressure for the simulation.  Double type.
+    The set point pressure for the simulation.  Float type.
 
 ``timeConstant``
-    The time constant associated with the barostat variables.  Double type.
+    The time constant associated with the barostat variables.  Float type.
 
 ``pressures``
-    A list of pressure set points to be used through the simulation.  List of doubles.
+    A list of pressure set points to be used through the simulation.  List of floats.
  
 ``intervals``
-    A list of turns at which pressure set points change.  List of integers.
+    A list of fractions through the next run which correspond to the pressures given in ``pressures``. List of floats.
  
 ``pressFunc``
     The pressure set point, implemented as a python function.
 
 
-If NPT dynamics are desired, both ``setTemperature`` and ``setPressure`` should be called; the order in which they are called is immaterial.  
+For NPT dynamics, both ``setTemperature`` and ``setPressure`` should be called.  They can be called in any order before the simulation is run.
 
 
 
@@ -124,14 +126,14 @@ Example 1: Nose-Hoover Thermostat (NVT Ensemble) - constant set point temperatur
 
 .. code-block:: python
     
-    # set up a simulation state
+    # create a simulation state
     state = State()
 
     # make an instance of the fix
-    fixNVT = FixNoseHoover(state,"nvt","all")
+    fixNVT = FixNoseHoover(state, "nvt", "all")
 
-    # assign a set point temperature of 300K with time constant 10*state.dt
-    fixNVT.setTemperature(300.0,10*state.dt)
+    # assign a set point temperature of 300K with time constant 100*state.dt
+    fixNVT.setTemperature(300.0, 100*state.dt)
 
     # activate the fix
     state.activateFix(fixNVT)
@@ -141,19 +143,66 @@ Example 2: Nose-Hoover Barostat & Thermostat (NPT Ensemble) - constant set point
 
 .. code-block:: python
 
-    # set up a simulation state
+    # create a simulation state
     state = State()
 
     # make an instance of the fix
-    fixNPT = FixNoseHoover(state,"npt","all")
+    fixNPT = FixNoseHoover(state, "npt", "all")
 
-    # assign a set point temperature and time constant 10*state.dt
-    fixNPT.setTemperature(250.0,10*state.dt)
+    # assign a set point temperature and time constant 100*state.dt
+    fixNPT.setTemperature(250.0, 100*state.dt)
 
     # assign a set point pressure and time constant 1000*state.dt with isotropic cell deformations
-    fixNPT.setPressure("ISO",1.0,1000*state.dt)
+    fixNPT.setPressure("ISO", 1.0, 1000*state.dt)
 
     # activate the fix
     state.activateFix(fixNPT)
+
+
+Example 3: Setting temperature via ``temperature`` and ``intervals``
+
+.. code-block:: python
+    
+    # create a simulation state
+    state = State()
+
+    # make an instance of the fix
+    fixNVT = FixNoseHoover(state, "nvt", "all")
+
+    # assign a set point temperature of 300K with time constant 100*state.dt
+    fixNVT.setTemperature(temps=[100, 500, 400], intervals=[0, 0.2, 1.0], 100*state.dt)
+
+    # activate the fix
+    state.activateFix(fixNVT)
+
+    integrator = IntegratorVerlet(state)
+
+    #Will sweep from temp=100 to temp=500 between turns 0 and 2000, then 500 and 400 between turns 2000 and 10000
+    integrator.run(10000)
+
+
+Example 4: Setting temperature via ``tempFunc``
+
+.. code-block:: python
+    
+    def randomTemp(turnRunBegan, turnRunEnds, currentTurn):
+        return 100 + 50*random() * (currentTurn-turnRunBegan)/(turnRunEnds-turnRunBegan)
+
+    # create a simulation state
+    state = State()
+
+    # make an instance of the fix
+    fixNVT = FixNoseHoover(state, "nvt", "all")
+
+    # assign a set point temperature of 300K with time constant 100*state.dt
+    fixNVT.setTemperature(tempFunc=randomTemp, 100*state.dt)
+
+    # activate the fix
+    state.activateFix(fixNVT)
+
+    integrator = IntegratorVerlet(state)
+
+    #Will use the value returned by randomTemp each turn as the setpoint
+    integrator.run(10000)
 
 

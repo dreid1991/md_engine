@@ -76,8 +76,9 @@ Thermostats and Barostats:
 .. toctree::
    :maxdepth: 2
 
-   fix-pressure-Berendsen
    fix-NoseHoover
+   fix-pressure-Berendsen
+   fix-Langevin
    fix-NVT-Andersen
    fix-NVT-rescale
 
@@ -88,7 +89,6 @@ Integrators:
    
    integrator-Verlet
    integrator-relax
-   fix-Langevin
 
    
 Utilities and external functionality
