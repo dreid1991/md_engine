@@ -476,6 +476,7 @@ void State::initializeGrid() {
     double maxRCut = getMaxRCut();// ALSO PADDING PLS
     double gridDim = maxRCut + padding;
 
+    std::cout << "address of state.gpd: " << &gpd << std::endl;
     // copy value of nPerRingPoly to make it local to gpd instance
     gridGPU = GridGPU(this, gridDim, gridDim, gridDim, gridDim, exclusionMode,padding, &gpd,nPerRingPoly);
 
@@ -566,7 +567,7 @@ bool State::prepareForRun() {
     boundsGPU = bounds.makeGPU();
     float maxRCut = getMaxRCut();
     //gridGPU = grid.makeGPU(maxRCut);  // uses os, ns, ds, dsOrig from AtomGrid
-
+    initializeGrid();
     //printf("State::prepareForRun print statement 8\n");
     gpd.xsBuffer = GPUArrayGlobal<float4>(nAtoms);
     gpd.vsBuffer = GPUArrayGlobal<float4>(nAtoms);
@@ -574,7 +575,7 @@ bool State::prepareForRun() {
     gpd.idsBuffer = GPUArrayGlobal<uint>(nAtoms);
 
     //printf("state->prepareForRun, before calling initializeGrid()\n");
-    initializeGrid();
+    //initializeGrid();
     //printf("state->prepareForRun, after calling initializeGrid()\n");
     return true;
 }

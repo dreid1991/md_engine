@@ -48,7 +48,7 @@ boundsData = state.dataManager.recordBounds(100)
 
 writeconfig = WriteConfig(state, fn='test_out', writeEvery=1000, format='xyz', handle='writer')
 state.activateWriteConfig(writeconfig)
-integVerlet.run(50000)
+integVerlet.run(50)
 sumV = 0.
 for a in state.atoms:
     sumV += a.vel.lenSqr()

@@ -69,14 +69,14 @@ GridGPU::GridGPU() {
     streamCreated = false;
     //initStream();
 }
-__global__ void printGPD(float4 *xs, float4 *vs, float4 *fs, int nAtoms) {
+__global__ void printGPD(uint* ids, float4 *xs, float4 *vs, float4 *fs, int nAtoms) {
     int idx = GETIDX();
     if (idx < nAtoms) {
-        if (idx < 2) {
+        uint id = ids[idx];
+        if (id < 5) {
             float4 pos = xs[idx];
             float4 vel = vs[idx];
             float4 force = fs[idx];
-            float id = pos.w;
             printf("atom id %d at coords %f %f %f\n", id, pos.x, pos.y, pos.z);
             printf("atom id %d with vel  %f %f %f\n", id, vel.x, vel.y, vel.z);
             printf("atom id %d with force %f %f %f\n", id, force.x, force.y, force.z);
@@ -101,12 +101,14 @@ GridGPU::GridGPU(State *state_, float dx_, float dy_, float dz_, float neighCuto
     initStream();
     numChecksSinceLastBuild = 0;
     exclusionMode = exclusionMode_;
-    
+    std::cout << "address of gpd: " << &gpd << std::endl;
+    std::cout << "address of de-referenced &*gpd: " << &*gpd << std::endl;
     int activeIdx = gpd->activeIdx();
     handleExclusions();
     int nAtoms = gpd->xs.size();
-    //printf("nAtoms value in ::GridGPU ctor: %d\n", nAtoms);
-    //printGPD<<<NBLOCK(nAtoms), PERBLOCK>>>(gpd->xs(activeIdx),gpd->vs(activeIdx),gpd->fs(activeIdx),nAtoms);
+    printf("nAtoms value in ::GridGPU ctor: %d\n", nAtoms);
+    printf("Calling printGPD at turn %d\n", state->turn);
+    printGPD<<<NBLOCK(nAtoms), PERBLOCK>>>(gpd->ids(activeIdx),gpd->xs(activeIdx),gpd->vs(activeIdx),gpd->fs(activeIdx),nAtoms);
 
 }
 
@@ -768,8 +770,8 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
             //            bounds.sides[0], bounds.sides[1], bounds.lo);
         }
         periodicWrap<<<NBLOCK(nAtoms), PERBLOCK>>>(gpd->xs(activeIdx), nAtoms, boundsUnskewed);
-        //printf("After periodicWrap in GridGPU\n");
-        //printGPD<<<NBLOCK(nAtoms), PERBLOCK>>>(gpd->xs(activeIdx),gpd->vs(activeIdx),gpd->fs(activeIdx),nAtoms);
+        printf("After periodicWrap in GridGPU at turn %d \n", state->turn);
+        printGPD<<<NBLOCK(nAtoms), PERBLOCK>>>(gpd->ids(activeIdx),gpd->xs(activeIdx),gpd->vs(activeIdx),gpd->fs(activeIdx),nAtoms);
 
         // increase number of grid cells if necessary
         int numGridCells = prod(ns);
@@ -1077,12 +1079,15 @@ bool GridGPU::checkSorting(int gridIdx, int *gridIdxs,
 void GridGPU::handleExclusions() {
 
     if (exclusionMode == EXCLUSIONMODE::DISTANCE) {
+        exclusions = true;
         handleExclusionsDistance();
     } else if (exclusionMode == EXCLUSIONMODE::FORCER) {
+        exclusions = true;
         handleExclusionsForcers();
     } else {
         // set this to zero
         maxExclusionsPerAtom = 0;
+        exclusions = false;
 
         exclusionIndexes = GPUArrayDeviceGlobal<int>(1);
         exclusionIds = GPUArrayDeviceGlobal<uint>(1);
