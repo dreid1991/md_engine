@@ -4,20 +4,28 @@ namespace py = boost::python;
 
 void Units::setLJ() {
     boltz = 1;
+    hbar  = 1;
     mvv_to_eng = 1;
     qqr_to_eng = 1;
     nktv_to_press = 1;
     ftm_to_v = 1.0;
+    if (unitType != UNITS::LJ) {
+        *dt = 0.005;
+    }
     unitType = UNITS::LJ;
 }
 
 void Units::setReal() {
     //kcal, ang, femptoseconds
     boltz = 0.0019872067;
+    hbar   = 15.178728314015; // kcal/mol * fs
     mvv_to_eng = 48.88821291 * 48.88821291;
     nktv_to_press = 68568.415;
     qqr_to_eng = 332.06371;
     ftm_to_v = 1.0f / (48.88821291 * 48.88821291);
+    if (unitType != UNITS::REAL) {
+        *dt = 1.0;
+    }
     unitType = UNITS::REAL;
 }
 

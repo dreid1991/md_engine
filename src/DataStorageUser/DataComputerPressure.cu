@@ -7,6 +7,9 @@ using namespace MD_ENGINE;
 
 DataComputerPressure::DataComputerPressure(State *state_, std::string computeMode_) : DataComputer(state_, computeMode_, true), tempComputer(state_, computeMode_) {
     usingExternalTemperature = false;
+    if (computeMode == "vector") {
+        requiresPerAtomVirials = true;
+    }
 }
 
 

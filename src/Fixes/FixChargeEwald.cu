@@ -20,19 +20,65 @@ const std::string chargeEwaldType = "ChargeEwald";
 
 // #define THREADS_PER_BLOCK_
 
+// MW: Note that this function is a verbatim copy of that which appears in GridGPU.cu
+//     consider combining
+__global__ void computeCentroid(float4 *centroids, float4 *xs, int nAtoms, int nPerRingPoly, BoundsGPU bounds) {
+   int idx = GETIDX();
+    int nRingPoly = nAtoms / nPerRingPoly;
+    if (idx < nRingPoly) {
+        int baseIdx = idx * nPerRingPoly;
+        float3 init = make_float3(xs[baseIdx]);
+        float3 diffSum = make_float3(0, 0, 0);
+        for (int i=baseIdx+1; i<baseIdx + nPerRingPoly; i++) {
+            float3 next = make_float3(xs[i]);
+            float3 dx = bounds.minImage(next - init);
+            diffSum += dx;
+        }
+        diffSum /= nPerRingPoly;
+        float3 unwrappedPos = init + diffSum;
+        float3 trace = bounds.trace();
+        float3 diffFromLo = unwrappedPos - bounds.lo;
+        float3 imgs = floorf(diffFromLo / trace); //are unskewed at this point
+        float3 wrappedPos = unwrappedPos - trace * imgs * bounds.periodic;
 
+        centroids[idx] = make_float4(wrappedPos);
+    }
+
+}
+
+// MW: This is a duplicated function from GridGPU.cu
+ __global__ void periodicWrapCpy(float4 *xs, int nAtoms, BoundsGPU bounds) {
+ 
+     int idx = GETIDX(); 
+     if (idx < nAtoms) {
+         
+         float4 pos = xs[idx];
+         
+         float id = pos.w;
+         float3 trace = bounds.trace();
+         float3 diffFromLo = make_float3(pos) - bounds.lo;
+         float3 imgs = floorf(diffFromLo / trace); //are unskewed at this point
+         pos -= make_float4(trace * imgs * bounds.periodic);
+         pos.w = id;
+         //if (not(pos.x==orig.x and pos.y==orig.y and pos.z==orig.z)) { //sigh
+         if (imgs.x != 0 or imgs.y != 0 or imgs.z != 0) {
+             xs[idx] = pos;
+         }
+     }
+ 
+ }
 //different implementation for different interpolation orders
 //TODO template
 //order 1 nearest point
-__global__ void map_charge_to_grid_order_1_cu(int nAtoms, float4 *xs,  float *qs,  BoundsGPU bounds,
+__global__ void map_charge_to_grid_order_1_cu(int nRingPoly, int nPerRingPoly, float4 *xs,  float *qs,  BoundsGPU bounds,
                                       int3 sz,float *grid/*convert to float for cufffComplex*/,float  Qunit) {
 
     int idx = GETIDX();
-    if (idx < nAtoms) {
+    if (idx < nRingPoly) {
         float4 posWhole = xs[idx];
         float3 pos = make_float3(posWhole)-bounds.lo;
 
-        float qi = Qunit*qs[idx];
+        float qi = Qunit*qs[idx * nPerRingPoly];
         
         //find nearest grid point
         float3 h=bounds.trace()/make_float3(sz);
@@ -56,15 +102,15 @@ inline __host__ __device__ float W_p_3(int i,float x){
 }
 
 
-__global__ void map_charge_to_grid_order_3_cu(int nAtoms, float4 *xs,  float *qs,  BoundsGPU bounds,
+__global__ void map_charge_to_grid_order_3_cu(int nRingPoly, int nPerRingPoly, float4 *xs,  float *qs,  BoundsGPU bounds,
                                       int3 sz,float *grid/*convert to float for cufffComplex*/,float  Qunit) {
 
     int idx = GETIDX();
-    if (idx < nAtoms) {
+    if (idx < nRingPoly) {
         float4 posWhole = xs[idx];
         float3 pos = make_float3(posWhole)-bounds.lo;
 
-        float qi = Qunit*qs[idx];
+        float qi = Qunit*qs[idx * nPerRingPoly];
         
         //find nearest grid point
         float3 h=bounds.trace()/make_float3(sz);
@@ -218,17 +264,17 @@ __global__ void E_field_cu(BoundsGPU bounds, int3 sz,float *Green_function, cuff
 }
 
 
-__global__ void Ewald_long_range_forces_order_1_cu(int nAtoms, float4 *xs, float4 *fs, 
+__global__ void Ewald_long_range_forces_order_1_cu(int nRingPoly, int nPerRingPoly, float4 *xs, float4 *fs, 
                                                    float *qs, BoundsGPU bounds,
                                                    int3 sz, cufftComplex *FFT_Ex,
                                                     cufftComplex *FFT_Ey,cufftComplex *FFT_Ez,float  Qunit,
                                                    bool storeForces, uint *ids, float4 *storedForces) {
     int idx = GETIDX();
-    if (idx < nAtoms) {
-        float4 posWhole = xs[idx];
-        float3 pos = make_float3(posWhole)-bounds.lo;
-
-        float qi = qs[idx];
+    if (idx < nRingPoly) {
+        float4 posWhole= xs[idx];
+        float3 pos     = make_float3(posWhole)-bounds.lo;
+        int    baseIdx = idx*nPerRingPoly;
+        float  qi      = qs[baseIdx];
         
         //find nearest grid point
         float3 h=bounds.trace()/make_float3(sz);
@@ -249,27 +295,32 @@ __global__ void Ewald_long_range_forces_order_1_cu(int nAtoms, float4 *xs, float
         E.y= -FFT_Ey[p.x*sz.y*sz.z+p.y*sz.z+p.z].x/volume;
         E.z= -FFT_Ez[p.x*sz.y*sz.z+p.y*sz.z+p.z].x/volume;
         
+        // Apply force on centroid to all time slices for given atom
         float3 force= Qunit*qi*E;
-        fs[idx] += force;
+        for (int i = 0; i< nPerRingPoly; i++) {
+            fs[baseIdx + i] += force; 
+        }
+
         if (storeForces) {
-            storedForces[ids[idx]] = make_float4(force.x, force.y, force.z, 0);
+            for (int i = 0; i < nPerRingPoly; i++) {
+                storedForces[ids[baseIdx+i]] = make_float4(force.x, force.y, force.z, 0);
+            }
         }
     }
 }
 
 
-__global__ void Ewald_long_range_forces_order_3_cu(int nAtoms, float4 *xs, float4 *fs, 
+__global__ void Ewald_long_range_forces_order_3_cu(int nRingPoly, int nPerRingPoly, float4 *xs, float4 *fs, 
                                                    float *qs, BoundsGPU bounds,
                                                    int3 sz, cufftComplex *FFT_Ex,
                                                     cufftComplex *FFT_Ey,cufftComplex *FFT_Ez,float  Qunit,
                                                    bool storeForces, uint *ids, float4 *storedForces) {
     int idx = GETIDX();
-    if (idx < nAtoms) {
-        float4 posWhole = xs[idx];
-        float3 pos = make_float3(posWhole)-bounds.lo;
-
-        float qi = qs[idx];
-        
+    if (idx < nRingPoly) {
+        float4 posWhole= xs[idx];
+        float3 pos     = make_float3(posWhole)-bounds.lo;
+        int    baseIdx = idx*nPerRingPoly;
+        float  qi      = qs[baseIdx];
 
         //find nearest grid point
         float3 h=bounds.trace()/make_float3(sz);
@@ -306,9 +357,15 @@ __global__ void Ewald_long_range_forces_order_3_cu(int nAtoms, float4 *xs, float
         }
                
         float3 force= Qunit*qi*E;
-        fs[idx] += force;
+        // Apply force on centroid to all time slices for given atom
+        for (int i = 0; i < nPerRingPoly; i++) {
+            fs[baseIdx + i] += force;
+        }
+
         if (storeForces) {
-            storedForces[ids[idx]] = make_float4(force.x, force.y, force.z, 0);
+            for (int i = 0; i < nPerRingPoly; i++) {
+                storedForces[ids[baseIdx+i]] = make_float4(force.x, force.y, force.z, 0);
+            }
         }
     }
 }
@@ -625,7 +682,7 @@ void FixChargeEwald::setTotalQ2() {
          state->devManager.prop.warpSize,
          SumSqr());
     tmp.dataToHost();   
-    total_Q2=conversion*tmp.h_data[0];
+    total_Q2=conversion*tmp.h_data[0]/state->nPerRingPoly;
 
     tmp.memsetByVal(0.0);
 
@@ -638,7 +695,7 @@ void FixChargeEwald::setTotalQ2() {
          SumSingle());
 
     tmp.dataToHost();   
-    total_Q=sqrt(conversion)*tmp.h_data[0];   
+    total_Q=sqrt(conversion)*tmp.h_data[0]/state->nPerRingPoly;   
     
     cout<<"total_Q "<<total_Q<<'\n';
     cout<<"total_Q2 "<<total_Q2<<'\n';
@@ -698,6 +755,9 @@ void FixChargeEwald::setParameters(int szx_,int szy_,int szz_,float rcut_,int in
 {
     //for now support for only 2^N sizes
     //TODO generalize for non cubic boxes
+    if (rcut_==-1) {
+        rcut_ = state->rCut;
+    }
     if ((szx_!=32)&&(szx_!=64)&&(szx_!=128)&&(szx_!=256)&&(szx_!=512)&&(szx_!=1024)){
         cout << szx_ << " is not supported, sorry. Only 2^N grid size works for charge Ewald\n";
         exit(2);
@@ -783,6 +843,9 @@ void FixChargeEwald::setGridToErrorTolerance(bool printMsg) {
 
 }
 void FixChargeEwald::setError(double targetError, float rcut_, int interpolation_order_) {
+    if (rcut_==-1) {
+        rcut_ = state->rCut;
+    }
     r_cut=rcut_;
     interpolation_order=interpolation_order_;
     errorTolerance = targetError;
@@ -862,6 +925,9 @@ bool FixChargeEwald::prepareForRun() {
     } else {
         storedForces = GPUArrayDeviceGlobal<float4>(1);
     }
+    if (state->nPerRingPoly > 1) { 
+        rpCentroids = GPUArrayDeviceGlobal<float4>(state->atoms.size() / state->nPerRingPoly);
+    }
     setEvalWrapper();
     return true;
 }
@@ -898,14 +964,16 @@ void FixChargeEwald::handleBoundsChangeInternal(bool printError) {
     }
 }
 
-void FixChargeEwald::compute(bool computeVirials) {
+void FixChargeEwald::compute(int virialMode) {
  //   CUT_CHECK_ERROR("before FixChargeEwald kernel execution failed");
 
 //     cout<<"FixChargeEwald::compute..\n";
-    int nAtoms = state->atoms.size();
-    GPUData &gpd = state->gpd;
-    GridGPU &grid = state->gridGPU;
-    int activeIdx = gpd.activeIdx();
+    int nAtoms       = state->atoms.size();
+    int nPerRingPoly = state->nPerRingPoly;
+    int nRingPoly    = nAtoms / nPerRingPoly;
+    GPUData &gpd     = state->gpd;
+    GridGPU &grid    = state->gridGPU;
+    int activeIdx    = gpd.activeIdx();
     uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
     
  
@@ -919,10 +987,22 @@ void FixChargeEwald::compute(bool computeVirials) {
         map_charge_set_to_zero_cu<<<dimGrid, dimBlock>>>(sz,FFT_Qs);
         //  CUT_CHECK_ERROR("map_charge_set_to_zero_cu kernel execution failed");
 
+        //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        // Compute centroids of all ring polymers for use on grid
+        //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        float4 *centroids;
+        BoundsGPU bounds         = state->boundsGPU;
+        BoundsGPU boundsUnskewed = bounds.unskewed();
+        if (nPerRingPoly >1) {
+            computeCentroid<<<NBLOCK(nRingPoly),PERBLOCK>>>(rpCentroids.data(),gpd.xs(activeIdx),nAtoms,nPerRingPoly,boundsUnskewed);
+            centroids = rpCentroids.data();
+        } else {
+            centroids = gpd.xs(activeIdx);
+        }
         switch (interpolation_order){
             case 1:{map_charge_to_grid_order_1_cu
-                       <<<NBLOCK(nAtoms), PERBLOCK>>>( nAtoms,
-                               gpd.xs(activeIdx),                                                      
+                       <<<NBLOCK(nRingPoly), PERBLOCK>>>( nRingPoly, nPerRingPoly, 
+                               centroids,                                                      
                                gpd.qs(activeIdx),
                                state->boundsGPU,
                                sz,
@@ -930,8 +1010,8 @@ void FixChargeEwald::compute(bool computeVirials) {
                                Qconversion);
                        break;}
             case 3:{map_charge_to_grid_order_3_cu
-                       <<<NBLOCK(nAtoms), PERBLOCK>>>( nAtoms,
-                               gpd.xs(activeIdx),                                                      
+                       <<<NBLOCK(nRingPoly), PERBLOCK>>>(nRingPoly, nPerRingPoly,
+                               centroids,
                                gpd.qs(activeIdx),
                                state->boundsGPU,
                                sz,
@@ -1025,10 +1105,12 @@ void FixChargeEwald::compute(bool computeVirials) {
 
         //calc forces
         //printf("Forces!\n");
+        // Performing an "effective" ring polymer contraction means that we should evaluate the forces
+        // for the centroids
         bool storeForces = longRangeInterval != 1;
         switch (interpolation_order){
-            case 1:{Ewald_long_range_forces_order_1_cu<<<NBLOCK(nAtoms), PERBLOCK>>>( nAtoms,
-                           gpd.xs(activeIdx),                                                      
+            case 1:{Ewald_long_range_forces_order_1_cu<<<NBLOCK(nRingPoly), PERBLOCK>>>( nRingPoly, nPerRingPoly,
+                           centroids,                                                      
                            gpd.fs(activeIdx),
                            gpd.qs(activeIdx),
                            state->boundsGPU,
@@ -1037,8 +1119,8 @@ void FixChargeEwald::compute(bool computeVirials) {
                            storeForces, gpd.ids(activeIdx), storedForces.data()
                            );
                        break;}
-            case 3:{Ewald_long_range_forces_order_3_cu<<<NBLOCK(nAtoms), PERBLOCK>>>( nAtoms,
-                           gpd.xs(activeIdx),                                                      
+            case 3:{Ewald_long_range_forces_order_3_cu<<<NBLOCK(nRingPoly), PERBLOCK>>>( nRingPoly, nPerRingPoly,
+                           centroids,                                                      
                            gpd.fs(activeIdx),
                            gpd.qs(activeIdx),
                            state->boundsGPU,
@@ -1056,7 +1138,7 @@ void FixChargeEwald::compute(bool computeVirials) {
     }
     CUT_CHECK_ERROR("Ewald_long_range_forces_cu  execution failed");
     //SHORT RANGE
-    if (computeVirials) {
+    if (virialMode) {
         int warpSize = state->devManager.prop.warpSize;
         BoundsGPU &b=state->boundsGPU;
         float volume=b.volume();          
@@ -1070,11 +1152,11 @@ void FixChargeEwald::compute(bool computeVirials) {
     }
 
     float *neighborCoefs = state->specialNeighborCoefs;
-    evalWrap->compute(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx),
+    evalWrap->compute(nAtoms,nPerRingPoly,gpd.xs(activeIdx), gpd.fs(activeIdx),
                   neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(),
                   state->devManager.prop.warpSize, nullptr, 0, state->boundsGPU, //PASSING NULLPTR TO GPU MAY CAUSE ISSUES
     //ALTERNATIVELy, COULD JUST GIVE THE PARMS SOME OTHER RANDOM POINTER, AS LONG AS IT'S VALID
-                  neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.virials.d_data.data(), gpd.qs(activeIdx), r_cut, computeVirials);
+                  neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.virials.d_data.data(), gpd.qs(activeIdx), r_cut, virialMode);
 
 
     CUT_CHECK_ERROR("Ewald_short_range_forces_cu  execution failed");
@@ -1090,6 +1172,8 @@ void FixChargeEwald::singlePointEng(float * perParticleEng) {
     }
 //     cout<<"FixChargeEwald::compute..\n";
     int nAtoms = state->atoms.size();
+    int nPerRingPoly = state->nPerRingPoly;
+    int nRingPoly    = nAtoms / nPerRingPoly;
     GPUData &gpd = state->gpd;
     GridGPU &grid = state->gridGPU;
     int activeIdx = gpd.activeIdx();
@@ -1107,19 +1191,33 @@ void FixChargeEwald::singlePointEng(float * perParticleEng) {
     dim3 dimGrid((sz.x + dimBlock.x - 1) / dimBlock.x,(sz.y + dimBlock.y - 1) / dimBlock.y,(sz.z + dimBlock.z - 1) / dimBlock.z);    
     map_charge_set_to_zero_cu<<<dimGrid, dimBlock>>>(sz,FFT_Qs);
     CUT_CHECK_ERROR("map_charge_set_to_zero_cu kernel execution failed");
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    // Compute centroids of all ring polymers for use on grid
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    float4 *centroids;
+    BoundsGPU bounds         = state->boundsGPU;
+    BoundsGPU boundsUnskewed = bounds.unskewed();
+    if (nPerRingPoly >1) {
+        rpCentroids = GPUArrayDeviceGlobal<float4>(nRingPoly);
+        computeCentroid<<<NBLOCK(nRingPoly),PERBLOCK>>>(rpCentroids.data(),gpd.xs(activeIdx),nAtoms,nPerRingPoly,boundsUnskewed);
+        centroids = rpCentroids.data();
+        periodicWrapCpy<<<NBLOCK(nRingPoly), PERBLOCK>>>(centroids, nRingPoly, boundsUnskewed);
+    } else {
+        centroids = gpd.xs(activeIdx);
+    }
 
       switch (interpolation_order){
       case 1:{map_charge_to_grid_order_1_cu
-              <<<NBLOCK(nAtoms), PERBLOCK>>>( nAtoms,
-                                              gpd.xs(activeIdx),                                                      
+              <<<NBLOCK(nRingPoly), PERBLOCK>>>(nRingPoly, nPerRingPoly,
+                                              centroids,
                                               gpd.qs(activeIdx),
                                               state->boundsGPU,
                                               sz,
                                               (float *)FFT_Qs,Qconversion);
               break;}
       case 3:{map_charge_to_grid_order_3_cu
-              <<<NBLOCK(nAtoms), PERBLOCK>>>( nAtoms,
-                                              gpd.xs(activeIdx),                                                      
+              <<<NBLOCK(nRingPoly), PERBLOCK>>>(nRingPoly, nPerRingPoly, 
+                                              centroids,
                                               gpd.qs(activeIdx),
                                               state->boundsGPU,
                                               sz,
@@ -1161,16 +1259,17 @@ void FixChargeEwald::singlePointEng(float * perParticleEng) {
                                             */
     field_E.dataToHost();
 
-    field_energy_per_particle=0.5*field_E.h_data[0]/volume/nAtoms;
+    //field_energy_per_particle=0.5*field_E.h_data[0]/volume/nAtoms;
+    field_energy_per_particle=0.5*field_E.h_data[0]/volume/nRingPoly;
 //         cout<<"field_E "<<field_E.h_data[0]<<'\n';
 
-    field_energy_per_particle-=alpha/sqrt(M_PI)*total_Q2/nAtoms;
+    field_energy_per_particle-=alpha/sqrt(M_PI)*total_Q2/nRingPoly;
 //      cout<<"self correction "<<alpha/sqrt(M_PI)*total_Q2<<'\n';
 
 //pair energies
     mapEngToParticles<<<NBLOCK(nAtoms), PERBLOCK>>>(nAtoms, field_energy_per_particle, perParticleEng);
     float *neighborCoefs = state->specialNeighborCoefs;
-    evalWrap->energy(nAtoms, gpd.xs(activeIdx), perParticleEng, neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, nullptr, 0, state->boundsGPU, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.qs(activeIdx), r_cut);
+    evalWrap->energy(nAtoms,nPerRingPoly, gpd.xs(activeIdx), perParticleEng, neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, nullptr, 0, state->boundsGPU, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.qs(activeIdx), r_cut);
 
 
     CUT_CHECK_ERROR("Ewald_short_range_forces_cu  execution failed");
@@ -1202,13 +1301,13 @@ void export_FixChargeEwald() {
               py::args("state", "handle", "groupHandle"))
         )
         .def("setParameters", setParameters_xyz,
-                (py::arg("szx"),py::arg("szy"),py::arg("szz"), py::arg("r_cut"),py::arg("interpolation_order"))
+                (py::arg("szx"),py::arg("szy"),py::arg("szz"), py::arg("r_cut")=-1,py::arg("interpolation_order")=3)
           
             )
         .def("setParameters", setParameters_xxx,
-                (py::arg("sz"),py::arg("r_cut"),py::arg("interpolation_order"))
+                (py::arg("sz"),py::arg("r_cut")=-1,py::arg("interpolation_order")=3)
             )        
-        .def("setError", &FixChargeEwald::setError, (py::arg("error"), py::arg("rCut"), py::arg("interpolation_order"))
+        .def("setError", &FixChargeEwald::setError, (py::arg("error"), py::arg("rCut")=-1, py::arg("interpolation_order")=3)
             )
         .def("setLongRangeInterval", &FixChargeEwald::setLongRangeInterval, (py::arg("interval")=0))
         ;

@@ -24,6 +24,8 @@ void export_Vector() {
         .def("dist", &Vector::dist<double>)
         .def("len", &Vector::len)
         .def("lenSqr", &Vector::lenSqr)
+        .def("dot", &Vector::dot<double>)
+        .def("normalized", &Vector::normalized)
         .def(self + self)
         .def(self - self)
         .def(self * self)

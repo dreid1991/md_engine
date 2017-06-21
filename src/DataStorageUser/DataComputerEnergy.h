@@ -17,9 +17,12 @@ namespace MD_ENGINE {
             void computeVector_CPU();
             void computeTensor_CPU(){};
 
-            DataComputerEnergy(State *, boost::python::list, std::string computeMode_);
+            DataComputerEnergy(State *, boost::python::list, std::string computeMode_, std::string groupHandleB_);
             void prepareForRun();
             double engScalar;
+            std::string groupHandleB; //second group if we're doing group-group interactions
+            uint32_t groupTagB;
+            bool otherIsAll;
             std::vector<double> engVector;
             //so these are just length 2 arrays.  First value is used for the result of the sum.  Second value is bit-cast to an int and used to cound how many values are present.
 

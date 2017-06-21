@@ -19,6 +19,7 @@ src/src/CMakeFiles
 *~
 # Documentation:
 doc/html/
+doc/documentation/
 doc/latex/
 # Build directory:
 build/
@@ -32,3 +33,5 @@ examples/readLammpsInput/chlorobenzene
 examples/readLammpsInput/chlorobenzene_small
 CMakeLists.txt
 python/setup.py
+examples/ExternalHarmonic
+examples/ExternalQuartic

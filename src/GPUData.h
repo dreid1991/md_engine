@@ -38,6 +38,9 @@ public:
     std::map<int, GPUArrayGlobal<uint>> movedIdsBuffers;
     std::map<int, GPUArrayGlobal<int>> movedIdxBuffers;
 
+    /* duplicates of PIMD variables used by GridGPU */
+    // nPerRingPoly; immediately after instantiation of GPUData, set this to the value for this gpd instance
+    int nPerRingPoly = 1;
 
     std::vector<int> idToIdxsOnCopy;
 

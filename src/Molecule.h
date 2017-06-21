@@ -18,7 +18,8 @@ public:
     std::vector<int> getAtoms();
     int id; // id of thsi molecule; useful for neighborlisting by molecule
     void translate(Vector &);
-    void rotate(Vector &around, Vector &axis, double theta);
+    void rotate(Vector axis, double theta);
+    void rotateRandom();
     Vector COM();
     bool operator==(const Molecule &other) {
         return ids == other.ids;

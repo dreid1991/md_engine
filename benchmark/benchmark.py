@@ -1,7 +1,7 @@
 import sys
 sys.path = sys.path + ['../build/python/build/lib.linux-x86_64-2.7']
-#from Sim import *
-from Sim import *
+#from DASH import *
+from DASH import *
 state = State()
 state.deviceManager.setDevice(0)
 state.bounds = Bounds(state, lo = Vector(0, 0, 0), hi = Vector(55.12934875488, 55.12934875488, 55.12934875488))
@@ -26,7 +26,7 @@ for i in range(len(f)):
 InitializeAtoms.initTemp(state, 'all', 1.2)
 
 #fixNVT = FixLangevin(state, 'temp', 'all', 1.2)
-fixNVT = FixNoseHoover(state, 'temp', 'all', 1.2, 0.1)
+fixNVT = FixNoseHoover(state, 'temp', 'all', 1.2, 0.5)
 #fixNVT = FixNVTRescale(state, 'temp', 'all', 1.2)
 
 state.activateFix(fixNVT)
@@ -38,16 +38,18 @@ integVerlet = IntegratorVerlet(state)
 #engData = state.dataManager.recordEnergy('all', 100)
 #boundsData = state.dataManager.recordBounds(100)
 
-#pressure = FixPressureBerendsen(state, "constP", 0.2, 5, 1);
-#state.activateFix(pressure);
+pressure = FixPressureBerendsen(state, "constP", .2, 10, 1);
+state.activateFix(pressure);
+#deform = FixDeform(state, 'def', 'all', 1, Vector(1, 0, 0))
+#state.activateFix(deform)
 
-writeconfig = WriteConfig(state, fn='test_out', writeEvery=100, format='xyz', handle='writer')
+writeconfig = WriteConfig(state, fn='test_out', writeEvery=1000, format='xyz', handle='writer')
 state.activateWriteConfig(writeconfig)
 integVerlet.run(10000)
 sumV = 0.
 for a in state.atoms:
     sumV += a.vel.lenSqr()
-#print state.bounds.volume()
+print state.bounds.volume()
 #print pressureData.vals
 #print engData.vals
 #print sumV / len(state.atoms)/3.0

@@ -25,7 +25,7 @@ class LAMMPS_Reader:
         self.LMPTypeToSimTypeDihedral = {}
         self.LMPTypeToSimTypeImproper = {}
 
-    def read(self, dataFn='', inputFns=[]):
+    def read(self, dataFn='', inputFns=[], isMolecular=True):
         if dataFn != '':
             assert(os.path.isfile(dataFn))
         for fn in inputFns:
@@ -222,12 +222,21 @@ class LAMMPS_Reader:
 
         rawInput = self.scanFilesForOccurance(re.compile('pair_coeff[\s\d\-\.]+'), self.inFileLines, num=-1)
         for line in rawInput:
-            handleIdxA = int(line[1]) - 1
-            handleIdxB = int(line[2]) - 1
+            curIdx=1
+            handleIdxA = int(line[curIdx]) - 1
+            curIdx += 1
+            if int(eval(line[curIdx]))==float(line[curIdx]): #proxy for testing if we're specifying two types or not
+                handleIdxB = int(line[curIdx]) - 1
+                curIdx += 1
+            else:
+                handleIdxB = handleIdxA
+
             handleA = self.myAtomHandles[handleIdxA]
             handleB = self.myAtomHandles[handleIdxB]
-            eps = float(line[3])
-            sig = float(line[4])
+            eps = float(line[curIdx])
+            curIdx += 1
+            sig = float(line[curIdx])
+            curIdx += 1
             self.nonbondFix.setParameter('sig', handleA=handleA, handleB=handleB, val=sig)
             self.nonbondFix.setParameter('eps', handleA=handleA, handleB=handleB, val=eps)
 
@@ -488,7 +497,10 @@ def dihedralOPLS_input(reader, args):
         print 'Ignoring LAMMPS dihedral type %d from input script.  Dihedral not used in data file' % LMPType
         return False
     type = reader.LMPTypeToSimTypeDihedral[LMPType]
-    coefs = [float(x) for x in args[2:6]]
+    try:
+        coefs = [float(x) for x in args[2:6]]
+    except:
+        coefs = [float(x) for x in args[3:7]]
     return [type, coefs]
 
 

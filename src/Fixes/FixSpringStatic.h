@@ -2,10 +2,14 @@
 #ifndef FIXSPRINGSTATIC_H
 #define FIXSPRINGSTATIC_H
 
+#undef _XOPEN_SOURCE
+#undef _POSIX_C_SOURCE
 #include "Python.h"
 
 #include "Fix.h"
 #include "GPUArrayGlobal.h"
+#undef _XOPEN_SOURCE
+#undef _POSIX_C_SOURCE
 #include <boost/python.hpp>
 
 /*
@@ -38,7 +42,7 @@ public:
     boost::python::object tetherFunc;
     Vector multiplier;
 
-    void compute(bool);
+    void compute(int);
     void updateTethers();
     bool dataToDevice();
     bool prepareForRun();

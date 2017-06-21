@@ -2,10 +2,16 @@
 #ifndef FIXRIGID_H
 #define FIXRIGID_H
 
+#undef _XOPEN_SOURCE
+#undef _POSIX_C_SOURCE
 #include "Python.h"
 #include "Fix.h"
 #include "FixBond.h"
+#undef _XOPEN_SOURCE
+#undef _POSIX_C_SOURCE
 #include <boost/python.hpp>
+#undef _XOPEN_SOURCE
+#undef _POSIX_C_SOURCE
 #include <boost/python/list.hpp>
 #include "GPUArrayDeviceGlobal.h"
 

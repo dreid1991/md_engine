@@ -8,6 +8,8 @@
 #include "Atom.h"
 #include <array>
 
+
+
 /*! \brief Bond connecting atoms
  *
  * \link Atom Atoms\endlink can be connected by Bonds. Bonds are defined by a
@@ -139,5 +141,14 @@ typedef boost::variant<
 	Bond
 > BondVariant;
 
-
+// allows us to extract any type of Bond from a BondVariant
+class bondDowncast : public boost::static_visitor<const Bond &> {
+    const BondVariant &_bv;
+    public:
+        bondDowncast(BondVariant &bv) : _bv(bv) {}
+        template <typename T>
+        const Bond &operator()(const T &b) const {
+            return boost::get<T>(_bv);
+        }
+};
 #endif

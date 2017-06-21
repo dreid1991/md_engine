@@ -1,4 +1,6 @@
 #include "Angle.h"
+#undef _XOPEN_SOURCE
+#undef _POSIX_C_SOURCE
 #include <boost/python.hpp>
 
 void Angle::takeIds(Angle *other) {

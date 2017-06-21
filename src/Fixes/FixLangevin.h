@@ -3,6 +3,8 @@
 #ifndef FIXLANGEVIN_H
 #define FIXLANGEVIN_H
 
+#undef _XOPEN_SOURCE
+#undef _POSIX_C_SOURCE
 #include <boost/python.hpp>
 #include <boost/shared_ptr.hpp>
 
@@ -30,7 +32,7 @@ public:
     FixLangevin(boost::shared_ptr<State> state_, std::string handle_, std::string groupHandle_, boost::python::list, boost::python::list);
     FixLangevin(boost::shared_ptr<State> state_, std::string handle_, std::string groupHandle_, boost::python::object);
     bool prepareForRun();
-    void compute(bool);
+    void compute(int);
     bool postRun();
     void setParams(double seed, double gamma);
 };

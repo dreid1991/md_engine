@@ -3,7 +3,11 @@
 #define FIXLINEARMOMENTUM_H
 
 #include "Fix.h"
+#undef _XOPEN_SOURCE
+#undef _POSIX_C_SOURCE
 #include <boost/python.hpp>
+#undef _XOPEN_SOURCE
+#undef _POSIX_C_SOURCE
 #include <boost/python/list.hpp>
 #include "GPUArrayDeviceGlobal.h"
 void export_FixLinearMomentum();
@@ -14,7 +18,7 @@ private:
     Vector dimensions;
 
     bool prepareForRun();
-    void compute(bool);
+    void compute(int);
 
 public:
     FixLinearMomentum(boost::shared_ptr<State>, std::string handle_, std::string groupHandle_,

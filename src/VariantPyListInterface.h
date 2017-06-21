@@ -5,6 +5,8 @@
 #include <vector>
 
 #include <boost/shared_ptr.hpp>
+#undef _XOPEN_SOURCE
+#undef _POSIX_C_SOURCE
 #include <boost/python.hpp>
 #include <boost/variant.hpp>
 
@@ -37,8 +39,8 @@ public:
       : CPUMembers(CPUMembers_), pyList(pyList_), CPUData(CPUMembers->data())
     {   }
 
-    void requestRefreshPyList() {
-        if (CPUMembers->data() != CPUData) {
+    void requestRefreshPyList(bool force=false) {
+        if (CPUMembers->data() != CPUData || force) {
             refreshPyList();
             CPUData = CPUMembers->data();
         }

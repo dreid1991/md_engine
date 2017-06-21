@@ -3,7 +3,7 @@ sys.path = sys.path + ['../build/python/build/lib.linux-x86_64-2.7', '../build/'
 sys.path.append('../util_py')
 import matplotlib.pyplot as plt
 from LAMMPS_Reader import LAMMPS_Reader
-from Sim import *
+from DASH import *
 from math import *
 state = State()
 state.deviceManager.setDevice(0)

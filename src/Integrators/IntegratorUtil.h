@@ -18,7 +18,7 @@ public:
      * its force (and virials) is computed.
      *
      */
-    void force(bool computeVirials);
+    void force(int virialMode);
     void postNVE_V();
     void postNVE_X();
 
@@ -37,8 +37,10 @@ public:
      *
      *
      */
-    void forceSingle(bool computeVirials);
+    void forceSingle(int virialMode);
     void handleBoundsChange();
+
+    void checkQuit();
 };
 
 #endif

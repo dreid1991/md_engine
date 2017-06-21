@@ -3,6 +3,7 @@
 namespace py = boost::python;
 
 #include "State.h"
+#include "../Eigen/Dense"
 
 Molecule::Molecule(State *state_, std::vector<int> &ids_) {
     state = state_;
@@ -15,8 +16,29 @@ void Molecule::translate(Vector &v) {
         a.pos += v;
     }
 }
-void Molecule::rotate(Vector &around, Vector &axis, double theta) {
-    //also this 
+void Molecule::rotate(Vector axis, double theta) {
+    Eigen::Vector3d axisEig = {axis[0], axis[1], axis[2]};
+    Eigen::AngleAxisd ax(theta, axisEig);
+    Eigen::Matrix3d rot;
+    rot = ax;
+    Vector com = COM();
+    Eigen::Vector3d comEig= {com[0], com[1], com[2]};
+    for (int id : ids) {
+        Atom &a = state->idToAtom(id);
+        Eigen::Vector3d posEig = {a.pos[0], a.pos[1], a.pos[2]};
+        Eigen::Vector3d relEig = posEig-comEig;
+        relEig = rot * relEig;
+        a.pos = Vector(relEig[0], relEig[1], relEig[2]) + com;
+    }
+}
+
+void Molecule::rotateRandom() {
+    std::uniform_real_distribution<double> dist(0, 1);
+    std::mt19937 &generator = state->getRNG();
+    double z = dist(generator)*2-1;
+    double theta = 2*M_PI*dist(generator);
+    rotate(Vector(sqrt(1-z*z)*cos(theta), sqrt(1-z*z)*sin(theta), z), dist(generator)*2*M_PI);
+
 }
 
 std::vector<int> Molecule::getAtoms() {
@@ -88,6 +110,8 @@ void export_Molecule() {
     py::class_<Molecule> ("Molecule", py::no_init)
     .def_readonly("ids", &Molecule::ids)
     .def("translate", &Molecule::translate)
+    .def("rotate", &Molecule::rotate, (py::arg("axis"), py::arg("theta")) )
+    .def("rotateRandom", &Molecule::rotateRandom)
     .def("COM", &Molecule::COM)
     .def("dist", &Molecule::dist)
     .def("size", &Molecule::size)

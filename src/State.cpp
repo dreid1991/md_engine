@@ -22,10 +22,12 @@
 
 #include "State.h"
 
+using std::cout;
+using std::endl;
 using namespace MD_ENGINE;
 
 namespace py = boost::python;
-State::State() {
+State::State() : units(&dt) {
     groupTags["all"] = (unsigned int) 1;
     is2d = false;
     rCut = RCUT_INIT;
@@ -34,7 +36,6 @@ State::State() {
     maxIdExisting = -1;
     maxExclusions = 0;
     dangerousRebuilds = 0;
-    dt = .005;
     periodicInterval = 50;
     shoutEvery = 5000;
     for (int i=0; i<3; i++) {
@@ -54,7 +55,7 @@ State::State() {
     specialNeighborCoefs[1] = 0;
     specialNeighborCoefs[2] = 0.5;
     rng_is_seeded = false;
-    units.setLJ();//default units are lj
+    nPerRingPoly  = 1;
     exclusionMode = EXCLUSIONMODE::DISTANCE;
 
 
@@ -62,7 +63,10 @@ State::State() {
 
 
 uint State::groupTagFromHandle(std::string handle) {
-    assert(groupTags.find(handle) != groupTags.end());
+    if (groupTags.find(handle) == groupTags.end()) {
+        std::cout << "Count not find group " << handle << ".  Quitting. " << std::endl;
+        assert(groupTags.find(handle) != groupTags.end());
+    }
     return groupTags[handle];
 }
 
@@ -265,7 +269,7 @@ py::object State::duplicateMolecule(Molecule &molec, int n) {
 
 }
 
-void unwrapMolec(State *state, int id, std::vector<int> &molecIds, std::unordered_map<int, std::vector<int> > bondMap) {
+void unwrapMolec(State *state, int id, std::vector<int> &molecIds, std::unordered_map<int, std::vector<int> > &bondMap) {
     Vector myPos = state->idToAtom(id).pos;
     if (bondMap.find(id) != bondMap.end()) {
         std::vector<int> &myConnections = bondMap[id];
@@ -300,13 +304,18 @@ void State::unwrapMolecules() {
         allMolecIds.insert(allMolecIds.end(), molec->ids.begin(), molec->ids.end());
         molecs.push_back(molec);
     }
+    if (molecs.size() == 0) {
+        return;
+    }
     std::unordered_map<int, std::vector<int> > bondMap;
+    //we do unwrapping based on topology so that it unwraps property even if it spans more than half the simulation box
+    //This may be slow, but writes are async
 
     for (Fix *f : fixes) {
         std::vector<BondVariant> *fixBonds = f->getBonds();
         if (fixBonds != nullptr) {
             for (BondVariant &bv : *fixBonds) {
-                Bond b = boost::get<Bond>(bv);
+                const Bond &b = boost::apply_visitor(bondDowncast(bv), bv);
                 if (find(allMolecIds.begin(), allMolecIds.end(), b.ids[0]) != allMolecIds.end() and find(allMolecIds.begin(), allMolecIds.end(), b.ids[1]) != allMolecIds.end()) {
                     bondMap[b.ids[0]].push_back(b.ids[1]);
                     bondMap[b.ids[1]].push_back(b.ids[0]);
@@ -468,6 +477,10 @@ void State::initializeGrid() {
     double gridDim = maxRCut + padding;
 
     GPUData *gpuData = &gpd;
+
+    // copy value of nPerRingPoly to make it local to gpd instance
+    gpd->nPerRingPoly = nPerRingPoly;
+
     gridGPU = GridGPU(this, gridDim, gridDim, gridDim, gridDim, exclusionMode,padding, gpuData);
 
 }
@@ -683,15 +696,15 @@ bool State::deleteGroup(std::string handle) {
     return true;
 }
 
-bool State::createGroup(std::string handle, py::list forGrp) {
+bool State::createGroup(std::string handle, py::list ids) {
     uint32_t res = addGroupTag(handle);
     if (!res) {
         std::cout << "Tried to create group " << handle
                   << " << that already exists" << std::endl;
         return false;
     }
-    if (py::len(forGrp)) {
-        addToGroupPy(handle, forGrp);
+    if (py::len(ids)) {
+        addToGroupPy(handle, ids);
     }
     return true;
 }
@@ -798,6 +811,111 @@ Vector generateVector(State &s, py::list valsPy) {
 }
 
 
+bool State::preparePIMD(double temp) {
+    if (nPerRingPoly > 1) {
+        int nAtoms = atoms.size();          // this is current number of atoms in system
+        int nTot   = nAtoms * nPerRingPoly; // this is the total number of beads for PIMD
+        std::vector<Atom> RPatoms;          // new vector of atoms to replace current atoms
+        RPatoms.reserve(nTot);              
+        boost::python::list RPmolecules;    // new list of molecules to replace current list
+
+        float betaP     = 1.0f / units.boltz / temp;        // Here simulation is run at betaP by default
+        float omegaP    = (float) units.boltz * temp / units.hbar  ;
+        float invP            = 1.0 / (float) nPerRingPoly;
+        float twoPiInvP       = 2.0f * M_PI * invP;
+
+        //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        // UPDATE ATOMS
+        //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        for (int i=0; i < nAtoms; i++) {
+            Atom   ai  = atoms[i];
+            int baseId = ai.id;
+            baseId    *= nPerRingPoly;      // stride the existing id's by nPerRingPoly
+
+            // prepare for position initialization
+            // here we are sampling a set of normal-mode coordinates
+            // from the free ring-polymer solution
+            // those coordinates will then be used in a back transformation to obtain
+            // a new set of coordinates with centroid at the initial position of the atoms
+            std::vector<Vector> xsNM;       // vector for containing normal-mode coordinates
+            xsNM.reserve(nPerRingPoly);
+            xsNM.push_back(ai.pos* sqrtf( (float) nPerRingPoly));
+            for (int k = 1; k < nPerRingPoly; k++) {
+                float omegak = 2.0f * omegaP * sinf( k * twoPiInvP * 0.5);
+                float sigmak = sqrtf((float) 1.0  / betaP / ai.mass / units.mvv_to_eng) / omegak; // sigma = sqrt(1/ beta_P * m *omegak^2)
+                std::normal_distribution<float> distNM(0.0,sigmak);
+                float xk, yk, zk;
+                xk = distNM(randomNumberGenerator);
+                yk = distNM(randomNumberGenerator);
+                zk = distNM(randomNumberGenerator);
+                xsNM.push_back(Vector(xk,yk,zk));
+            }
+
+            // prepare for velocity initialization
+            std::normal_distribution<float> distVel(0.0,sqrtf( (float) 1.0 / betaP / ai.mass / units.mvv_to_eng));
+
+            // fill in atom copies
+            for (int k=0; k < nPerRingPoly; k++) {
+                int RPid = baseId + k;          // get new ID based on position in ring polymer
+                Atom aik = ai;                  // atom copy
+                aik.id = RPid;                  // update id
+                aik.setBeadPos(k+1,nPerRingPoly,xsNM);  // adjust position
+                // resample velocity
+                Vector vk;
+                vk[0] = distVel(randomNumberGenerator); // vx
+                vk[1] = distVel(randomNumberGenerator); // vy
+                vk[2] = distVel(randomNumberGenerator); // vz
+                aik.setVel(vk);                // adjust velocity
+                RPatoms.push_back(aik);        // add atom to list
+            }
+
+        }
+        // replace atoms with the new RPatoms list
+        deleteAtoms();
+        for (Atom &a : RPatoms) {
+            addAtomDirect(a);
+        }
+
+        //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        // UPDATE MOLECULES
+        //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        int nMol = py::len(molecules);
+        py::list molecsRP;
+        // go over each molecule
+        for (int i=0; i<nMol; i++) {
+            py::extract<Molecule *> molecEx(molecules[i]);
+            Molecule *moli = molecEx;
+            std::vector<int> moliIds;   // vector for containing ids defining molecule
+            // extract the ids for the molecule
+            for (int id : moli->ids) {
+                moliIds.push_back(id);
+            }
+            // iterate over beads/time slices and systematically increase IDs by timeslice
+            int nAtmPerMol = moliIds.size();
+            for (int k = 0; k < nPerRingPoly; k++) {
+                std::vector<int> molikIds = moliIds;        // new ids for the molecule at kth timeslice
+                for (int l = 0; l < nAtmPerMol; l++) {
+                    molikIds[l] = moliIds[l]*nPerRingPoly +k;   // stride by nPerRingPoly and increase to time slice
+                }
+                molecsRP.append(Molecule(this,molikIds));       // add molecule
+            }
+        }
+        // replace the list of molecules with the new list of molecsRP
+        molecules = molecsRP;
+
+        //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        // UPDATE FIXES
+        //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        for (Fix *fix : fixes) {
+            fix->updateForPIMD(nPerRingPoly);
+        }
+
+        return true;
+    }
+    else {
+        return false;
+    }
+}
 
 BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(State_seedRNG_overloads,State::seedRNG,0,1)
 
@@ -840,10 +958,12 @@ BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(State_seedRNG_overloads,State::seedRNG,0,
                 .def("zeroVelocities", &State::zeroVelocities)
                 .def("destroy", &State::destroy)
                 .def("seedRNG", &State::seedRNG, State_seedRNG_overloads())
+                .def("preparePIMD", &State::preparePIMD)
                 .def_readwrite("is2d", &State::is2d)
                 .def_readwrite("turn", &State::turn)
                 .def_readwrite("periodicInterval", &State::periodicInterval)
                 .def_readwrite("rCut", &State::rCut)
+                .def_readwrite("nPerRingPoly", &State::nPerRingPoly)
                 .def_readwrite("dt", &State::dt)
                 .def_readwrite("padding", &State::padding)
                 .def_readonly("groupTags", &State::groupTags)

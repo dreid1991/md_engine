@@ -6,17 +6,24 @@
 #include "DataComputer.h"
 #include "Fix.h"
 #include <vector>
+#include "Mod.h"
 using namespace MD_ENGINE;
 IntegratorUtil::IntegratorUtil(State *state_) {
     state = state_;
 }
 
-void IntegratorUtil::force(bool computeVirials) {
+void IntegratorUtil::force(int virialMode) {
     int simTurn = state->turn;
     std::vector<Fix *> &fixes = state->fixes;
+    //okay - things with order pref == -1 are pair forces.  They for first.  Afterwards, we compute f dot r if necessary, then do the rest
+  //  bool computedFDotR = false;
     for (Fix *f : fixes) {
         if (! (simTurn % f->applyEvery)) {
-            f->compute(computeVirials);
+           // if (virialMode == 1 and f->orderPreference >= 0 and not computedFDotR) {
+           //     Mod::FDotR(state);
+           //     computedFDotR = true;
+           // }
+            f->compute(virialMode);
             f->setVirialTurn();
         }
     }
@@ -53,10 +60,10 @@ void IntegratorUtil::singlePointEng() {
 }
 */
 
-void IntegratorUtil::forceSingle(bool computeVirials) {
+void IntegratorUtil::forceSingle(int virialMode) {
     for (Fix *f : state->fixes) {
         if (f->forceSingle and f->willFire(state->turn)) {
-            f->compute(computeVirials);
+            f->compute(virialMode);
             f->setVirialTurn();
         }
     }
@@ -95,7 +102,7 @@ void IntegratorUtil::doDataAppending() {
             ds->appendData();
             int64_t nextTurn = ds->setNextTurn(turn);
             if (ds->requiresVirials()) {
-                dm.addVirialTurn(nextTurn);
+                dm.addVirialTurn(nextTurn, ds->requiresPerAtomVirials());
             }
 
         }
@@ -105,6 +112,12 @@ void IntegratorUtil::doDataAppending() {
 void IntegratorUtil::handleBoundsChange() {
     for (Fix *f : state->fixes) {
         f->handleBoundsChange();
+    }
+}
+
+void IntegratorUtil::checkQuit() {
+    if (PyErr_CheckSignals() == -1) {
+        exit(1);
     }
 }
 

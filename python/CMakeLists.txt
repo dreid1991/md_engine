@@ -2,9 +2,9 @@ find_program (PYTHON_BIN "python")
 if (PYTHON_BIN)
     set (SETUP_PY_IN "${CMAKE_CURRENT_SOURCE_DIR}/setup.py.in")
     set (SETUP_PY "${CMAKE_CURRENT_BINARY_DIR}/setup.py")
-    set (PYTHON_LIB_NAME "Sim.so")
+    set (PYTHON_LIB_NAME "DASH.so")
 
-    get_filename_component (SIM_SOURCES Sim.cpp ABSOLUTE)
+    get_filename_component (SIM_SOURCES DASH.cpp ABSOLUTE)
 
     configure_file (${SETUP_PY_IN} ${SETUP_PY})
 

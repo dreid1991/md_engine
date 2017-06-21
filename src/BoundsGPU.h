@@ -97,11 +97,14 @@ public:
     }
 
     //around center
-    __host__ void scale(float scaleBy) {
-        float3 old = rectComponents;
+    __host__ void scale(float3 scaleBy) {
+        float3 center = lo + rectComponents * 0.5;
         rectComponents *= scaleBy;
-        float3 diff = rectComponents - old;
-        lo -= diff / 2.0f;
+        float3 diff = center-lo;
+        diff *= scaleBy;
+        lo = center - diff;
+
+
         invRectComponents = 1 / rectComponents;
 
     }

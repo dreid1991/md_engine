@@ -124,6 +124,9 @@ void Bounds::setLoPy(Vector &v) {
 Vector Bounds::getLoPy() {
     return lo;
 }
+Vector Bounds::getRectComponentsPy() {
+    return rectComponents;
+}
 
 void export_Bounds() {
     boost::python::class_<Bounds, SHARED(Bounds)>(
@@ -140,5 +143,6 @@ void export_Bounds() {
     .def("volume", &Bounds::volume)
     .add_property("lo", &Bounds::getLoPy, &Bounds::setLoPy)
     .add_property("hi", &Bounds::getHiPy, &Bounds::setHiPy)
+    .add_property("rectComponents", &Bounds::getRectComponentsPy)
     ;
 }
