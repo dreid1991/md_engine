@@ -647,50 +647,50 @@ void FixRigid::createRigid(int id_a, int id_b, int id_c, int id_d) {
 }
 
 void FixRigid::createRigid(int id_a, int id_b, int id_c) {
-  int4 waterMol = make_int4(0,0,0,0);
-  Vector a = state->idToAtom(id_a).pos;
-  Vector b = state->idToAtom(id_b).pos;
-  Vector c = state->idToAtom(id_c).pos;
+    int4 waterMol = make_int4(0,0,0,0);
+    Vector a = state->idToAtom(id_a).pos;
+    Vector b = state->idToAtom(id_b).pos;
+    Vector c = state->idToAtom(id_c).pos;
 
-  double ma = state->idToAtom(id_a).mass;
-  double mb = state->idToAtom(id_b).mass;
-  double mc = state->idToAtom(id_c).mass;
-  double ims = 1.0 / (ma + mb + mc);
-  float4 ims4 = make_float4(0.0f, 0.0f, 0.0f, float(ims));
-  invMassSums.push_back(ims4);
+    double ma = state->idToAtom(id_a).mass;
+    double mb = state->idToAtom(id_b).mass;
+    double mc = state->idToAtom(id_c).mass;
+    double ims = 1.0 / (ma + mb + mc);
+    float4 ims4 = make_float4(0.0f, 0.0f, 0.0f, float(ims));
+    invMassSums.push_back(ims4);
 
-  // this discovers the order of the id's that was passed in, i.e. OHH, HOH, HHO, etc.
-  float det = a[0]*b[1]*c[2] - a[0]*c[1]*b[2] - b[0]*a[1]*c[2] + b[0]*c[1]*a[2] + c[0]*a[1]*b[2] - c[0]*b[1]*a[2];
-  if (state->idToAtom(id_a).mass == state->idToAtom(id_b).mass) {
+    // this discovers the order of the id's that was passed in, i.e. OHH, HOH, HHO, etc.
+    float det = a[0]*b[1]*c[2] - a[0]*c[1]*b[2] - b[0]*a[1]*c[2] + b[0]*c[1]*a[2] + c[0]*a[1]*b[2] - c[0]*b[1]*a[2];
+    if (state->idToAtom(id_a).mass == state->idToAtom(id_b).mass) {
     waterMol = make_int4(id_c,id_a,id_b,0);
     if (det < 0) {
       waterMol = make_int4(id_c,id_b,id_a,0);
     }
-  }
-  else if (state->idToAtom(id_b).mass == state->idToAtom(id_c).mass) {
+    }
+    else if (state->idToAtom(id_b).mass == state->idToAtom(id_c).mass) {
     waterMol = make_int4(id_a,id_b,id_c,0);
     if (det < 0) {
       waterMol = make_int4(id_a,id_c,id_b,0);
     }
-  }
-  else if (state->idToAtom(id_c).mass == state->idToAtom(id_a).mass) {
+    }
+    else if (state->idToAtom(id_c).mass == state->idToAtom(id_a).mass) {
     waterMol = make_int4(id_b,id_c,id_a,0);
     if (det < 0) {
       waterMol = make_int4(id_b,id_a,id_c,0);
     }
-  } else {
+    } else {
     assert("waterMol set" == "true");
-  }
-  waterIds.push_back(waterMol);
-  Bond bondOH1;
-  Bond bondOH2;
-  Bond bondHH;
-  bondOH1.ids = { {waterMol.x,waterMol.y} };
-  bondOH2.ids = { {waterMol.x,waterMol.z} };
-  bondHH.ids = { {waterMol.y,waterMol.z} };
-  bonds.push_back(bondOH1);
-  bonds.push_back(bondOH2);
-  bonds.push_back(bondHH);
+    }
+    waterIds.push_back(waterMol);
+    Bond bondOH1;
+    Bond bondOH2;
+    Bond bondHH;
+    bondOH1.ids = { {waterMol.x,waterMol.y} };
+    bondOH2.ids = { {waterMol.x,waterMol.z} };
+    bondHH.ids = { {waterMol.y,waterMol.z} };
+    bonds.push_back(bondOH1);
+    bonds.push_back(bondOH2);
+    bonds.push_back(bondHH);
 }
 
 
@@ -709,23 +709,29 @@ bool FixRigid::prepareForRun() {
     GPUData &gpd = state->gpd;
     int activeIdx = gpd.activeIdx();
     BoundsGPU &bounds = state->boundsGPU;
-    compute_COM<<<NBLOCK(n), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), gpd.vs(activeIdx), gpd.idToIdxs.d_data.data(), n, com.data(), bounds);
-    set_fixed_sides<<<NBLOCK(n), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), com.data(), fix_len.data(), n, gpd.idToIdxs.d_data.data());
+    compute_COM<<<NBLOCK(n), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), gpd.vs(activeIdx), 
+                                         gpd.idToIdxs.d_data.data(), n, com.data(), bounds);
+    set_fixed_sides<<<NBLOCK(n), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), com.data(), 
+                                             fix_len.data(), n, gpd.idToIdxs.d_data.data());
     set_init_vel_correction<<<NBLOCK(n), PERBLOCK>>>(waterIdsGPU.data(), dvs_0.data(), n);
   return true;
 }
 
 bool FixRigid::stepInit() {
-  int nMols = waterIdsGPU.size();
-  GPUData &gpd = state->gpd;
-  int activeIdx = gpd.activeIdx();
-  BoundsGPU &bounds = state->boundsGPU;
-  compute_COM<<<NBLOCK(nMols), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), gpd.vs(activeIdx), gpd.idToIdxs.d_data.data(), nMols, com.data(), bounds);
-  compute_prev_val<<<NBLOCK(nMols), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), xs_0.data(), gpd.vs(activeIdx), vs_0.data(), gpd.fs(activeIdx), fs_0.data(), nMols, gpd.idToIdxs.d_data.data());
-  //float4 cpu_com[nMols*3];
-  //xs_0.get(cpu_com);
-  //std::cout << cpu_com[0] << "\n";
-  return true;
+    int nMols = waterIdsGPU.size();
+    GPUData &gpd = state->gpd;
+    int activeIdx = gpd.activeIdx();
+    BoundsGPU &bounds = state->boundsGPU;
+    compute_COM<<<NBLOCK(nMols), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), 
+                                           gpd.vs(activeIdx), gpd.idToIdxs.d_data.data(), 
+                                           nMols, com.data(), bounds);
+    compute_prev_val<<<NBLOCK(nMols), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), xs_0.data(), 
+                                                gpd.vs(activeIdx), vs_0.data(), gpd.fs(activeIdx), 
+                                                fs_0.data(), nMols, gpd.idToIdxs.d_data.data());
+    //float4 cpu_com[nMols*3];
+    //xs_0.get(cpu_com);
+    //std::cout << cpu_com[0] << "\n";
+    return true;
 }
 
 bool FixRigid::stepFinal() {
@@ -738,31 +744,37 @@ bool FixRigid::stepFinal() {
     //gpd.xs.dataToHost(activeIdx);
     //std::cout << "before settle: " << cpu_xs[0] << "\n";
 
-    
 
-
-
-
-    compute_SETTLE<<<NBLOCK(nMols), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), xs_0.data(), gpd.vs(activeIdx), vs_0.data(), dvs_0.data(), gpd.fs(activeIdx), fs_0.data(), com.data(), fix_len.data(), nMols, dt, gpd.idToIdxs.d_data.data(), bounds);
+    compute_SETTLE<<<NBLOCK(nMols), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), 
+                                                xs_0.data(), gpd.vs(activeIdx), vs_0.data(), 
+                                                dvs_0.data(), gpd.fs(activeIdx), fs_0.data(), 
+                                                com.data(), fix_len.data(), nMols, dt, 
+                                                gpd.idToIdxs.d_data.data(), bounds);
     //xs_0.get(cpu_xs);
     //std::cout << cpu_xs[0] << "\n";
     return true;
 }
 
 // export the overloaded function
-void (FixRigid::*cr1) (int, int int) = &FixRigid::createRigid;
-void (FixRigid::*cr2) (int, int, int, int) = &FixRigid::createRigid;
+void (FixRigid::*createRigid_x1) (int, int, int)       = &FixRigid::createRigid;
+void (FixRigid::*createRigid_x2) (int, int, int, int) = &FixRigid::createRigid;
 
-void export_FixRigid() {
-  py::class_<FixRigid, boost::shared_ptr<FixRigid>, py::bases<Fix> > ( 
-								      "FixRigid",
-								      py::init<boost::shared_ptr<State>, std::string, std::string>
-								      (py::args("state", "handle", "groupHandle")
-								       ))
-    .def("createRigid", cr1,
-	    (py::arg("id_a"), py::arg("id_b"), py::arg("id_c"))
+void export_FixRigid() 
+{
+  py::class_<FixRigid, boost::shared_ptr<FixRigid>, py::bases<Fix> > 
+      ( 
+		"FixRigid",
+		py::init<boost::shared_ptr<State>, std::string, std::string>
+	    (py::args("state", "handle", "groupHandle")
+         )
+        )
+    .def("createRigid", createRigid_x1,
+	    (py::arg("id_a"), 
+         py::arg("id_b"), 
+         py::arg("id_c")
+         )
 	 )
-    .def("createRigid", cr2,
+    .def("createRigid", createRigid_x2,
         (py::arg("id_a"), py::arg("id_b"), py::arg("id_c"), py::arg("id_d"))
      );
     

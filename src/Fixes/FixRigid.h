@@ -41,6 +41,7 @@ class FixRigid : public Fix {
   bool stepFinal();
   bool prepareForRun();
   void createRigid(int, int, int);
+  void createRigid(int, int, int, int);
   //void createRigidTIP4P(int, int, int, int);
 
   std::vector<BondVariant> *getBonds() {

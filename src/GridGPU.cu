@@ -15,8 +15,8 @@
 void GridGPU::initArrays(GPUData *gpd) {
     //this happens in adjust for new bounds
     //perCellArray = GPUArrayGlobal<uint32_t>(prod(ns) + 1);
-    int nRingPoly = gpd->xs.size() / gpd->nPerRingPoly;   // number of ring polymers/atom representations
-    if (gpd->nPerRingPoly > 1) {
+    int nRingPoly = gpd->xs.size() / nPerRingPoly;   // number of ring polymers/atom representations
+    if (nPerRingPoly > 1) {
         rpCentroids = GPUArrayDeviceGlobal<float4>(nRingPoly);
     }
     perAtomArray = GPUArrayGlobal<uint16_t>(nRingPoly + 1);
@@ -72,8 +72,8 @@ GridGPU::GridGPU() {
 
 
 
-GridGPU::GridGPU(State *state_, float dx_, float dy_, float dz_, float neighCutoffMax_, int exclusionMode_, double padding_, GPUData *gpd_)
-  : state(state_), gpd(gpd_) {
+GridGPU::GridGPU(State *state_, float dx_, float dy_, float dz_, float neighCutoffMax_, int exclusionMode_, double padding_, GPUData *gpd_, int nPerRingPoly_)
+  : state(state_), gpd(gpd_), nPerRingPoly(nPerRingPoly_) {
     neighCutoffMax = neighCutoffMax_;
 
     padding = padding_;
@@ -708,7 +708,7 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
     }
 
     int nAtoms       = gpd->xs.size();
-    int nPerRingPoly = gpd->nPerRingPoly;
+    //int nPerRingPoly = gpd->nPerRingPoly;
     int nRingPoly    = nAtoms / nPerRingPoly;
 
     int activeIdx = gpd->activeIdx();
@@ -861,7 +861,6 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
         //setPerBlockCounts(perAtomArray.h_data, perBlockArray.h_data);  // okay, now this is the start index (+1 is end index) of each atom's neighbors
         //perBlockArray.dataToDevice();
 
-        // TODO: good up to here for merging..
         //int totalNumNeighbors = perBlockArray.h_data.back() * PERBLOCK;
         int totalNumNeighbors = cumulSumPerBlock * PERBLOCK;  // total number of possible neighbors
         //std::cout << "TOTAL NUM IS " << totalNumNeighbors << std::endl;
@@ -1065,7 +1064,7 @@ void GridGPU::handleExclusions() {
 
         exclusionIndexes = GPUArrayDeviceGlobal<int>(1);
         exclusionIds = GPUArrayDeviceGlobal<uint>(1);
-        
+        printf("made it to instantiation of the GridGPU with GPUData, line 1068ish");
                 //exclusionIndexes.data(), exclusionIds.data(), maxExclusionsPerAtom
         // -- this is called as an argument in a kernel call. are kernels permitted to have some dim 0?
         // no exclusions present

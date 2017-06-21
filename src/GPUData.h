@@ -40,7 +40,7 @@ public:
 
     /* duplicates of PIMD variables used by GridGPU */
     // nPerRingPoly; immediately after instantiation of GPUData, set this to the value for this gpd instance
-    int nPerRingPoly = 1;
+    // int nPerRingPoly = 1;
 
     std::vector<int> idToIdxsOnCopy;
 

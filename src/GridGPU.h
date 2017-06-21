@@ -97,7 +97,7 @@ public:
      * resolution will be the next larger value such that the box size is
      * a multiple of the resolution.
      */
-    GridGPU(State *state_, float dx, float dy, float dz, float neighCutoffMax, int exclusionMode_, double padding_, GPUData *gpd);
+    GridGPU(State *state_, float dx, float dy, float dz, float neighCutoffMax, int exclusionMode_, double padding_, GPUData *gpd, int nPerRingPoly=1);
 
     /*! \brief Default constructor
      *
@@ -213,7 +213,8 @@ public:
     void doExclusions(bool);
     bool exclusions;
 
-
+    // input value to Grid
+    int nPerRingPoly;
     /*! \brief Copy atom positions to xsLastBuild
      *
      * Copies data from state->gpd.xs to xsLastBuild.

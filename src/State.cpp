@@ -479,29 +479,30 @@ void State::initializeGrid() {
     GPUData *gpuData = &gpd;
 
     // copy value of nPerRingPoly to make it local to gpd instance
-    gpd->nPerRingPoly = nPerRingPoly;
-
-    gridGPU = GridGPU(this, gridDim, gridDim, gridDim, gridDim, exclusionMode,padding, gpuData);
+    gridGPU = GridGPU(this, gridDim, gridDim, gridDim, gridDim, exclusionMode,padding, gpuData,nPerRingPoly);
 
 }
 
 bool State::prepareForRun() {
     // fixes have already prepared by the time the integrator calls this prepare
+    printf("State::prepareForRun print statement 0\n");
     std::vector<float4> xs_vec, vs_vec, fs_vec;
     std::vector<uint> ids;
     std::vector<float> qs;
-
+    printf("State::prepareForRun print statement 1\n");
     requiresCharges = false;
     std::vector<bool> requireCharges = LISTMAP(Fix *, bool, fix, fixes, fix->requiresCharges);
     if (!requireCharges.empty()) {
         requiresCharges = *std::max_element(requireCharges.begin(), requireCharges.end());
     }
+    printf("State::prepareForRun print statement 2\n");
     requiresPostNVE_V = false;
     std::vector<bool> requirePostNVE_V = LISTMAP(Fix *, bool, fix, fixes, fix->requiresPostNVE_V);
     if (!requirePostNVE_V.empty()) {
         requiresPostNVE_V = *std::max_element(requirePostNVE_V.begin(), requirePostNVE_V.end());
     }
 
+    printf("State::prepareForRun print statement 3\n");
 
     int nAtoms = atoms.size();
 
@@ -510,6 +511,11 @@ bool State::prepareForRun() {
     fs_vec.reserve(nAtoms);
     ids.reserve(nAtoms);
     qs.reserve(nAtoms);
+   
+    printf("nAtoms value: %d\n", nAtoms);
+    printf("added a cudaDeviceSynchronize() call here\n");
+    cudaDeviceSynchronize();
+    printf("State::prepareForRun print statement 3.5\n");
 
     for (const auto &a : atoms) {
         xs_vec.push_back(make_float4(a.pos[0], a.pos[1], a.pos[2],
@@ -526,15 +532,18 @@ bool State::prepareForRun() {
         ids.push_back(a.id);
         qs.push_back(a.q);
     }
+    printf("State::prepareForRun print statement 4\n");
     //just setting host-side vectors
     //transfer happs in integrator->basicPrepare
     gpd.xs.set(xs_vec);
+    printf("State::prepareForRun print statement 4.5\n");
     gpd.vs.set(vs_vec);
     gpd.fs.set(fs_vec);
     gpd.ids.set(ids);
     if (requiresCharges) {
         gpd.qs.set(qs);
     }
+    printf("State::prepareForRun print statement 5\n");
     std::vector<Virial> virials(atoms.size(), Virial(0, 0, 0, 0, 0, 0));
     gpd.virials = GPUArrayGlobal<Virial>(nAtoms);
     gpd.virials.set(virials);
@@ -544,6 +553,7 @@ bool State::prepareForRun() {
     std::vector<int> idToIdxs_vec;
     int size = *std::max_element(id_vec.begin(), id_vec.end()) + 1;
     idToIdxs_vec.reserve(size);
+    printf("State::prepareForRun print statement 6\n");
     for (int i=0; i<size; i++) {
         idToIdxs_vec.push_back(-1);
     }
@@ -551,19 +561,23 @@ bool State::prepareForRun() {
         idToIdxs_vec[id_vec[i]] = i;
     }
 
+    printf("State::prepareForRun print statement 7\n");
     gpd.idToIdxsOnCopy = idToIdxs_vec;
     gpd.idToIdxs.set(idToIdxs_vec);
     bounds.handle2d();
     boundsGPU = bounds.makeGPU();
     float maxRCut = getMaxRCut();
-    initializeGrid();
     //gridGPU = grid.makeGPU(maxRCut);  // uses os, ns, ds, dsOrig from AtomGrid
 
+    printf("State::prepareForRun print statement 8\n");
     gpd.xsBuffer = GPUArrayGlobal<float4>(nAtoms);
     gpd.vsBuffer = GPUArrayGlobal<float4>(nAtoms);
     gpd.fsBuffer = GPUArrayGlobal<float4>(nAtoms);
     gpd.idsBuffer = GPUArrayGlobal<uint>(nAtoms);
 
+    printf("state->prepareForRun, before calling initializeGrid()\n");
+    initializeGrid();
+    printf("state->prepareForRun, after calling initializeGrid()\n");
     return true;
 }
 void State::handleChargeOffloading() {
