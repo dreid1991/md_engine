@@ -23,7 +23,8 @@ Getting started
 .. toctree::
    :maxdepth: 1
 
-    compiling
+   compiling
+   getting-started
 
     
 
