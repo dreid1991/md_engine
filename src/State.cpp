@@ -476,9 +476,9 @@ void State::initializeGrid() {
     double maxRCut = getMaxRCut();// ALSO PADDING PLS
     double gridDim = maxRCut + padding;
 
-    std::cout << "address of state.gpd: " << &gpd << std::endl;
+    //std::cout << "address of state.gpd: " << &gpd << std::endl;
     // copy value of nPerRingPoly to make it local to gpd instance
-    gridGPU = GridGPU(this, gridDim, gridDim, gridDim, gridDim, exclusionMode,padding, &gpd,nPerRingPoly);
+    gridGPU = GridGPU(this, gridDim, gridDim, gridDim, gridDim, exclusionMode, this->padding, &gpd,nPerRingPoly);
 
 }
 

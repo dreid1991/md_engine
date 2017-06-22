@@ -101,14 +101,16 @@ GridGPU::GridGPU(State *state_, float dx_, float dy_, float dz_, float neighCuto
     initStream();
     numChecksSinceLastBuild = 0;
     exclusionMode = exclusionMode_;
-    std::cout << "address of gpd: " << &gpd << std::endl;
-    std::cout << "address of de-referenced &*gpd: " << &*gpd << std::endl;
+    //std::cout << "address of gpd: " << &gpd << std::endl;
+    //std::cout << "address of de-referenced &*gpd: " << &*gpd << std::endl;
     int activeIdx = gpd->activeIdx();
     handleExclusions();
     int nAtoms = gpd->xs.size();
+    /*
     printf("nAtoms value in ::GridGPU ctor: %d\n", nAtoms);
     printf("Calling printGPD at turn %d\n", state->turn);
     printGPD<<<NBLOCK(nAtoms), PERBLOCK>>>(gpd->ids(activeIdx),gpd->xs(activeIdx),gpd->vs(activeIdx),gpd->fs(activeIdx),nAtoms);
+    */
 
 }
 
@@ -719,7 +721,8 @@ __global__ void setCumulativeSumPerBlock(int numBlocks, uint32_t *perBlockArray,
 
 
 void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
-
+    //std::cout << "address of current gpd from state: " << &*gpd_ << std::endl;
+    //std::cout << "address of local pointer to state gpd: " << &*gpd << std::endl;
     //printf("in periodicBoundaryConditions\n");
     //printf("gpd->xs.size(): %d", gpd->xs.size());
     DeviceManager &devManager = state->devManager;
@@ -772,6 +775,7 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
         periodicWrap<<<NBLOCK(nAtoms), PERBLOCK>>>(gpd->xs(activeIdx), nAtoms, boundsUnskewed);
         
         // remove all below statements after done debugging TODO
+        /*
         printf("After periodicWrap in GridGPU at turn %d \n", state->turn);
         cudaDeviceSynchronize();
         printGPD<<<NBLOCK(nAtoms), PERBLOCK>>>(gpd->ids(activeIdx),gpd->xs(activeIdx),gpd->vs(activeIdx),gpd->fs(activeIdx),nAtoms);
@@ -780,8 +784,9 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
         printf("and state->gpd.xxxxx on turn %d says\n", state->turn);
         printGPD<<<NBLOCK(nAtoms), PERBLOCK>>>(state->gpd.ids(activeIdx), state->gpd.xs(activeIdx),state->gpd.vs(activeIdx), state->gpd.fs(activeIdx), nAtoms);
         cudaDeviceSynchronize();
+        */
         // end statements to remove; end TODO
-
+        
         // increase number of grid cells if necessary
         int numGridCells = prod(ns);
         if (numGridCells + 1 != perCellArray.size()) {
@@ -1107,6 +1112,7 @@ void GridGPU::handleExclusions() {
         // -- NOTE: need to make handleExclusion*() functions local to gpu data
         return;
     }
+    return;
 }
 
 
