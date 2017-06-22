@@ -4,7 +4,7 @@ Fix Langevin
 Overview
 ^^^^^^^^
 
-Fix is appling stochastic force to the system via Langevin dynamics
+FixLangevin applies stochastic forces to particles in the system via Langevin dynamics
 
 .. math::
   {\bf f}_i = -\gamma {\bf v}_i+\sqrt{6k_{\rm B}T\gamma/\Delta t }{\bf W}_i

@@ -1,5 +1,5 @@
 Intergrator FIRE relaxation
-====================
+===========================
 
 Overview
 ^^^^^^^^
@@ -65,6 +65,20 @@ Arguments
 
 Integrating state is done with ``run``. 
 
+Default values:
+
+    alphaInit = 0.1
+
+    alphaShrink = 0.99
+
+    dtGrow = 1.1
+
+    dtShrink = 0.5
+
+    delay = 5
+
+    dtMax_mult = 10
+
 .. code-block:: python
 
     run(numTurns=...,fTol=...)
@@ -84,7 +98,7 @@ Adding the integrator
 
 .. code-block:: python
 
-    integrater = IntegratorVerlet(state)
+    integrater = IntegratorRelax(state)
 
     
 Setting parameters in python
@@ -94,7 +108,8 @@ Setting parameters in python
     state.shoutEvery=1000
     state.dt=0.005
 
-integrating system forward in time
+
+Relax the system
 
 .. code-block:: python
 

@@ -506,7 +506,9 @@ void IntegratorVerlet::run(int numTurns)
 {
 
     basicPreRunChecks();
-    
+    //basicPrepare(numTurns); //nlist built here
+    //force(false);
+
     std::vector<bool> prepared = basicPrepare(numTurns);
     
     force(true);

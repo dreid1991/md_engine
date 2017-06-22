@@ -96,13 +96,20 @@ Adding the fix
 .. code-block:: python
 
     #adding charge fix
-    charge=FixChargeEwald(state, "charge","all")
+    charge=FixChargeEwald(state, "charge", "all")
     
 Setting parameters in python
 
 .. code-block:: python
 
-    charge.setParameters(128,3.0,3);
+    #64 grid points in each dimension, cutoff of rCut-1
+    #interpolating charge to three mesh points
+    charge.setParameters(64, state.rCut-1, 3);
+
+    #alternatively, one could let DASH determinine the 
+    #grid discretization by setting an error tolerance 
+    #(1e-2 here)
+    #charge.setError(1e-2)
 
 
 Activating the fix

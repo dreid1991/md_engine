@@ -40,7 +40,7 @@ The number of turns to elapse between applications of this fix.  Integer type.
 The temperature of the heat bath, as a python function.  Python function.
 
 ``intervals``
-The turns corresponding to the intervals over which the list of temperature set points will be applied.  List of integers.
+    A list of fractions through the current run for the corresponding list of temperature set points.  List of floats.
 
 ``temps``
 The list of temperature set points for the simulation.  List of floats.

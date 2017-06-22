@@ -3,7 +3,7 @@ Isokinetic Thermostat
 
 Overview
 ^^^^^^^^
-The FixNVTRescale permits rescaling of the velocities every ``applyEvery`` turn in the simulation for maintaining the temperature at some specified set point ``T``.  Temperature set points may be specified as a constant double value, as a list of temperatures with associated time intervals, or as a python function.  
+The FixNVTRescale permits rescaling of the velocities every ``applyEvery`` turn in the simulation for maintaining the temperature at some specified set point ``T``.  Temperature set points may be specified as a constant float value, as a list of temperatures with associated time intervals, or as a python function.  
 
 
 Constructor
@@ -30,7 +30,7 @@ Arguments
     The group of atoms to which this fix is applied.  String type.
 
 ``temp``
-    The temperature to which the kinetic energy will be rescaled.  Double type.
+    The temperature to which the kinetic energy will be rescaled.  Float type.
 
 ``applyEvery``
     The number of turns to elapse between applications of this fix.  Integer type.
@@ -39,10 +39,10 @@ Arguments
     The function specifying the set point temperatures throughout the simulation to which the kinetic energy will be rescaled.  Python function.
 
 ``intervals``
-    A list of timestep intervals for the corresponding list of temperature set points.  List of integers.
+    A list of fractions through the current run for the corresponding list of temperature set points.  List of floats.
 
 ``temps``
-    A list of temperature set points to be used throughout the simulation.  List of doubles.
+    A list of temperature set points to be used throughout the simulation.  List of floats.
 
 Python Member Functions
 ^^^^^^^^^^^^^^^^^^^^^^^
