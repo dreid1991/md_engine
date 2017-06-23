@@ -54,6 +54,43 @@ __device__ void fillRotZMatrix(float3 a, float3 b, float3 r[]){
   }
 }
 
+/*
+        distributeMSite<<<NBLOCK(nMols), PERBLOCK>>>(wateridsGPU.data(), gpd.xs(activeIdx), 
+                                                     gpd.vs(activeIdx),  gpd.fs(activeIdx),
+                                                     nMols, dt, gpd.idToIdxs.d_data.data(), bounds)
+*/
+
+__global__ void distributeMSite(int4 *waterIds, float4 *xs, float4 *vs, float4 *fs, int nMols, float gamma, float dt, int* idToIdxs, BoundsGPU bounds)
+
+{
+    int idx = GETIDX();
+    if (idx < nMols) {
+        // do we need the positions here? I think not, but also maybe.
+        float3 pos[4];
+        float3 vel[4];
+        float3 force[4];
+
+        float mass[4];
+        int ids[4];
+
+        ids[0] = waterIds[idx].x; // Oxygen
+        ids[1] = waterIds[idx].y; // H1
+        ids[2] = waterIds[idx].z; // H2
+        ids[3] = waterIds[idx].w; // M
+    
+        for (int i = 0; i < 4; i++) {
+            int myId = ids[i];
+            int myIdx = idToIdxs[myId];
+            float3 p = make_float3(xs[myIdx]);
+            pos[i] = p;
+            mass[i] = ((vs[myIdx].w == 0.0) ? 0.0 : (1.0f / vs[myIdx].w));
+        }
+    }
+
+}
+
+
+// computes the center of mass for a given water molecule
 __global__ void compute_COM(int4 *waterIds, float4 *xs, float4 *vs, int *idToIdxs, int nMols, float4 *com, BoundsGPU bounds) {
   int idx = GETIDX();
   if (idx  < nMols) {
@@ -606,7 +643,78 @@ __global__ void compute_SETTLE(int4 *waterIds, float4 *xs, float4 *xs_0, float4 
   }
 }
 
+void FixRigid::compute_gamma() {
+
+    /*  See Feenstra, Hess, and Berendsen, J. Computational Chemistry, 
+     *  Vol. 20, No. 8, 786-798 (1999)
+     *
+     *  From Appendix A, we see the expression: 
+     *  $\mathbf{F}_{ix}^' = \frac{\partial \mathbf{r}_d}{\partial x_i} \cdot \mathbf{F}_d
+     *
+     *  Moreover, the position of the dummy atom (see, e.g., construction of TIP4P molecule in 
+     *  (relative path here) ../../util_py/water.py file) can be written in terms of O,H,H positions
+     *
+     *  Taking the position of the oxygen as the center, we denote Oxygen as atom 'i',
+     *  and the two hydrogens as 'j' and 'k', respectively
+     * 
+     *  Then, we have the following expression for r_d:
+     * 
+     *  (Expression 1)
+     *  r_d = r_i + 0.1546 * ((r_ij + r_ik) / ( len(r_ij + r_ik)))
+     *
+     *  Then, rearranging,
+     *  
+     *  (Expression 2)
+     *  r_d = r_i + 0.1546 * ( (r_j + r_k - 2 * r_i) / (len(r_j + r_k - 2 * r_i)))
+     * 
+     *  So, gamma is then
+     *  
+     *  (Expression 3)
+     *  gamma = 0.1546 / len(r_j + r_k - 2 * r_i)
+     *
+     *  And force is partitioned according to:
+     *
+     *  (Expression 4)
+     *  F_i^' = (1 - 2.0 * gamma) F_d
+     *  F_j^' = F_k^' = gamma * F_d
+     * 
+     *  which we get from straightforward differentiation of the re-arranged positions in Expression 2 above.
+     */
+
+    // grab any water molecule; the first will do
+    // -- at this point, the waterIds array is set up
+
+    int4 waterMolecule = waterids[0];
+
+    // ids in waterMolecule are (.x, .y, .z, .w) ~ (O, H1, H2, M)
+    Vector r_i_v = state->idToAtom(waterMolecule.x).pos;
+    Vector r_j_v = state->idToAtom(waterMolecule.y).pos;
+    Vector r_k_v = state->idToAtom(waterMolecule.z).pos;
+
+    // cast above vectors as float3 for use in bounds.minImage
+
+    float3 r_i = make_float3(r_i_v[0], r_i_v[1], r_i_v[2]);
+    float3 r_j = make_float3(r_j_v[0], r_j_v[1], r_j_v[2]);
+    float3 r_k = make_float3(r_k_v[0], r_k_v[1], r_k_v[2]);
+    
+    // get the minimum image vectors r_ij, r_ik
+    float3 r_ij = state->bounds.minImage(r_j - r_i);
+    float3 r_ik = state->bounds.minImage(r_k - r_i);
+
+    // denominator of expression 3, written using the minimum image
+    float denominator = len( ( r_ij + r_ik) );
+
+    // our gamma value
+    gamma = 0.1546 / denominator;
+
+}
+
+
+
+
+
 void FixRigid::createRigid(int id_a, int id_b, int id_c, int id_d) {
+    TIP4P = true;
     int4 waterMol = make_int4(0,0,0,0);
     Vector a = state->idToAtom(id_a).pos;
     Vector b = state->idToAtom(id_b).pos;
@@ -647,6 +755,7 @@ void FixRigid::createRigid(int id_a, int id_b, int id_c, int id_d) {
 }
 
 void FixRigid::createRigid(int id_a, int id_b, int id_c) {
+    TIP3P = true;
     int4 waterMol = make_int4(0,0,0,0);
     Vector a = state->idToAtom(id_a).pos;
     Vector b = state->idToAtom(id_b).pos;
@@ -695,6 +804,10 @@ void FixRigid::createRigid(int id_a, int id_b, int id_c) {
 
 
 bool FixRigid::prepareForRun() {
+    if (TIP3P && TIP4P) {
+        mdError("An attempt was made to use both TIP3P and TIP4P in a simulation");
+    }
+
     int n = waterIds.size();
     waterIdsGPU = GPUArrayDeviceGlobal<int4>(n);
     waterIdsGPU.set(waterIds.data());
@@ -708,6 +821,12 @@ bool FixRigid::prepareForRun() {
     fix_len = GPUArrayDeviceGlobal<float4>(n);
     GPUData &gpd = state->gpd;
     int activeIdx = gpd.activeIdx();
+
+    // compute the force partition constant
+    if (TIP4P) {
+        compute_gamma();
+    }
+
     BoundsGPU &bounds = state->boundsGPU;
     compute_COM<<<NBLOCK(n), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), gpd.vs(activeIdx), 
                                          gpd.idToIdxs.d_data.data(), n, com.data(), bounds);
@@ -744,12 +863,28 @@ bool FixRigid::stepFinal() {
     //gpd.xs.dataToHost(activeIdx);
     //std::cout << "before settle: " << cpu_xs[0] << "\n";
 
+    // first, unconstrained velocity update continues: distribute the force from the M-site
+    //        and integrate the velocities accordingly.  Update the forces as well.
+    // Next,  do compute_SETTLE as usual on the (as-yet) unconstrained positions & velocities
+    if (TIP4P) {
+        distributeMSite<<<NBLOCK(nMols), PERBLOCK>>>(wateridsGPU.data(), gpd.xs(activeIdx), 
+                                                     gpd.vs(activeIdx),  gpd.fs(activeIdx),
+                                                     nMols, gamma, dt, gpd.idToIdxs.d_data.data(), bounds)
+    }
+
+
 
     compute_SETTLE<<<NBLOCK(nMols), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), 
                                                 xs_0.data(), gpd.vs(activeIdx), vs_0.data(), 
                                                 dvs_0.data(), gpd.fs(activeIdx), fs_0.data(), 
                                                 com.data(), fix_len.data(), nMols, dt, 
                                                 gpd.idToIdxs.d_data.data(), bounds);
+
+    
+    // finally, reset the position of the M-site to be consistent with that of the new, constrained water molecule
+    if (TIP4P) {
+        setMSite<<<NBLOCK(nMols), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), nMols, bounds)
+    }
     //xs_0.get(cpu_xs);
     //std::cout << cpu_xs[0] << "\n";
     return true;
@@ -775,7 +910,10 @@ void export_FixRigid()
          )
 	 )
     .def("createRigid", createRigid_x2,
-        (py::arg("id_a"), py::arg("id_b"), py::arg("id_c"), py::arg("id_d"))
+        (py::arg("id_a"), 
+         py::arg("id_b"),  
+         py::arg("id_c"), 
+         py::arg("id_d"))
      );
     
 }
