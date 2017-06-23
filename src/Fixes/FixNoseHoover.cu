@@ -418,13 +418,12 @@ bool FixNoseHoover::stepInit()
         setPointTemperature = tempInterpolator.getCurrentVal();
         
         // compare values and update accordingly
-            // update the masses associated with thermostats for the barostats and the particles
+        // update the masses associated with thermostats for the barostats and the particles
         updateBarostatMasses(true);
         updateBarostatThermalMasses(true);
         updateThermalMasses();
         // exp(iL_{T_{BARO} \frac{\Delta t}{2})
         // -- variables that must be initialized/up-to-date:
-        //    etaPressureMass, etaPressureVel, etaPressForce must all be /initialized (updated here)
         barostatThermostatIntegrate(true);
 
         // exp(iL_{T_{PART}} \frac{\Delta t}{2})
@@ -458,6 +457,7 @@ bool FixNoseHoover::stepInit()
         
         // and the current hydrostatic pressure (we computed this above already)
         hydrostaticPressure = setPointPressure;
+        
         // and get the current pressure to our local variables; here we do the partitioning according to 
         // the couple style: {NONE,XYZ}
         getCurrentPressure();
@@ -505,7 +505,6 @@ bool FixNoseHoover::postNVE_V() {
 
         // scale particle velocities due to barostat variables
         scaleVelocitiesBarostat(true);
-        //rescaleVolume();
 
         // and our operator acting on epsilon (volume rescale) --> changes particle positions as well
         rescaleVolume();

@@ -87,6 +87,7 @@ class FixE3B3: public Fix {
         //void handleBoundsChange();
         
         // we actually don't need the M-site for this..
+        // but require it anyways, because this shouldonly be used with TIP4P/2005
         // -- takes atom IDs as O, H, H, M (see FixRigid.h, FixRigid.cu)
         void addMolecule(int, int, int, int);
 
