@@ -65,28 +65,68 @@ __global__ void distributeMSite(int4 *waterIds, float4 *xs, float4 *vs, float4 *
 {
     int idx = GETIDX();
     if (idx < nMols) {
-        // do we need the positions here? I think not, but also maybe.
-        float3 pos[4];
-        float3 vel[4];
-        float3 force[4];
-
-        float mass[4];
-        int ids[4];
-
-        ids[0] = waterIds[idx].x; // Oxygen
-        ids[1] = waterIds[idx].y; // H1
-        ids[2] = waterIds[idx].z; // H2
-        ids[3] = waterIds[idx].w; // M
     
-        for (int i = 0; i < 4; i++) {
-            int myId = ids[i];
-            int myIdx = idToIdxs[myId];
-            float3 p = make_float3(xs[myIdx]);
-            pos[i] = p;
-            mass[i] = ((vs[myIdx].w == 0.0) ? 0.0 : (1.0f / vs[myIdx].w));
-        }
-    }
+        // by construction, the id's of the molecules are ordered as follows in waterIds array
+        int id_O  = waterIds[idx].x;
+        int id_H1 = waterIds[idx].y;
+        int id_H2 = waterIds[idx].z;
+        int id_M  = waterIds[idx].w;
 
+        // so, we need the forces and velocities of the atoms in the molecule
+        float4 vel_O  = vs[idToIdxs[id_O]];
+        float4 vel_H1 = vs[idToIdxs[id_H1]];
+        float4 vel_H2 = vs[idToIdxs[id_H2]];
+        float4 vel_M = vs[idToIdxs[id_M]];
+
+        float4 fs_O  = fs[idToIdxs[id_O]];
+        float4 fs_H1 = fs[idToIdxs[id_H1]];
+        float4 fs_H2 = fs[idToIdxs[id_H2]];
+        float4 fs_M  = fs[idToIdxs[id_M]];
+
+        // now, get the partial force contributions from the M-site; prior to adding these to the
+        // array of forces for the given atom, integrate the velocity of the atom according to the distributed force contribution
+
+        // this expression derived below in FixRigid::compute_gamma() function
+        // -- these are the forces from the M-site partitioned for distribution to the atoms of the water molecule
+        float3 fs_O_d = make_float3(fs_M) * (1.0 - (2.0 * gamma));
+        float3 fs_H_d = make_float3(fs_M) * gamma;
+
+        // get the inverse masses from velocity variables above
+        float invMassO = vel_O.w;
+
+        // if the hydrogens don't have equivalent masses, we have bigger problems
+        float invMassH = vel_H1.w;
+
+        // compute the differential addition to the velocities
+        float3 dv_O = dtf * invMassO * fs_O_d;
+        float3 dv_H = dtf * invMassH * fs_H_d;
+
+        // and add to the velocities of the atoms
+        vel_O  += dv_O;
+        vel_H1 += dv_H;
+        vel_H2 += dv_H;
+
+        // set the velocities to the new velocities in vel_O, vel_H1, vel_H2
+        vs[idToIdxs[id_O]] = vel_O;
+        vs[idToIdxs[id_H1]]= vel_H1;
+        vs[idToIdxs[id_H2]]= vel_H2;
+
+        // finally, modify the forces; this way, the distributed force from M-site is incorporated in to nve_v() integration step
+        // at beginning of next iteration in IntegratorVerlet.cu
+        fs_O += fs_O_d;
+        fs_H1 += fs_H_d;
+        fs_H2 += fs_H_d;
+       
+        // set the global variables *fs[idToIdx[id]] to the new values
+        fs[idToIdxs[id_O]] = fs_O;
+        fs[idToIdxs[id_H1]]= fs_H1;
+        fs[idToIdxs[id_H2]]= fs_H2;
+
+        // this concludes re-distribution of the forces;
+        // we assume nothing needs to be done re: virials; this sum is already tabulated at inner force loop computation
+        // in the evaluators; for safety, we might just set 
+
+    }
 }
 
 
@@ -643,6 +683,17 @@ __global__ void compute_SETTLE(int4 *waterIds, float4 *xs, float4 *xs_0, float4 
   }
 }
 
+void FixRigid::handleBoundsChange() {
+
+    // get a few pieces of data as required
+    // -- all we're doing here is setting the position of the M-Site prior to computing the forces
+    //    within the simulation.  Otherwise, the M-Site will likely be far away from where it should be, 
+    //    relative to the moleule.  We do not solve the constraints on the rigid body at this time.
+
+
+
+}
+
 void FixRigid::compute_gamma() {
 
     /*  See Feenstra, Hess, and Berendsen, J. Computational Chemistry, 
@@ -683,7 +734,6 @@ void FixRigid::compute_gamma() {
 
     // grab any water molecule; the first will do
     // -- at this point, the waterIds array is set up
-
     int4 waterMolecule = waterids[0];
 
     // ids in waterMolecule are (.x, .y, .z, .w) ~ (O, H1, H2, M)
@@ -704,7 +754,8 @@ void FixRigid::compute_gamma() {
     // denominator of expression 3, written using the minimum image
     float denominator = len( ( r_ij + r_ik) );
 
-    // our gamma value
+    // our gamma value; 0.1546 is the bond length O-M in Angstroms (which we can 
+    // assume is the units being used, because those are only units of distance used in DASH)
     gamma = 0.1546 / denominator;
 
 }
@@ -833,6 +884,7 @@ bool FixRigid::prepareForRun() {
     set_fixed_sides<<<NBLOCK(n), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), com.data(), 
                                              fix_len.data(), n, gpd.idToIdxs.d_data.data());
     set_init_vel_correction<<<NBLOCK(n), PERBLOCK>>>(waterIdsGPU.data(), dvs_0.data(), n);
+
   return true;
 }
 
@@ -866,10 +918,13 @@ bool FixRigid::stepFinal() {
     // first, unconstrained velocity update continues: distribute the force from the M-site
     //        and integrate the velocities accordingly.  Update the forces as well.
     // Next,  do compute_SETTLE as usual on the (as-yet) unconstrained positions & velocities
+
+    // from IntegratorVerlet
     if (TIP4P) {
+        float dtf = 0.5f * state->dt * state->units.ftm_to_v;
         distributeMSite<<<NBLOCK(nMols), PERBLOCK>>>(wateridsGPU.data(), gpd.xs(activeIdx), 
                                                      gpd.vs(activeIdx),  gpd.fs(activeIdx),
-                                                     nMols, gamma, dt, gpd.idToIdxs.d_data.data(), bounds)
+                                                     nMols, gamma, dtf, gpd.idToIdxs.d_data.data(), bounds)
     }
 
 
@@ -883,10 +938,10 @@ bool FixRigid::stepFinal() {
     
     // finally, reset the position of the M-site to be consistent with that of the new, constrained water molecule
     if (TIP4P) {
-        setMSite<<<NBLOCK(nMols), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), nMols, bounds)
+        setMSite<<<NBLOCK(nMols), PERBLOCK>>>(waterIdsGPU.data(), gpd.idToIdxs.d_data.data(), gpd.xs(activeIdx), nMols, bounds)
     }
-    //xs_0.get(cpu_xs);
-    //std::cout << cpu_xs[0] << "\n";
+    
+    
     return true;
 }
 

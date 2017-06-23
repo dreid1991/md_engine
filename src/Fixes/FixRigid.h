@@ -28,6 +28,7 @@ class FixRigid : public Fix {
         // array holding velocities before constraints are applied
         GPUArrayDeviceGlobal<float4> vs_0;
 
+
         GPUArrayDeviceGlobal<float4> dvs_0;
 
 
@@ -54,10 +55,13 @@ class FixRigid : public Fix {
 
         // boolean defaulting to false in the constructor, denoting whether this is TIP3P
         bool TIP3P;
+
         // computes the force partition constant for TIP4P for modification of forces on the molecule
         void compute_gamma();
 
         // the force partition constant to distribute force from M-site to O, H, H atoms
+        //  See Feenstra, Hess, and Berendsen, J. Computational Chemistry, Vol. 20, No. 8, 786-798 (1999)
+        //  -- specifically, appendix A, expression 6
         float gamma;
 
     public:
@@ -74,13 +78,13 @@ class FixRigid : public Fix {
 
         //! First half step of the integration
         /*!
-         * \return Result of the FixNoseHoover::halfStep() call.
+         * \return Result of the FixRigid::stepInit() call.
          */
         bool stepInit();
 
         //! Second half step of the integration
         /*!
-         * \return Result of FixNoseHoover::halfStep() call.
+         * \return Result of FixRigid::stepFinal() call.
          */
         bool stepFinal();
 
@@ -88,6 +92,13 @@ class FixRigid : public Fix {
         //! Prepare FixRigid for simulation run
         bool prepareForRun();
 
+
+        //! Reset the position of the M-site after integrating the position of the molecule.
+        //  -- Note that we do /not/ solve the rigid body constraints at this point;
+        //     However, the massless site does not evolve with the other atoms of the molecule (if TIP4P);
+        //     So, manually re-set it here for accuracy.
+        //     Also, check if this is rigorously correct or a valid approximation. \TODO/
+        void handleBoundsChange();
 
         //! Create a rigid constraint on a TIP3P water molecule
         /*!
@@ -113,4 +124,4 @@ class FixRigid : public Fix {
   }
 };
 
-#endif
+#endif /* FIXRIGID_H */
