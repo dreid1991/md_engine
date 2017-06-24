@@ -2,6 +2,8 @@
 #ifndef FIXE3B3_H
 #define FIXE3B3_H
 
+#include "globalDefs.h"
+#include "FixPair.h"
 #include "Fix.h"
 #include "GPUArrayGlobal.h"
 

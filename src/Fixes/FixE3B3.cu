@@ -1,4 +1,5 @@
 #include "FixE3B3.h"
+
 #include "BoundsGPU.h"
 #include "GridGPU.h"
 #include "State.h"
@@ -37,7 +38,7 @@ __device__ inline float3 positionsToCOM(float3 *pos, float *mass, float ims) {
 
 
 // see FixRigid.cu! does the same thing. but now, we store it in their own gpd..
- __global__ void update_xs(int nMolecules, int4 *waterIds, float4 *mol_xs,
+__global__ void update_xs(int nMolecules, int4 *waterIds, float4 *mol_xs,
                            float4 *xs, float4 *vs, int *idToIdxs, BoundsGPU bounds) {
 
      // now do pretty much the same as FixRigid computeCOM()
@@ -373,16 +374,17 @@ void FixE3B3::addMolecule(int id_O, int id_H1, int id_H2, int id_M) {
    */
 
 void export_FixE3B3() {
-  py::class_<FixE3B3, boost::shared_ptr<FixE3B3>, py::bases<Fix> > ( 
-								      "FixE3B3",
-								      py::init<boost::shared_ptr<State>, std::string, std::string>
-								      (py::args("state", "handle", "groupHandle")
-								       ))
+  py::class_<FixE3B3, boost::shared_ptr<FixE3B3>, py::bases<Fix> > 
+	("FixE3B3",
+         py::init<boost::shared_ptr<State>, std::string, std::string> 
+	 (py::args("state", "handle", "groupHandle")
+	 )
+	)
     .def("addMolecule", &FixE3B3::addMolecule,
 	     (py::arg("id_O"), 
           py::arg("id_H1"), 
           py::arg("id_H2"),
           py::arg("id_M")
          )
-	 );
+    );
 }
