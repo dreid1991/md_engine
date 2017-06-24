@@ -12,6 +12,9 @@ const string rigidType = "Rigid";
 
 FixRigid::FixRigid(boost::shared_ptr<State> state_, string handle_, string groupHandle_) : Fix(state_, handle_, groupHandle_, rigidType, true, true, false, 1) {
 
+    // set both to false initially; using one of the createRigid functions will flip the pertinent flag to true
+    TIP4P = false;
+    TIP3P = false;
 }
 
 __device__ inline float3 positionsToCOM(float3 *pos, float *mass, float ims) {
@@ -61,25 +64,39 @@ __global__ void distributeMSite(int4 *waterIds, float4 *xs, float4 *vs, float4 *
 {
     int idx = GETIDX();
     if (idx < nMols) {
-    
+        //printf("in distributeMSite idx %d\n", idx);
         // by construction, the id's of the molecules are ordered as follows in waterIds array
+        int3 waterMolecule = make_int3(waterIds[idx]);
+
         int id_O  = waterIds[idx].x;
         int id_H1 = waterIds[idx].y;
         int id_H2 = waterIds[idx].z;
         int id_M  = waterIds[idx].w;
 
+        //printf("In distributeMSite, working on ids %d %d %d %d\n", id_O, id_H1, id_H2, id_M);
         // so, we need the forces and velocities of the atoms in the molecule
         // -- just the velocities of the real atoms: O, H1, H2
-        float4 vel_O  = vs[idToIdxs[id_O]];
+        int O_idx = idToIdxs[id_O];
+        int H1_idx =idToIdxs[id_H1];
+        int H2_idx= idToIdxs[id_H2];
+        int M_idx = idToIdxs[id_M];
+        
+        //printf("In thread %d, O H1 H2 M idxs are %d %d %d %d\n", idx, O_idx, H1_idx, H2_idx, M_idx);
+
+        float4 vel_O_whole = vs[idToIdxs[id_O]];
         float4 vel_H1 = vs[idToIdxs[id_H1]];
         float4 vel_H2 = vs[idToIdxs[id_H2]];
 
+        float3 vel_O = make_float3(vel_O_whole);
+        //printf("In distributeMSite, velocity of Oxygen %d is %f %f %f\n", id_O, vel_O.x, vel_O.y, vel_O.z);
         // need the forces from O, H1, H2, and M
         float4 fs_O  = fs[idToIdxs[id_O]];
         float4 fs_H1 = fs[idToIdxs[id_H1]];
         float4 fs_H2 = fs[idToIdxs[id_H2]];
         float4 fs_M  = fs[idToIdxs[id_M]];
 
+        //printf("Force on m site: %f %f %f\n", fs_M.x, fs_M.y, fs_M.z);
+        //printf("Force on Oxygen : %f %f %f\n", fs_O.x, fs_M.y, fs_M.z);
         // now, get the partial force contributions from the M-site; prior to adding these to the
         // array of forces for the given atom, integrate the velocity of the atom according to the distributed force contribution
 
@@ -89,7 +106,7 @@ __global__ void distributeMSite(int4 *waterIds, float4 *xs, float4 *vs, float4 *
         float3 fs_H_d = make_float3(fs_M) * gamma;
 
         // get the inverse masses from velocity variables above
-        float invMassO = vel_O.w;
+        float invMassO = vel_O_whole.w;
 
         // if the hydrogens don't have equivalent masses, we have bigger problems
         float invMassH = vel_H1.w;
@@ -104,10 +121,11 @@ __global__ void distributeMSite(int4 *waterIds, float4 *xs, float4 *vs, float4 *
         vel_H2 += dv_H;
 
         // set the velocities to the new velocities in vel_O, vel_H1, vel_H2
+        /*
         vs[idToIdxs[id_O]] = vel_O;
         vs[idToIdxs[id_H1]]= vel_H1;
         vs[idToIdxs[id_H2]]= vel_H2;
-
+        */
         // finally, modify the forces; this way, the distributed force from M-site is incorporated in to nve_v() integration step
         // at beginning of next iteration in IntegratorVerlet.cu
         fs_O += fs_O_d;
@@ -143,20 +161,21 @@ __global__ void setMSite(int4 *waterIds, int *idToIdxs, float4 *xs, int nMols, B
         int id_H2 = waterIds[idx].z;
         int id_M  = waterIds[idx].w;
 
+        float4 pos_M_whole = xs[idToIdxs[id_M]];
         // get the positions of said atoms
-        float4 pos_O = xs[idToIdxs[id_O]];
-        float4 pos_H1= xs[idToIdxs[id_H1]];
-        float4 pos_H2= xs[idToIdxs[id_H2]];
-        float4 pos_M = xs[idToIdxs[id_M]];
+        float3 pos_O = make_float3(xs[idToIdxs[id_O]]);
+        float3 pos_H1= make_float3(xs[idToIdxs[id_H1]]);
+        float3 pos_H2= make_float3(xs[idToIdxs[id_H2]]);
+        float3 pos_M = make_float3(xs[idToIdxs[id_M]]);
 
         // compute vectors r_ij and r_ik according to minimum image convention
         // where r_ij = r_j - r_i, r_ik = r_k - r_i,
         // and r_i, r_j, r_k are the 3-component vectors describing the positions of O, H1, H2, respectively
-        float3 r_ij = bounds.minImage( make_float3(pos_H1 - pos_O));
-        float3 r_ik = bounds.minImage( make_float3(pos_H2 - pos_O));
+        float3 r_ij = bounds.minImage( (pos_H1 - pos_O));
+        float3 r_ik = bounds.minImage( (pos_H2 - pos_O));
 
         // 0.1546 is the O-M bond length
-        float3 r_M  = make_float3(pos_O) + 0.1546 * ( (r_ij + r_ik) / ( (length(r_ij + r_ik))));
+        float3 r_M  = (pos_O) + 0.1546 * ( (r_ij + r_ik) / ( (length(r_ij + r_ik))));
     
         // now, referring to 'periodicWrap in ../GridGPU.cu, apply PBC to the computed M site position
         // -- we can assume the atoms positions from which M-site is composed are already in the box (raw positions, at least)
@@ -164,7 +183,7 @@ __global__ void setMSite(int4 *waterIds, int *idToIdxs, float4 *xs, int nMols, B
         float3 diffFromLo = r_M - bounds.lo;
         float3 imgs = floorf(diffFromLo / trace);
         r_M -= (trace * imgs * bounds.periodic);
-        float4 pos_M_new = make_float4(r_M.x, r_M.y, r_M.z, pos_M.w);
+        float4 pos_M_new = make_float4(r_M.x, r_M.y, r_M.z, pos_M_whole.w);
         if (imgs.x != 0 or imgs.y != 0 or imgs.z != 0) {
             xs[idToIdxs[id_M]] = pos_M_new;
         }
@@ -217,6 +236,10 @@ __global__ void compute_prev_val(int4 *waterIds, float4 *xs, float4 *xs_0, float
   }
 }
 
+
+// so, given that this is only to be used with water, we can 
+// actually make it so that specific bond lengths are taken
+// rather than having this operate on the geometries of the input
 __global__ void set_fixed_sides(int4 *waterIds, float4 *xs, float4 *com, float4 *fix_len, int nMols, int *idToIdxs) {
   int idx = GETIDX();
   if (idx < nMols) {
@@ -464,9 +487,14 @@ __device__ void settle_xs(float timestep, float3 com, float3 com1, float3 *xs_0,
     }
   }
   //printf("sin_theta = %f  cos_theta = %f  alpha = %f  beta = %f  gamma = %f\n", sin_theta, cos_theta, alpha, beta, gamma);
-  assert(fabs(sin_phi) <= 1.00001);
-  assert(fabs(sin_psi) <= 1.00001);
-  assert(fabs(sin_theta) <= 1.00001);
+  if (!(fabs(sin_phi) <= 1.00001) or (!((fabs(sin_psi) <= 1.00001))) or (!(fabs(sin_theta) <= 1.00001))) {
+      printf("fabs(sin_phi) : %f\n", fabs(sin_phi));
+      printf("fabs(sin_psi) : %f\n", fabs(sin_psi));
+      printf("fabs(sin_theta): %f\n", fabs(sin_theta));
+      assert(fabs(sin_phi) <= 1.00001);
+      assert(fabs(sin_psi) <= 1.00001);
+      assert(fabs(sin_theta) <= 1.00001);
+  }
 
   //printf("psi=%f phi=%f theta=%f\n", asinf(sin_psi), asinf(sin_phi), asinf(sin_theta));
   //printf("adding = %f %f\n", b2.x*cos_theta-b2.y*sin_theta, b2.x*sin_theta+b2.y*cos_theta);
@@ -728,6 +756,7 @@ __global__ void compute_SETTLE(int4 *waterIds, float4 *xs, float4 *xs_0, float4 
 
 
 void FixRigid::handleBoundsChange() {
+
     if (TIP4P) {
     
         int nMols = waterIdsGPU.size();
@@ -794,6 +823,12 @@ void FixRigid::compute_gamma() {
     // -- at this point, the waterIds array is set up
     int4 waterMolecule = waterIds[0];
 
+    /*
+    printf("waterMoleculeIds: %d %d %d %d\n", waterMolecule.x,
+                                              waterMolecule.y,
+                                              waterMolecule.z, 
+                                              waterMolecule.w);
+    */
     // ids in waterMolecule are (.x, .y, .z, .w) ~ (O, H1, H2, M)
     Vector r_i_v = state->idToAtom(waterMolecule.x).pos;
     Vector r_j_v = state->idToAtom(waterMolecule.y).pos;
@@ -805,16 +840,21 @@ void FixRigid::compute_gamma() {
     float3 r_j = make_float3(r_j_v[0], r_j_v[1], r_j_v[2]);
     float3 r_k = make_float3(r_k_v[0], r_k_v[1], r_k_v[2]);
     
-    // get the minimum image vectors r_ij, r_ik
+    //printf("position Oxygen: %f %f %f\n", r_i.x, r_i.y, r_i.z);
+    //printf("position H1    : %f %f %f\n", r_j.x, r_j.y, r_j.z);
+    //printf("position H2    : %f %f %f\n", r_k.x, r_k.y, r_k.z);
+    // get the minimum image vectors r_ij, r_ikz
     float3 r_ij = bounds.minImage(r_j - r_i);
     float3 r_ik = bounds.minImage(r_k - r_i);
 
     // denominator of expression 3, written using the minimum image
     float denominator = length( ( r_ij + r_ik) );
 
+    //printf("denominator value: %f\n", denominator);
     // our gamma value; 0.1546 is the bond length O-M in Angstroms (which we can 
     // assume is the units being used, because those are only units of distance used in DASH)
     gamma = 0.1546 / denominator;
+    //printf("gamma value: %f\n", gamma);
 
 }
 
@@ -842,12 +882,27 @@ void FixRigid::createRigid(int id_a, int id_b, int id_c, int id_d) {
 
     bool ordered = true;
     if (! (ma > mb && ma > mc)) ordered = false;
+    
     if (! (mb == mc) ) ordered = false;
     if (! (mb > md) )  ordered = false;
-
+    
+    if (! (ordered)) {
+        printf("Found masses O, H, H, M in order: %f %f %f %f\n", ma, mb, mc, md);
+    }
     if (! (ordered)) mdError("Ids in FixRigid::createRigid must be as O, H1, H2, M");
 
+    /*
+    printf("adding ids %d %d %d %d\n", id_a, id_b, id_c, id_d);
+    printf("with masses %f %f %f %f\n", ma, mb, mc, md);
+    printf("position id_a: %f %f %f\n", a[0], a[1], a[2]);
+    printf("position id_b: %f %f %f\n", b[0], b[1], b[2]);
+    printf("position id_c: %f %f %f\n", c[0], c[1], c[2]);
+    printf("position id_c: %f %f %f\n ", d[0], d[1], d[2]);
+    */
+    waterMol = make_int4(id_a, id_b, id_c, id_d);
+    
     waterIds.push_back(waterMol);
+
     Bond bondOH1;
     Bond bondOH2;
     Bond bondHH;
@@ -918,6 +973,7 @@ bool FixRigid::prepareForRun() {
     }
 
     int n = waterIds.size();
+    printf("number of molecules in waterIds: %d\n", n);
     waterIdsGPU = GPUArrayDeviceGlobal<int4>(n);
     waterIdsGPU.set(waterIds.data());
 
@@ -951,12 +1007,16 @@ bool FixRigid::stepInit() {
     GPUData &gpd = state->gpd;
     int activeIdx = gpd.activeIdx();
     BoundsGPU &bounds = state->boundsGPU;
+    float dtf = 0.5f * state->dt * state->units.ftm_to_v;
+    
+    //printf("after FixRigid::stepInit.distributeMSite<<>>\n");
     compute_COM<<<NBLOCK(nMols), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), 
                                            gpd.vs(activeIdx), gpd.idToIdxs.d_data.data(), 
                                            nMols, com.data(), bounds);
     compute_prev_val<<<NBLOCK(nMols), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), xs_0.data(), 
                                                 gpd.vs(activeIdx), vs_0.data(), gpd.fs(activeIdx), 
                                                 fs_0.data(), nMols, gpd.idToIdxs.d_data.data());
+
     //float4 cpu_com[nMols*3];
     //xs_0.get(cpu_com);
     //std::cout << cpu_com[0] << "\n";
@@ -969,6 +1029,8 @@ bool FixRigid::stepFinal() {
     GPUData &gpd = state->gpd;
     int activeIdx = gpd.activeIdx();
     BoundsGPU &bounds = state->boundsGPU;
+
+    //printf("got to stepFinal in FixRigid!\n");
     //float4 cpu_xs[nMols*3];
     //gpd.xs.dataToHost(activeIdx);
     //std::cout << "before settle: " << cpu_xs[0] << "\n";
@@ -983,9 +1045,11 @@ bool FixRigid::stepFinal() {
         distributeMSite<<<NBLOCK(nMols), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), 
                                                      gpd.vs(activeIdx),  gpd.fs(activeIdx),
                                                      nMols, gamma, dtf, gpd.idToIdxs.d_data.data(), bounds);
+
+
     }
 
-
+    //printf("Distributed the MSite forces!\n");
 
     compute_SETTLE<<<NBLOCK(nMols), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), 
                                                 xs_0.data(), gpd.vs(activeIdx), vs_0.data(), 
@@ -993,7 +1057,8 @@ bool FixRigid::stepFinal() {
                                                 com.data(), fix_len.data(), nMols, dt, 
                                                 gpd.idToIdxs.d_data.data(), bounds);
 
-    
+ 
+    //printf("did compute_SETTLE!\n");
     // finally, reset the position of the M-site to be consistent with that of the new, constrained water molecule
     if (TIP4P) {
         setMSite<<<NBLOCK(nMols), PERBLOCK>>>(waterIdsGPU.data(), gpd.idToIdxs.d_data.data(), gpd.xs(activeIdx), nMols, bounds);

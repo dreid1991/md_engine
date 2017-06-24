@@ -16,17 +16,17 @@ state.dt = 0.005
 
 state.atomParams.addSpecies('spc1', 1, atomicNum=8)
 state.atomParams.addSpecies('spc2', 1, atomicNum=1)
-# length of OH bond / sig                                                                                                                                                                                
+# length of OH bond / sig
 offset1 = Vector(0.240255,-0.1859558,0)
 offset2 = Vector(0.240255,0.1859558,0)
 
 sig = 3.15061
-eps = 0.6364 # kJ/mol                                                                                                                                                                                    
+eps = 0.6364 # kJ/mol
 tempUnit = 1.38e-23/(.6364*1000/6.022*10e23)
 tDASH = 300 * tempUnit
 
-# real temp in units K, Boltzmann constant J/K, eps should be in J                                                                                                                                      
-# pressure = sig^3/eps                                                                                                                                                                                   
+# real temp in units K, Boltzmann constant J/K, eps should be in J
+# pressure = sig^3/eps
 temp = tDASH
 sigSI = sig*1e-10
 epsSI = eps*1000 / 6.022e23
@@ -72,7 +72,7 @@ for i in xrange(200):
     state.atoms[i*3+1].q = 0.417
     state.atoms[i*3+2].q = 0.417
 
-    # velocity starts at 0                                                                                                                                                                              
+    # velocity starts at 0
     velocity = Vector(0,0,0)
     for j in range(3):
         state.atoms[i*3 + j].vel = velocity
@@ -83,22 +83,23 @@ for i in xrange(200):
 
 
 # ----- Fixes ------
-#charge = FixChargeEwald(state, 'charge', 'all')
-#charge.setParameters(64, 3.0, 1)
-#state.activateFix(charge)
+charge = FixChargeEwald(state, 'charge', 'all')
+charge.setParameters(64)
+state.activateFix(charge)
 
 #barostat = FixPressureBerendsen(state, 'barostat', 101325*pUnit, 1000*state.dt, 1)
 #state.activateFix(barostat)
-
-#nvt = FixNoseHoover(state, handle='nvt', groupHandle='all', temp=tDASH, timeConstant=1000*state.dt)
-#state.activateFix(nvt)
-#InitializeAtoms.initTemp(state,'all',tDASH)
+fixNPT = FixNoseHoover(state,'npt','all')
+fixNPT.setTemperature(temp,100.0*state.dt)
+fixNPT.setPressure('ANISO',1.0,1000*state.dt)
 
 # activate rigid fix
 state.activateFix(rigid)
 
 writeconfig = WriteConfig(state, fn='system', writeEvery=1, format='xyz', handle='writer')
 state.activateWriteConfig(writeconfig)
+
+pressureData = state.dataManager.recordPressure('all','scalar', 1)
 
 masses = 0
 for a in state.atoms:
@@ -112,8 +113,9 @@ density = masses / volumeMeters
 print "density: " + str(density)
 
 integVerlet = IntegratorVerlet(state)
-integVerlet.run(1000)
+integVerlet.run(100000)
 
+print pressureData.vals
 # calc final density
 bounds = state.bounds.hi - state.bounds.lo
 volume = bounds[0] * bounds[1] * bounds[2]
