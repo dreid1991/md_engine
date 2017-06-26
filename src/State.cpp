@@ -117,7 +117,8 @@ bool State::addAtomDirect(Atom a) {
         std::cout << "Bad atom type " << a.type << std::endl;
         return false;
     }
-    if (a.mass == -1 or a.mass == 0) {
+    if (a.mass == -1) {
+    //if (a.mass == -1 or a.mass == 0) {
         a.mass = atomParams.masses[a.type];
     }
     if (is2d) {

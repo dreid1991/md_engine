@@ -15,6 +15,7 @@ FixRigid::FixRigid(boost::shared_ptr<State> state_, string handle_, string group
     // set both to false initially; using one of the createRigid functions will flip the pertinent flag to true
     TIP4P = false;
     TIP3P = false;
+    printing = false;
 }
 
 __device__ inline float3 positionsToCOM(float3 *pos, float *mass, float ims) {
@@ -23,6 +24,23 @@ __device__ inline float3 positionsToCOM(float3 *pos, float *mass, float ims) {
 
 inline __host__ __device__ float3 rotateCoords(float3 vector, float3 matrix[]) {
   return make_float3(dot(matrix[0],vector),dot(matrix[1],vector),dot(matrix[2],vector));
+}
+
+__global__ void printGPD_Rigid(uint* ids, float4 *xs, float4 *vs, float4 *fs, int nAtoms) {
+    int idx = GETIDX();
+    if (idx < nAtoms) {
+        uint id = ids[idx];
+        if (id < 4) {
+            float4 pos = xs[idx];
+            int type = xs[idx].w;
+            float4 vel = vs[idx];
+            float4 force = fs[idx];
+            uint groupTag = force.w;
+            printf("atom id %d type %d at coords %f %f %f\n", id, type, pos.x, pos.y, pos.z);
+            printf("atom id %d mass %f with vel  %f %f %f\n", id, vel.w, vel.x, vel.y, vel.z);
+            printf("atom id %d groupTag %d with force %f %f %f\n", id, groupTag,  force.x, force.y, force.z);
+        }
+    }
 }
 
 //fills r which rotates a to b
@@ -73,21 +91,10 @@ __global__ void distributeMSite(int4 *waterIds, float4 *xs, float4 *vs, float4 *
         int id_H2 = waterIds[idx].z;
         int id_M  = waterIds[idx].w;
 
-        //printf("In distributeMSite, working on ids %d %d %d %d\n", id_O, id_H1, id_H2, id_M);
-        // so, we need the forces and velocities of the atoms in the molecule
-        // -- just the velocities of the real atoms: O, H1, H2
-        int O_idx = idToIdxs[id_O];
-        int H1_idx =idToIdxs[id_H1];
-        int H2_idx= idToIdxs[id_H2];
-        int M_idx = idToIdxs[id_M];
-        
-        //printf("In thread %d, O H1 H2 M idxs are %d %d %d %d\n", idx, O_idx, H1_idx, H2_idx, M_idx);
-
-        float4 vel_O_whole = vs[idToIdxs[id_O]];
+        float4 vel_O = vs[idToIdxs[id_O]];
         float4 vel_H1 = vs[idToIdxs[id_H1]];
         float4 vel_H2 = vs[idToIdxs[id_H2]];
 
-        float3 vel_O = make_float3(vel_O_whole);
         //printf("In distributeMSite, velocity of Oxygen %d is %f %f %f\n", id_O, vel_O.x, vel_O.y, vel_O.z);
         // need the forces from O, H1, H2, and M
         float4 fs_O  = fs[idToIdxs[id_O]];
@@ -106,7 +113,7 @@ __global__ void distributeMSite(int4 *waterIds, float4 *xs, float4 *vs, float4 *
         float3 fs_H_d = make_float3(fs_M) * gamma;
 
         // get the inverse masses from velocity variables above
-        float invMassO = vel_O_whole.w;
+        float invMassO = vel_O.w;
 
         // if the hydrogens don't have equivalent masses, we have bigger problems
         float invMassH = vel_H1.w;
@@ -121,11 +128,10 @@ __global__ void distributeMSite(int4 *waterIds, float4 *xs, float4 *vs, float4 *
         vel_H2 += dv_H;
 
         // set the velocities to the new velocities in vel_O, vel_H1, vel_H2
-        /*
-        vs[idToIdxs[id_O]] = vel_O;
+        vs[idToIdxs[id_O]] = vel_O; 
         vs[idToIdxs[id_H1]]= vel_H1;
         vs[idToIdxs[id_H2]]= vel_H2;
-        */
+
         // finally, modify the forces; this way, the distributed force from M-site is incorporated in to nve_v() integration step
         // at beginning of next iteration in IntegratorVerlet.cu
         fs_O += fs_O_d;
@@ -137,6 +143,8 @@ __global__ void distributeMSite(int4 *waterIds, float4 *xs, float4 *vs, float4 *
         fs[idToIdxs[id_H1]]= fs_H1;
         fs[idToIdxs[id_H2]]= fs_H2;
 
+        // zero the force on the M-site, just because
+        fs[idToIdxs[id_M]] = make_float4(0.0, 0.0, 0.0,fs_M.w);
         // this concludes re-distribution of the forces;
         // we assume nothing needs to be done re: virials; this sum is already tabulated at inner force loop computation
         // in the evaluators; for safety, we might just set 
@@ -177,6 +185,9 @@ __global__ void setMSite(int4 *waterIds, int *idToIdxs, float4 *xs, int nMols, B
         // 0.1546 is the O-M bond length
         float3 r_M  = (pos_O) + 0.1546 * ( (r_ij + r_ik) / ( (length(r_ij + r_ik))));
     
+        float4 pos_M_new = make_float4(r_M.x, r_M.y, r_M.z, pos_M_whole.w);
+        xs[idToIdxs[id_M]] = pos_M_new;
+        /* so maybe this is what is causing a lot of the problems?
         // now, referring to 'periodicWrap in ../GridGPU.cu, apply PBC to the computed M site position
         // -- we can assume the atoms positions from which M-site is composed are already in the box (raw positions, at least)
         float3 trace = bounds.trace();
@@ -187,6 +198,7 @@ __global__ void setMSite(int4 *waterIds, int *idToIdxs, float4 *xs, int nMols, B
         if (imgs.x != 0 or imgs.y != 0 or imgs.z != 0) {
             xs[idToIdxs[id_M]] = pos_M_new;
         }
+        */
 
     }
 
@@ -763,14 +775,30 @@ void FixRigid::handleBoundsChange() {
         GPUData &gpd = state->gpd;
         int activeIdx = gpd.activeIdx();
         BoundsGPU &bounds = state->boundsGPU;
-
+        
+        int nAtoms = state->atoms.size();
+        if (printing) {
+            printf("Calling printGPD_Rigid at turn %d\n in FixRigid::handleBoundsChange, before doing anything\n", state->turn);
+            cudaDeviceSynchronize();
+            printGPD_Rigid<<<NBLOCK(nAtoms), PERBLOCK>>>(gpd.ids(activeIdx),
+                                                         gpd.xs(activeIdx),gpd.vs(activeIdx),gpd.fs(activeIdx),nAtoms);
+            cudaDeviceSynchronize();
+        }
         // get a few pieces of data as required
         // -- all we're doing here is setting the position of the M-Site prior to computing the forces
         //    within the simulation.  Otherwise, the M-Site will likely be far away from where it should be, 
         //    relative to the moleule.  We do not solve the constraints on the rigid body at this time.
         // we need to reset the position of the M-Site prior to calculating the forces
+        
         setMSite<<<NBLOCK(nMols), PERBLOCK>>>(waterIdsGPU.data(), gpd.idToIdxs.d_data.data(), gpd.xs(activeIdx), nMols, bounds);
+        if (printing) {
+            cudaDeviceSynchronize();
 
+            printf("Calling printGPD_Rigid at turn %d\n in FixRigid::handleBoundsChange, after calling setMSite\n", state->turn);
+            printGPD_Rigid<<<NBLOCK(nAtoms), PERBLOCK>>>(gpd.ids(activeIdx),gpd.xs(activeIdx),
+                                                         gpd.vs(activeIdx),gpd.fs(activeIdx),nAtoms);
+            cudaDeviceSynchronize();
+        }
     }
 
     return;
@@ -1003,13 +1031,21 @@ bool FixRigid::prepareForRun() {
 }
 
 bool FixRigid::stepInit() {
+    
     int nMols = waterIdsGPU.size();
     GPUData &gpd = state->gpd;
     int activeIdx = gpd.activeIdx();
     BoundsGPU &bounds = state->boundsGPU;
-    float dtf = 0.5f * state->dt * state->units.ftm_to_v;
-    
-    //printf("after FixRigid::stepInit.distributeMSite<<>>\n");
+    //float dtf = 0.5f * state->dt * state->units.ftm_to_v;
+    int nAtoms = state->atoms.size();
+    if (TIP4P) {
+        if (printing) {
+            cudaDeviceSynchronize();
+            printf("Calling printGPD_Rigid at turn %d\n in FixRigid::stepInit, before doing anything\n", state->turn);
+            printGPD_Rigid<<<NBLOCK(nAtoms), PERBLOCK>>>(gpd.ids(activeIdx),gpd.xs(activeIdx),gpd.vs(activeIdx),gpd.fs(activeIdx),nAtoms);
+            cudaDeviceSynchronize();
+        }
+    }
     compute_COM<<<NBLOCK(nMols), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), 
                                            gpd.vs(activeIdx), gpd.idToIdxs.d_data.data(), 
                                            nMols, com.data(), bounds);
@@ -1017,6 +1053,17 @@ bool FixRigid::stepInit() {
                                                 gpd.vs(activeIdx), vs_0.data(), gpd.fs(activeIdx), 
                                                 fs_0.data(), nMols, gpd.idToIdxs.d_data.data());
 
+
+    if (TIP4P) {
+        if (printing) {
+            cudaDeviceSynchronize();
+            printf("Calling printGPD_Rigid at turn %d\n in FixRigid::stepInit, after doing compute_COM and compute_prev_val\n", state->turn);
+            printGPD_Rigid<<<NBLOCK(nAtoms), PERBLOCK>>>(gpd.ids(activeIdx),gpd.xs(activeIdx),
+                                                         gpd.vs(activeIdx),gpd.fs(activeIdx),nAtoms);
+            cudaDeviceSynchronize();
+        }
+    
+    }
     //float4 cpu_com[nMols*3];
     //xs_0.get(cpu_com);
     //std::cout << cpu_com[0] << "\n";
@@ -1029,27 +1076,34 @@ bool FixRigid::stepFinal() {
     GPUData &gpd = state->gpd;
     int activeIdx = gpd.activeIdx();
     BoundsGPU &bounds = state->boundsGPU;
-
-    //printf("got to stepFinal in FixRigid!\n");
-    //float4 cpu_xs[nMols*3];
-    //gpd.xs.dataToHost(activeIdx);
-    //std::cout << "before settle: " << cpu_xs[0] << "\n";
-
+    int nAtoms = state->atoms.size();
     // first, unconstrained velocity update continues: distribute the force from the M-site
     //        and integrate the velocities accordingly.  Update the forces as well.
     // Next,  do compute_SETTLE as usual on the (as-yet) unconstrained positions & velocities
 
     // from IntegratorVerlet
     if (TIP4P) {
+
+        if (printing) {
+            cudaDeviceSynchronize();
+            printf("Calling printGPD_Rigid at turn %d\n in FixRigid::stepFinal, before doing anything\n", state->turn);
+            printGPD_Rigid<<<NBLOCK(nAtoms), PERBLOCK>>>(gpd.ids(activeIdx),gpd.xs(activeIdx),gpd.vs(activeIdx),gpd.fs(activeIdx),nAtoms);
+            cudaDeviceSynchronize();
+        }
         float dtf = 0.5f * state->dt * state->units.ftm_to_v;
         distributeMSite<<<NBLOCK(nMols), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), 
                                                      gpd.vs(activeIdx),  gpd.fs(activeIdx),
                                                      nMols, gamma, dtf, gpd.idToIdxs.d_data.data(), bounds);
 
+        if (printing) { 
+            cudaDeviceSynchronize();
+            printf("Calling printGPD_Rigid at turn %d\n in FixRigid::stepFinal, after calling distributeMSite\n", state->turn);
+            printGPD_Rigid<<<NBLOCK(nAtoms), PERBLOCK>>>(gpd.ids(activeIdx),gpd.xs(activeIdx),gpd.vs(activeIdx),gpd.fs(activeIdx),nAtoms);
+            cudaDeviceSynchronize();
+        }
 
     }
 
-    //printf("Distributed the MSite forces!\n");
 
     compute_SETTLE<<<NBLOCK(nMols), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), 
                                                 xs_0.data(), gpd.vs(activeIdx), vs_0.data(), 
@@ -1061,7 +1115,21 @@ bool FixRigid::stepFinal() {
     //printf("did compute_SETTLE!\n");
     // finally, reset the position of the M-site to be consistent with that of the new, constrained water molecule
     if (TIP4P) {
+        if (printing) { 
+            printf("Calling printGPD_Rigid at turn %d\n in FixRigid::stepFinal, before calling setMSite \n", state->turn);
+            cudaDeviceSynchronize();
+            printGPD_Rigid<<<NBLOCK(nAtoms), PERBLOCK>>>(gpd.ids(activeIdx),gpd.xs(activeIdx),gpd.vs(activeIdx),gpd.fs(activeIdx),nAtoms);
+        
+            cudaDeviceSynchronize();
+        }
         setMSite<<<NBLOCK(nMols), PERBLOCK>>>(waterIdsGPU.data(), gpd.idToIdxs.d_data.data(), gpd.xs(activeIdx), nMols, bounds);
+        
+        if (printing) { 
+            cudaDeviceSynchronize();
+            printf("Calling printGPD_Rigid at turn %d\n in FixRigid::stepFinal, after calling setMSite \n", state->turn);
+            printGPD_Rigid<<<NBLOCK(nAtoms), PERBLOCK>>>(gpd.ids(activeIdx),gpd.xs(activeIdx),gpd.vs(activeIdx),gpd.fs(activeIdx),nAtoms);
+            cudaDeviceSynchronize();
+        }
     }
     
     
@@ -1092,8 +1160,9 @@ void export_FixRigid()
          py::arg("id_b"),  
          py::arg("id_c"), 
          py::arg("id_d"))
-     );
-    
+     )
+	.def_readwrite("printing", &FixRigid::printing)
+    ;
 }
 
 

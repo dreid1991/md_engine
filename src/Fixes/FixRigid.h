@@ -118,6 +118,7 @@ class FixRigid : public Fix {
          */
         void createRigid(int, int, int, int);
 
+        bool printing;
        
         std::vector<BondVariant> *getBonds() {
             return &bonds;

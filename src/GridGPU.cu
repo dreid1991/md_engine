@@ -69,17 +69,20 @@ GridGPU::GridGPU() {
     streamCreated = false;
     //initStream();
 }
+
 __global__ void printGPD(uint* ids, float4 *xs, float4 *vs, float4 *fs, int nAtoms) {
     int idx = GETIDX();
     if (idx < nAtoms) {
         uint id = ids[idx];
         if (id < 5) {
             float4 pos = xs[idx];
+            int type = xs[idx].w;
             float4 vel = vs[idx];
             float4 force = fs[idx];
-            printf("atom id %d at coords %f %f %f\n", id, pos.x, pos.y, pos.z);
-            printf("atom id %d with vel  %f %f %f\n", id, vel.x, vel.y, vel.z);
-            printf("atom id %d with force %f %f %f\n", id, force.x, force.y, force.z);
+            uint groupTag = force.w;
+            printf("atom id %d type %d at coords %f %f %f\n", id, type, pos.x, pos.y, pos.z);
+            printf("atom id %d mass %f with vel  %f %f %f\n", id, vel.w, vel.x, vel.y, vel.z);
+            printf("atom id %d groupTag %d with force %f %f %f\n", id, groupTag,  force.x, force.y, force.z);
         }
     }
 }
