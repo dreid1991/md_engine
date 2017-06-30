@@ -9,7 +9,6 @@
 
 /* TODO: move pair interactions in to EvaluatorE3B3. */
 //#include "PairEvaluatorE3B3.h"
-#include "ThreeBodyE3B3.h"
 #include "EvaluatorE3B3.h"
 #include "GridGPU.h"
 #include "Molecule.h"
@@ -106,10 +105,10 @@ class FixE3B3: public Fix {
         std::vector<int4> waterIds;
  
         // the local gridGPU for E3B3, where we make our molecule by molecule neighborlist
-        GridGPU gridGPU;
+        GridGPU gridGPULocal;
 
         // corresponding local GPU data; note that we only really need xs - no need for fs, vs, etc..
-        GPUData gpd;
+        GPUData gpdLocal;
 
         // the evaluator for E3B3
         EvaluatorE3B3 evaluator;

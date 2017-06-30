@@ -11,9 +11,6 @@
 
 using namespace std;
 
-
-
-
 __global__ void zeroVectorPreserveW(float4 *xs, int n) {
     int idx = GETIDX();
     if (idx < n) {
@@ -50,13 +47,6 @@ void Integrator::stepFinal()
         }
     }
 }
-
-
-
-
-
-
-
 
 void Integrator::asyncOperations() {
     int turn = state->turn;
@@ -143,7 +133,6 @@ void Integrator::basicPreRunChecks() {
 
 
 std::vector<bool> Integrator::basicPrepare(int numTurns) {
-    std::cout << "Running for " << numTurns << " turns with timestep of " << state->dt << std::endl;
     int nAtoms = state->atoms.size();
     state->runningFor = numTurns;
     state->runInit = state->turn;

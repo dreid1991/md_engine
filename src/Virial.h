@@ -33,7 +33,13 @@ class Virial {
                 vals[i] *= x;
             }
         } 
-
+        inline __host__ __device__ Virial operator *(float x) {
+            Virial newVals(*this);
+            for (int i=0; i<6; i++) {
+                newVals[i] *= x;
+            }
+            return newVals;
+        }
         /*
         float operator[] (int n) { //for python interface
             if (n > 0 and n < 6) {

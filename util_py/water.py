@@ -5,9 +5,9 @@ import numpy as np
 def getRandomOrientation():
     # randomly rotates the molecule in 3D space
     # -- get a vector of norm 1 pointing in some random direction
-    x1 = np.random.random()
-    x2 = np.random.random()
-    x3 = np.random.random()
+    x1 = 1.0 - 2.0*np.random.random()
+    x2 = 1.0 - 2.0*np.random.random()
+    x3 = 1.0 - 2.0*np.random.random()
     orientation = Vector(x1,x2,x3).normalized()
     return orientation
 
@@ -20,7 +20,8 @@ def rotateBy(origin, bond, theta):
     basis1 = axis
     # -- the dot product of two orthogonal vectors is zero
     #    so, a*x + b*y + c*z = 0 ---> c = -(a*x - b*y) / z
-    basis2 = np.asarray((np.random.random(),np.random.random(),0))
+    basis2 = np.asarray((1.0-2.0*np.random.random(),
+                         1.0-2.0*np.random.random(),0))
     c  = -np.dot(basis2,axis) / axis[2]
 
     # here is our orthogonal vector. needs to be normalized though.
@@ -60,21 +61,22 @@ def rotateBy(origin, bond, theta):
 
     return position
 
-
-def create_TIP3P(state, oxygenHandle, hydrogenHandle, center=None, orientation=None):
+# 'bondLength' defaults to Real units
+# pass bondLength/sigma(O) to scale for LJ simulation
+def create_TIP3P(state, oxygenHandle, hydrogenHandle, bondLength = 0.9572, center=None, orientation=None):
     if center==None:
         center = state.Vector(0, 0, 0)
     if orientation==None:
         state.addAtom(handle=  oxygenHandle, pos=center,q=-0.8340)
-        h1Pos = center + Vector(0.9572, 0, 0)
+        h1Pos = center + Vector(bondLength, 0, 0)
         state.addAtom(handle=hydrogenHandle, pos=h1Pos, q=0.4170)
         theta = 1.824218134
-        h2Pos = center + Vector(cos(theta)*0.9572, sin(theta)*0.9572, 0)
+        h2Pos = center + Vector(cos(theta), sin(theta), 0) * bondLength
         state.addAtom(handle=hydrogenHandle, pos=h2Pos, q=0.4170)
         return state.createMolecule([state.atoms[-3].id, state.atoms[-2].id, state.atoms[-1].id])
     elif orientation=="random":
         state.addAtom(handle=oxygenHandle, pos=center, q=-0.8340)
-        offsetH1 = getRandomOrientation() * 0.9572
+        offsetH1 = getRandomOrientation() * bondLength
         h1Pos = center + offsetH1
         state.addAtom(handle=hydrogenHandle,pos=h1Pos,q=0.4170)
         theta = 1.824218134
@@ -158,6 +160,7 @@ def create_TIP4P_2005(state, oxygenHandle, hydrogenHandle, mSiteHandle, center=N
         state.addAtom(handle=hydrogenHandle, pos=h1Pos, q=0.5897)
         theta = 1.824218134
         h2Pos = rotateBy(center,offset1,theta)
+        offset2 = h2Pos - center
         state.addAtom(handle=hydrogenHandle, pos=h2Pos, q=0.5897)
         mSiteOffset = (offset1 + offset2).normalized() * 0.1546
         state.addAtom(handle=mSiteHandle, pos=center+mSiteOffset, q=-1.1794)

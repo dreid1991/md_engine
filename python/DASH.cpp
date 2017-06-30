@@ -71,6 +71,7 @@ BOOST_PYTHON_MODULE(DASH) {
     export_Fix2d();
     export_FixLinearMomentum();
     export_FixRigid();
+    export_FixE3B3();
     export_FixDeform();
 
     export_FixExternal();

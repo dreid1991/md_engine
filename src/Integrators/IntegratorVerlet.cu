@@ -10,6 +10,7 @@
 #include "State.h"
 #include "Fix.h"
 #include "cutils_func.h"
+#include "globalDefs.h"
 
 using namespace MD_ENGINE;
 
@@ -21,7 +22,11 @@ __global__ void nve_v_cu(int nAtoms, float4 *vs, float4 *fs, float dtf) {
         // Update velocity by a half timestep
         float4 vel = vs[idx];
         float invmass = vel.w;
-
+        // ghost particles should not have their velocities integrated; causes overflow
+        if (invmass == INVMASSLESS) {
+            vs[idx] = make_float4(0.0f, 0.0f, 0.0f,invmass);
+            return;
+        }
         float4 force = fs[idx];
 
         float3 dv = dtf * invmass * make_float3(force);
@@ -243,7 +248,10 @@ __global__ void preForce_cu(int nAtoms, float4 *xs, float4 *vs, float4 *fs,
         // Update velocity by a half timestep
         float4 vel = vs[idx];
         float invmass = vel.w;
-
+        if (invmass == INVMASSLESS) {
+            vs[idx] = make_float4(0.0f, 0.0f, 0.0f,invmass);
+            return;
+        }
         float4 force = fs[idx];
 
         float3 dv = dtf * invmass * make_float3(force);
@@ -488,7 +496,10 @@ __global__ void postForce_cu(int nAtoms, float4 *vs, float4 *fs, float dtf)
         // Update velocities by a halftimestep
         float4 vel = vs[idx];
         float invmass = vel.w;
-
+        if (invmass == INVMASSLESS) {
+            vs[idx] = make_float4(0.0f, 0.0f, 0.0f,invmass);
+            return;
+        }
         float4 force = fs[idx];
 
         float3 dv = dtf * invmass * make_float3(force);
@@ -509,6 +520,7 @@ void IntegratorVerlet::run(int numTurns)
 
     std::vector<bool> prepared = basicPrepare(numTurns);
     
+    printf("\nBack in IntegratorVerlet.cu\n");
     force(true);
 
     for (int i = 0; i<prepared.size(); i++) {

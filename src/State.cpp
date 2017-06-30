@@ -8,6 +8,7 @@
 #include "PythonOperation.h"
 #include "DataManager.h"
 #include "DataSetUser.h"
+#include "globalDefs.h"
 
 /* State is where everything is sewn together. We set global options:
  *   - gpu cuda device data and options
@@ -521,8 +522,12 @@ bool State::prepareForRun() {
         xs_vec.push_back(make_float4(a.pos[0], a.pos[1], a.pos[2],
                                      *(float *)&a.type));
         if (a.mass == 0) {
+            // make the inverse mass a very large, but finite number
+            // -- must be representable by floating point
+            // -- make it a few orders of magnitude small than 1e38 so overflow is
+            //    never an issue
             vs_vec.push_back(make_float4(a.vel[0], a.vel[1], a.vel[2],
-                                         0));
+                                         INVMASSLESS));
         } else {
             vs_vec.push_back(make_float4(a.vel[0], a.vel[1], a.vel[2],
                                          1/a.mass));

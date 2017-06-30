@@ -74,19 +74,24 @@ __global__ void printGPD(uint* ids, float4 *xs, float4 *vs, float4 *fs, int nAto
     int idx = GETIDX();
     if (idx < nAtoms) {
         uint id = ids[idx];
-        if (id < 5) {
-            float4 pos = xs[idx];
-            int type = xs[idx].w;
-            float4 vel = vs[idx];
-            float4 force = fs[idx];
-            uint groupTag = force.w;
-            printf("atom id %d type %d at coords %f %f %f\n", id, type, pos.x, pos.y, pos.z);
-            printf("atom id %d mass %f with vel  %f %f %f\n", id, vel.w, vel.x, vel.y, vel.z);
-            printf("atom id %d groupTag %d with force %f %f %f\n", id, groupTag,  force.x, force.y, force.z);
+        float4 pos = xs[idx];
+        int type = xs[idx].w;
+        float4 vel = vs[idx];
+        float4 force = fs[idx];
+        uint groupTag = force.w;
+        printf("atom id %d type %d at coords %f %f %f\n", id, type, pos.x, pos.y, pos.z);
+        printf("atom id %d mass %f with vel  %f %f %f\n", id, vel.w, vel.x, vel.y, vel.z);
+        printf("atom id %d groupTag %d with force %f %f %f\n", id, groupTag,  force.x, force.y, force.z);
         }
+}
+__global__ void printGPD_xsOnly(uint* ids, float4 *xs, int nAtoms) {
+    int idx = GETIDX();
+    if (idx < nAtoms) {
+        uint id = ids[idx];
+        float4 pos = xs[idx];
+        printf("atom id %d at coords %f %f %f\n", id, pos.x, pos.y, pos.z);
     }
 }
-
 
 
 GridGPU::GridGPU(State *state_, float dx_, float dy_, float dz_, float neighCutoffMax_, int exclusionMode_, double padding_, GPUData *gpd_, int nPerRingPoly_)
@@ -429,7 +434,11 @@ __device__ int assignFromCell(float3 pos, int idx, uint myId, float4 *xs, uint *
         float3 otherPos = make_float3(xs[i]);
         float3 distVec = otherPos + (offset * trace) - pos;
         uint otherId = ids[i*nPerRingPoly];
-
+        //TODO delete
+        if (!(EXCLUSIONS)) {
+                printf("in assignFromCell myId %d otherId %d distance %f neighCutSqr %f\n", myId, otherId, dot(distVec, distVec), neighCutSqr);
+        }
+        //end delete TODO
         if (myId != otherId && dot(distVec, distVec) < neighCutSqr/* &&
             !(isExcluded(otherId, exclusions, numExclusions, maxExclusions))*/) {
             if (EXCLUSIONS) {
@@ -507,8 +516,8 @@ __global__ void assignNeighbors(float4 *xs, int nRingPoly, int nPerRingPoly, uin
     exclIdxLo_shr = threadIdx.x * maxExclusionsPerAtom;
     if (idx < nRingPoly) {
         posWhole = xs[idx];
+        myId = ids[idx*nPerRingPoly];
         if (EXCLUSIONS) {
-            myId = ids[idx*nPerRingPoly];
             int exclIdxLo = exclusionIndexes[myId];
             int exclIdxHi = exclusionIndexes[myId+1];
             numExclusions = exclIdxHi - exclIdxLo;
@@ -744,6 +753,15 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
         setBounds(state->boundsGPU);
     }
     BoundsGPU bounds = state->boundsGPU;
+    
+    /* TODO: delete */
+    cudaDeviceSynchronize();
+    printf("\nCalling printGPD_xsOnly in GridGPU\n");
+    SAFECALL((printGPD_xsOnly<<<NBLOCK(nAtoms), PERBLOCK>>>(gpd->ids(activeIdx),gpd->xs(activeIdx),nAtoms)));
+    cudaDeviceSynchronize();
+    printf("Called printGPD on %d atoms\n", nAtoms);
+    
+    /* // end TODO: delete */
 
     // DO ASYNC COPY TO xsLastBuild
     // FINISH FUTURE WHICH SETS REBUILD FLAG BY NOW PLEASE
@@ -751,11 +769,17 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
     // multigpu: needs to rebuild if any proc needs to rebuild
 
     // NOTE:  nothing to do here, if onlyPositionsFlag is True
-    setBuildFlag<<<NBLOCK(nAtoms), PERBLOCK, PERBLOCK * sizeof(short)>>>(
+    //TODO delete
+    printf("\ncalling setBuildFlag in ::periodicBoundaryConditions\n");
+    // end TODO
+    SAFECALL((setBuildFlag<<<NBLOCK(nAtoms), PERBLOCK, PERBLOCK * sizeof(short)>>>(
                 gpd->xs(activeIdx), xsLastBuild.data(), nAtoms, bounds,
-                padding * padding, buildFlag.d_data.data(), numChecksSinceLastBuild, warpSize);
+                padding * padding, buildFlag.d_data.data(), numChecksSinceLastBuild, warpSize)));
     buildFlag.dataToHost();
     cudaDeviceSynchronize();
+    //TODO delete
+    printf("\nHERE: End setBuildFlag in ::periodicBoundaryConditions\n");
+    // end TODO
 
     if (buildFlag.h_data[0] or forceBuild) {
 
@@ -775,15 +799,23 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
             //            state->gpd.xs(activeIdx), nAtoms,
             //            bounds.sides[0], bounds.sides[1], bounds.lo);
         }
-        periodicWrap<<<NBLOCK(nAtoms), PERBLOCK>>>(gpd->xs(activeIdx), nAtoms, boundsUnskewed);
+        //TODO delete
+        printf("\nHERE: About to call periodicWrap in GridGPU::periodicBoudnaryConditions\n");
+        // end TODO
+        SAFECALL((periodicWrap<<<NBLOCK(nAtoms), PERBLOCK>>>(gpd->xs(activeIdx), nAtoms, boundsUnskewed)));
+        //TODO delete
+        printf("\nHERE: Completed periodicWrap kernel in GridGPU::periodicBoundaryConditions\n");
+        // end TODO
         
         // remove all below statements after done debugging TODO
-        /*
-        printf("After periodicWrap in GridGPU at turn %d \n", state->turn);
-        cudaDeviceSynchronize();
-        printGPD<<<NBLOCK(nAtoms), PERBLOCK>>>(gpd->ids(activeIdx),gpd->xs(activeIdx),gpd->vs(activeIdx),gpd->fs(activeIdx),nAtoms);
-        cudaDeviceSynchronize();
         
+        printf("HERE: After periodicWrap in GridGPU at turn %d \n", state->turn);
+        cudaDeviceSynchronize();
+        printf("HERE: Calling printGPD on %d atoms", nAtoms);
+        SAFECALL((printGPD_xsOnly<<<NBLOCK(nAtoms), PERBLOCK>>>(gpd->ids(activeIdx),gpd->xs(activeIdx),nAtoms)));
+        cudaDeviceSynchronize();
+        printf("HERE: Called printGPD on %d atoms", nAtoms);
+        /*
         printf("and state->gpd.xxxxx on turn %d says\n", state->turn);
         printGPD<<<NBLOCK(nAtoms), PERBLOCK>>>(state->gpd.ids(activeIdx), state->gpd.xs(activeIdx),state->gpd.vs(activeIdx), state->gpd.fs(activeIdx), nAtoms);
         cudaDeviceSynchronize();
@@ -806,13 +838,19 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
         } else {
             centroids = gpd->xs(activeIdx);
         }
-        countNumInGridCells<<<NBLOCK(nRingPoly), PERBLOCK>>>(
+        //TODO delete
+        printf("\nHERE: About to do countNumInGridCells in GridGPU::periodicBoundaryConditions\n");
+        // end TODO
+        SAFECALL((countNumInGridCells<<<NBLOCK(nRingPoly), PERBLOCK>>>(
                     centroids, nRingPoly,
                     perCellArray.d_data.data(), perAtomArray.d_data.data(),
                     os, ds, ns
-        );//PER RP CENTROID
+        )));//PER RP CENTROID
         perCellArray.dataToHost();
         cudaDeviceSynchronize();
+        //TODO delete
+        printf("\nHERE: Completed countNumInGridCells in GridGPU::periodicBoundaryConditions\n");
+        // end TODO
 
         uint32_t *gridCellCounts_h = perCellArray.h_data.data();
         //repurposing this as starting indexes for each grid square
@@ -838,15 +876,19 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
         } else {
             // just the positions and ids.  All we need.
 
-            sortPerAtomArrays_xsOnly<<<NBLOCK(nRingPoly), PERBLOCK>>>(
+            SAFECALL((sortPerAtomArrays_xsOnly<<<NBLOCK(nRingPoly), PERBLOCK>>>(
                     centroids,
                     gpd->xs(activeIdx), gpd->xs(!activeIdx),
                     gpd->ids(activeIdx), gpd->ids(!activeIdx),
                     gpd->idToIdxs.d_data.data(),
                     perCellArray.d_data.data(), perAtomArray.d_data.data(),
                     nRingPoly, os, ds, ns, nPerRingPoly
-            );
+            )));
         }
+        //TODO delete
+        cudaDeviceSynchronize();
+        printf("\nHERE: Completed sortPerAtomArrays kernel call in GridGPU::periodicBoundaryConditions\n");
+        // end TODO
         activeIdx = gpd->switchIdx();
         gridIdx = activeIdx;
 
@@ -859,6 +901,7 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
 	        centroids = gpd->xs(activeIdx);
 	    }
 
+        printf("\nHERE: Assigned centroids in GridGPU::periodicBoundaryConditions\n");
         float3 trace = boundsUnskewed.trace();
 
         /* multigpu:
@@ -880,15 +923,18 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
          *     call this for ghosts too; everything after this has to be done on
          *     ghosts too
          */
-        countNumNeighbors<<<NBLOCK(nRingPoly), PERBLOCK>>>(
+        printf("\nHERE: About to countNumNeighbors in GridGPU::\n");
+        SAFECALL((countNumNeighbors<<<NBLOCK(nRingPoly), PERBLOCK>>>(
                     centroids, nRingPoly, 
                     perAtomArray.d_data.data(), perCellArray.d_data.data(),
-                    os, ds, ns, bounds.periodic, trace, neighCut*neighCut); //PER RP CENTROID
+                    os, ds, ns, bounds.periodic, trace, neighCut*neighCut))); //PER RP CENTROID
+        printf("\nHERE: About to computeMaxNumNeighPerBlock in GridGPU::\n");
 
-        computeMaxNumNeighPerBlock<<<NBLOCK(nRingPoly), PERBLOCK, PERBLOCK*sizeof(uint16_t)>>>(
+        SAFECALL((computeMaxNumNeighPerBlock<<<NBLOCK(nRingPoly), PERBLOCK, PERBLOCK*sizeof(uint16_t)>>>(
                     nRingPoly, perAtomArray.d_data.data(),
-                    perBlockArray_maxNeighborsInBlock.data(), warpSize); // MAKE NUM NP VARIABLE
+                    perBlockArray_maxNeighborsInBlock.data(), warpSize))); // MAKE NUM NP VARIABLE
 
+        printf("\nHERE: About to setCumulativeSumPerBlock in GridGPU::\n");
         int numBlocks = perBlockArray_maxNeighborsInBlock.size();
         setCumulativeSumPerBlock<<<NBLOCK(numBlocks+1), PERBLOCK>>>(
                     numBlocks, perBlockArray.d_data.data(),
@@ -897,6 +943,9 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
         perBlockArray.d_data.get(&cumulSumPerBlock, numBlocks, 1);
         cudaDeviceSynchronize();
 
+        //TODO delete
+        printf("\nHERE: Completed countNumNeighbors, computeMaxNumNeighPerBlock kernels in GridGPU::periodicBoundaryConditions\n");
+        // end TODO
         //perAtomArray.dataToHost();
         //cudaDeviceSynchronize();
         //setPerBlockCounts(perAtomArray.h_data, perBlockArray.h_data);  // okay, now this is the start index (+1 is end index) of each atom's neighbors
@@ -910,6 +959,9 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
         } else if (totalNumNeighbors < neighborlist.size() * 0.5) {
             neighborlist = GPUArrayDeviceGlobal<uint>(totalNumNeighbors*1.5);
         }
+        //TODO delete
+        printf("\nHERE: About to assignNeighbors in ::periodicBoundaryConditions\n");
+        // end TODO
    
         if (exclusions) {
             assignNeighbors<true> <<<NBLOCK(nRingPoly), PERBLOCK, PERBLOCK*maxExclusionsPerAtom*sizeof(uint)>>>(
@@ -921,13 +973,16 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
         } else {
 
             // no exclusions present (maxExclusionsPerAtom is 0)
-            assignNeighbors<false> <<<NBLOCK(nRingPoly), PERBLOCK, PERBLOCK*maxExclusionsPerAtom*sizeof(uint)>>>(
+            SAFECALL((assignNeighbors<false> <<<NBLOCK(nRingPoly), PERBLOCK, PERBLOCK*maxExclusionsPerAtom*sizeof(uint)>>>(
                 centroids, nRingPoly, nPerRingPoly, gpd->ids(gridIdx),
                 perCellArray.d_data.data(), perBlockArray.d_data.data(), os, ds, ns,
                 bounds.periodic, trace, neighCut*neighCut, neighborlist.data(), warpSize,
                 exclusionIndexes.data(), exclusionIds.data(), maxExclusionsPerAtom
-            );
+            )));
         }
+        //TODO delete
+        printf("\nHERE: Completed assignNeighbors kernel in ::periodicBoundaryConditions\n");
+        // end TODO
      
         if (bounds.isSkewed()) {
             //implement when adding skew
@@ -938,6 +993,11 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
         ds = ds_orig;
         os = os_orig;
         //verifyNeighborlists(neighCut);
+        cudaDeviceSynchronize();
+        printf("\nHERE: Calling printGPD_xsOnly in GridGPU::PBC before returning \n");
+        SAFECALL((printGPD_xsOnly<<<NBLOCK(nAtoms), PERBLOCK>>>(gpd->ids(activeIdx),gpd->xs(activeIdx),nAtoms)));
+        cudaDeviceSynchronize();
+        printf("HERE: Called printGPD on %d atoms\n", nAtoms);
 
         numChecksSinceLastBuild = 0;
         copyPositionsAsync(); 

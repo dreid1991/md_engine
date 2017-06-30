@@ -63,6 +63,13 @@ class FixRigid : public Fix {
         //  See Feenstra, Hess, and Berendsen, J. Computational Chemistry, Vol. 20, No. 8, 786-798 (1999)
         //  -- specifically, appendix A, expression 6
         float gamma;
+    
+        // local constants to be set for assorted supported water models
+        // sigma_O is for scaling of bond lengths if LJ units are used
+        float sigma_O;
+        float r_OH;
+        float r_OM;
+        float r_HH;
 
     public:
 
@@ -75,6 +82,15 @@ class FixRigid : public Fix {
         */
         FixRigid(SHARED(State), std::string handle_, std::string groupHandle_);
 
+        // the style of a given water model to be used.  Defaults to either TIP3P or TIP4P/2005
+        std::string style;
+
+        // denotes whether a style has been set; else, default
+        bool styleSet;
+
+        // permits variants of a given style (e.g., TIP4P, TIP4P/LONG, TIP4P/2005)
+        // default styles are TIP3P and TIP4P/2005
+        void setStyle(std::string);
 
         //! First half step of the integration
         /*!
@@ -92,6 +108,7 @@ class FixRigid : public Fix {
         //! Prepare FixRigid for simulation run
         bool prepareForRun();
 
+
         //! Reset the position of the M-site after integrating the position of the molecule.
         //  -- Note that we do /not/ solve the rigid body constraints at this point;
         //     However, the massless site does not evolve with the other atoms of the molecule (if TIP4P);
@@ -107,6 +124,7 @@ class FixRigid : public Fix {
          */
         void createRigid(int, int, int);
 
+
         //! Create a rigid constraint on a TIP4P/2005 water molecule
         /*!
          * \ param id_a The atom id in the simulation state of the Oxygen atom in TIP4P/2005
@@ -116,10 +134,8 @@ class FixRigid : public Fix {
          */
         void createRigid(int, int, int, int);
 
-
         bool printing;
        
-
         bool firstPrepare;
         std::vector<BondVariant> *getBonds() {
             return &bonds;

@@ -1,18 +1,13 @@
 #pragma once
-#ifndef THREE_BODY_E3B3
-#define THREE_BODY_E3B3
 
 #include "BoundsGPU.h"
 #include "cutils_func.h"
 #include "Virial.h"
 #include "helpers.h"
 #include "SquareVector.h"
+#include "cutils_math.h"
+#include <boost/shared_ptr.hpp>
 
-// consider: what needs to be templated here? //
-// -- we need number of molecules, a neighborlist /by molecule/
-// ---- this neighborlist should be a list of integer molecule ids,
-//      for which there is a map organized by molecule id from which we 
-//      can extract the atom ids (and from there our usual pos, force, vel, etc.)
 template <class EVALUATOR, bool COMP_VIRIALS> 
 __global__ void compute_E3B3
         (int nMolecules, 
@@ -31,28 +26,17 @@ __global__ void compute_E3B3
          EVALUATOR eval)
 {
 
-    __syncthreads();
-    
     int idx = GETIDX();
 
     if (idx < nMolecules) {
 
-        // stuff with virials here as well
-        //
-        // TODO: we use IDX to get data from the molec gpd arrays...
-        //       -- we use molIdToIdxs to get the ID, to access atomsFromMolecule[id]..
-        //       -- this yields atom [ids]...
-        //       -- we use the global atom idToIdxs[id] to get the atom idxs, and corresponding
-        //          positions, forces etc.?
-        //       -- repeat this for molecules 2 and 3?
-
-
         // -- the purpose of this is to load the neighbors associated with this molecule ID
-        int baseMoleculeIdx =  baseNeighlistIdx(cumulSumMaxPerBlock, warpSize);
+        int baseIdx =  baseNeighlistIdx(cumulSumMaxPerBlock, warpSize);
 
         // number of neighbors this molecule has, with which it can form trimers
         int numNeighMolecules = neighborCounts[idx];
        
+        printf("idx %d baseIdx %d numNeighMolecules %d\n", idx, baseIdx, numNeighMolecules);
         // here we should extract the positions of the O, H atoms of this water molecule
         // first, get the atom indices - maybe this will be stored as an array of ints?
 
@@ -62,9 +46,9 @@ __global__ void compute_E3B3
         //int moleculeId = molIdToIdxs[idx];
 
         int4 atomsMolecule1 = atomsFromMolecule[moleculeId];
-        
-        printf("molecule id %d atoms: %d, %d, %d \n", moleculeId, atomsMolecule1.x, atomsMolecule1.y, atomsMolecule1.z);
-   
+        int4 atomsFromIdx = atomsFromMolecule[idx];
+        //printf("idx %d molecule id %d atoms: %d, %d, %d \n", idx, moleculeId, atomsMolecule1.x, atomsMolecule1.y, atomsMolecule1.z);
+        printf("idx %d atomsFromidx %d %d %d id %d atoms %d %d %d\n", idx, atomsFromIdx.x, atomsFromIdx.y, atomsFromIdx.z, moleculeId, atomsMolecule1.x, atomsMolecule1.y, atomsMolecule1.z);
 
         /* NOTE to others: see the notation used in 
          * Kumar and Skinner, J. Phys. Chem. B., 2008, 112, 8311-8318
@@ -88,7 +72,7 @@ __global__ void compute_E3B3
         float3 pos_a1 = make_float3(pos_a1_whole);
         float3 pos_b1 = make_float3(pos_b1_whole);
         float3 pos_c1 = make_float3(pos_c1_whole);
-
+        //printf("idx %d molecule id %d oxygen at %f %f %f\n", idx, moleculeId, pos_a1.x, pos_a1.y, pos_a1.z);
         // create a new force sum variable for these atoms
         float3 fs_a1_sum = make_float3(0.0, 0.0, 0.0);
         float3 fs_b1_sum = make_float3(0.0, 0.0, 0.0);
@@ -96,19 +80,38 @@ __global__ void compute_E3B3
         
         // iterate over the neighbors of molecule '1'; compute the two-body interaction w.r.t all it's neighbors
         // when they are denoted as molecule '2' (or, correspondingly, j)
+        
+        //__syncthreads();
+
+        //printf("idx %d molecule id %d neighborlist at j = 0: %d\n", idx, moleculeId, waterMolecIds[neighborlist[baseIdx]]);
+        //printf("idx %d molecule id %d warpSize %d neighborlist at j = 1: %d\n", idx, moleculeId, warpSize, waterMolecIds[neighborlist[baseIdx + warpSize]]);
+        //printf("molIdToIdxs[baseIdx+warpSize] %d waterMolecIds[molId..[..]] %d\n", molIdToIdxs[neighborlist[baseIdx+warpSize]], waterMolecIds[neighborlist[baseIdx+warpSize]]);
+        //int4 na2 = atomsFromMolecule[molIdToIdxs[neighborlist[baseIdx+warpSize]]];
+        //int neighMol = waterMolecIds[neighborlist[baseIdx+warpSize]];
+        //int4 na3 = atomsFromMolecule[neighMol];
+        //int4 na4 = atomsFromMolecule[neighborlist[baseIdx+warpSize]];
+
+        // get the oxygen-oxygen distance too while we're here...
+        //printf("idx %d molecule id %d atoms %d %d %d neighbor %d atoms %d %d %d vs atomsFromMolecule[neigh[..]] %d %d %d\n", idx, moleculeId,atomsMolecule1.x, atomsMolecule1.y, atomsMolecule1.z,  waterMolecIds[neighborlist[baseIdx+warpSize]],na3.x, na3.y, na3.z, na4.x, na4.y, na4.z);
+        //float3 posOna3 = make_float3(xs[idToIdxs[na3.x]]);
+        //float3 posOna4 = make_float3(xs[idToIdxs[na4.x]]);
+        //float3 minImageOna3 = bounds.minImage(posOna3 - pos_a1);
+        //float3 minImageOna4 = bounds.minImage(posOna4 - pos_a1);
+        //float distSqrOna3 = dot(minImageOna3, minImageOna3);
+        //float distSqrOna4 = dot(minImageOna4, minImageOna4);
+        //printf("squared O-O distance ona3 %f ona4 %f\n", distSqrOna3, distSqrOna4);
+
         for (int j = 0; j < (numNeighMolecules); j++) {
-            
             // get idx of this molecule
             // -- then, the atomIDs that we need are somehow accessible via MoleculeID
-            int nlistIdx = baseMoleculeIdx + warpSize * j;
-            uint jIdxRaw = neighborlist[nlistIdx];
+            int nlistIdx = baseIdx + warpSize * j;
+            int moleculeId2 = waterMolecIds[neighborlist[nlistIdx]];
 
             // get the molecule id for this idx
-            int moleculeId2 = waterMolecIds[jIdxRaw];
+            //int moleculeId2 = waterMolecIds[jIdxRaw];
             
             // get the atom ids from this molecule id
             int4 atomsMolecule2 = atomsFromMolecule[moleculeId2];
-
             // get the atom idxs from the atom ids.. since the per-atom arrays are sorted by idx
             int idx_a2 = idToIdxs[atomsMolecule2.x];
             int idx_b2 = idToIdxs[atomsMolecule2.y];
@@ -125,6 +128,7 @@ __global__ void compute_E3B3
 
             // we have four OH distances to compute here
             
+            printf("idx %d molecule id %d neighbor id %d oxygen at %f %f %f\n", idx, moleculeId, moleculeId2, pos_a2.x, pos_a2.y, pos_a2.z);
             // -- just as the paper does, we compute the vector w.r.t. the hydrogen
             
             float3 r_b2a1 = bounds.minImage(pos_b2 - pos_a1);
@@ -172,7 +176,7 @@ __global__ void compute_E3B3
             for (int k = j+1; k < numNeighMolecules; k++) {
                 
                 // grab warp index corresponding to this 'k'
-                int klistMoleculeIdx = baseMoleculeIdx + warpSize * k;
+                int klistMoleculeIdx = baseIdx + warpSize * k;
                 // convert this index to a molecule index within our molecule array
                 int krawIdx = neighborlist[klistMoleculeIdx];
 
@@ -226,7 +230,8 @@ __global__ void compute_E3B3
                 float r_c1a3_magnitude = length(r_c1a3);
                 float r_b2a3_magnitude = length(r_b2a3);
                 float r_c2a3_magnitude = length(r_c2a3);
-
+    
+                printf("line 236 of compute_e3b3\n");
                 // compute the number of additional distances within the cutoff;
                 // if the total is >= 2, we need to compute the force terms.
                 numberOfDistancesWithinCutoff += eval.getNumberWithinCutoff(r_b3a1_magnitude,
@@ -240,7 +245,7 @@ __global__ void compute_E3B3
                                                                             r_c2a3_magnitude);
 
                 // if there is only 1 intermolecular O-H distance within the cutoff, all terms will be zero
-                if (numberOfDistancesWithinCutoff >= 2) {
+                if (numberOfDistancesWithinCutoff > 1) {
                     // send our forces sum variable, the distance vectors, and their corresponding magnitude to the force evaluate function
                     // -- also, for speed, we pre-compute the force scalar corresponding to the a1b2, a1c2, a2b1, and a2c1 distances
                     // -- then, we are done
@@ -282,11 +287,9 @@ __global__ void compute_E3B3
         fs[idx_a1] = fs_a1_whole;
         fs[idx_b1] = fs_b1_whole;
         fs[idx_c1] = fs_c1_whole;
-
+        printf("end of compute_e3b3\n");
 
 
 
     } // end if (idx < nMolecules) 
 } // end function compute
-
-#endif /* THREE_BODY_E3B3 */

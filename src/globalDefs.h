@@ -8,6 +8,8 @@
 #include "cuda_runtime.h"
 #include "Logging.h"
 
+// define inverse of massless particle as arbitrarily large, but finite number
+#define INVMASSLESS 1.0e20f
 
 #define EXCL_MASK (~(3<<30));
 #define GPUMEMBER __host__ __device__
