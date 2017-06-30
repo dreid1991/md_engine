@@ -9,25 +9,38 @@ from DASH import *
 import numpy as np
 
 state = State()
-state.deviceManager.setDevice(1)
+state.deviceManager.setDevice(0)
 
-
-# VERY IMPORTANT: the initial density of our simulation cell
-numMolecules = 200
-sideLength = 45.0
-
-
+##############################
+# Set initial density here
+##############################
+numMolecules = 512
+sideLength = 27.0
 
 loVector = Vector(0,0,0)
 hiVector = Vector(sideLength, sideLength, sideLength)
+
 state.bounds = Bounds(state, lo = loVector, hi = hiVector)
-state.rCut = 5.0
+state.rCut = 10.0
 state.padding = 1.0
 state.periodicInterval = 7
-state.shoutEvery = 100
+state.shoutEvery = 10
 state.units.setReal()
-state.dt = 0.5
-upperBound = hiVector[0]
+state.dt = 0.05
+
+COMV_By_Turn = []
+COM_By_Turn = []
+def computeCOMV(currentTurn):
+    COMV = Vector(0, 0, 0)
+    COM  = Vector(0, 0, 0)
+    for atom in state.atoms:
+        COMV += atom.vel * atom.mass
+        COM  += atom.pos * atom.mass
+    COMV_By_Turn.append(COMV)
+    COM_By_Turn.append(COM)
+
+COMV_Simulation = PythonOperation("COMV",5,computeCOMV)
+state.activatePythonOperation(COMV_Simulation)
 
 # handles for our atoms
 oxygenHandle = 'OW'
@@ -37,61 +50,60 @@ mSiteHandle = 'M'
 # add our oxygen and hydrogen species to the simulation
 state.atomParams.addSpecies(handle=oxygenHandle, mass=15.9994, atomicNum=8)
 state.atomParams.addSpecies(handle=hydrogenHandle, mass=1.008, atomicNum=1)
-state.atomParams.addSpecies(handle=mSiteHandle,mass=0,atomicNum=0)
-
 # equilibrate NPT 298k, 1 bar for 1m steps
 # then run NVE for 5m steps for computing the O-O RDF
 # -- during this time, compute t_average and p_average
 
 # from TIP4P/2005 paper (Abascal & Vega , J. Chem. Phys. 123, 234505 (2005))
-epsPerKb = 93.2
-sigma = 3.1589
+#epsPerKb = 93.2
+#sigma = 3.1589
 
 # kb and N_A, without e+23 and e-23 (cancels out on multiplication)
-kb = 1.38064852; #e-23
-N_A = 6.0221409; #e+23
-JtoKcal = 1.0 / 4184.0
+#kb = 1.38064852; #e-23
+#N_A = 6.0221409; #e+23
+#JtoKcal = 1.0 / 4184.0
 
-epsilon = epsPerKb * kb * N_A * JtoKcal
+#epsilon = epsPerKb * kb * N_A * JtoKcal
 #print "epsilon was found to be", epsilon
-
+epsKjPerMol = 0.63627
+sigma = 3.15066
+kjToKCal = 0.239006
+epsilon = epsKjPerMol * kjToKCal
 # convert the TIP4P epsilon from 93.2 [J/K] to kcal/mol
 nonbond = FixLJCut(state,'cut')
 nonbond.setParameter('sig',oxygenHandle, oxygenHandle, sigma)
 nonbond.setParameter('eps',oxygenHandle, oxygenHandle, epsilon)
-
+nonbond.setParameter('sig',hydrogenHandle, hydrogenHandle, 0.0)
+nonbond.setParameter('eps',hydrogenHandle, hydrogenHandle, 0.0)
 rigid = FixRigid(state,'rigid','all')
 
 # our vector of centers
 positions = []
 
-xyzrange = int(math.ceil(numMolecules**(1.0/3)))
+xyzrange = int(math.ceil(numMolecules**(1.0/3.0)))
 xyzFloat = float(xyzrange)
 for x in xrange(xyzrange):
     for y in xrange(xyzrange):
         for z in xrange(xyzrange):
-            pos = Vector( float(x)/(xyzFloat)*sideLength,
-                          float(y)/(xyzFloat)*sideLength,
-                          float(z)/(xyzFloat)*sideLength)
-            #print pos
+            pos = Vector( float(x)/(xyzFloat)*(0.9*sideLength) + 0.05*sideLength,
+                          float(y)/(xyzFloat)*(0.9*sideLength) + 0.05*sideLength,
+                          float(z)/(xyzFloat)*(0.9*sideLength) + 0.05*sideLength)
             positions.append(pos)
 
-velocity = Vector(0.0, 0.0, 0.0)
 for i in range(numMolecules):
     center = positions[i]
-    molecule = create_TIP3P(state,oxygenHandle,hydrogenHandle,center)
+    #center = Vector(np.random.random()*sideLength,np.random.random()*sideLength,np.random.random()*sideLength)
+    # we are using real units, so skip bondLength argument
+    molecule = create_TIP3P(state,oxygenHandle,hydrogenHandle,center=center,orientation="random")
     ids = []
     for atomId in molecule.ids:
-        state.atoms[atomId].vel = velocity
         ids.append(atomId)
 
-
     rigid.createRigid(ids[0], ids[1], ids[2])
-
-print 'done adding molecules to simulation'
-print 'distance between molecules 1 and 2: ', positions[1] - positions[0]
+#print 'done adding molecules to simulation'
+#print 'distance between molecules 1 and 2: ', positions[1] - positions[0]
 state.activateFix(rigid)
-#InitializeAtoms.initTemp(state, 'all',298.15)
+InitializeAtoms.initTemp(state, 'all',298.15)
 #fixNPT = FixNoseHoover(state,'npt','all')
 #fixNPT.setTemperature(298.15,100.0*state.dt)
 #fixNPT.setPressure('ANISO',1.0,1000*state.dt)
@@ -101,24 +113,27 @@ state.activateFix(rigid)
 charge = FixChargeEwald(state, 'charge', 'all')
 charge.setParameters(64)
 state.activateFix(charge)
+state.activateFix(nonbond)
 
 integVerlet = IntegratorVerlet(state)
 
 tempData = state.dataManager.recordTemperature('all','scalar', 1)
 #tempData = state.dataManager.recordTemperature('all','scalar', 100)
 pressureData = state.dataManager.recordPressure('all','scalar', 1)
-#engData = state.dataManager.recordEnergy('all', 100)
+engData = state.dataManager.recordEnergy('all','scalar',1)
 boundsData = state.dataManager.recordBounds(100)
 
-writeconfig = WriteConfig(state, fn='tip3p_out', writeEvery=1, format='xyz', handle='writer')
+writeconfig = WriteConfig(state, fn='tip3p_out', writeEvery=2, format='xyz', handle='writer')
 state.activateWriteConfig(writeconfig)
 
 print 'about to run!'
-integVerlet.run(1000)
-sumV = 0.
-for a in state.atoms:
-    sumV += a.vel.lenSqr()
-print state.bounds.volume()
+integVerlet.run(30000)
+
+for index, item in enumerate(COMV_By_Turn):
+    print item, COM_By_Turn[index]
+
+
+#print state.bounds.volume()
 #print pressureData.vals
 #print engData.vals
 #print sumV / len(state.atoms)/3.0
@@ -128,8 +143,8 @@ print state.bounds.volume()
 #state.dataManager.stopRecord(tempData)
 #integVerlet.run(10000)
 #print len(tempData.vals)
-#plt.plot([x for x in engData.vals])
-#plt.show()
+plt.plot([x for x in engData.vals])
+plt.show()
 #print sum(tempData.vals) / len(tempData.vals)
 #print boundsData.vals[0].getSide(1)
 #print engData.turns[-1]
