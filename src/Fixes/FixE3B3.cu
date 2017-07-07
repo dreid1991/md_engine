@@ -47,6 +47,109 @@ __global__ void printGPD_E3B3(uint* ids, float4 *xs, int nMolecules) {
     }
 }
 
+// this function demonstrates how to properly access the neighborlist for E3B3,
+// and prints out the results.  It should be found that all values are ~within sqrtf(neighCutSqr)
+__global__ void printNlist_E3B3(int* molIdToIdxs,
+                                uint* waterMolecIds,
+                                int4* atomsFromMolecule,
+                                uint16_t* neighborCounts,
+                                uint* neighborlist,
+                                uint32_t* cumulSumMaxPerBlock,
+                                int warpSize,
+                                int* idToIdxs,
+                                float4* xs,
+                                float4* fs, 
+                                BoundsGPU bounds,
+                                int nMolecules) {
+    int idx = GETIDX();
+    
+    if (idx < nMolecules) {
+
+        //int thisIdx = molIdToIdxs[waterMolecIds[idx]];
+
+        // we need the following function:
+        //inline __device__ int baseNeighlistIdxFromIndex(uint32_t *cumulSumMaxPerBlock, int warpSize, int idx) {
+
+        int thisIdx = molIdToIdxs[waterMolecIds[idx]];
+        printf("this Idx %d this id %d idx %d", thisIdx, waterMolecIds[idx], idx);
+        //int baseIdx = baseNeighlistIdx(cumulSumMaxPerBlock, warpSize);
+        int baseIdx = baseNeighlistIdxFromIndex(cumulSumMaxPerBlock, warpSize, thisIdx);
+        int numNeighMolecules = neighborCounts[thisIdx];
+        //int numNeighMolecules = neighborCounts[idx];
+
+        printf("idx %d baseIdx %d numNeighMolecules %d\n", thisIdx, baseIdx, numNeighMolecules);
+
+        __syncthreads();
+        // the neighborCounts and neighborList are for a given idx;
+        //int4 atomsMolecule1 = atomsFromMolecule[idx];
+        // atomsFromMolecule array is statically sorted by ids
+        int4 atomsMolecule1 = atomsFromMolecule[waterMolecIds[idx]];
+        int id_O1 = atomsMolecule1.x;
+        int idx_a1 = idToIdxs[atomsMolecule1.x];
+        int idx_b1 = idToIdxs[atomsMolecule1.y];
+        int idx_c1 = idToIdxs[atomsMolecule1.z];
+
+        float4 pos_a1_whole = xs[idx_a1];
+        float4 pos_b1_whole = xs[idx_b1];
+        float4 pos_c1_whole = xs[idx_c1];
+
+        // now, get just positions in float3
+        float3 pos_a1 = make_float3(pos_a1_whole);
+        float3 pos_b1 = make_float3(pos_b1_whole);
+        float3 pos_c1 = make_float3(pos_c1_whole);
+
+        //int numNeigh = neighborCounts[idx];
+        int numNeigh = neighborCounts[thisIdx];
+
+        int counter = 0;
+        for (int i = 0; i < numNeigh; i++) {
+            int nlistIdx = baseIdx + warpSize*i;
+            uint otherIdxRaw = neighborlist[nlistIdx];
+
+            int moleculeIds = waterMolecIds[otherIdxRaw];
+
+            int4 atomsMolecule2 = atomsFromMolecule[moleculeIds];
+
+            int id_O2 = atomsMolecule2.x;
+            int id_B2 = atomsMolecule2.y;
+            int id_C2 = atomsMolecule2.z;
+
+            int idx_a2 = idToIdxs[atomsMolecule2.x];
+            int idx_b2 = idToIdxs[atomsMolecule2.y];
+            int idx_c2 = idToIdxs[atomsMolecule2.z];
+
+            float4 pos_a2_whole = xs[idx_a2];
+            float4 pos_b2_whole = xs[idx_b2];
+            float4 pos_c2_whole = xs[idx_c2];
+    
+            // here we should extract the positions for the O, H atoms of this water molecule
+            float3 pos_a2 = make_float3(pos_a2_whole);
+            float3 pos_b2 = make_float3(pos_b2_whole);
+            float3 pos_c2 = make_float3(pos_c2_whole);
+            
+            float3 r_b2a1 = bounds.minImage(pos_b2 - pos_a1);
+            float3 r_c2a1 = bounds.minImage(pos_c2 - pos_a1);
+            
+            float3 r_b1a2 = bounds.minImage(pos_b1 - pos_a2);
+            float3 r_c1a2 = bounds.minImage(pos_c1 - pos_a2);
+
+            float r_b2a1_magnitude = length(r_b2a1);
+            float r_c2a1_magnitude = length(r_c2a1);
+            float r_b1a2_magnitude = length(r_b1a2);
+            float r_c1a2_magnitude = length(r_c1a2);
+
+            // we now have our molecule 'j'
+            // compute the two-body correction term w.r.t the oxygens
+            float3 r_a1a2 = bounds.minImage(pos_a1 - pos_a2);
+            float r_a1a2_magnitude = length(r_a1a2);
+            counter += 1;
+            printf("O atom id %d neighbor ids %d %d %d a1-{a2,b2,c2} distances %f %f %f\n", id_O1, id_O2, id_B2, id_C2, r_a1a2_magnitude, r_b2a1_magnitude, r_c2a1_magnitude);
+
+        }
+        printf("finished printing out results for %d of %d neighbors\n", counter,numNeigh);
+    }
+}
+
 
 // see FixRigid.cu! does the same thing. but now, we store it in their own gpdLocal..
 __global__ void update_xs(int nMolecules, int4 *waterIds, float4 *mol_xs,
@@ -116,9 +219,31 @@ void FixE3B3::compute(int VirialMode) {
     
     // although it says 'perAtomArray', note that all of this gpd for this grid is by molecule
     // so, its just a misnomer in this instance. its a count of neighboring molecules.
-    uint16_t *neighborCounts = gridGPULocal.perAtomArray.d_data.data();
-    SAFECALL((printGPD_E3B3<<<NBLOCK(state->atoms.size()), PERBLOCK>>>(gpdLocal.ids(activeIdx),
-                                                         gpdLocal.xs(activeIdx),nMolecules)));
+    //uint16_t *neighborCounts = gridGPULocal.perAtomArray.d_data.data();
+    //printGPD_E3B3<<<NBLOCK(nMolecules), PERBLOCK>>>(gpdLocal.ids(activeIdx),
+     //                                                    gpdLocal.xs(activeIdx),nMolecules);
+
+    
+    // uncomment the following to verify the neighborlist is being traversed correctly
+    
+    /*
+    cudaDeviceSynchronize();
+    printNlist_E3B3<<<NBLOCK(nMolecules), PERBLOCK>>>(gpdLocal.idToIdxs.d_data.data(),
+                                                      gpdLocal.ids(activeIdx),
+                                                      waterIdsGPU.data(),
+                                                      gridGPULocal.perAtomArray.d_data.data(),
+                                                      gridGPULocal.neighborlist.data(),
+                                                      gridGPULocal.perBlockArray.d_data.data(),
+                                                      state->devManager.prop.warpSize,
+                                                      gpdGlobal.idToIdxs.d_data.data(),
+                                                      gpdGlobal.xs(globalActiveIdx),
+                                                      gpdGlobal.fs(globalActiveIdx),
+                                                      state->boundsGPU,
+                                                      nMolecules);
+    
+    cudaDeviceSynchronize();
+    //mdError("Completed printing out neighborlist. This isn't really an error, but we want to stop the program now.");
+    */
 
     /* data required for compute_e3b3:
        - nMolecules

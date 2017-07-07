@@ -26,7 +26,7 @@ inline __device__ int baseNeighlistIdxFromRPIndex(const uint32_t *cumulSumMaxPer
     return blockDim.x * cumulSumMaxPerBlock[blockIdx] + maxNeighInMyBlock * warpSize * myWarp + myIdxInWarp;
 }
 
-inline __device__ int baseNeighlistIdxFromIndex(uint32_t *cumulSumMaxPerBlock, int warpSize, int idx) {
+inline __device__ int baseNeighlistIdxFromIndex(const uint32_t *cumulSumMaxPerBlock, int warpSize, int idx) {
     int blockIdx = idx / blockDim.x;
     int warpIdx = (idx - blockIdx * blockDim.x) / warpSize;
     int idxInWarp = idx - blockIdx * blockDim.x - warpIdx * warpSize;

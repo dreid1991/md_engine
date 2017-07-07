@@ -31,24 +31,15 @@ __global__ void compute_E3B3
     if (idx < nMolecules) {
 
         // -- the purpose of this is to load the neighbors associated with this molecule ID
-        int baseIdx =  baseNeighlistIdx(cumulSumMaxPerBlock, warpSize);
+        int thisIdx = molIdToIdxs[waterMolecIds[idx]];
+        int baseIdx = baseNeighlistIdxFromIndex(cumulSumMaxPerBlock, warpSize, thisIdx);
 
-        // number of neighbors this molecule has, with which it can form trimers
-        int numNeighMolecules = neighborCounts[idx];
-       
-        printf("idx %d baseIdx %d numNeighMolecules %d\n", idx, baseIdx, numNeighMolecules);
         // here we should extract the positions of the O, H atoms of this water molecule
         // first, get the atom indices - maybe this will be stored as an array of ints?
 
-        // except now we need a list of atoms corresponding to a given molecule..
-        // additionally, we assume that the list of atoms in a molecule is ordered as {O, H1, H2}
         int moleculeId = waterMolecIds[idx];
-        //int moleculeId = molIdToIdxs[idx];
 
-        int4 atomsMolecule1 = atomsFromMolecule[moleculeId];
-        int4 atomsFromIdx = atomsFromMolecule[idx];
-        //printf("idx %d molecule id %d atoms: %d, %d, %d \n", idx, moleculeId, atomsMolecule1.x, atomsMolecule1.y, atomsMolecule1.z);
-        printf("idx %d atomsFromidx %d %d %d id %d atoms %d %d %d\n", idx, atomsFromIdx.x, atomsFromIdx.y, atomsFromIdx.z, moleculeId, atomsMolecule1.x, atomsMolecule1.y, atomsMolecule1.z);
+        int4 atomsMolecule1 = atomsFromMolecule[waterMolecIds[idx]];
 
         /* NOTE to others: see the notation used in 
          * Kumar and Skinner, J. Phys. Chem. B., 2008, 112, 8311-8318
@@ -72,6 +63,7 @@ __global__ void compute_E3B3
         float3 pos_a1 = make_float3(pos_a1_whole);
         float3 pos_b1 = make_float3(pos_b1_whole);
         float3 pos_c1 = make_float3(pos_c1_whole);
+        
         //printf("idx %d molecule id %d oxygen at %f %f %f\n", idx, moleculeId, pos_a1.x, pos_a1.y, pos_a1.z);
         // create a new force sum variable for these atoms
         float3 fs_a1_sum = make_float3(0.0, 0.0, 0.0);
@@ -81,31 +73,15 @@ __global__ void compute_E3B3
         // iterate over the neighbors of molecule '1'; compute the two-body interaction w.r.t all it's neighbors
         // when they are denoted as molecule '2' (or, correspondingly, j)
         
-        //__syncthreads();
-
-        //printf("idx %d molecule id %d neighborlist at j = 0: %d\n", idx, moleculeId, waterMolecIds[neighborlist[baseIdx]]);
-        //printf("idx %d molecule id %d warpSize %d neighborlist at j = 1: %d\n", idx, moleculeId, warpSize, waterMolecIds[neighborlist[baseIdx + warpSize]]);
-        //printf("molIdToIdxs[baseIdx+warpSize] %d waterMolecIds[molId..[..]] %d\n", molIdToIdxs[neighborlist[baseIdx+warpSize]], waterMolecIds[neighborlist[baseIdx+warpSize]]);
-        //int4 na2 = atomsFromMolecule[molIdToIdxs[neighborlist[baseIdx+warpSize]]];
-        //int neighMol = waterMolecIds[neighborlist[baseIdx+warpSize]];
-        //int4 na3 = atomsFromMolecule[neighMol];
-        //int4 na4 = atomsFromMolecule[neighborlist[baseIdx+warpSize]];
-
-        // get the oxygen-oxygen distance too while we're here...
-        //printf("idx %d molecule id %d atoms %d %d %d neighbor %d atoms %d %d %d vs atomsFromMolecule[neigh[..]] %d %d %d\n", idx, moleculeId,atomsMolecule1.x, atomsMolecule1.y, atomsMolecule1.z,  waterMolecIds[neighborlist[baseIdx+warpSize]],na3.x, na3.y, na3.z, na4.x, na4.y, na4.z);
-        //float3 posOna3 = make_float3(xs[idToIdxs[na3.x]]);
-        //float3 posOna4 = make_float3(xs[idToIdxs[na4.x]]);
-        //float3 minImageOna3 = bounds.minImage(posOna3 - pos_a1);
-        //float3 minImageOna4 = bounds.minImage(posOna4 - pos_a1);
-        //float distSqrOna3 = dot(minImageOna3, minImageOna3);
-        //float distSqrOna4 = dot(minImageOna4, minImageOna4);
-        //printf("squared O-O distance ona3 %f ona4 %f\n", distSqrOna3, distSqrOna4);
-
+        // number of neighbors this molecule has, with which it can form trimers
+        int numNeighMolecules = neighborCounts[thisIdx];
+        
         for (int j = 0; j < (numNeighMolecules); j++) {
             // get idx of this molecule
             // -- then, the atomIDs that we need are somehow accessible via MoleculeID
             int nlistIdx = baseIdx + warpSize * j;
-            int moleculeId2 = waterMolecIds[neighborlist[nlistIdx]];
+            uint jIdxRaw = neighborlist[nlistIdx];
+            int moleculeId2 = waterMolecIds[jIdxRaw];
 
             // get the molecule id for this idx
             //int moleculeId2 = waterMolecIds[jIdxRaw];
@@ -128,8 +104,8 @@ __global__ void compute_E3B3
 
             // we have four OH distances to compute here
             
-            printf("idx %d molecule id %d neighbor id %d oxygen at %f %f %f\n", idx, moleculeId, moleculeId2, pos_a2.x, pos_a2.y, pos_a2.z);
-            // -- just as the paper does, we compute the vector w.r.t. the hydrogen
+            // -- just as the paper does, we compute the vector w.r.t. the hydrogen,
+            //    but on molecule 1.
             
             float3 r_b2a1 = bounds.minImage(pos_b2 - pos_a1);
             float3 r_c2a1 = bounds.minImage(pos_c2 - pos_a1);
@@ -178,7 +154,7 @@ __global__ void compute_E3B3
                 // grab warp index corresponding to this 'k'
                 int klistMoleculeIdx = baseIdx + warpSize * k;
                 // convert this index to a molecule index within our molecule array
-                int krawIdx = neighborlist[klistMoleculeIdx];
+                uint krawIdx = neighborlist[klistMoleculeIdx];
 
                 // we now have our k molecule
                 int moleculeId3 = waterMolecIds[krawIdx];

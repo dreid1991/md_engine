@@ -64,6 +64,7 @@ class FixRigid : public Fix {
         //  -- specifically, appendix A, expression 6
         float gamma;
 
+        int nMolecules;
     public:
 
 
@@ -91,6 +92,10 @@ class FixRigid : public Fix {
 
         //! Prepare FixRigid for simulation run
         bool prepareForRun();
+
+
+        //! Halfstep solution to velocity constraints
+        bool postNVE_V();
 
         //! Reset the position of the M-site after integrating the position of the molecule.
         //  -- Note that we do /not/ solve the rigid body constraints at this point;
