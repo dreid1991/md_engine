@@ -207,7 +207,7 @@ __global__ void compute_E3B3
                 float r_b2a3_magnitude = length(r_b2a3);
                 float r_c2a3_magnitude = length(r_c2a3);
     
-                printf("line 236 of compute_e3b3\n");
+                //printf("line 236 of compute_e3b3\n");
                 // compute the number of additional distances within the cutoff;
                 // if the total is >= 2, we need to compute the force terms.
                 numberOfDistancesWithinCutoff += eval.getNumberWithinCutoff(r_b3a1_magnitude,
@@ -263,7 +263,7 @@ __global__ void compute_E3B3
         fs[idx_a1] = fs_a1_whole;
         fs[idx_b1] = fs_b1_whole;
         fs[idx_c1] = fs_c1_whole;
-        printf("end of compute_e3b3\n");
+        //printf("end of compute_e3b3\n");
 
 
 

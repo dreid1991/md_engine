@@ -60,6 +60,11 @@ public:
         return qs.switchIdx();
     }
 
+    unsigned int switchIdx(bool onlyPositions) {
+        xs.switchIdx();
+        return ids.switchIdx();
+    }   
+
 };
 
 #endif
