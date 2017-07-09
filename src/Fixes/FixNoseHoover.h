@@ -77,18 +77,18 @@ public:
     //! Set the pressure, time constant, and pressure mode for this barostat
     /*!
      * \param pressMode Box deformation mode: isotropic or anisotropic ("ISO" or "ANISO")
+     * \param pressFunc The pressure set point, as a python function
+     * \param timeconstant The time constant associated with this barostat
+     */
+    
+    void setPressure(std::string, py::object, double);
+    //! Set the pressure, time constant, and pressure mode for this barostat
+    /*!
+     * \param pressMode Box deformation mode: isotropic or anisotropic ("ISO" or "ANISO")
      * \param press The pressure set point
      * \param timeconstant The time constant associated with this barostat
      */
     void setPressure(std::string, double, double);
-    
-    //! Set the pressure, time constant, and pressure mode for this barostat
-    /*!
-     * \param pressMode Box deformation mode: isotropic or anisotropic ("ISO" or "ANISO")
-     * \param pressFunc The pressure set point, as a python function
-     * \param timeconstant The time constant associated with this barostat
-     */
-    void setPressure(std::string, py::object, double);
     
     //! Set the pressure, time constant, and pressure mode for this barostat
     /*!
@@ -101,17 +101,17 @@ public:
 
     //! Set the temperature set point and associated time constant for this thermostat
     /*!
-     * \param temperature The set point temperature
-     * \param timeConstant The time constant associated with this thermostat
-     */
-    void setTemperature(double, double);
-
-    //! Set the temperature set point and associated time constant for this thermostat
-    /*!
      * \param tempFunc The set point temperature, as a python function
      * \param timeConstant The time constant associated with this thermostat
      */
     void setTemperature(py::object, double);
+
+    //! Set the temperature set point and associated time constant for this thermostat
+    /*!
+     * \param temperature The set point temperature
+     * \param timeConstant The time constant associated with this thermostat
+     */
+    void setTemperature(double, double);
     
     //! Set the temperature set point and associated time constant for this thermostat
     /*!

@@ -34,6 +34,8 @@ namespace MD_ENGINE {
             double getScalar();
             Virial getTensor();
 
+            void prepareForRun();
+
     };
 };
 

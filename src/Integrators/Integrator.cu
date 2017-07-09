@@ -143,6 +143,7 @@ void Integrator::basicPreRunChecks() {
 
 
 std::vector<bool> Integrator::basicPrepare(int numTurns) {
+    std::cout << "Running for " << numTurns << " turns with timestep of " << state->dt << std::endl;
     int nAtoms = state->atoms.size();
     state->runningFor = numTurns;
     state->runInit = state->turn;
