@@ -557,9 +557,9 @@ def improperCVFF_data(reader, args):
         return False
     type = reader.LMPTypeToSimTypeImproper[LMPType]
 
-    k = float(args[2])
-    d = int(args[3])
-    n = int(args[4])
+    k = float(args[1])
+    d = int(args[2])
+    n = int(args[3])
 
     return [type, k, d, n]
 
