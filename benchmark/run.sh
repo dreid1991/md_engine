@@ -8,9 +8,12 @@
 #SBATCH --partition=depablo-gpu
 #SBATCH --gres=gpu:1
 
-module load boost/1.55+python-2.7-2014q1
-module load gcc/4.7
+
+module load boost/1.62.0+openmpi-1.6+gcc-4.7 #does not work compiling with openmpi 2
+module load gcc
+
 module load cuda/8.0
-LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/danielreid/md_engine/core/build/src/
+module load python
+LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/danielreid/md_engine/core/build
 
 python benchmark.py
