@@ -229,7 +229,8 @@ __global__ void compute_E3B3
                     // this is a long parameter list, but its kind of necessary... so. Could group in a struct, but 
                     // this is explicit. 
                     // compute the exponential force scalar resulting from the a1b2, a1c2, a2b1, a2c1 contributions,
-                    
+                   
+
                     eval.threeBodyForce(fs_a1_sum, fs_b1_sum, fs_c1_sum,
                                         fs_b2a1_scalar, fs_c2a1_scalar,
                                         fs_b1a2_scalar, fs_c1a2_scalar,
@@ -263,9 +264,12 @@ __global__ void compute_E3B3
         fs[idx_a1] = fs_a1_whole;
         fs[idx_b1] = fs_b1_whole;
         fs[idx_c1] = fs_c1_whole;
-        //printf("end of compute_e3b3\n");
-
-
 
     } // end if (idx < nMolecules) 
 } // end function compute
+
+// and same thing for energy kernel computation... 
+
+
+
+

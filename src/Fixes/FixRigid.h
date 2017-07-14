@@ -17,6 +17,31 @@
 
 void export_FixRigid();
 
+// simple class holding static data associated with a given water model
+// -- namely, masses & corresponding weights of hydrogens, oxygen;
+//    and the geometry of the speciic model
+class FixRigidData {
+    public:
+        // bond lengths - as OH1, OH2, HH, OM
+        double4 sideLengths;
+
+        // canonical lengths, with center of mass as origin
+        double4 canonicalTriangle;
+
+        // mass weights - make these double precision!
+        // --- note - useful operator definitions were provided in cutils_func and cutils_math..
+        //     --- should do this for double2, double3, double4 etc.
+        // -- weights.x = massO / (massWater); 
+        //    weights.y = massH / massWater;
+        //    weights.z = massO;
+        //    weights.w = massH;
+        double4 weights;
+
+        // 
+        FixRigidData() {};
+};
+
+
 class FixRigid : public Fix {
     private:
         // array holding ids of a given water molecule
@@ -37,8 +62,9 @@ class FixRigid : public Fix {
 
         GPUArrayDeviceGlobal<float4> com;
 
-
-        GPUArrayDeviceGlobal<float4> fix_len;
+        
+        // vector of booleans that will alert us if a molecule has unsatisfied constraints at the end of the turn
+        GPUArrayDeviceGlobal<bool> constraints;
 
 
         std::vector<int4> waterIds;
@@ -65,6 +91,24 @@ class FixRigid : public Fix {
         float gamma;
 
         int nMolecules;
+
+        // local constants to be set for assorted supported water models
+        // sigma_O is for scaling of bond lengths if LJ units are used
+        double sigma_O;
+        double r_OH;
+        double r_HH;
+        double r_OM;
+
+        // a float 4 of the above measures r_OH, r_HH, r_OM;
+        double4 fixedSides;
+
+        // data about this water model
+        FixRigidData fixRigidData;
+        // 
+        void set_fixed_sides();
+
+        void setStyleBondLengths();
+        // 
     public:
 
 
@@ -92,6 +136,14 @@ class FixRigid : public Fix {
 
         //! Prepare FixRigid for simulation run
         bool prepareForRun();
+        
+        // the style of a given water model to be used.  Defaults to 'DEFAULT',  
+        // either TIP3P or TIP4P/2005 depending on whether the model is 3-site or 4-site
+        std::string style;
+
+        // permits variants of a given style (e.g., TIP4P, TIP4P/LONG, TIP4P/2005)
+        // default styles are TIP3P and TIP4P/2005
+        void setStyle(std::string);
 
 
         //! Halfstep solution to velocity constraints
@@ -130,5 +182,17 @@ class FixRigid : public Fix {
             return &bonds;
   }
 };
+
+
+
+
+
+
+
+
+
+
+
+
 
 #endif /* FIXRIGID_H */

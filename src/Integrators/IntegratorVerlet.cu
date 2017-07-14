@@ -534,7 +534,7 @@ void IntegratorVerlet::run(int numTurns)
         }
     }
     int periodicInterval = state->periodicInterval;
-
+    printf("\nHERE: in IntegratorVerlet::run(), about to iterate across the number of turns\n");
 	
     auto start = std::chrono::high_resolution_clock::now();
     DataManager &dataManager = state->dataManager;

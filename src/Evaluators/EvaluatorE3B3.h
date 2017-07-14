@@ -116,7 +116,6 @@ class EvaluatorE3B3 {
             // rji is the vector from atom j to atom i
             // rik_scalar denotes the scalar of some other vector rik
 
-
             // and later we will multiply this by the scalar multiplier associated with the contribution 
             // -- i.e., type A, type B, or type C
             //float forceScalar =  dswitchdr(rij_scalar) * switching(rik_scalar) * exp_rij_scalar * exp_rik_scalar ;

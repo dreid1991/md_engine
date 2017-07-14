@@ -14,8 +14,8 @@ state.deviceManager.setDevice(0)
 ##############################
 # Set initial density here
 ##############################
-numMolecules = 512
-sideLength = 30.0
+numMolecules = 2056
+sideLength = 50.0
 
 loVector = Vector(0,0,0)
 hiVector = Vector(sideLength, sideLength, sideLength)
@@ -26,7 +26,7 @@ state.padding = 1.0
 state.periodicInterval = 7
 state.shoutEvery = 100
 state.units.setReal()
-state.dt = 0.5
+state.dt = 0.1
 
 # handles for our atoms
 oxygenHandle = 'OW'
@@ -36,7 +36,7 @@ mSiteHandle = 'M'
 # add our oxygen and hydrogen species to the simulation
 state.atomParams.addSpecies(handle=oxygenHandle, mass=15.9994, atomicNum=8)
 state.atomParams.addSpecies(handle=hydrogenHandle, mass=1.008, atomicNum=1)
-state.atomParams.addSpecies(handle=mSiteHandle,mass=0.000,atomicNum=0)
+state.atomParams.addSpecies(handle=mSiteHandle,mass=0.00,atomicNum=0)
 
 # equilibrate NPT 298k, 1 bar for 1m steps
 # then run NVE for 5m steps for computing the O-O RDF
@@ -65,8 +65,8 @@ nonbond.setParameter('eps',mSiteHandle, mSiteHandle, 0.0)
 
 
 # and then we have charges to take care of as well
-charge = FixChargeEwald(state, 'charge', 'all')
-charge.setParameters(128)
+#charge = FixChargeEwald(state, 'charge', 'all')
+#charge.setParameters(128)
 
 rigid = FixRigid(state,'rigid','all')
 
@@ -110,7 +110,7 @@ InitializeAtoms.initTemp(state, 'all',300.0)
 # Charge interactions
 #####################
 charge = FixChargeEwald(state, 'charge', 'all')
-charge.setParameters(64)
+charge.setParameters(128)
 state.activateFix(charge)
 
 #####################
@@ -131,17 +131,17 @@ state.activateFix(rigid)
 #####################
 state.activateFix(e3b3)
 
-fixNPT = FixNoseHoover(state,'npt','all')
-fixNPT.setTemperature(298.15,100.0*state.dt)
+#fixNPT = FixNoseHoover(state,'npt','all')
+#fixNPT.setTemperature(298.15,100.0*state.dt)
 #fixNPT.setPressure('ANISO',1.0,1000*state.dt)
-state.activateFix(fixNPT)
+#state.activateFix(fixNPT)
 
 #state.activateFix(e3b3)
 integVerlet = IntegratorVerlet(state)
 
 tempData = state.dataManager.recordTemperature('all','scalar', 1)
 #tempData = state.dataManager.recordTemperature('all','scalar', 100)
-pressureData = state.dataManager.recordPressure('all','scalar', 1)
+#pressureData = state.dataManager.recordPressure('all','scalar', 1)
 #engData = state.dataManager.recordEnergy('all', 100)
 boundsData = state.dataManager.recordBounds(100)
 
@@ -149,26 +149,26 @@ writeconfig = WriteConfig(state, fn='test_out', writeEvery=2, format='xyz', hand
 state.activateWriteConfig(writeconfig)
 integVerlet.run(500)
 
-fixNPT.setPressure('ANISO',1.0,1000*state.dt)
-integVerlet.run(50000)
+#fixNPT.setPressure('ANISO',1.0,1000*state.dt)
+#integVerlet.run(50000)
 
 sumV = 0.
 for a in state.atoms:
     sumV += a.vel.lenSqr()
 for index, item in enumerate(boundsData.vals):
     print item.volume()
-print pressureData.vals
+#print pressureData.vals
 #print engData.vals
 #print sumV / len(state.atoms)/3.0
-plt.plot(pressureData.turns, pressureData.vals)
-plt.show()
+#plt.plot(pressureData.turns, pressureData.vals)
+#plt.show()
 #plt.show()
 #state.dataManager.stopRecord(tempData)
 #integVerlet.run(10000)
 #print len(tempData.vals)
 #plt.plot([x for x in engData.vals])
 #plt.show()
-#print sum(tempData.vals) / len(tempData.vals)
+print sum(tempData.vals) / len(tempData.vals)
 #print boundsData.vals[0].getSide(1)
 #print engData.turns[-1]
 #print 'last eng %f' % engData.vals[-1]
