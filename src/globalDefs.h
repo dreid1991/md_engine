@@ -51,6 +51,7 @@ using b_shared_ptr = boost::shared_ptr<T>;
 #define YIDX(y, SIZE) (y / (PERLINE / SIZE))
 #define PERBLOCK 256
 #define NBLOCK(x) ((int) (ceil(x / (float) PERBLOCK)))
+#define NBLOCKVAR(x, y) ((int) (ceil(x / (float) y)))
 
 #define LINEARIDX(idx, ns) (ns.z*ns.y*idx.x + ns.z*idx.y + idx.z)
 
