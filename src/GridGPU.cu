@@ -9,7 +9,8 @@
 #include "cutils_func.h"
 #include "cutils_math.h"
 
-
+using std::endl;
+using std::cout;
 /* GridGPU members */
 
 void GridGPU::initArrays() {
@@ -336,12 +337,12 @@ __global__ void countNumNeighbors(float4 *xs, int nRingPoly,
         //if (idx == 0) {
         //  for ( int j = 0; j<nRingPoly; j++) {printf("my id = %d, # neigh = %d\n",j,neighborCounts[j]);}
         //}
-        myCount -= 1;//because I counted myself.  have to subtract that off
     }
     counts_shr[threadIdx.x] = myCount;
     reduceByN_NOSYNC<uint16_t>(counts_shr, nThreadPerRP);
     if (validThread and not (threadIdx.x % nThreadPerRP)) {
-        neighborCounts[atomIdx] = counts_shr[threadIdx.x];
+        //printf("c %d %d\n ", (int) counts_shr[threadIdx.x], nThreadPerRP);
+        neighborCounts[atomIdx] = counts_shr[threadIdx.x] - 1; //-1 because I counted myself
     }
 }
 
@@ -696,11 +697,32 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
          *     call this for ghosts too; everything after this has to be done on
          *     ghosts too
          */
-        countNumNeighbors<<<NBLOCK(nRingPoly), PERBLOCK, PERBLOCK*sizeof(uint16_t)>>>(
+        countNumNeighbors<<<NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerRP), nThreadPerBlock(), nThreadPerBlock()*sizeof(uint16_t)>>>(
                     centroids, nRingPoly, 
                     perAtomArray.d_data.data(), perCellArray.d_data.data(),
                     os, ds, ns, bounds.periodic, trace, neighCut*neighCut, nThreadPerRP); //PER RP CENTROID
 
+        //ADDED STUFF
+        /*
+        perAtomArray.dataToHost();
+        state->gpd.ids.dataToHost();
+        
+
+        cudaDeviceSynchronize();
+        std::vector<int> nNeigh(state->atoms.size());
+
+        for (int i=0, ii=state->atoms.size(); i<ii; i++) {
+            int id = state->gpd.ids.h_data[i];
+            int idxWriteTo = state->gpd.idToIdxsOnCopy[id];
+            nNeigh[idxWriteTo] = perAtomArray.h_data[i];
+        }
+        for (auto n : nNeigh) {
+            cout << n << endl;
+        }
+        exit(0);
+        */
+
+        //END ADDED
         computeMaxNumNeighPerBlock<<<NBLOCK(nRingPoly), PERBLOCK, PERBLOCK*sizeof(uint16_t)>>>(
                     nRingPoly, perAtomArray.d_data.data(),
                     perBlockArray_maxNeighborsInBlock.data(), warpSize); // MAKE NUM NP VARIABLE

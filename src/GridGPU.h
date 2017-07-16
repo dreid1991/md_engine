@@ -8,6 +8,8 @@
 #include "GPUArrayGlobal.h"
 #include "GPUArrayDeviceGlobal.h"
 
+#include "Tunable.h"
+
 #include "BoundsGPU.h"
 class State;
 
@@ -21,7 +23,7 @@ class State;
  * This class defines a simulation grid on the GPU. Typically, the GridGPU will
  * be created by AtomGrid::makeGPU().
  */
-class GridGPU {
+class GridGPU : public Tunable {
 
 private:
     bool streamCreated; //!< True if a stream was created in initStream()
