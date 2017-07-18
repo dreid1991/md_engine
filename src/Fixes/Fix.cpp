@@ -28,6 +28,7 @@ Fix::Fix(boost::shared_ptr<State> state_, std::string handle_, std::string group
     hasOffloadedChargePairCalc = false;
     hasAcceptedChargePairCalc = false;
     setEvalWrapperMode("offload"); //offload by default
+    nThreadPerAtom(state->nThreadPerAtom);
 
 
     /*

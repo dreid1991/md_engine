@@ -12,6 +12,8 @@
 #include "cutils_func.h"
 
 using namespace MD_ENGINE;
+using std::cout;
+using std::endl;
 
 namespace py = boost::python;
 
@@ -529,6 +531,7 @@ void IntegratorVerlet::run(int numTurns)
     DataManager &dataManager = state->dataManager;
     dtf = 0.5f * state->dt * state->units.ftm_to_v;
     for (int i=0; i<numTurns; ++i) {
+
         if (state->turn % periodicInterval == 0) {
             state->gridGPU.periodicBoundaryConditions();
         }
