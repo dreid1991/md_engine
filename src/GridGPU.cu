@@ -22,9 +22,13 @@ void GridGPU::initArrays() {
     }
     perAtomArray = GPUArrayGlobal<uint16_t>(nRingPoly + 1);
     // also cumulative sum, tracking cumul. sum of max per block
-    perBlockArray = GPUArrayGlobal<uint32_t>(NBLOCK(nRingPoly) + 1);
+//NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerRP)
+    printf("in init arrays please make sure the per block arrays are set up to change when change nThreadPerBlock\n");
+    cout << NBLOCKVAR(nRingPoly, nThreadPerBlock()) << endl;
+    cout.flush();
+    perBlockArray = GPUArrayGlobal<uint32_t>(NBLOCKVAR(nRingPoly, nThreadPerBlock()) + 1);
     // not +1 on this one, isn't cumul sum
-    perBlockArray_maxNeighborsInBlock = GPUArrayDeviceGlobal<uint16_t>(NBLOCK(nRingPoly));
+    perBlockArray_maxNeighborsInBlock = GPUArrayDeviceGlobal<uint16_t>(NBLOCKVAR(nRingPoly, nThreadPerBlock()));
     xsLastBuild = GPUArrayDeviceGlobal<float4>(state->atoms.size());
 
     // in prepare for run, you make GPU grid _after_ copying xs to device
@@ -65,7 +69,6 @@ void GridGPU::initStream() {
 
 
 GridGPU::GridGPU() {
-    nThreadPerAtom(state->nThreadPerAtom);
     streamCreated = false;
     //initStream();
 }
@@ -74,6 +77,7 @@ GridGPU::GridGPU() {
 
 GridGPU::GridGPU(State *state_, float dx_, float dy_, float dz_, float neighCutoffMax_, int exclusionMode_)
   : state(state_) {
+    nThreadPerAtom(state->nThreadPerAtom);
     neighCutoffMax = neighCutoffMax_;
 
     streamCreated = false;
@@ -619,6 +623,7 @@ __global__ void setCumulativeSumPerBlock(int numBlocks, uint32_t *perBlockArray,
 
 void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
 
+    printf("PERIODIC\n");
     DeviceManager &devManager = state->devManager;
     int warpSize = devManager.prop.warpSize;
 
@@ -642,13 +647,14 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
     // FINISH FUTURE WHICH SETS REBUILD FLAG BY NOW PLEASE
     // CUCHECK(cudaStreamSynchronize(rebuildCheckStream));
     // multigpu: needs to rebuild if any proc needs to rebuild
-    setBuildFlag<<<NBLOCK(nAtoms), PERBLOCK, PERBLOCK * sizeof(short)>>>(
+    SAFECALL((setBuildFlag<<<NBLOCK(nAtoms), PERBLOCK, PERBLOCK * sizeof(short)>>>(
                 state->gpd.xs(activeIdx), xsLastBuild.data(), nAtoms, bounds,
-                state->padding*state->padding, buildFlag.d_data.data(), numChecksSinceLastBuild, warpSize);
+                state->padding*state->padding, buildFlag.d_data.data(), numChecksSinceLastBuild, warpSize)));
     buildFlag.dataToHost();
     cudaDeviceSynchronize();
 
     if (buildFlag.h_data[0] or forceBuild) {
+        printf("BUILD\n");
 
         float3 ds_orig = ds;
         float3 os_orig = os;
@@ -666,7 +672,7 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
             //            state->gpd.xs(activeIdx), nAtoms,
             //            bounds.sides[0], bounds.sides[1], bounds.lo);
         }
-        periodicWrap<<<NBLOCK(nAtoms), PERBLOCK>>>(state->gpd.xs(activeIdx), nAtoms, boundsUnskewed);
+        SAFECALL((periodicWrap<<<NBLOCK(nAtoms), PERBLOCK>>>(state->gpd.xs(activeIdx), nAtoms, boundsUnskewed)));
 
         // increase number of grid cells if necessary
         int numGridCells = prod(ns);
@@ -684,11 +690,11 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
         } else {
             centroids = state->gpd.xs(activeIdx);
         }
-        countNumInGridCells<<<NBLOCK(nRingPoly), PERBLOCK>>>(
+        SAFECALL((countNumInGridCells<<<NBLOCK(nRingPoly), PERBLOCK>>>(
                     centroids, nRingPoly,
                     perCellArray.d_data.data(), perAtomArray.d_data.data(),
                     os, ds, ns
-        );//PER RP CENTROID
+                    )));//PER RP CENTROID
         perCellArray.dataToHost();
         cudaDeviceSynchronize();
 
@@ -745,10 +751,10 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
          *     call this for ghosts too; everything after this has to be done on
          *     ghosts too
          */
-        countNumNeighbors<<<NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerRP), nThreadPerBlock(), nThreadPerBlock()*sizeof(uint16_t)>>>(
+        SAFECALL((countNumNeighbors<<<NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerRP), nThreadPerBlock(), nThreadPerBlock()*sizeof(uint16_t)>>>(
                     centroids, nRingPoly, 
                     perAtomArray.d_data.data(), perCellArray.d_data.data(),
-                    os, ds, ns, bounds.periodic, trace, neighCut*neighCut, nThreadPerRP); //PER RP CENTROID
+                    os, ds, ns, bounds.periodic, trace, neighCut*neighCut, nThreadPerRP))); //PER RP CENTROID
 
  
         computeMaxMemSizePerWarp<<<NBLOCKVAR(nRingPoly, nThreadPerBlock()), nThreadPerBlock(), nThreadPerBlock()*sizeof(uint16_t)>>>(
@@ -777,12 +783,12 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
             neighborlist = GPUArrayDeviceGlobal<uint>(totalNumNeighbors*1.5);
         }
     
-        assignNeighbors<<<NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerRP), nThreadPerBlock(), nThreadPerBlock()*maxExclusionsPerAtom*sizeof(uint32_t) + 2*nThreadPerBlock()*sizeof(uint32_t)>>>(
+        SAFECALL((assignNeighbors<<<NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerRP), nThreadPerBlock(), nThreadPerBlock()*maxExclusionsPerAtom*sizeof(uint32_t) + 2*nThreadPerBlock()*sizeof(uint32_t)>>>(
                 centroids, nRingPoly, nPerRingPoly, state->gpd.ids(gridIdx),
                 perCellArray.d_data.data(), perBlockArray.d_data.data(), os, ds, ns,
                 bounds.periodic, trace, neighCut*neighCut, neighborlist.data(), warpSize,
                 exclusionIndexes.data(), exclusionIds.data(), maxExclusionsPerAtom, nThreadPerRP
-        ); //PER RP CENTROID
+        ))); //PER RP CENTROID
 
      
         if (bounds.isSkewed()) {

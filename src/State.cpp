@@ -28,6 +28,7 @@ using namespace MD_ENGINE;
 
 namespace py = boost::python;
 State::State() : units(&dt) {
+    printf("IN STATE CONS\n");
     groupTags["all"] = (unsigned int) 1;
     is2d = false;
     rCut = RCUT_INIT;
@@ -58,7 +59,7 @@ State::State() : units(&dt) {
     nPerRingPoly  = 1;
     exclusionMode = EXCLUSIONMODE::DISTANCE;
 
-    nThreadPerAtom = 1;
+    nThreadPerAtom = 2;
 
 
 }

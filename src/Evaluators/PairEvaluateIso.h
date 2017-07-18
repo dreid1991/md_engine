@@ -4,14 +4,7 @@
 #include "Virial.h"
 #include "helpers.h"
 #include "SquareVector.h"
-inline __device__ int baseNeighlistIdxFromRPIndexTMP(const uint32_t *cumulSumMaxPerBlock, int warpSize, int myRingPolyIdx, int nThreadPerAtom) { 
-    int      blockIdx           = myRingPolyIdx / blockDim.x;
-    uint32_t cumulSumUpToMe     = cumulSumMaxPerBlock[blockIdx];
-    uint32_t maxNeighInMyBlock  = cumulSumMaxPerBlock[blockIdx+1] - cumulSumUpToMe;
-    int      myWarp             = ( myRingPolyIdx % blockDim.x) / warpSize;
-    int      myIdxInWarp        = myRingPolyIdx % warpSize;
-    return blockDim.x * cumulSumUpToMe + maxNeighInMyBlock * warpSize * myWarp + myIdxInWarp;
-}
+
 template <class PAIR_EVAL, bool COMP_PAIRS, int N_PARAM, bool COMP_VIRIALS, class CHARGE_EVAL, bool COMP_CHARGES>
 __global__ void compute_force_iso
         (int nAtoms, 
@@ -43,6 +36,7 @@ __global__ void compute_force_iso
     extern __shared__ float paramsAll[];
     int sqrSize = numTypes*numTypes;
     float *params_shr[N_PARAM];
+    float3 *forces_shr = (float3 *) (paramsAll + sqrSize*N_PARAM);
     //then we take pointers into paramsAll.
     //
     //The order of the params_shr is given by the paramOrder array (see for example, FixLJCut.cu)
@@ -68,8 +62,9 @@ __global__ void compute_force_iso
         }
 	// information based on ring polymer and bead
     // okay so we can assign multiple atoms per ring poly.  This manifests as multiple threads per bead
-        int ringPolyIdx = (idx/nThreadPerAtom) / nPerRingPoly;	// which ring polymer
-        int beadIdx     = (idx/nThreadPerAtom) % nPerRingPoly;	// which time slice
+        int atomIdx     = idx/nThreadPerAtom;
+        int ringPolyIdx = atomIdx / nPerRingPoly;	// which ring polymer
+        int beadIdx     = atomIdx % nPerRingPoly;	// which time slice
 
         //load where my neighborlist starts
         //int baseIdx = baseNeighlistIdx(cumulSumMaxPerBlock, warpSize);
@@ -78,20 +73,21 @@ __global__ void compute_force_iso
 
         //load charges if necessary
         if (COMP_CHARGES) {
-            qi = qs[idx];
+            qi = qs[atomIdx];
         }
-        float4 posWhole = xs[idx];
+        float4 posWhole = xs[atomIdx];
         int type = __float_as_int(posWhole.w);
         float3 pos = make_float3(posWhole);
 
         float3 forceSum = make_float3(0, 0, 0);
+        int myIdxInTeam = threadIdx.x % nThreadPerAtom;
 
         //how many neighbors do I have?
         //int numNeigh = neighborCounts[idx];
         int numNeigh = neighborCounts[ringPolyIdx];
-        for (int i=0; i<numNeigh; i++) {
-            //my neighbors, then, are spaced by warpSize
-            int nlistIdx = baseIdx + warpSize * i;
+        //printf("pfe thread %d atom %d\n", threadIdx.x, atomIdx);
+        for (int nthNeigh=myIdxInTeam; nthNeigh<numNeigh; nthNeigh+=nThreadPerAtom) {
+            int nlistIdx = baseIdx + warpSize * (nthNeigh/nThreadPerAtom);
             uint otherIdxRaw = neighborlist[nlistIdx];
             //The leftmost two bits in the neighbor entry say if it is a 1-2, 1-3, or 1-4 neighbor, or none of these
             uint neighDist = otherIdxRaw >> 30;
@@ -143,13 +139,18 @@ __global__ void compute_force_iso
             }
 
         }   
-        float4 forceCur = fs[idx];
-        forceCur += forceSum;
-        //increment my forces by the total.  Note that each atom is calcu
-        fs[idx] = forceCur;
+        forces_shr[threadIdx.x] = forceSum;
+        reduceByN_NOSYNC<float3>(forces_shr, nThreadPerAtom);
+        if (myIdxInTeam==0) {
+            float4 forceCur = fs[atomIdx]; //NEED TO REDO THIS
+            forceCur += forceSum;
+            //increment my forces by the total.  Note that each atom is calcu
+            fs[atomIdx] = forceCur;
+        }
+        //HAVE TO DO THE SAME THING FOR VIRIALS
         if (COMP_VIRIALS) {
             virialsSum *= 0.5f;
-            virials[idx] += virialsSum;
+            virials[atomIdx] += virialsSum;
         }
     
 
