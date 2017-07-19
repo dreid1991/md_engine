@@ -13,6 +13,39 @@ using std::endl;
 using std::cout;
 /* GridGPU members */
 
+//toSort should be of size blockDim.x, sorted should be of size nWarp, sortSize <= warpSize
+template
+<class T>
+inline __device__ void bubbleSort_NOSYNC(T *toSort, bool *sorted, int sortSize, int warpSize) {
+    int warpIdx = threadIdx.x / warpSize;
+    sorted[warpIdx] = false; //so each warp does its own thing  
+    bool amLast = (threadIdx.x + 1)%sortSize == 0; //I am the last thread in my sorting chunk, I don't need to do anything
+    bool amEven = threadIdx.x%2 == 0;
+    while (sorted[warpIdx] == false) {
+        sorted[warpIdx] = true;
+        bool didSwap = false;
+        if (!amEven and !amLast) {
+            if (toSort[threadIdx.x+1] > toSort[threadIdx.x]) {
+                T tmp = toSort[threadIdx.x+1];
+                toSort[threadIdx.x+1] = toSort[threadIdx.x];
+                toSort[threadIdx.x] = tmp;
+                didSwap = true;
+            }
+        }
+        if (amEven) {
+            if (toSort[threadIdx.x+1] > toSort[threadIdx.x]) {
+                T tmp = toSort[threadIdx.x+1];
+                toSort[threadIdx.x+1] = toSort[threadIdx.x];
+                toSort[threadIdx.x] = tmp;
+                didSwap = true;
+            }
+        }
+        if (didSwap) {
+            sorted[warpIdx] = false;
+        }
+    }
+}
+
 void GridGPU::initArrays() {
     //this happens in adjust for new bounds
     //perCellArray = GPUArrayGlobal<uint32_t>(prod(ns) + 1);
@@ -441,6 +474,10 @@ __device__ int assignFromCell(float3 pos, int idx, uint myId, float4 *xs, uint *
             }
         }
         if (MULTITHREADPERATOM) { 
+            //okay, so we're going to sort teamNlist_base 
+            //and currentneighboridxs
+            //then those threads with nlist items != default will write, and that will
+            //pack the nlist densely
             teamNlist_base_shr[teamOffset+myIdxInTeam] = nlistItem;
 
             if (validAtom and myIdxInTeam==0) {
@@ -487,9 +524,9 @@ __global__ void assignNeighbors(float4 *xs, int nRingPoly, int nPerRingPoly, uin
     uint32_t *currentNeighborIdxs_shr;
 
     if (MULTITHREADPERATOM) {
-        teamNlist_base_shr = exclusionIds_shr + blockDim.x*maxExclusionsPerAtom*sizeof(uint32_t);
+        teamNlist_base_shr = exclusionIds_shr + blockDim.x*maxExclusionsPerAtom;
         teamOffset = (threadIdx.x / nThreadPerRP) * nThreadPerRP;//so move forward to my block in nThreadsPerRP size
-        currentNeighborIdxs_shr = teamNlist_base_shr + blockDim.x*sizeof(uint32_t);
+        currentNeighborIdxs_shr = teamNlist_base_shr + blockDim.x;
     } else {
         teamOffset = threadIdx.x;
     }
@@ -537,14 +574,10 @@ __global__ void assignNeighbors(float4 *xs, int nRingPoly, int nPerRingPoly, uin
     if (validThread) {
         //printf("valid thread\n");
         posWhole = xs[idx/nThreadPerRP];
-        //printf("threadid %d idx %x has lo, hi of %d, %d\n", threadIdx.x, idx, exclIdxLo_shr, exclIdxHi_shr);
-        //not going to deal with this just yet
-        //currentNeighborIdxs_shr[threadIdx.x] = baseNeighlistIdx(cumulSumMaxPerBlock, warpSize, nThreadPerRP);
         currentNeighborIdx = baseNeighlistIdx(cumulSumMaxPerBlock, warpSize, nThreadPerRP);
-        //printf("thread %d base idx %d\n", idx, currentNeighborIdx);
-        //if (idx > 63000) {
-        //    printf("%d, %d\n", idx, currentNeighborIdx);
-       // }
+        if (MULTITHREADPERATOM) {
+            currentNeighborIdxs_shr[threadIdx.x] = currentNeighborIdx;
+        }
         pos = make_float3(posWhole);
         sqrIdx = make_int3((pos - os) / ds);
     }
