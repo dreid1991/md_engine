@@ -141,12 +141,10 @@ def create_TIP4P_2005(state, oxygenHandle, hydrogenHandle, mSiteHandle, center=N
         state.addAtom(handle=oxygenHandle, pos=center, q=0)
         offset1 = Vector(0.9572, 0, 0)
         h1Pos = center + offset1
-        h1Pos *= orientation
         state.addAtom(handle=hydrogenHandle, pos=h1Pos, q=0.5897)
         theta = 1.824218134
         offset2 = Vector(cos(theta)*0.9572, sin(theta)*0.9572, 0)
         h2Pos = center + offset2
-        h2Pos *= orientation
         state.addAtom(handle=hydrogenHandle, pos=h2Pos, q=0.5897)
         mSiteOffset = (offset1 + offset2).normalized() * 0.1546
 
@@ -166,4 +164,44 @@ def create_TIP4P_2005(state, oxygenHandle, hydrogenHandle, mSiteHandle, center=N
         state.addAtom(handle=mSiteHandle, pos=center+mSiteOffset, q=-1.1794)
         return state.createMolecule([state.atoms[-4].id, state.atoms[-3].id, state.atoms[-2].id, state.atoms[-1].id])
 
+# q-TIP4P/F - see J. Chem. Phys. 131 024501 (2009)
+def create_TIP4P_Flexible(state, oxygenHandle, hydrogenHandle, mSiteHandle, center=None, orientation=None):
+    if (center==None):
+        center = state.Vector(0,0,0)
+    # the charges on each site
+    qO = 0.0
+    qM = -1.1128
+    qH = -0.5 * qM
+    theta = 1.8744836 # radians
+    rH = 0.9419 # equilibrium OH bond length for this model
+    rOM = 0.147144032 # calculated separately
+    if (orientation==None):
+        state.addAtom(handle=oxygenHandle, pos=center, q=qO)
+        offset1 = Vector(1.0, 0, 0) * rH
+        h1Pos = center + offset1
+        state.addAtom(handle=hydrogenHandle, pos=h1Pos, q=qH)
+        offset2 = Vector(cos(theta), sin(theta), 0) * rH
+        h2Pos = center + offset2
+        state.addAtom(handle=hydrogenHandle, pos=h2Pos, q=qH)
+        mSiteOffset = (offset1 + offset2).normalized() * rOM
+        state.addAtom(handle=mSiteHandle, pos=center+mSiteOffset, q=qM)
+        return state.createMolecule([state.atoms[-4].id, state.atoms[-3].id, state.atoms[-2].id, state.atoms[-1].id])
 
+    elif orientation=="random":
+        # add the oxygen at position 'center'
+        state.addAtom(handle=oxygenHandle, pos=center, q=qO)
+        # get a random vector - this will be the axis along which we add the first Hydrogen at the corresponding distance rOH
+        offset1 = getRandomOrientation() * rH
+        # the position is simply center + offset1
+        h1Pos = center + offset1
+        # add the atom
+        state.addAtom(handle=hydrogenHandle, pos=h1Pos, q=qH)
+        # now, rotate around the axis of the first hydrogen by theta and place the second hydrogen there
+        h2Pos = rotateBy(center,offset1,theta)
+        offset2 = h2Pos - center
+        state.addAtom(handle=hydrogenHandle, pos=h2Pos, q=qH)
+        # finally, bisect the angle formed by the hydrogens, and place the M-site at a distance rOM from the oxygen atom
+        mSiteOffset = (offset1 + offset2).normalized() * rOM
+        state.addAtom(handle=mSiteHandle, pos=center+mSiteOffset, q=qM)
+        # and our returned molecule
+        return state.createMolecule([state.atoms[-4].id, state.atoms[-3].id, state.atoms[-2].id, state.atoms[-1].id])

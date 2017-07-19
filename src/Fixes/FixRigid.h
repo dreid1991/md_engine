@@ -184,15 +184,4 @@ class FixRigid : public Fix {
 };
 
 
-
-
-
-
-
-
-
-
-
-
-
 #endif /* FIXRIGID_H */

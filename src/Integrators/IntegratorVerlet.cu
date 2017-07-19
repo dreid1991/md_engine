@@ -22,12 +22,14 @@ __global__ void nve_v_cu(int nAtoms, float4 *vs, float4 *fs, float dtf) {
         // Update velocity by a half timestep
         float4 vel = vs[idx];
         float invmass = vel.w;
+        float4 force = fs[idx];
+        
         // ghost particles should not have their velocities integrated; causes overflow
-        if (invmass == INVMASSLESS) {
+        if (invmass > INVMASSBOOL) {
             vs[idx] = make_float4(0.0f, 0.0f, 0.0f,invmass);
+            fs[idx] = make_float4(0.0f, 0.0f, 0.0f,force.w);
             return;
         }
-        float4 force = fs[idx];
 
         float3 dv = dtf * invmass * make_float3(force);
         vel += dv;
@@ -248,11 +250,13 @@ __global__ void preForce_cu(int nAtoms, float4 *xs, float4 *vs, float4 *fs,
         // Update velocity by a half timestep
         float4 vel = vs[idx];
         float invmass = vel.w;
-        if (invmass == INVMASSLESS) {
+        float4 force = fs[idx];
+        
+        if (invmass > INVMASSBOOL) {
             vs[idx] = make_float4(0.0f, 0.0f, 0.0f,invmass);
+            fs[idx] = make_float4(0.0f, 0.0f, 0.0f, force.w);
             return;
         }
-        float4 force = fs[idx];
 
         float3 dv = dtf * invmass * make_float3(force);
         vel += dv;
@@ -496,7 +500,7 @@ __global__ void postForce_cu(int nAtoms, float4 *vs, float4 *fs, float dtf)
         // Update velocities by a halftimestep
         float4 vel = vs[idx];
         float invmass = vel.w;
-        if (invmass == INVMASSLESS) {
+        if (invmass > INVMASSBOOL) {
             vs[idx] = make_float4(0.0f, 0.0f, 0.0f,invmass);
             return;
         }

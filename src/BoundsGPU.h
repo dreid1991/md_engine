@@ -96,6 +96,18 @@ public:
         return false;
     }
 
+    __host__ __device__ float4 wrapCoords(float4 v) {
+        // do something here? its a periodic wrap
+        float4 newPos = v;
+        float id = v.w;
+        float3 trace = rectComponents;
+        float3 diffFromLo = make_float3(newPos) - lo;
+        float3 imgs = floorf(diffFromLo / trace); //are unskewed at this point
+        newPos -= make_float4(trace * imgs * periodic);
+        newPos.w = id;
+
+        return newPos;
+    }
     //around center
     __host__ void scale(float3 scaleBy) {
         float3 center = lo + rectComponents * 0.5;

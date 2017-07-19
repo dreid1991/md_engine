@@ -7,11 +7,10 @@
 #include "cutils_func.h"
 #include <math.h>
 #include "globalDefs.h"
-using namespace std;
 namespace py = boost::python;
-const string rigidType = "Rigid";
+const std::string rigidType = "Rigid";
 
-FixRigid::FixRigid(boost::shared_ptr<State> state_, string handle_, string groupHandle_) : Fix(state_, handle_, groupHandle_, rigidType, true, true, false, 1) {
+FixRigid::FixRigid(boost::shared_ptr<State> state_, std::string handle_, std::string groupHandle_) : Fix(state_, handle_, groupHandle_, rigidType, true, true, false, 1) {
 
     // set both to false initially; using one of the createRigid functions will flip the pertinent flag to true
     firstPrepare = true;
@@ -270,7 +269,7 @@ __global__ void distributeMSite(int4 *waterIds, float4 *xs, float4 *vs, float4 *
     if (idx < nMolecules) {
         //printf("in distributeMSite idx %d\n", idx);
         // by construction, the id's of the molecules are ordered as follows in waterIds array
-        int3 waterMolecule = make_int3(waterIds[idx]);
+        int4 waterMolecule = waterIds[idx];
 
         int id_O  = waterIds[idx].x;
         int id_H1 = waterIds[idx].y;
@@ -490,9 +489,44 @@ __global__ void compute_SETTLE(int4 *waterIds, float4 *xs, float4 *xs_0,
         float3 posO = make_float3(xs[idToIdxs[atomsFromMolecule.x]]);
         float3 posH1= make_float3(xs[idToIdxs[atomsFromMolecule.y]]);
         float3 posH2= make_float3(xs[idToIdxs[atomsFromMolecule.z]]);
+    
+        // get the relative vectors OH1, OH2 for the initial triangle
+        float3 vectorOH1 = bounds.minImage(posH1_initial - posO_initial);
+        float3 vectorOH2 = bounds.minImage(posH2_initial - posO_initial);
+        
+        // move the hydrogens to their minimum image distance w.r.t. the oxygen
+        posH1 = posO + vectorOH1;
+        posH2 = posO + vectorOH2;
+
+        // the center of mass 'd1' in the paper
+        float3 COM_d1 = (posO * weightO) + ( ( posH1 + posH2 ) * weightH);
+
+        // move the atom positions to the origin
+        posO  -= COM_d1;
+        posH1 -= COM_d1;
+        posH2 -= COM_d1;
+
+        // take the cross product of the two vectors to get the vector normal to the plane formed by 
+        // $\Delta a_0 b_0 c_0$
+        // -- note that this is /not/ normalized, and will need to be
+        float3 axis1 = cross(vectorOH1, vectorOH2);
+
+        // take the cross product of axis 1 with the vector pointing from the origin to the unconstrained position of the oxygen
+        float3 axis2 = cross(posO, axis1);
+        
+        // take the cross product of axis 1 with axis 2
+        float3 axis3 = cross(axis1, axis2);
+
+        // normalize the three to get our X'Y'Z' coordinate system
+        axis1 /= length(axis1);
+        axis2 /= length(axis2);
+        axis3 /= length(axis3);
+        
+        // TODO some other stuff
 
 
-
+        // and at the end, wrap the coordinates back in to the box.
+        
 
     }
 }
