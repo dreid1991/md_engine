@@ -504,7 +504,7 @@ IntegratorVerlet::IntegratorVerlet(State *state_)
 {
 
 }
-void IntegratorVerlet::run(int numTurns)
+double IntegratorVerlet::run(int numTurns)
 {
 
     basicPreRunChecks();
@@ -582,10 +582,12 @@ void IntegratorVerlet::run(int numTurns)
     CUT_CHECK_ERROR("after run\n");
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> duration = end - start;
+    double ptsps = state->atoms.size()*numTurns / duration.count();
     mdMessage("runtime %f\n%e particle timesteps per second\n",
-              duration.count(), state->atoms.size()*numTurns / duration.count());
+              duration.count(), ptsps);
 
     basicFinish();
+    return ptsps;
 }
 
 void IntegratorVerlet::nve_v() {

@@ -96,26 +96,7 @@ void Integrator::asyncOperations() {
         state->asyncHostOperation(writeAndPy);
     }
 }
-/*
-__global__ void printFloats(cudaTextureObject_t xs, int n) {
-    int idx = GETIDX();
-    if (idx < n) {
-        int xIdx = XIDX(idx, sizeof(float4));
-        int yIdx = YIDX(idx, sizeof(float4));
-        float4 x = tex2D<float4>(xs, xIdx, yIdx);
-        printf("idx %d, vals %f %f %f %d\n", idx, x.x, x.y, x.z, *(int *) &x.w);
 
-    }
-}
-__global__ void printFloats(float4 *xs, int n) {
-    int idx = GETIDX();
-    if (idx < n) {
-        float4 x = xs[idx];
-        printf("idx %d, vals %f %f %f %f\n", idx, x.x, x.y, x.z, x.w);
-
-    }
-}
-*/
 
 
 void Integrator::basicPreRunChecks() {

@@ -16,7 +16,7 @@ using std::cout;
 //toSort should be of size blockDim.x, sorted should be of size nWarp, sortSize <= warpSize
 template
 <class T>
-inline __device__ void bubbleSort_NOSYNC(T *toSort, bool *sorted, int sortSize, int warpSize) {
+inline __device__ void sortBubble_NOSYNC(T *toSort, bool *sorted, int sortSize, int warpSize) {
     int warpIdx = threadIdx.x / warpSize;
     sorted[warpIdx] = false; //so each warp does its own thing  
     bool amLast = (threadIdx.x + 1)%sortSize == 0; //I am the last thread in my sorting chunk, I don't need to do anything
@@ -25,7 +25,7 @@ inline __device__ void bubbleSort_NOSYNC(T *toSort, bool *sorted, int sortSize, 
         sorted[warpIdx] = true;
         bool didSwap = false;
         if (!amEven and !amLast) {
-            if (toSort[threadIdx.x+1] > toSort[threadIdx.x]) {
+            if (toSort[threadIdx.x+1] < toSort[threadIdx.x]) {
                 T tmp = toSort[threadIdx.x+1];
                 toSort[threadIdx.x+1] = toSort[threadIdx.x];
                 toSort[threadIdx.x] = tmp;
@@ -33,7 +33,7 @@ inline __device__ void bubbleSort_NOSYNC(T *toSort, bool *sorted, int sortSize, 
             }
         }
         if (amEven) {
-            if (toSort[threadIdx.x+1] > toSort[threadIdx.x]) {
+            if (toSort[threadIdx.x+1] < toSort[threadIdx.x]) {
                 T tmp = toSort[threadIdx.x+1];
                 toSort[threadIdx.x+1] = toSort[threadIdx.x];
                 toSort[threadIdx.x] = tmp;
@@ -478,7 +478,9 @@ __device__ int assignFromCell(float3 pos, int idx, uint myId, float4 *xs, uint *
             //and currentneighboridxs
             //then those threads with nlist items != default will write, and that will
             //pack the nlist densely
-            teamNlist_base_shr[teamOffset+myIdxInTeam] = nlistItem;
+            teamNlist_base_shr[threadIdx.x] = nlistItem;
+            //I tried sorting these to have more than one thread writing, but it was slower.
+
 
             if (validAtom and myIdxInTeam==0) {
                 for (int tIdx=0; tIdx<nThreadPerRP; tIdx++) {
@@ -521,12 +523,10 @@ __global__ void assignNeighbors(float4 *xs, int nRingPoly, int nPerRingPoly, uin
     //for whole block, for compacting purposes
     int teamOffset;
     uint32_t *teamNlist_base_shr;
-    uint32_t *currentNeighborIdxs_shr;
 
     if (MULTITHREADPERATOM) {
         teamNlist_base_shr = exclusionIds_shr + blockDim.x*maxExclusionsPerAtom;
         teamOffset = (threadIdx.x / nThreadPerRP) * nThreadPerRP;//so move forward to my block in nThreadsPerRP size
-        currentNeighborIdxs_shr = teamNlist_base_shr + blockDim.x;
     } else {
         teamOffset = threadIdx.x;
     }
@@ -575,9 +575,6 @@ __global__ void assignNeighbors(float4 *xs, int nRingPoly, int nPerRingPoly, uin
         //printf("valid thread\n");
         posWhole = xs[idx/nThreadPerRP];
         currentNeighborIdx = baseNeighlistIdx(cumulSumMaxPerBlock, warpSize, nThreadPerRP);
-        if (MULTITHREADPERATOM) {
-            currentNeighborIdxs_shr[threadIdx.x] = currentNeighborIdx;
-        }
         pos = make_float3(posWhole);
         sqrIdx = make_int3((pos - os) / ds);
     }
@@ -604,7 +601,8 @@ __global__ void assignNeighbors(float4 *xs, int nRingPoly, int nPerRingPoly, uin
                                         pos, idx, myId, xs, ids, gridCellArrayIdxs,
                                         sqrIdxOtherLin, -offset, trace, neighCutSqr,
                                         currentNeighborIdx,
-                                        teamNlist_base_shr, teamOffset, neighborlist,
+                                        teamNlist_base_shr,
+                                        teamOffset, neighborlist,
                                         exclusionIds_shr, exclIdxLo_shr, exclIdxHi_shr,
                                         nPerRingPoly, nThreadPerRP,
                                         warpSize, myIdxInTeam, validThread);
@@ -896,7 +894,7 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
                             exclusionIndexes.data(), exclusionIds.data(), maxExclusionsPerAtom, nThreadPerRP
                             ); //PER RP CENTROID
         } else {
-            assignNeighbors<1><<<NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerRP), nThreadPerBlock(), nThreadPerBlock()*maxExclusionsPerAtom*sizeof(uint32_t) + 2*nThreadPerBlock()*sizeof(uint32_t)>>>(
+            assignNeighbors<1><<<NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerRP), nThreadPerBlock(), nThreadPerBlock()*maxExclusionsPerAtom*sizeof(uint32_t) + nThreadPerBlock()*sizeof(uint32_t)>>>(
                             centroids, nRingPoly, nPerRingPoly, state->gpd.ids(gridIdx),
                             perCellArray.d_data.data(), perBlockArray.d_data.data(), os, ds, ns,
                             bounds.periodic, trace, neighCut*neighCut, neighborlist.data(), warpSize,

@@ -26,7 +26,7 @@ public:
     /*!
      * \param numTurns Number of steps to run
      */
-    virtual void run(int numTurns);
+    virtual double run(int numTurns);
 
 private:
     //! Run first half-integration
