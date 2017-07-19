@@ -5,7 +5,7 @@
 #include "helpers.h"
 #include "SquareVector.h"
 
-template <class PAIR_EVAL, bool COMP_PAIRS, int N_PARAM, bool COMP_VIRIALS, class CHARGE_EVAL, bool COMP_CHARGES>
+template <class PAIR_EVAL, bool COMP_PAIRS, int N_PARAM, bool COMP_VIRIALS, class CHARGE_EVAL, bool COMP_CHARGES, int NTHREADPERATOM>
 __global__ void compute_force_iso
         (int nAtoms, 
 	 int nPerRingPoly,
@@ -36,7 +36,10 @@ __global__ void compute_force_iso
     extern __shared__ float paramsAll[];
     int sqrSize = numTypes*numTypes;
     float *params_shr[N_PARAM];
-    float3 *forces_shr = (float3 *) (paramsAll + sqrSize*N_PARAM);
+    float3 *forces_shr;
+    //if (NTHREADPERATOM>1) {
+        forces_shr = (float3 *) (paramsAll + sqrSize*N_PARAM);
+    //}
     //then we take pointers into paramsAll.
     //
     //The order of the params_shr is given by the paramOrder array (see for example, FixLJCut.cu)
@@ -54,7 +57,7 @@ __global__ void compute_force_iso
     // This assumes that all ring polymers are the same size
     // this will change in later implementations where a variable number of beads may be used per RP
     int idx = GETIDX();
-    if (idx < nAtoms) {
+    if (idx < nAtoms*nThreadPerAtom) {
 
         Virial virialsSum;
         if (COMP_VIRIALS) {
@@ -62,13 +65,24 @@ __global__ void compute_force_iso
         }
 	// information based on ring polymer and bead
     // okay so we can assign multiple atoms per ring poly.  This manifests as multiple threads per bead
-        int atomIdx     = idx/nThreadPerAtom;
+        int atomIdx;
+       // if (NTHREADPERATOM>1) {
+            atomIdx = idx/nThreadPerAtom;
+       // } else {
+           // atomIdx = idx;
+       // }
         int ringPolyIdx = atomIdx / nPerRingPoly;	// which ring polymer
         int beadIdx     = atomIdx % nPerRingPoly;	// which time slice
 
         //load where my neighborlist starts
         //int baseIdx = baseNeighlistIdx(cumulSumMaxPerBlock, warpSize);
-        int baseIdx = baseNeighlistIdxFromRPIndex(cumulSumMaxPerBlock, warpSize, ringPolyIdx, nThreadPerAtom);
+        int baseIdx;
+       // if (NTHREADPERATOM>1) {
+            baseIdx = baseNeighlistIdxFromRPIndex(cumulSumMaxPerBlock, warpSize, ringPolyIdx, nThreadPerAtom);
+      //  } else {
+       //     baseIdx = baseNeighlistIdxFromRPIndex(cumulSumMaxPerBlock, warpSize, ringPolyIdx);
+      //  }
+        //printf("Thread %d atom idx %d  nlist base idx is %d\n", idx, atomIdx, baseIdx);
         float qi;
 
         //load charges if necessary
@@ -87,7 +101,7 @@ __global__ void compute_force_iso
         int numNeigh = neighborCounts[ringPolyIdx];
         //printf("pfe thread %d atom %d\n", threadIdx.x, atomIdx);
         for (int nthNeigh=myIdxInTeam; nthNeigh<numNeigh; nthNeigh+=nThreadPerAtom) {
-            int nlistIdx = baseIdx + warpSize * (nthNeigh/nThreadPerAtom);
+            int nlistIdx = baseIdx + myIdxInTeam + warpSize * (nthNeigh/nThreadPerAtom);
             uint otherIdxRaw = neighborlist[nlistIdx];
             //The leftmost two bits in the neighbor entry say if it is a 1-2, 1-3, or 1-4 neighbor, or none of these
             uint neighDist = otherIdxRaw >> 30;
@@ -98,6 +112,7 @@ __global__ void compute_force_iso
             uint otherRPIdx = otherIdxRaw & EXCL_MASK;
 	        uint otherIdx   = nPerRingPoly*otherRPIdx + beadIdx;  // atom = P*ring_polymer + k, k = 0,...,P-1
             float4 otherPosWhole = xs[otherIdx];
+            //printf("thread %d nlistidx %d other idx %d\n", idx, nlistIdx, otherIdx);
 
             //type is stored in w component of position
             int otherType = __float_as_int(otherPosWhole.w);
@@ -143,7 +158,7 @@ __global__ void compute_force_iso
         reduceByN_NOSYNC<float3>(forces_shr, nThreadPerAtom);
         if (myIdxInTeam==0) {
             float4 forceCur = fs[atomIdx]; //NEED TO REDO THIS
-            forceCur += forceSum;
+            forceCur += forces_shr[threadIdx.x];
             //increment my forces by the total.  Note that each atom is calcu
             fs[atomIdx] = forceCur;
         }

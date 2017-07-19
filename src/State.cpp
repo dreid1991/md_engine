@@ -59,7 +59,7 @@ State::State() : units(&dt) {
     nPerRingPoly  = 1;
     exclusionMode = EXCLUSIONMODE::DISTANCE;
 
-    nThreadPerAtom = 2;
+    nThreadPerAtom = 1;
 
 
 }

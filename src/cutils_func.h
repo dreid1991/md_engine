@@ -18,6 +18,28 @@ inline __device__ int baseNeighlistIdx(const uint32_t *cumulSumMaxMemPerWarp, in
     return warpsPerBlock * cumulSumUpToMe + memSizePerWarpMe * myWarp + myIdxInWarp;
 }
 
+
+inline __device__ int baseNeighlistIdxFromRPIndex(const uint32_t *cumulSumMaxMemPerWarp, int warpSize, int myRingPolyIdx, int nThreadPerAtom) { 
+    int nAtomPerBlock = blockDim.x / nThreadPerAtom;
+    int      blockIdx           = myRingPolyIdx / nAtomPerBlock;
+    uint32_t cumulSumUpToMe     = cumulSumMaxMemPerWarp[blockIdx];
+    uint32_t memSizePerWarpMe   = cumulSumMaxMemPerWarp[blockIdx+1] - cumulSumUpToMe;
+    int nthAtomInBlock          = myRingPolyIdx % nAtomPerBlock;
+    int nAtomPerWarp            = warpSize / nThreadPerAtom;
+    int myWarp                  = nthAtomInBlock / nAtomPerWarp;
+    int myIdxInWarp             = nthAtomInBlock % nAtomPerWarp;
+    int warpsPerBlock           = blockDim.x/warpSize;
+    return warpsPerBlock * cumulSumUpToMe + memSizePerWarpMe * myWarp + myIdxInWarp;
+}
+inline __device__ int baseNeighlistIdxFromRPIndex(const uint32_t *cumulSumMaxPerBlock, int warpSize, int myRingPolyIdx) { 
+    int      blockIdx           = myRingPolyIdx / blockDim.x;
+    uint32_t cumulSumUpToMe     = cumulSumMaxPerBlock[blockIdx];
+    uint32_t maxNeighInMyBlock  = cumulSumMaxPerBlock[blockIdx+1] - cumulSumUpToMe;
+    int      myWarp             = ( myRingPolyIdx % blockDim.x) / warpSize;
+    int      myIdxInWarp        = myRingPolyIdx % warpSize;
+    return blockDim.x * cumulSumMaxPerBlock[blockIdx] + maxNeighInMyBlock * warpSize * myWarp + myIdxInWarp;
+}
+/*
 inline __device__ int baseNeighlistIdxFromRPIndex(const uint32_t *cumulSumMaxMemPerWarp, int warpSize, int myRingPolyIdx, int nThreadPerAtom) { 
     int      blockIdx           = myRingPolyIdx / blockDim.x;
     uint32_t cumulSumUpToMe     = cumulSumMaxMemPerWarp[blockIdx];
@@ -28,6 +50,7 @@ inline __device__ int baseNeighlistIdxFromRPIndex(const uint32_t *cumulSumMaxMem
     return warpsPerBlock * cumulSumUpToMe + memSizePerWarpMe * myWarp + myIdxInWarp;
 }
 
+*/
 inline __device__ int baseNeighlistIdxFromIndex(uint32_t *cumulSumMaxPerBlock, int warpSize, int idx) {
     int blockIdx = idx / blockDim.x;
     int warpIdx = (idx - blockIdx * blockDim.x) / warpSize;
