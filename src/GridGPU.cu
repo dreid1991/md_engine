@@ -436,15 +436,7 @@ __device__ int assignFromCell(float3 pos, int idx, uint myId, float4 *xs, uint *
 
 
 
-inline __device__ int baseNeighlistIdxTMP(const uint32_t *cumulSumMaxMemPerWarp, int warpSize, int nThreadPerAtom) { 
-    uint32_t cumulSumUpToMe = cumulSumMaxMemPerWarp[blockIdx.x];
-    uint32_t memSizePerWarpMe = cumulSumMaxMemPerWarp[blockIdx.x+1] - cumulSumUpToMe;
-    int warpsPerBlock = blockDim.x/warpSize;
-    int myWarp = threadIdx.x / warpSize;
-    int myIdxInWarp = threadIdx.x % warpSize;
-    //printf("tid %d wpb %d cumulSumMe %d memSizePerWarpMe %d myWarp %d my IdxInWarp %d\n", threadIdx.x, warpsPerBlock, cumulSumUpToMe, memSizePerWarpMe, myWarp, myIdxInWarp);
-    return warpsPerBlock * cumulSumUpToMe + memSizePerWarpMe * myWarp + myIdxInWarp;
-}
+
 
 __global__ void assignNeighbors(float4 *xs, int nRingPoly, int nPerRingPoly, uint *ids,
                                 uint32_t *gridCellArrayIdxs, uint32_t *cumulSumMaxPerBlock,
@@ -507,7 +499,7 @@ __global__ void assignNeighbors(float4 *xs, int nRingPoly, int nPerRingPoly, uin
         //printf("threadid %d idx %x has lo, hi of %d, %d\n", threadIdx.x, idx, exclIdxLo_shr, exclIdxHi_shr);
         //not going to deal with this just yet
         //currentNeighborIdxs_shr[threadIdx.x] = baseNeighlistIdx(cumulSumMaxPerBlock, warpSize, nThreadPerRP);
-        currentNeighborIdx = baseNeighlistIdxTMP(cumulSumMaxPerBlock, warpSize, nThreadPerRP);
+        currentNeighborIdx = baseNeighlistIdx(cumulSumMaxPerBlock, warpSize, nThreadPerRP);
         //printf("thread %d base idx %d\n", idx, currentNeighborIdx);
         //if (idx > 63000) {
         //    printf("%d, %d\n", idx, currentNeighborIdx);
@@ -676,7 +668,6 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
     cudaDeviceSynchronize();
 
     if (buildFlag.h_data[0] or forceBuild) {
-        cout << "grid " << nThreadPerBlock() << " " << nThreadPerAtom() << endl;
 
         float3 ds_orig = ds;
         float3 os_orig = os;

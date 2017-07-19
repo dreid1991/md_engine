@@ -27,14 +27,14 @@ public:
         if (COMP_PAIRS or COMP_CHARGES) {
             if (virialMode==2 or virialMode == 1) {
                 if (nThreadPerAtom==1) {
-                    SAFECALL((compute_force_iso<PAIR_EVAL, COMP_PAIRS, N_PARAM, true, CHARGE_EVAL, COMP_CHARGES, 0> <<<NBLOCKTEAM(nAtoms, nThreadPerBlock, nThreadPerAtom), nThreadPerBlock, N_PARAM*numTypes*numTypes*sizeof(float) + nThreadPerBlock*sizeof(float3)>>>(nAtoms,nPerRingPoly, xs, fs, neighborCounts, neighborlist, cumulSumMaxPerBlock, warpSize, parameters, numTypes, bounds, onetwoStr, onethreeStr, onefourStr, virials, qs, qCutoff*qCutoff, nThreadPerAtom, pairEval, chargeEval)));
+                    SAFECALL((compute_force_iso<PAIR_EVAL, COMP_PAIRS, N_PARAM, true, CHARGE_EVAL, COMP_CHARGES, 0> <<<NBLOCKTEAM(nAtoms, nThreadPerBlock, nThreadPerAtom), nThreadPerBlock, N_PARAM*numTypes*numTypes*sizeof(float)>>>(nAtoms,nPerRingPoly, xs, fs, neighborCounts, neighborlist, cumulSumMaxPerBlock, warpSize, parameters, numTypes, bounds, onetwoStr, onethreeStr, onefourStr, virials, qs, qCutoff*qCutoff, nThreadPerAtom, pairEval, chargeEval)));
                 } else {
                     SAFECALL((compute_force_iso<PAIR_EVAL, COMP_PAIRS, N_PARAM, true, CHARGE_EVAL, COMP_CHARGES, 1> <<<NBLOCKTEAM(nAtoms, nThreadPerBlock, nThreadPerAtom), nThreadPerBlock, N_PARAM*numTypes*numTypes*sizeof(float) + nThreadPerBlock*sizeof(float3)>>>(nAtoms,nPerRingPoly, xs, fs, neighborCounts, neighborlist, cumulSumMaxPerBlock, warpSize, parameters, numTypes, bounds, onetwoStr, onethreeStr, onefourStr, virials, qs, qCutoff*qCutoff, nThreadPerAtom, pairEval, chargeEval)));
                 }
             } else {
 
                 if (nThreadPerAtom==1) {
-                    compute_force_iso<PAIR_EVAL, COMP_PAIRS, N_PARAM, false, CHARGE_EVAL, COMP_CHARGES, 0> <<<NBLOCKTEAM(nAtoms, nThreadPerBlock, nThreadPerAtom), nThreadPerBlock, N_PARAM*numTypes*numTypes*sizeof(float) + nThreadPerBlock*sizeof(float3)>>>(nAtoms,nPerRingPoly, xs, fs, neighborCounts, neighborlist, cumulSumMaxPerBlock, warpSize, parameters, numTypes, bounds, onetwoStr, onethreeStr, onefourStr, virials, qs, qCutoff*qCutoff, nThreadPerAtom, pairEval, chargeEval);
+                    compute_force_iso<PAIR_EVAL, COMP_PAIRS, N_PARAM, false, CHARGE_EVAL, COMP_CHARGES, 0> <<<NBLOCKTEAM(nAtoms, nThreadPerBlock, nThreadPerAtom), nThreadPerBlock, N_PARAM*numTypes*numTypes*sizeof(float)>>>(nAtoms,nPerRingPoly, xs, fs, neighborCounts, neighborlist, cumulSumMaxPerBlock, warpSize, parameters, numTypes, bounds, onetwoStr, onethreeStr, onefourStr, virials, qs, qCutoff*qCutoff, nThreadPerAtom, pairEval, chargeEval);
                 } else {
                     compute_force_iso<PAIR_EVAL, COMP_PAIRS, N_PARAM, false, CHARGE_EVAL, COMP_CHARGES, 1> <<<NBLOCKTEAM(nAtoms, nThreadPerBlock, nThreadPerAtom), nThreadPerBlock, N_PARAM*numTypes*numTypes*sizeof(float) + nThreadPerBlock*sizeof(float3)>>>(nAtoms,nPerRingPoly, xs, fs, neighborCounts, neighborlist, cumulSumMaxPerBlock, warpSize, parameters, numTypes, bounds, onetwoStr, onethreeStr, onefourStr, virials, qs, qCutoff*qCutoff, nThreadPerAtom, pairEval, chargeEval);
                 }
