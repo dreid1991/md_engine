@@ -95,14 +95,23 @@ __global__ void compute_force_iso
         float3 pos = make_float3(posWhole);
 
         float3 forceSum = make_float3(0, 0, 0);
-        int myIdxInTeam = threadIdx.x % nThreadPerAtom;
-
+        int myIdxInTeam;
+        if (MULTITHREADPERATOM) {
+            myIdxInTeam = threadIdx.x % nThreadPerAtom;
+        } else {
+            myIdxInTeam = 0;
+        }
         //how many neighbors do I have?
         //int numNeigh = neighborCounts[idx];
         int numNeigh = neighborCounts[ringPolyIdx];
         //printf("pfe thread %d atom %d\n", threadIdx.x, atomIdx);
         for (int nthNeigh=myIdxInTeam; nthNeigh<numNeigh; nthNeigh+=nThreadPerAtom) {
-            int nlistIdx = baseIdx + myIdxInTeam + warpSize * (nthNeigh/nThreadPerAtom);
+            int nlistIdx;
+            if (MULTITHREADPERATOM) {
+                nlistIdx = baseIdx + myIdxInTeam + warpSize * (nthNeigh/nThreadPerAtom);
+            } else {
+                nlistIdx = baseIdx + warpSize * nthNeigh;
+            }
             
             uint otherIdxRaw = neighborlist[nlistIdx];
             //The leftmost two bits in the neighbor entry say if it is a 1-2, 1-3, or 1-4 neighbor, or none of these
