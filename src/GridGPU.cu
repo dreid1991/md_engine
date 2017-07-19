@@ -388,16 +388,15 @@ __device__ uint addExclusion(uint otherId, uint *exclusionIds_shr,
 
 
 
-    //currentNeighborIdx = assignFromCell(pos, idx, myId, xs, ids, gridCellArrayIdxs, LINEARIDX(sqrIdx, ns), offset, trace, neighCutSqr, currentNeighborIdx, teamNlist_base_shr, teamOffset, neighborlist, exclusionIds_shr, exclIdxLo_shr, exclIdxHi_shr, nPerRingPoly, nThreadPerRP, warpSize, myIdxInTeam, validThread);
 template
-<int MULTITHREADPERATOM>
+<int MULTITHREADPERATOM, int CHECKIDS>
 __device__ int assignFromCell(float3 pos, int idx, uint myId, float4 *xs, uint *ids,
                               uint32_t *gridCellArrayIdxs, int squareIdx,
                               float3 offset, float3 trace, float neighCutSqr,
                               int currentNeighborIdx, uint32_t *teamNlist_base_shr, int teamOffset, uint *neighborlist,
                               uint *exclusionIds_shr, int exclIdxLo_shr, int exclIdxHi_shr,
                               int nPerRingPoly, int nThreadPerRP,
-                              int warpSize, int myIdxInTeam, bool validThread, bool checkOtherId) {
+                              int warpSize, int myIdxInTeam, bool validThread) {
 
     uint idxMin = 0;
     uint idxMax = 0;
@@ -424,10 +423,10 @@ __device__ int assignFromCell(float3 pos, int idx, uint myId, float4 *xs, uint *
             float3 otherPos = make_float3(xs[i]);
             float3 distVec = otherPos + (offset * trace) - pos;
             uint otherId;
-            if (checkOtherId) {
+            if (CHECKIDS) {
                 otherId = ids[i*nPerRingPoly];
             }
-            bool idsFine = checkOtherId ? myId != otherId : true;
+            bool idsFine = CHECKIDS ? myId != otherId : true;
             if (idsFine && dot(distVec, distVec) < neighCutSqr) {
                 uint exclusionTag = addExclusion(otherId, exclusionIds_shr, exclIdxLo_shr, exclIdxHi_shr);
                 // if (myId==16) {
@@ -549,7 +548,7 @@ __global__ void assignNeighbors(float4 *xs, int nRingPoly, int nPerRingPoly, uin
         pos = make_float3(posWhole);
         sqrIdx = make_int3((pos - os) / ds);
     }
-    currentNeighborIdx = assignFromCell<MULTITHREADPERATOM>(pos, idx, myId, xs, ids, gridCellArrayIdxs, LINEARIDX(sqrIdx, ns), offset, trace, neighCutSqr, currentNeighborIdx, teamNlist_base_shr, teamOffset, neighborlist, exclusionIds_shr, exclIdxLo_shr, exclIdxHi_shr, nPerRingPoly, nThreadPerRP, warpSize, myIdxInTeam, validThread, true);
+    currentNeighborIdx = assignFromCell<MULTITHREADPERATOM, 1>(pos, idx, myId, xs, ids, gridCellArrayIdxs, LINEARIDX(sqrIdx, ns), offset, trace, neighCutSqr, currentNeighborIdx, teamNlist_base_shr, teamOffset, neighborlist, exclusionIds_shr, exclIdxLo_shr, exclIdxHi_shr, nPerRingPoly, nThreadPerRP, warpSize, myIdxInTeam, validThread);
     for (xIdx=sqrIdx.x-1; xIdx<=sqrIdx.x+1; xIdx++) {
         offset.x = -floorf((float) xIdx / ns.x);
         xIdxLoop = xIdx + ns.x * offset.x;
@@ -568,14 +567,14 @@ __global__ void assignNeighbors(float4 *xs, int nRingPoly, int nPerRingPoly, uin
 
                                 int3 sqrIdxOther = make_int3(xIdxLoop, yIdxLoop, zIdxLoop);
                                 int sqrIdxOtherLin = LINEARIDX(sqrIdxOther, ns);
-                                currentNeighborIdx = assignFromCell<MULTITHREADPERATOM>(
+                                currentNeighborIdx = assignFromCell<MULTITHREADPERATOM, 0>(
                                         pos, idx, myId, xs, ids, gridCellArrayIdxs,
                                         sqrIdxOtherLin, -offset, trace, neighCutSqr,
                                         currentNeighborIdx,
                                         teamNlist_base_shr, teamOffset, neighborlist,
                                         exclusionIds_shr, exclIdxLo_shr, exclIdxHi_shr,
                                         nPerRingPoly, nThreadPerRP,
-                                        warpSize, myIdxInTeam, validThread, false);
+                                        warpSize, myIdxInTeam, validThread);
                             }
 
                         } // endif periodic.z
@@ -807,21 +806,21 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
          *     ghosts too
          */
         if (nThreadPerRP==1) {
-            SAFECALL((countNumNeighbors<0><<<NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerRP), nThreadPerBlock()>>>(
+            countNumNeighbors<0><<<NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerRP), nThreadPerBlock()>>>(
                             centroids, nRingPoly, 
                             perAtomArray.d_data.data(), perCellArray.d_data.data(),
-                            os, ds, ns, bounds.periodic, trace, neighCut*neighCut, nThreadPerRP))); //PER RP CENTROID
+                            os, ds, ns, bounds.periodic, trace, neighCut*neighCut, nThreadPerRP); //PER RP CENTROID
         } else {
-            SAFECALL((countNumNeighbors<1><<<NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerRP), nThreadPerBlock(), nThreadPerBlock()*sizeof(uint16_t)>>>(
+            countNumNeighbors<1><<<NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerRP), nThreadPerBlock(), nThreadPerBlock()*sizeof(uint16_t)>>>(
                             centroids, nRingPoly, 
                             perAtomArray.d_data.data(), perCellArray.d_data.data(),
-                            os, ds, ns, bounds.periodic, trace, neighCut*neighCut, nThreadPerRP))); //PER RP CENTROID
+                            os, ds, ns, bounds.periodic, trace, neighCut*neighCut, nThreadPerRP); //PER RP CENTROID
         }
 
  
-        SAFECALL((computeMaxMemSizePerWarp<<<NBLOCKVAR(nRingPoly, nThreadPerBlock()), nThreadPerBlock(), nThreadPerBlock()*sizeof(uint16_t)>>>(
+        computeMaxMemSizePerWarp<<<NBLOCKVAR(nRingPoly, nThreadPerBlock()), nThreadPerBlock(), nThreadPerBlock()*sizeof(uint16_t)>>>(
                     nRingPoly, perAtomArray.d_data.data(),
-                    perBlockArray_maxNeighborsInBlock.data(), warpSize, nThreadPerRP))); // MAKE NUM NP VARIABLE
+                    perBlockArray_maxNeighborsInBlock.data(), warpSize, nThreadPerRP); // MAKE NUM NP VARIABLE
 
         /*
         //delete
@@ -857,19 +856,19 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
         }
 
         if (nThreadPerRP==1) {
-            SAFECALL((assignNeighbors<0><<<NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerRP), nThreadPerBlock(), nThreadPerBlock()*maxExclusionsPerAtom*sizeof(uint32_t)>>>(
+            assignNeighbors<0><<<NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerRP), nThreadPerBlock(), nThreadPerBlock()*maxExclusionsPerAtom*sizeof(uint32_t)>>>(
                             centroids, nRingPoly, nPerRingPoly, state->gpd.ids(gridIdx),
                             perCellArray.d_data.data(), perBlockArray.d_data.data(), os, ds, ns,
                             bounds.periodic, trace, neighCut*neighCut, neighborlist.data(), warpSize,
                             exclusionIndexes.data(), exclusionIds.data(), maxExclusionsPerAtom, nThreadPerRP
-                            ))); //PER RP CENTROID
+                            ); //PER RP CENTROID
         } else {
-            SAFECALL((assignNeighbors<1><<<NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerRP), nThreadPerBlock(), nThreadPerBlock()*maxExclusionsPerAtom*sizeof(uint32_t) + 2*nThreadPerBlock()*sizeof(uint32_t)>>>(
+            assignNeighbors<1><<<NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerRP), nThreadPerBlock(), nThreadPerBlock()*maxExclusionsPerAtom*sizeof(uint32_t) + 2*nThreadPerBlock()*sizeof(uint32_t)>>>(
                             centroids, nRingPoly, nPerRingPoly, state->gpd.ids(gridIdx),
                             perCellArray.d_data.data(), perBlockArray.d_data.data(), os, ds, ns,
                             bounds.periodic, trace, neighCut*neighCut, neighborlist.data(), warpSize,
                             exclusionIndexes.data(), exclusionIds.data(), maxExclusionsPerAtom, nThreadPerRP
-                            ))); //PER RP CENTROID
+                            ); //PER RP CENTROID
         }
 
         /*
