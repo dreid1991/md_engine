@@ -138,7 +138,7 @@ def create_TIP4P_2005(state, oxygenHandle, hydrogenHandle, mSiteHandle, center=N
     if center==None:
         center = state.Vector(0, 0, 0)
     if orientation==None:
-        state.addAtom(handle=oxygenHandle, pos=center, q=0)
+        state.addAtom(handle=oxygenHandle, pos=center, q=0.0)
         offset1 = Vector(0.9572, 0, 0)
         h1Pos = center + offset1
         state.addAtom(handle=hydrogenHandle, pos=h1Pos, q=0.5897)

@@ -525,20 +525,25 @@ void IntegratorVerlet::run(int numTurns)
     std::vector<bool> prepared = basicPrepare(numTurns);
     
     printf("\nBack in IntegratorVerlet.cu\n");
+    
     force(true);
 
+    bool retry = false;
     for (int i = 0; i<prepared.size(); i++) {
         if (!prepared[i]) {
-            for (Fix *f : state->fixes) {
-                bool isPrepared = f->prepareForRun();
-                if (!isPrepared) {
-                    mdError("A fix is unable to be instantiated correctly.");
-                }
+            retry = true;
+        }
+    }
+    if (retry) {
+        for (Fix *f : state->fixes) {
+            bool isPrepared = f->prepareForRun();
+            if (!isPrepared) {
+                mdError("A fix is unable to be instantiated correctly.");
             }
         }
     }
+
     int periodicInterval = state->periodicInterval;
-    printf("\nHERE: in IntegratorVerlet::run(), about to iterate across the number of turns\n");
 	
     auto start = std::chrono::high_resolution_clock::now();
     DataManager &dataManager = state->dataManager;

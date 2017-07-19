@@ -478,7 +478,6 @@ void State::initializeGrid() {
     double maxRCut = getMaxRCut();// ALSO PADDING PLS
     double gridDim = maxRCut + padding;
 
-    //std::cout << "address of state.gpd: " << &gpd << std::endl;
     // copy value of nPerRingPoly to make it local to gpd instance
     gridGPU = GridGPU(this, gridDim, gridDim, gridDim, gridDim, exclusionMode, this->padding, &gpd,nPerRingPoly);
 
@@ -486,11 +485,9 @@ void State::initializeGrid() {
 
 bool State::prepareForRun() {
     // fixes have already prepared by the time the integrator calls this prepare
-    //printf("State::prepareForRun print statement 0\n");
     std::vector<float4> xs_vec, vs_vec, fs_vec;
     std::vector<uint> ids;
     std::vector<float> qs;
-    //printf("State::prepareForRun print statement 1\n");
     requiresCharges = false;
     std::vector<bool> requireCharges = LISTMAP(Fix *, bool, fix, fixes, fix->requiresCharges);
     if (!requireCharges.empty()) {
@@ -521,7 +518,7 @@ bool State::prepareForRun() {
     for (const auto &a : atoms) {
         xs_vec.push_back(make_float4(a.pos[0], a.pos[1], a.pos[2],
                                      *(float *)&a.type));
-        if (a.mass == 0) {
+        if (a.mass == 0.0) {
             // make the inverse mass a very large, but finite number
             // -- must be representable by floating point
             // -- make it a few orders of magnitude small than 1e38 so overflow is

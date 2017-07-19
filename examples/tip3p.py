@@ -30,8 +30,8 @@ state.bounds = Bounds(state, lo = loVector, hi = hiVector)
 state.rCut = 9.0
 state.padding = 1.0
 state.periodicInterval = 7
-state.shoutEvery = 1000
-state.dt = 0.05
+state.shoutEvery = 100
+state.dt = 0.5
 
 
 ##############################################
@@ -49,13 +49,14 @@ mSiteHandle = 'M'
 # add our oxygen and hydrogen species to the simulation
 state.atomParams.addSpecies(handle=oxygenHandle, mass=15.9994, atomicNum=8)
 state.atomParams.addSpecies(handle=hydrogenHandle, mass=1.008, atomicNum=1)
-state.atomParams.addSpecies(handle=mSiteHandle,mass=0.0,atomicNum=0)
+#state.atomParams.addSpecies(handle=mSiteHandle,mass=0.0,atomicNum=0)
 
 ##############################################################
-# q-TIP4P/F Parameters - from J. Chem. Phys. 131 024501 (2009)
+# TIP3P parameters
 ##############################################################
-epsilon = 0.1852 # given in kcal/mol
-sigma = 3.1589 # given in Angstroms
+epsilon = 0.1521 # given in kcal/mol
+sigma = 3.5365 # given in Angstroms
+
 
 #####################
 # Charge interactions
@@ -65,19 +66,19 @@ charge.setParameters(128,state.rCut-1, 3)
 state.activateFix(charge)
 
 
+######################
+# LJ Interactions
+######################
 nonbond = FixLJCut(state,'cut')
 nonbond.setParameter('sig',oxygenHandle, oxygenHandle, sigma)
 nonbond.setParameter('eps',oxygenHandle, oxygenHandle, epsilon)
-nonbond.setParameter('sig',hydrogenHandle, hydrogenHandle, 0.0)
+nonbond.setParameter('sig',hydrogenHandle, hydrogenHandle, 0.449)
 nonbond.setParameter('eps',hydrogenHandle, hydrogenHandle, 0.0)
-nonbond.setParameter('sig',mSiteHandle, mSiteHandle, 0.0)
-nonbond.setParameter('eps',mSiteHandle, mSiteHandle, 0.0)
+nonbond.setParameter('sig',oxygenHandle, hydrogenHandle, 0.0)
+nonbond.setParameter('eps',oxygenHandle, hydrogenHandle, 0.0)
+#nonbond.setParameter('sig',mSiteHandle, mSiteHandle, 0.0)
+#nonbond.setParameter('eps',mSiteHandle, mSiteHandle, 0.0)
 
-###########################################################
-# Instantiate FixTIP4PFlexible
-###########################################################
-flexibleTIP4P = FixTIP4PFlexible(state,'TIP4PFlexible', 'all')
-# and all that remains is to add each molecule to TIP4PFlexible
 
 #############################################################
 # and also, for now an arbitrary harmonic bond potential
@@ -109,33 +110,27 @@ for i in range(numMolecules):
     center = positions[i]
 
     ## for TIP4P
-    molecule = create_TIP4P_Flexible(state,oxygenHandle,hydrogenHandle,mSiteHandle,center,"random")
+   # molecule = create_TIP3P(state,oxygenHandle,hydrogenHandle,mSiteHandle,center,"random")
 
-    #molecule = create_TIP3P(state,oxygenHandle,hydrogenHandle,bondLength=0.9572,center=center,orientation="random")
+    molecule = create_TIP3P(state,oxygenHandle,hydrogenHandle,bondLength=0.9572,center=center,orientation="random")
     ids = []
     for atomId in molecule.ids:
         ids.append(atomId)
 
-    # sanity check: set the mass of the M-site to zero, again
-    state.atoms[ids[-1]].mass = 0.00
-    # add the atom ids to our instance of FixTIP4PFlexible
-    flexibleTIP4P.addMolecule(ids[0], ids[1], ids[2], ids[3])
-
-    #for atom in ids:
-    #    print 'atom ', atom, ' with mass ', state.atoms[atom].mass, ' and force ', state.atoms[atom].force, ' placed at position ', state.atoms[atom].pos,'\n'
-
     # make a harmonic OH1 bond with some high stiffness, and OH2, and H1H2
     harmonicBonds.createBond(state.atoms[ids[0]], state.atoms[ids[1]],
-                             k=200000, r0 = 0.9419)
+                             k=200, r0 = 0.9572)
     harmonicBonds.createBond(state.atoms[ids[0]], state.atoms[ids[2]],
-                             k=200000, r0 = 0.9419)
+                             k=200, r0 = 0.9572)
     harmonicAngle.createAngle(state.atoms[ids[1]], state.atoms[ids[0]], state.atoms[ids[2]],
-                              k=200000, theta0=1.8744836)
+                              k=200, theta0=1.82421813)
 
 print 'done adding molecules to simulation'
+
 #############################################################
 # Initialization of potentials
 #############################################################
+
 
 #####################
 # LJ Interactions
@@ -143,16 +138,20 @@ print 'done adding molecules to simulation'
 # -- we defined the LJ interactions above
 state.activateFix(nonbond)
 
-########################################################################################
-# Flexible TIP4P - note that this /only/ distributes the M-site forces!
-# Other components of the potential must be assembled using the other fixes available.
-########################################################################################
-state.activateFix(flexibleTIP4P)
 
 #############################################
 # initialize at some temperature
 #############################################
 InitializeAtoms.initTemp(state, 'all', 350.0)
+
+
+#############################################
+# Temperature control
+#############################################
+fixNVT = FixNoseHoover(state,'nvt','all')
+fixNVT.setTemperature(300.0, 200*state.dt)
+state.activateFix(fixNVT)
+
 
 ########################################
 # our integrator
@@ -164,13 +163,6 @@ integVerlet = IntegratorVerlet(state)
 ########################################
 tempData = state.dataManager.recordTemperature('all', interval = 1)
 
-################################################
-# Thermostatting
-################################################
-fixNVT = FixNoseHoover(state,'nvt','all')
-fixNVT.setTemperature(300.0, 200*state.dt)
-state.activateFix(fixNVT)
-
 
 #################################
 # and some calls to PIMD
@@ -179,7 +171,7 @@ state.activateFix(fixNVT)
 #state.preparePIMD(the_temp)
 
 writer = WriteConfig(state, handle='writer', fn='configPIMD', format='xyz',
-                     writeEvery=10)
+                     writeEvery=1)
 state.activateWriteConfig(writer)
 
 integVerlet.run(500000)

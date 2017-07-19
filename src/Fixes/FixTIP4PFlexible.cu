@@ -25,11 +25,17 @@ FixTIP4PFlexible::FixTIP4PFlexible(boost::shared_ptr<State> state_, std::string 
     theta = 0.0;
 }
 
-__global__ void printGPD_Flexible(int4 *waterIds, uint* ids, int* idToIdxs, float4 *xs, float4 *vs, float4 *fs, int nMolecules) {
+__global__ void printGPD_Flexible(int4 *waterIds, int* idToIdxs, float4 *xs, float4 *vs, float4 *fs, int nMolecules) {
     int idx = GETIDX();
     
-    if (idx < nMolecules) {
+    // print 5 molecules per turn
+    if (idx < 5) {
         int4 theseAtoms = waterIds[idx];
+
+        int idO = theseAtoms.x;
+        int idH1 = theseAtoms.y;
+        int idH2 = theseAtoms.z;
+        int idM = theseAtoms.w;
 
         int idx_O = idToIdxs[theseAtoms.x];
         int idx_H1= idToIdxs[theseAtoms.y];
@@ -51,24 +57,27 @@ __global__ void printGPD_Flexible(int4 *waterIds, uint* ids, int* idToIdxs, floa
         float4 force_H2= fs[idx_H2];
         float4 force_M = fs[idx_M];
 
-        printf("\natoms O, H1, H2, M ids %d %d %d %d\n     pos_O %f %f %f pos_H1 %f %f %f pos_H2 %f %f %f pos_M %f %f %f\n         vel_O %f %f %f %f vel_H1 %f %f %f %f vel_H2 %f %f %f %f vel_M %f %f %f %f\n         fs_O %f %f %f %f     fs_H1 %f %f %f %f      fs_H2 %f %f %f %f      fs_M %f %f %f %f\n", 
-               idx_O, idx_H1, idx_H2, idx_M,
+        printf("\natoms O, H1, H2, M ids %d %d %d %d\n     pos_O %f %f %f\npos_H1 %f %f %f\npos_H2 %f %f %f\npos_M %f %f %f\n",
+               idO, idH1, idH2, idM,
                pos_O.x, pos_O.y, pos_O.z,
                pos_H1.x, pos_H1.y, pos_H1.z,
                pos_H2.x, pos_H2.y, pos_H2.z,
-               pos_M.x, pos_M.y, pos_M.z,
+               pos_M.x, pos_M.y, pos_M.z);
+               
+        printf("\n atoms O, H1, H2, M ids %d %d %d %d\nvel_O %f %f %f %f\nvel_H1 %f %f %f %f\nvel_H2 %f %f %f %f \nvel_M %f %f %f %f\n",
+               idO, idH1, idH2, idM,
                vel_O.x, vel_O.y, vel_O.z, vel_O.w,
                vel_H1.x, vel_H1.y, vel_H1.z, vel_H1.w,
                vel_H2.x, vel_H2.y, vel_H2.z, vel_H2.w,
-               vel_M.x, vel_M.y, vel_M.z, vel_M.w,
-               force_O.x, force_O.y, force_O.z, force_O.w,
-               force_H1.x, force_H1.y, force_H1.z, force_H1.w,
-               force_H2.x, force_H2.y, force_H2.z, force_H2.w,
-               force_M.x, force_M.y, force_M.z, force_M.w);
+               vel_M.x, vel_M.y, vel_M.z, vel_M.w);
 
+        printf("\natoms O, H1, H2, M ids %d %d %d %d\nfs_O %f %f %f %d\nfs_H1 %f %f %f %d\nfs_H2 %f %f %f %d\nfs_M %f %f %f %d\n\n", 
+               idO, idH1, idH2, idM,
+               force_O.x, force_O.y, force_O.z, (uint) force_O.w,
+               force_H1.x, force_H1.y, force_H1.z, (uint) force_H1.w,
+               force_H2.x, force_H2.y, force_H2.z, (uint) force_H2.w,
+               force_M.x, force_M.y, force_M.z, (uint) force_M.w);
 
-    
-    
     
     }
 }
@@ -77,7 +86,7 @@ __global__ void printGPD_Flexible(int4 *waterIds, uint* ids, int* idToIdxs, floa
 // -- this is required for 4-site models with a massless particle.
 //    see compute_gamma() function for details.
 template <bool VIRIALS>
-__global__ void distributeMSite(int4 *waterIds, float4 *xs, float4 *vs, float4 *fs, 
+__global__ void distributeMSiteFlexible(int4 *waterIds, float4 *xs, float4 *vs, float4 *fs, 
                                 Virial *virials,
                                 int nMolecules, float gamma, float dtf, int* idToIdxs, BoundsGPU bounds)
 
@@ -173,7 +182,7 @@ __global__ void distributeMSite(int4 *waterIds, float4 *xs, float4 *vs, float4 *
     }
 }
 
-__global__ void setMSite(int4 *waterIds, int *idToIdxs, float4 *xs, int nMolecules, double rOM, BoundsGPU bounds) {
+__global__ void setMSiteFlexible(int4 *waterIds, int *idToIdxs, float4 *xs, int nMolecules, double rOM, BoundsGPU bounds) {
 
     int idx = GETIDX();
     if (idx < nMolecules) {
@@ -205,14 +214,14 @@ __global__ void setMSite(int4 *waterIds, int *idToIdxs, float4 *xs, int nMolecul
 
         // rOM is the O-M bond length
         float3 r_M  = (pos_O) + (rOM * ( (r_ij + r_ik) / ( (length(r_ij + r_ik)))));
-        printf("new position of M-site molecule %d r_M: %f %f %f\n      position of oxygen %d: %f %f %f\n", idx, r_M.x, r_M.y, r_M.z, id_O, pos_O.x, pos_O.y, pos_O.z);
+        //printf("new position of M-site molecule %d r_M: %f %f %f\n      position of oxygen %d: %f %f %f\n", idx, r_M.x, r_M.y, r_M.z, id_O, pos_O.x, pos_O.y, pos_O.z);
         float4 pos_M_new = make_float4(r_M.x, r_M.y, r_M.z, pos_M_whole.w);
         xs[idToIdxs[id_M]] = pos_M_new;
     }
 }
 
 template <bool VIRIALS>
-__global__ void initialForcePartition(int4 *waterIds, float4 *xs, float4 *fs, 
+__global__ void initialForcePartitionFlexible(int4 *waterIds, float4 *xs, float4 *fs, 
                                       Virial *virials, int nMolecules, float gamma,
                                       int *idToIdxs, BoundsGPU bounds) {
 
@@ -246,6 +255,7 @@ __global__ void initialForcePartition(int4 *waterIds, float4 *xs, float4 *fs,
         // this expression derived below in FixTIP4PFlexible::compute_gamma() function
         // -- these are the forces from the M-site partitioned for distribution to the atoms of the water molecule
         float3 fs_O_d = (make_float3(fs_M)) * (1.0 - (2.0 * gamma));
+        printf("value of fs_O_d from atom M id %d: %f %f %f\n", waterIds[idx].w, fs_O_d.x, fs_O_d.y, fs_O_d.z);
         float3 fs_H_d = (make_float3(fs_M)) * gamma;
 
         if (VIRIALS) {
@@ -327,7 +337,7 @@ void FixTIP4PFlexible::handleBoundsChange() {
     //    within the simulation.  Otherwise, the M-site will be out of its prescribed position.
     // we need to reset the position of the M-Site prior to calculating the forces
     
-    setMSite<<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), gpd.idToIdxs.d_data.data(), gpd.xs(activeIdx), nMolecules, rOM,  bounds);
+    setMSiteFlexible<<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), gpd.idToIdxs.d_data.data(), gpd.xs(activeIdx), nMolecules, rOM,  bounds);
 
     return;
 
@@ -485,7 +495,6 @@ void FixTIP4PFlexible::addMolecule(int id_a, int id_b, int id_c, int id_d) {
     if (! (ordered)) mdError("Ids in FixTIP4PFlexible::createRigid must be as O, H1, H2, M");
     
     waterMol = make_int4(id_a, id_b, id_c, id_d);
-    
     waterIds.push_back(waterMol);
 
     Bond bondOH1;
@@ -497,17 +506,17 @@ void FixTIP4PFlexible::addMolecule(int id_a, int id_b, int id_c, int id_d) {
     bonds.push_back(bondOH1);
     bonds.push_back(bondOH2);
     bonds.push_back(bondHH);
-
 }
 
 bool FixTIP4PFlexible::prepareForRun() {
     // if this is the first time prepareForRun was called, flip the flag
     // -- we need the forces, which we subsequently partition
     if (firstPrepare) {
+        printf("returning from first call to prepareForRun in FixTIP4PFlexible!\n");
         firstPrepare = false;
         return false;
     }
-    
+
     // then we'll know if we need to partition forces prior to integration
     nMolecules = waterIds.size();
     printf("Found %d molecules in FixTIP4PFlexible::prepareForRun()\n", nMolecules);
@@ -523,21 +532,33 @@ bool FixTIP4PFlexible::prepareForRun() {
     // compute the force partition constant
     compute_gamma();
     
+    //printf("printing data prior to partitioning in FixTIP4PFlexible::prepareForRun\n");
+    //cudaDeviceSynchronize();
+    //printGPD_Flexible<<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(),
+    //                                                    gpd.idToIdxs.d_data.data(), gpd.xs(activeIdx),
+    //                                                    gpd.vs(activeIdx),  gpd.fs(activeIdx),
+    //                                                    nMolecules);
+    //
+    //
+    //cudaDeviceSynchronize();
+    //printf("END: printing data prior to partitioning in FixTIP4PFlexible::prepareForRun\n");
+    
+
     // partition the intitial forces ( no velocity update )
-    SAFECALL((initialForcePartition<false><<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), 
+    initialForcePartitionFlexible<false><<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), 
                                                             gpd.xs(activeIdx),
                                                             gpd.fs(activeIdx),
                                                             gpd.virials.d_data.data(),
-                                                            nMolecules, gamma, gpd.idToIdxs.d_data.data(), bounds)));
+                                                            nMolecules, gamma, gpd.idToIdxs.d_data.data(), bounds);
     
 
-    printf("Finished the initial force partition in FixTIP4PFlexible!\n");
-    cudaDeviceSynchronize();
-    printGPD_Flexible<<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), gpd.ids(activeIdx), 
-                                                        gpd.idToIdxs.d_data.data(), gpd.xs(activeIdx),
-                                                              gpd.vs(activeIdx),  gpd.fs(activeIdx),
-                                                              nMolecules);
-    cudaDeviceSynchronize();
+    //printf("Finished the initial force partition in FixTIP4PFlexible!\n");
+    //cudaDeviceSynchronize();
+    //printGPD_Flexible<<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(),
+    //                                                    gpd.idToIdxs.d_data.data(), gpd.xs(activeIdx),
+    //                                                          gpd.vs(activeIdx),  gpd.fs(activeIdx),
+    //                                                          nMolecules);
+    //cudaDeviceSynchronize();
     return true;
 }
 
@@ -556,21 +577,26 @@ bool FixTIP4PFlexible::stepFinal() {
 
     float dtf = 0.5f * state->dt * state->units.ftm_to_v;
     if (Virials) {
-        distributeMSite<true><<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), 
+        distributeMSiteFlexible<true><<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), 
                                                      gpd.vs(activeIdx),  gpd.fs(activeIdx),
                                                      gpd.virials.d_data.data(),
                                                      nMolecules, gamma, dtf, gpd.idToIdxs.d_data.data(), bounds);
     } else {
-        distributeMSite<false><<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), 
+        distributeMSiteFlexible<false><<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), 
                                                      gpd.vs(activeIdx),  gpd.fs(activeIdx),
                                                      gpd.virials.d_data.data(),
                                                      nMolecules, gamma, dtf, gpd.idToIdxs.d_data.data(), bounds);
     }
 
-
     //setMSite<<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), gpd.idToIdxs.d_data.data(), gpd.xs(activeIdx), nMolecules, bounds);
     
-    printf("Finished TIP4PFlexible::stepFinal at turn %d!\n", (int) state->turn);
+    //cudaDeviceSynchronize();
+    //printGPD_Flexible<<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), 
+    //                                                    gpd.idToIdxs.d_data.data(), gpd.xs(activeIdx),
+    //                                                          gpd.vs(activeIdx),  gpd.fs(activeIdx),
+    //                                                          nMolecules);
+    //cudaDeviceSynchronize();
+    //printf("Finished TIP4PFlexible::stepFinal at turn %d!\n", (int) state->turn);
     return true;
 }
 
