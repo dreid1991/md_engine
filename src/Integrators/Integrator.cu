@@ -155,6 +155,8 @@ std::vector<bool> Integrator::basicPrepare(int numTurns) {
     }
     std::vector<bool> prepared;
     for (Fix *f : state->fixes) {
+        f->takeStateNThreadPerBlock(state->nThreadPerBlock);//grid will also have this value
+        f->takeStateNThreadPerAtom(state->nThreadPerAtom);//grid will also have this value
         f->updateGroupTag();
         prepared.push_back(f->prepareForRun());
         f->setVirialTurnPrepare();

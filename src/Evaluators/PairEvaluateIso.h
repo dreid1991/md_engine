@@ -4,8 +4,19 @@
 #include "Virial.h"
 #include "helpers.h"
 #include "SquareVector.h"
-
-template <class PAIR_EVAL, bool COMP_PAIRS, int N_PARAM, bool COMP_VIRIALS, class CHARGE_EVAL, bool COMP_CHARGES, int NTHREADPERATOM>
+inline __device__ int baseNeighlistIdxFromRPIndexTMP(const uint32_t *cumulSumMaxMemPerWarp, int warpSize, int myRingPolyIdx, int nThreadPerAtom) { 
+    int nAtomPerBlock = blockDim.x / nThreadPerAtom;
+    int      blockIdx           = myRingPolyIdx / nAtomPerBlock;
+    uint32_t cumulSumUpToMe     = cumulSumMaxMemPerWarp[blockIdx];
+    uint32_t memSizePerWarpMe   = cumulSumMaxMemPerWarp[blockIdx+1] - cumulSumUpToMe;
+    int nthAtomInBlock          = myRingPolyIdx % nAtomPerBlock;
+    int nAtomPerWarp            = warpSize / nThreadPerAtom;
+    int myWarp                  = nthAtomInBlock / nAtomPerWarp;
+    int myIdxInWarp             = nthAtomInBlock % nAtomPerWarp;
+    int warpsPerBlock           = blockDim.x/warpSize;
+    return warpsPerBlock * cumulSumUpToMe + memSizePerWarpMe * myWarp + myIdxInWarp * nThreadPerAtom;
+}
+template <class PAIR_EVAL, bool COMP_PAIRS, int N_PARAM, bool COMP_VIRIALS, class CHARGE_EVAL, bool COMP_CHARGES, int MULTITHREADPERATOM>
 __global__ void compute_force_iso
         (int nAtoms, 
 	 int nPerRingPoly,
@@ -37,7 +48,7 @@ __global__ void compute_force_iso
     int sqrSize = numTypes*numTypes;
     float *params_shr[N_PARAM];
     float3 *forces_shr;
-    //if (NTHREADPERATOM>1) {
+    //if (MULTITHREADPERATOM=1) {
         forces_shr = (float3 *) (paramsAll + sqrSize*N_PARAM);
     //}
     //then we take pointers into paramsAll.
@@ -66,19 +77,20 @@ __global__ void compute_force_iso
 	// information based on ring polymer and bead
     // okay so we can assign multiple atoms per ring poly.  This manifests as multiple threads per bead
         int atomIdx;
-       // if (NTHREADPERATOM>1) {
+        if (MULTITHREADPERATOM==1) {
             atomIdx = idx/nThreadPerAtom;
-       // } else {
-           // atomIdx = idx;
-       // }
+        } else {
+            atomIdx = idx;
+        }
         int ringPolyIdx = atomIdx / nPerRingPoly;	// which ring polymer
         int beadIdx     = atomIdx % nPerRingPoly;	// which time slice
 
         //load where my neighborlist starts
         //int baseIdx = baseNeighlistIdx(cumulSumMaxPerBlock, warpSize);
         int baseIdx;
-       // if (NTHREADPERATOM>1) {
-            baseIdx = baseNeighlistIdxFromRPIndex(cumulSumMaxPerBlock, warpSize, ringPolyIdx, nThreadPerAtom);
+       // if (MULTITHREADPERATOM=1) {
+            baseIdx = baseNeighlistIdxFromRPIndexTMP(cumulSumMaxPerBlock, warpSize, ringPolyIdx, nThreadPerAtom);
+        //printf("pair force tid %d baseIdx %d\n", threadIdx.x, baseIdx);
       //  } else {
        //     baseIdx = baseNeighlistIdxFromRPIndex(cumulSumMaxPerBlock, warpSize, ringPolyIdx);
       //  }
@@ -102,6 +114,7 @@ __global__ void compute_force_iso
         //printf("pfe thread %d atom %d\n", threadIdx.x, atomIdx);
         for (int nthNeigh=myIdxInTeam; nthNeigh<numNeigh; nthNeigh+=nThreadPerAtom) {
             int nlistIdx = baseIdx + myIdxInTeam + warpSize * (nthNeigh/nThreadPerAtom);
+            
             uint otherIdxRaw = neighborlist[nlistIdx];
             //The leftmost two bits in the neighbor entry say if it is a 1-2, 1-3, or 1-4 neighbor, or none of these
             uint neighDist = otherIdxRaw >> 30;
@@ -111,6 +124,10 @@ __global__ void compute_force_iso
             // Extract corresponding index for pair interaction (at same time slice)
             uint otherRPIdx = otherIdxRaw & EXCL_MASK;
 	        uint otherIdx   = nPerRingPoly*otherRPIdx + beadIdx;  // atom = P*ring_polymer + k, k = 0,...,P-1
+         //   if (otherIdx >= nAtoms) {
+         //       printf("otherIdx %d natom %d nNeigh %d nthNeigh %d myIdxInTeam %d\n", otherIdx, nAtoms, numNeigh, nthNeigh, myIdxInTeam);
+          //      continue;
+          //  }
             float4 otherPosWhole = xs[otherIdx];
             //printf("thread %d nlistidx %d other idx %d\n", idx, nlistIdx, otherIdx);
 

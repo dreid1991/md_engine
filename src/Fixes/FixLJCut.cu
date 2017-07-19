@@ -39,7 +39,6 @@ void FixLJCut::compute(int virialMode) {
     int activeIdx = gpd.activeIdx();
     uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
     float *neighborCoefs = state->specialNeighborCoefs;
-
     evalWrap->compute(nAtoms, nPerRingPoly, gpd.xs(activeIdx), gpd.fs(activeIdx),
                       neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(),
                       state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU,

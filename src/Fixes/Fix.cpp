@@ -109,6 +109,13 @@ void Fix::setEvalWrapperMode(std::string mode) {
 }
 
 
+void Fix::takeStateNThreadPerBlock(int nThread) {
+    nThreadPerBlock(nThread);
+
+}
+void Fix::takeStateNThreadPerAtom(int nThread) {
+    nThreadPerAtom(nThread);
+}
 Interpolator *Fix::getInterpolator(std::string type) {
     return nullptr;
 }

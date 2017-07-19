@@ -272,6 +272,9 @@ public:
 
     virtual void updateForPIMD(int nPerRingPoly) {};
 
+    virtual void takeStateNThreadPerBlock(int);
+    virtual void takeStateNThreadPerAtom(int);
+
 };
 
 #endif

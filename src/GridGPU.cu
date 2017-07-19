@@ -78,6 +78,7 @@ GridGPU::GridGPU() {
 GridGPU::GridGPU(State *state_, float dx_, float dy_, float dz_, float neighCutoffMax_, int exclusionMode_)
   : state(state_) {
     nThreadPerAtom(state->nThreadPerAtom);
+    nThreadPerBlock(state->nThreadPerBlock);
     neighCutoffMax = neighCutoffMax_;
 
     streamCreated = false;
@@ -347,6 +348,7 @@ __global__ void countNumNeighbors(float4 *xs, int nRingPoly,
     reduceByN_NOSYNC<uint16_t>(counts_shr, nThreadPerRP);
     if (validThread and not (threadIdx.x % nThreadPerRP)) {
         //printf("c %d %d\n ", (int) counts_shr[threadIdx.x], nThreadPerRP);
+        //printf("tid %d counted %d\n", threadIdx.x, counts_shr[threadIdx.x]-1);
         neighborCounts[atomIdx] = counts_shr[threadIdx.x] - 1; //-1 because I counted myself
     }
 }
@@ -434,7 +436,15 @@ __device__ int assignFromCell(float3 pos, int idx, uint myId, float4 *xs, uint *
 
 
 
-
+inline __device__ int baseNeighlistIdxTMP(const uint32_t *cumulSumMaxMemPerWarp, int warpSize, int nThreadPerAtom) { 
+    uint32_t cumulSumUpToMe = cumulSumMaxMemPerWarp[blockIdx.x];
+    uint32_t memSizePerWarpMe = cumulSumMaxMemPerWarp[blockIdx.x+1] - cumulSumUpToMe;
+    int warpsPerBlock = blockDim.x/warpSize;
+    int myWarp = threadIdx.x / warpSize;
+    int myIdxInWarp = threadIdx.x % warpSize;
+    //printf("tid %d wpb %d cumulSumMe %d memSizePerWarpMe %d myWarp %d my IdxInWarp %d\n", threadIdx.x, warpsPerBlock, cumulSumUpToMe, memSizePerWarpMe, myWarp, myIdxInWarp);
+    return warpsPerBlock * cumulSumUpToMe + memSizePerWarpMe * myWarp + myIdxInWarp;
+}
 
 __global__ void assignNeighbors(float4 *xs, int nRingPoly, int nPerRingPoly, uint *ids,
                                 uint32_t *gridCellArrayIdxs, uint32_t *cumulSumMaxPerBlock,
@@ -497,7 +507,8 @@ __global__ void assignNeighbors(float4 *xs, int nRingPoly, int nPerRingPoly, uin
         //printf("threadid %d idx %x has lo, hi of %d, %d\n", threadIdx.x, idx, exclIdxLo_shr, exclIdxHi_shr);
         //not going to deal with this just yet
         //currentNeighborIdxs_shr[threadIdx.x] = baseNeighlistIdx(cumulSumMaxPerBlock, warpSize, nThreadPerRP);
-        currentNeighborIdx = baseNeighlistIdx(cumulSumMaxPerBlock, warpSize, nThreadPerRP);
+        currentNeighborIdx = baseNeighlistIdxTMP(cumulSumMaxPerBlock, warpSize, nThreadPerRP);
+        //printf("thread %d base idx %d\n", idx, currentNeighborIdx);
         //if (idx > 63000) {
         //    printf("%d, %d\n", idx, currentNeighborIdx);
        // }
@@ -665,6 +676,7 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
     cudaDeviceSynchronize();
 
     if (buildFlag.h_data[0] or forceBuild) {
+        cout << "grid " << nThreadPerBlock() << " " << nThreadPerAtom() << endl;
 
         float3 ds_orig = ds;
         float3 os_orig = os;
@@ -761,15 +773,15 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
          *     call this for ghosts too; everything after this has to be done on
          *     ghosts too
          */
-        countNumNeighbors<<<NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerRP), nThreadPerBlock(), nThreadPerBlock()*sizeof(uint16_t)>>>(
+        SAFECALL((countNumNeighbors<<<NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerRP), nThreadPerBlock(), nThreadPerBlock()*sizeof(uint16_t)>>>(
                     centroids, nRingPoly, 
                     perAtomArray.d_data.data(), perCellArray.d_data.data(),
-                    os, ds, ns, bounds.periodic, trace, neighCut*neighCut, nThreadPerRP); //PER RP CENTROID
+                    os, ds, ns, bounds.periodic, trace, neighCut*neighCut, nThreadPerRP))); //PER RP CENTROID
 
  
-        computeMaxMemSizePerWarp<<<NBLOCKVAR(nRingPoly, nThreadPerBlock()), nThreadPerBlock(), nThreadPerBlock()*sizeof(uint16_t)>>>(
+        SAFECALL((computeMaxMemSizePerWarp<<<NBLOCKVAR(nRingPoly, nThreadPerBlock()), nThreadPerBlock(), nThreadPerBlock()*sizeof(uint16_t)>>>(
                     nRingPoly, perAtomArray.d_data.data(),
-                    perBlockArray_maxNeighborsInBlock.data(), warpSize, nThreadPerRP); // MAKE NUM NP VARIABLE
+                    perBlockArray_maxNeighborsInBlock.data(), warpSize, nThreadPerRP))); // MAKE NUM NP VARIABLE
 
         /*
         //delete
@@ -785,8 +797,8 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
         setCumulativeSumPerBlock<<<NBLOCKVAR(numBlocks+1, nThreadPerBlock()), nThreadPerBlock()>>>(
                     numBlocks, perBlockArray.d_data.data(),
                     perBlockArray_maxNeighborsInBlock.data());
-        uint32_t cumulSumPerBlock;
-        perBlockArray.d_data.get(&cumulSumPerBlock, numBlocks, 1);
+        uint32_t cumulMemSizePerWarp;
+        perBlockArray.d_data.get(&cumulMemSizePerWarp, numBlocks, 1);
         cudaDeviceSynchronize();
         //perAtomArray.dataToHost();
         //cudaDeviceSynchronize();
@@ -794,7 +806,9 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
         //perBlockArray.dataToDevice();
 
         //int totalNumNeighbors = perBlockArray.h_data.back() * PERBLOCK;
-        int totalNumNeighbors = cumulSumPerBlock * (nThreadPerBlock() / warpSize);  // total number of possible neighbors
+        int totalNumNeighbors = cumulMemSizePerWarp * (nThreadPerBlock() / warpSize);  // total number of possible neighbors
+       // cout << cumulMemSizePerWarp << endl;
+        //cout << totalNumNeighbors << endl;
         //std::cout << "TOTAL NUM IS " << totalNumNeighbors << std::endl;
         if (totalNumNeighbors > neighborlist.size()) {
             neighborlist = GPUArrayDeviceGlobal<uint>(totalNumNeighbors*1.5);
@@ -802,12 +816,12 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
             neighborlist = GPUArrayDeviceGlobal<uint>(totalNumNeighbors*1.5);
         }
     
-        assignNeighbors<<<NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerRP), nThreadPerBlock(), nThreadPerBlock()*maxExclusionsPerAtom*sizeof(uint32_t) + 2*nThreadPerBlock()*sizeof(uint32_t)>>>(
+        SAFECALL((assignNeighbors<<<NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerRP), nThreadPerBlock(), nThreadPerBlock()*maxExclusionsPerAtom*sizeof(uint32_t) + 2*nThreadPerBlock()*sizeof(uint32_t)>>>(
                 centroids, nRingPoly, nPerRingPoly, state->gpd.ids(gridIdx),
                 perCellArray.d_data.data(), perBlockArray.d_data.data(), os, ds, ns,
                 bounds.periodic, trace, neighCut*neighCut, neighborlist.data(), warpSize,
                 exclusionIndexes.data(), exclusionIds.data(), maxExclusionsPerAtom, nThreadPerRP
-        ); //PER RP CENTROID
+        ))); //PER RP CENTROID
 
         /*
         std::vector<int> nlistCPU(neighborlist.size()); 
@@ -816,9 +830,9 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
 
         for (int i=0; i<nlistCPU.size(); i++) {
             if (i%nThreadPerAtom() == 0) {
-                printf("new atom\n");
+                printf("new atom %d\n", i/nThreadPerAtom());
             }
-            cout << nlistCPU[i] << endl;
+            cout << "i " << i  << " nlist " << nlistCPU[i] << endl;
         }
         */
         if (bounds.isSkewed()) {

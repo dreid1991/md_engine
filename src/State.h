@@ -324,6 +324,7 @@ public:
     void refreshIdToIdx();
     
     int nThreadPerAtom; //!< number of threads per atom for pair computations and nlist building
+    int nThreadPerBlock; //!< number of threads per block for pair computations and nlist building
     
     bool verbose; //!< Verbose output
     int shoutEvery; //!< Report state of simulation every this many timesteps
