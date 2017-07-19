@@ -13,38 +13,6 @@ using std::endl;
 using std::cout;
 /* GridGPU members */
 
-//toSort should be of size blockDim.x, sorted should be of size nWarp, sortSize <= warpSize
-template
-<class T>
-inline __device__ void sortBubble_NOSYNC(T *toSort, bool *sorted, int sortSize, int warpSize) {
-    int warpIdx = threadIdx.x / warpSize;
-    sorted[warpIdx] = false; //so each warp does its own thing  
-    bool amLast = (threadIdx.x + 1)%sortSize == 0; //I am the last thread in my sorting chunk, I don't need to do anything
-    bool amEven = threadIdx.x%2 == 0;
-    while (sorted[warpIdx] == false) {
-        sorted[warpIdx] = true;
-        bool didSwap = false;
-        if (!amEven and !amLast) {
-            if (toSort[threadIdx.x+1] < toSort[threadIdx.x]) {
-                T tmp = toSort[threadIdx.x+1];
-                toSort[threadIdx.x+1] = toSort[threadIdx.x];
-                toSort[threadIdx.x] = tmp;
-                didSwap = true;
-            }
-        }
-        if (amEven) {
-            if (toSort[threadIdx.x+1] < toSort[threadIdx.x]) {
-                T tmp = toSort[threadIdx.x+1];
-                toSort[threadIdx.x+1] = toSort[threadIdx.x];
-                toSort[threadIdx.x] = tmp;
-                didSwap = true;
-            }
-        }
-        if (didSwap) {
-            sorted[warpIdx] = false;
-        }
-    }
-}
 
 void GridGPU::initArrays() {
     //this happens in adjust for new bounds
@@ -57,8 +25,6 @@ void GridGPU::initArrays() {
     // also cumulative sum, tracking cumul. sum of max per block
 //NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerRP)
     printf("in init arrays please make sure the per block arrays are set up to change when change nThreadPerBlock\n");
-    cout << NBLOCKVAR(nRingPoly, nThreadPerBlock()) << endl;
-    cout.flush();
     perBlockArray = GPUArrayGlobal<uint32_t>(NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerAtom()) + 1);
     // not +1 on this one, isn't cumul sum
     perBlockArray_maxNeighborsInBlock = GPUArrayDeviceGlobal<uint16_t>(NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerAtom()));

@@ -117,6 +117,41 @@ inline __device__ void reduceByN_NOSYNC(T *src, int span) { // where span is how
     }
 }
 
+
+
+//toSort should be of size blockDim.x, sorted should be of size nWarp, sortSize <= warpSize
+template
+<class T>
+inline __device__ void sortBubble_NOSYNC(T *toSort, bool *sorted, int sortSize, int warpSize) {
+    int warpIdx = threadIdx.x / warpSize;
+    sorted[warpIdx] = false; //so each warp does its own thing  
+    bool amLast = (threadIdx.x + 1)%sortSize == 0; //I am the last thread in my sorting chunk, I don't need to do anything
+    bool amEven = threadIdx.x%2 == 0;
+    while (sorted[warpIdx] == false) {
+        sorted[warpIdx] = true;
+        bool didSwap = false;
+        if (!amEven and !amLast) {
+            if (toSort[threadIdx.x+1] < toSort[threadIdx.x]) {
+                T tmp = toSort[threadIdx.x+1];
+                toSort[threadIdx.x+1] = toSort[threadIdx.x];
+                toSort[threadIdx.x] = tmp;
+                didSwap = true;
+            }
+        }
+        if (amEven) {
+            if (toSort[threadIdx.x+1] < toSort[threadIdx.x]) {
+                T tmp = toSort[threadIdx.x+1];
+                toSort[threadIdx.x+1] = toSort[threadIdx.x];
+                toSort[threadIdx.x] = tmp;
+                didSwap = true;
+            }
+        }
+        if (didSwap) {
+            sorted[warpIdx] = false;
+        }
+    }
+}
+
 #define ACCUMULATION_CLASS(NAME, TO, FROM, VARNAME_PROC, PROC, ZERO)\
 class NAME {\
 public:\
