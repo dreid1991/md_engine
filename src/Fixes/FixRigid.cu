@@ -25,8 +25,8 @@ __device__ inline float3 positionsToCOM(float3 *pos, float *mass, float ims) {
   return (pos[0]*mass[0] + pos[1]*mass[1] + pos[2]*mass[2])*ims;
 }
 
-inline __host__ __device__ float3 rotateCoords(float3 vector, float3 matrix[]) {
-  return make_float3(dot(matrix[0],vector),dot(matrix[1],vector),dot(matrix[2],vector));
+inline __host__ __device__ float3 rotation(float3 vector, float3 X, float3 Y, float3 Z) {
+    return make_float3(dot(X,vector), dot(Y,vector), dot(Z, vector));
 }
 
 // this function removes any residual velocities along the lengths of the bonds, 
@@ -223,39 +223,6 @@ __global__ void printGPD_Rigid(uint* ids, float4 *xs, float4 *vs, float4 *fs, in
     }
 }
 
-//fills r which rotates a to b
-__device__ void fillRotMatrix(float3 a, float3 b, float3 r[]) {
-  float3 v = cross(a, b);
-  float s = length(v);
-  float c = dot(b,a);
-  float3 vx[3] = {make_float3(0,-v.z,v.y),make_float3(v.z,0,-v.x),make_float3(-v.y,v.x,0)};
-  float3 vt[3] = {make_float3(0,v.z,-v.y),make_float3(-v.z,0,v.x),make_float3(v.y,-v.x,0)};
-  float3 i[3] = {make_float3(1,0,0),make_float3(0,1,0),make_float3(0,0,1)};
-  if (s != 0 and (a.x != b.x or a.y != b.y or a.z != b.z)) {
-    for (int row = 0; row < 3; row++) {
-      r[row] = rotateCoords(vt[row],vx);
-      r[row] *= (1 - c)/(s*s);
-      r[row] += vx[row] + i[row];
-    }
-  } else {
-    if (c > -1.0001 and c < -0.9999) {
-      for (int row = 0; row < 3; row++) {
-	r[row] = -1*(vx[row] + i[row]);
-      }
-    }
-  }
-}
-
-// filld r which rotates a to b around the z axis
-__device__ void fillRotZMatrix(float3 a, float3 b, float3 r[]){
-  float s = length(cross(a, b));
-  float c = dot(b,a);
-  float3 g[3] = {make_float3(c, s, 0.0f), make_float3(-s, c, 0.0f), make_float3(0.0f, 0.0f, 1.0f)};
-  for (int row = 0; row < 3; row++) {
-    r[row] = g[row];
-  }
-}
-
 
 // distribute the m site forces, and do an unconstrained integration of the velocity component corresponding to this additional force
 // -- this is required for 4-site models with a massless particle.
@@ -378,6 +345,7 @@ __global__ void setMSite(int4 *waterIds, int *idToIdxs, float4 *xs, int nMolecul
         float3 r_ik = bounds.minImage( (pos_H2 - pos_O));
 
         // 0.1546 is the O-M bond length
+        // TODO: remove the hardcoded r_OM value of 0.1546.. pass in data via template or something
         float3 r_M  = (pos_O) + 0.1546 * ( (r_ij + r_ik) / ( (length(r_ij + r_ik))));
     
         float4 pos_M_new = make_float4(r_M.x, r_M.y, r_M.z, pos_M_whole.w);
@@ -459,12 +427,12 @@ __global__ void set_init_vel_correction(int4 *waterIds, float4 *dvs_0, int nMole
 
 
 // implements the SETTLE algorithm for maintaining a rigid water molecule
-template <class DATA>
+template <class DATA, bool DEBUG_BOOL>
 __global__ void compute_SETTLE(int4 *waterIds, float4 *xs, float4 *xs_0, 
                                float4 *vs, float4 *vs_0, float4 *dvs_0, 
                                float4 *fs, float4 *fs_0, float4 *comOld, 
                                DATA fixRigidData, int nMolecules, 
-                               float dt, float dtf, 
+                               float dt,
                                int *idToIdxs, BoundsGPU bounds) {
     int idx = GETIDX();
     if (idx < nMolecules) {
@@ -485,48 +453,199 @@ __global__ void compute_SETTLE(int4 *waterIds, float4 *xs, float4 *xs_0,
         // get the molecule at this idx
         int4 atomsFromMolecule = waterIds[idx];
 
+        // get the atom idxs
+        int idxO = idToIdxs[atomsFromMolecule.x];
+        int idxH1= idToIdxs[atomsFromMolecule.y];
+        int idxH2= idToIdxs[atomsFromMolecule.z];
+        
+        // extract the whole positions
+        float4 posO_whole = xs[idxO];
+        float4 posH1_whole= xs[idxH1];
+        float4 posH2_whole= xs[idxH2];
+
         // and the unconstrained, updated positions
-        float3 posO = make_float3(xs[idToIdxs[atomsFromMolecule.x]]);
-        float3 posH1= make_float3(xs[idToIdxs[atomsFromMolecule.y]]);
-        float3 posH2= make_float3(xs[idToIdxs[atomsFromMolecule.z]]);
+        float3 posO = make_float3(posO_whole);
+        float3 posH1= make_float3(posH1_whole);
+        float3 posH2= make_float3(posH2_whole);
     
-        // get the relative vectors OH1, OH2 for the initial triangle
+        // get the relative vectors OH1, OH2 for the initial triangle (solution from last step)
         float3 vectorOH1 = bounds.minImage(posH1_initial - posO_initial);
         float3 vectorOH2 = bounds.minImage(posH2_initial - posO_initial);
-        
+ 
+        // get the relative vectors for the unconstrained triangle
+        float3 OH1_unconstrained = bounds.minImage(posH1 - posO);
+        float3 OH2_unconstrained = bounds.minImage(posH2 - posO);
+
         // move the hydrogens to their minimum image distance w.r.t. the oxygen
-        posH1 = posO + vectorOH1;
-        posH2 = posO + vectorOH2;
+        posH1 = posO + OH1_unconstrained;
+        posH2 = posO + OH2_unconstrained;
 
         // the center of mass 'd1' in the paper
         float3 COM_d1 = (posO * weightO) + ( ( posH1 + posH2 ) * weightH);
 
-        // move the atom positions to the origin
+        // move the unconstrained atom positions s.t. COM ~ origin
         posO  -= COM_d1;
         posH1 -= COM_d1;
         posH2 -= COM_d1;
 
-        // take the cross product of the two vectors to get the vector normal to the plane formed by 
+        // take the cross product of the two vectors to 
+        // get the vector normal to the plane formed by 
         // $\Delta a_0 b_0 c_0$
         // -- note that this is /not/ normalized, and will need to be
-        float3 axis1 = cross(vectorOH1, vectorOH2);
+        // ------ vector NORMAL to HOH plane ~ Z axis! so, axis3.
+        float3 axis3 = cross(vectorOH1, vectorOH2);
 
-        // take the cross product of axis 1 with the vector pointing from the origin to the unconstrained position of the oxygen
-        float3 axis2 = cross(posO, axis1);
+        // take the cross product of axis 3 with the vector
+        // pointing from the origin to the unconstrained position of the oxygen: pi_0 x A1'
+        float3 axis1 = cross(posO, axis3);
         
-        // take the cross product of axis 1 with axis 2
-        float3 axis3 = cross(axis1, axis2);
+        // and exhaust our remaining degree of freedom
+        // take the cross product of axis 3 with axis 1
+        float3 axis2 = cross(axis3, axis1);
 
         // normalize the three to get our X'Y'Z' coordinate system
         axis1 /= length(axis1);
         axis2 /= length(axis2);
         axis3 /= length(axis3);
         
-        // TODO some other stuff
+        /* At this point it is useful to make the transpose axes */
+        float3 axis1T = make_float3(axis1.x, axis2.x, axis3.x);
+        float3 axis2T = make_float3(axis1.y, axis2.y, axis3.y);
+        float3 axis3T = make_float3(axis1.z, axis2.z, axis3.z);
 
+        // rotate the hydrogen relative vectors about the axes
+        float3 rotated_b0 = rotation(vectorOH1, axis1, axis2, axis3);
+        float3 rotated_c0 = rotation(vectorOH2, axis1, axis2, axis3);
 
-        // and at the end, wrap the coordinates back in to the box.
+        float3 rotated_a1 = rotation(posO,  axis1, axis2, axis3);
+        float3 rotated_b1 = rotation(posH1, axis1, axis2, axis3);
+        float3 rotated_c1 = rotation(posH2, axis1, axis2, axis3);
+
+        // should check this; if rotated_a1.z > ra, we will have a lot of problems problem
+        // equation A8 in Miyamoto
+        float sinPhi = rotated_a1.z / ra;
+
+        printf("molecule %d atoms O H H %d %d %d sinPhi value %f\n", idx, atomsFromMolecule.x, atomsFromMolecule.y, atomsFromMolecule.z, sinPhi);
+
+        // this should be greater than zero
+        float cosPhiSqr = 1.0 - (sinPhi * sinPhi);
+
+        // cosPhiSqr must be strictly /greater/ than zero, 
+        // since cosPhi shows up in a denominator (eq. A9)
+        float cosPhi = sqrtf(cosPhiSqr);
+
+        // we now have cosPhi, the first relation in equation A10
+        // --- calculate sinPsi; trig to get cosPsiSqr, then sqrtf()
+
+        float sinPsi = (rotated_b1.z - rotated_c1.z) / (2.0 * rc * cosPhi);
+        float cosPsiSqr = 1.0 - (sinPsi * sinPsi);
+        float cosPsi = sqrtf(cosPsiSqr);
+
+        // these assertions should likely be removed in the production release
+        if ( (cosPhiSqr <= 0.0) or (cosPsiSqr <= 0.0)) {
+            printf("Molecule %d computed cosPhiSqr %f cosPsiSqr value %f\nAborting.\n", idx, cosPhiSqr, cosPsiSqr);
+            assert(cosPhiSqr > 0.0);
+            assert(cosPsiSqr > 0.0);
+        }
         
+        // -- all that remains is calculating $\theta$
+        // first, do the displacements of the canonical triangle.
+        float3 aPrime0 = make_float3(0.0, ra, 0.0);
+        float3 bPrime0 = make_float3(-rc, -rb, 0.0);
+        float3 cPrime0 = make_float3(rc, -rb, 0.0);
+
+        // aPrime1 == aPrime0
+        float3 bPrime1 = make_float3(-rc*cosPsi, -rb, rc*sinPsi);
+        float3 cPrime1 = make_float3(rc*cosPsi, -rb, -rc*sinPsi);
+
+        // skip to *Prime2.. (expressions A3 in Miyamoto)
+        // --- note: I think there is an error in the paper here? why would it be rc? 
+        //           we'll go with ra.
+        float3 aPrime2 = make_float3(0.0,
+                                     ra*cosPhi,
+                                     ra*sinPhi);
+        float3 bPrime2 = make_float3(-rc*cosPsi,
+                                     -rb*cosPhi - rc*sinPsi*sinPhi,
+                                     -rb*sinPhi + rc*sinPsi*cosPhi);
+        float3 cPrime2 = make_float3(rc*cosPsi,
+                                     -rb*cosPhi + rc*sinPsi*sinPhi,
+                                     -rb*sinPhi - rc*sinPsi*cosPhi);
+
+        // computing theta.. first compute alpha, beta, gamma as in Miyamoto
+        double alpha = bPrime2.x * (rotated_b0.x - rotated_c0.x) +
+                       bPrime2.y * (rotated_b0.y ) + 
+                       cPrime2.y * (rotated_c0.y );
+        double beta =  bPrime2.x * (rotated_c0.y - rotated_b0.y) + 
+                       bPrime2.y * (rotated_b0.x) + 
+                       cPrime2.y * (rotated_c0.x);
+        double gamma = (rotated_b0.x * rotated_b1.y) - 
+                       (rotated_b1.x * rotated_b0.y) + 
+                       (rotated_c0.x * rotated_c1.y) - 
+                       (rotated_c1.x * rotated_c0.y);
+
+        // sin(theta) = ( alpha * gamma - beta * sqrt(alpha^2 + beta^2 - gamma^2)) / (alpha^2 + beta^2)
+        double alphaSqrBetaSqr = (alpha * alpha) + (beta * beta);
+        double sinTheta = (alpha * gamma - (beta * sqrt(alphaSqrBetaSqr - (beta*beta)))) / (alphaSqrBetaSqr);
+    
+        double cosThetaSqr = 1.0 - (sinTheta * sinTheta);
+        double cosTheta = sqrt(cosThetaSqr);
+        if (cosThetaSqr <= 0.0) {
+            printf("Error settling molecule %d; cosThetaSqr value %f\nAborting.", idx, cosThetaSqr);
+        }
+
+        // so, make aPrime3, bPrime3, cPrime3 coordinates
+
+        // note that aPrime2.x is zero... compare with Miyamoto eqns A4
+        float3 aPrime3 = make_float3(-aPrime2.y*sinTheta,
+                                      aPrime2.y*cosTheta,
+                                      aPrime2.z);
+
+        float3 bPrime3 = make_float3(bPrime2.x * cosTheta - bPrime2.y * sinTheta,
+                                     bPrime2.x * sinTheta + bPrime2.y * cosTheta,
+                                     bPrime2.z);
+        float3 cPrime3 = make_float3(cPrime2.x * cosTheta - cPrime2.y * sinTheta,
+                                     cPrime2.x * sinTheta + cPrime2.y * cosTheta,
+                                     cPrime2.z);
+
+        // and put back in to our original coordinate system - use /transposed/ axes
+        float3 a_pos = rotation(aPrime3, axis1T, axis2T, axis3T);
+        float3 b_pos = rotation(bPrime3, axis1T, axis2T, axis3T);
+        float3 c_pos = rotation(cPrime3, axis1T, axis2T, axis3T);
+
+        // add back the COM
+        a_pos += COM_d1;
+        b_pos += COM_d1;
+        c_pos += COM_d1;
+
+        // and now make float4
+        float4 posO_new = make_float4(a_pos.x, a_pos.y, a_pos.z,posO_whole.w);
+        float4 posH1_new= make_float4(b_pos.x, b_pos.y, b_pos.z,posH1_whole.w);
+        float4 posH2_new= make_float4(c_pos.x, c_pos.y, c_pos.z,posH2_whole.w);
+
+        // set the global variables xs to the new values
+        xs[idxO] = posO_new;
+        xs[idxH1]= posH1_new;
+        xs[idxH2]= posH2_new;
+
+        // and now get the velocity correction term - simply (a_pos - posO)/dt
+        float3 dvO = (a_pos - posO) / dt;
+        float3 dvH1= (b_pos - posH1)/ dt;
+        float3 dvH2= (c_pos - posH2)/ dt;
+
+        // grab the global velocities
+        float4 velO = vs[idxO];
+        float4 velH1= vs[idxH1];
+        float4 velH2= vs[idxH2];
+
+        // add the float3 differential velocity vectors
+        velO += dvO;
+        velH1+= dvH1;
+        velH2+= dvH2;
+
+        // and assign the new vectors to global memory
+        vs[idxO] = velO;
+        vs[idxH1]= velH1;
+        vs[idxH2]= velH2;
 
     }
 }
@@ -547,7 +666,8 @@ void FixRigid::handleBoundsChange() {
             printGPD_Rigid<<<NBLOCK(nAtoms), PERBLOCK>>>(gpd.ids(activeIdx),
                                                          gpd.xs(activeIdx),
                                                          gpd.vs(activeIdx),
-                                                         gpd.fs(activeIdx),nAtoms);
+                                                         gpd.fs(activeIdx),
+                                                         nAtoms);
             cudaDeviceSynchronize();
         }
         // get a few pieces of data as required
@@ -1075,10 +1195,10 @@ bool FixRigid::stepFinal() {
 
     cudaDeviceSynchronize();
 
-    SAFECALL((compute_SETTLE<FixRigidData><<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), 
+    SAFECALL((compute_SETTLE<FixRigidData, true><<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), 
                                                 xs_0.data(), gpd.vs(activeIdx), vs_0.data(), 
                                                 dvs_0.data(), gpd.fs(activeIdx), fs_0.data(), 
-                                                com.data(), fixRigidData, nMolecules, dt, dtf,  
+                                                com.data(), fixRigidData, nMolecules, dt,  
                                                 gpd.idToIdxs.d_data.data(), bounds)));
 
  
