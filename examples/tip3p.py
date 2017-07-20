@@ -84,11 +84,14 @@ nonbond.setParameter('eps',oxygenHandle, hydrogenHandle, 0.0)
 # and also, for now an arbitrary harmonic bond potential
 # just so things don't explode.
 #############################################################
-harmonicBonds = FixBondHarmonic(state,'harmonic')
-harmonicAngle = FixAngleHarmonic(state,'angleH')
+#harmonicBonds = FixBondHarmonic(state,'harmonic')
+#harmonicAngle = FixAngleHarmonic(state,'angleH')
 
-state.activateFix(harmonicBonds)
-state.activateFix(harmonicAngle)
+#state.activateFix(harmonicBonds)
+#state.activateFix(harmonicAngle)
+
+rigid = FixRigid(state,'rigid','all')
+
 
 # our vector of centers
 positions = []
@@ -117,13 +120,20 @@ for i in range(numMolecules):
     for atomId in molecule.ids:
         ids.append(atomId)
 
+    # set velocity to 0..
+    for atom in ids:
+        state.atoms[atom].vel = Vector(0,0,0)
     # make a harmonic OH1 bond with some high stiffness, and OH2, and H1H2
+    '''
     harmonicBonds.createBond(state.atoms[ids[0]], state.atoms[ids[1]],
                              k=200, r0 = 0.9572)
     harmonicBonds.createBond(state.atoms[ids[0]], state.atoms[ids[2]],
                              k=200, r0 = 0.9572)
     harmonicAngle.createAngle(state.atoms[ids[1]], state.atoms[ids[0]], state.atoms[ids[2]],
                               k=200, theta0=1.82421813)
+    '''
+    rigid.createRigid(ids[0], ids[1], ids[2])
+
 
 print 'done adding molecules to simulation'
 
@@ -138,18 +148,22 @@ print 'done adding molecules to simulation'
 # -- we defined the LJ interactions above
 state.activateFix(nonbond)
 
+#############################################
+# Rigid Fix
+#############################################
+state.activateFix(rigid)
 
 #############################################
 # initialize at some temperature
 #############################################
-InitializeAtoms.initTemp(state, 'all', 350.0)
+#InitializeAtoms.initTemp(state, 'all', 350.0)
 
 
 #############################################
 # Temperature control
 #############################################
 fixNVT = FixNoseHoover(state,'nvt','all')
-fixNVT.setTemperature(300.0, 200*state.dt)
+fixNVT.setTemperature(300.0, 100*state.dt)
 state.activateFix(fixNVT)
 
 
@@ -170,8 +184,8 @@ tempData = state.dataManager.recordTemperature('all', interval = 1)
 #state.nPerRingPoly = nBeads
 #state.preparePIMD(the_temp)
 
-writer = WriteConfig(state, handle='writer', fn='configPIMD', format='xyz',
-                     writeEvery=1)
+writer = WriteConfig(state, handle='writer', fn='rigid_tip3p', format='xyz',
+                     writeEvery=5)
 state.activateWriteConfig(writer)
 
 integVerlet.run(500000)

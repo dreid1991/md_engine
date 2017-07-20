@@ -525,7 +525,7 @@ __global__ void compute_SETTLE(int4 *waterIds, float4 *xs, float4 *xs_0,
         // equation A8 in Miyamoto
         float sinPhi = rotated_a1.z / ra;
 
-        printf("molecule %d atoms O H H %d %d %d sinPhi value %f\n", idx, atomsFromMolecule.x, atomsFromMolecule.y, atomsFromMolecule.z, sinPhi);
+        //printf("molecule %d atoms O H H %d %d %d sinPhi value %f\n", idx, atomsFromMolecule.x, atomsFromMolecule.y, atomsFromMolecule.z, sinPhi);
 
         // this should be greater than zero
         float cosPhiSqr = 1.0 - (sinPhi * sinPhi);
