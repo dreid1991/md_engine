@@ -72,6 +72,9 @@ protected:
     //! Collect all pointers to the relevant data into activeData
     void setActiveData();
 
+    //set runtime tunable parameters for performance
+    void tune();
+
 
 
 

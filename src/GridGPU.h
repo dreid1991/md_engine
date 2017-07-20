@@ -126,6 +126,7 @@ public:
     void handleExclusionsDistance();
     void handleExclusionsForcers();
 
+    void initArraysTune();
     /*! \brief Remap atoms around periodic boundary conditions
      *
      * \param neighCut Cutoff distance for neighbor interactions.

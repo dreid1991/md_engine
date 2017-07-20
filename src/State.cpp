@@ -61,6 +61,8 @@ State::State() : units(&dt) {
     nThreadPerAtom = 1;
     nThreadPerBlock = 256;
 
+    tuneEvery = 1000000;
+
 
 }
 
@@ -954,6 +956,8 @@ BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(State_seedRNG_overloads,State::seedRNG,0,
                 .def_readwrite("is2d", &State::is2d)
                 .def_readwrite("turn", &State::turn)
                 .def_readwrite("nThreadPerAtom", &State::nThreadPerAtom)
+                .def_readwrite("nThreadPerBlock", &State::nThreadPerBlock)
+                .def_readwrite("tuneEvery", &State::tuneEvery)
                 .def_readwrite("periodicInterval", &State::periodicInterval)
                 .def_readwrite("rCut", &State::rCut)
                 .def_readwrite("nPerRingPoly", &State::nPerRingPoly)

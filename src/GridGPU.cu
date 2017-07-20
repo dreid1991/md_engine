@@ -24,15 +24,20 @@ void GridGPU::initArrays() {
     perAtomArray = GPUArrayGlobal<uint16_t>(nRingPoly + 1);
     // also cumulative sum, tracking cumul. sum of max per block
 //NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerRP)
-    printf("in init arrays please make sure the per block arrays are set up to change when change nThreadPerBlock\n");
-    perBlockArray = GPUArrayGlobal<uint32_t>(NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerAtom()) + 1);
-    // not +1 on this one, isn't cumul sum
-    perBlockArray_maxNeighborsInBlock = GPUArrayDeviceGlobal<uint16_t>(NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerAtom()));
+    initArraysTune();
     xsLastBuild = GPUArrayDeviceGlobal<float4>(state->atoms.size());
 
     // in prepare for run, you make GPU grid _after_ copying xs to device
     buildFlag = GPUArrayGlobal<int>(1);
     buildFlag.d_data.memset(0);
+}
+
+void GridGPU::initArraysTune() {
+    int nRingPoly = state->atoms.size() / state->nPerRingPoly;   // number of ring polymers/atom representations
+    perBlockArray = GPUArrayGlobal<uint32_t>(NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerAtom()) + 1);
+    // not +1 on this one, isn't cumul sum
+    perBlockArray_maxNeighborsInBlock = GPUArrayDeviceGlobal<uint16_t>(NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerAtom()));
+
 }
 
 void GridGPU::setBounds(BoundsGPU &newBounds) {
@@ -676,6 +681,7 @@ __global__ void setCumulativeSumPerBlock(int numBlocks, uint32_t *perBlockArray,
 
 void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
 
+    cout << "grid periodic " << nThreadPerBlock() << "   " << nThreadPerAtom() << endl;
     DeviceManager &devManager = state->devManager;
     int warpSize = devManager.prop.warpSize;
 

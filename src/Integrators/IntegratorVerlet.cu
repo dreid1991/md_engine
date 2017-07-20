@@ -530,11 +530,13 @@ double IntegratorVerlet::run(int numTurns)
     auto start = std::chrono::high_resolution_clock::now();
     DataManager &dataManager = state->dataManager;
     dtf = 0.5f * state->dt * state->units.ftm_to_v;
+    int tuneEvery = state->tuneEvery;
     for (int i=0; i<numTurns; ++i) {
 
         if (state->turn % periodicInterval == 0) {
             state->gridGPU.periodicBoundaryConditions();
         }
+
         int virialMode = dataManager.getVirialModeForTurn(state->turn);
 
         stepInit(virialMode==1 or virialMode==2);
@@ -551,6 +553,11 @@ double IntegratorVerlet::run(int numTurns)
         //printf("preForce IS COMMENTED OUT\n");
 
         handleBoundsChange();
+
+        if (state->turn % tuneEvery == 0) {
+            //this goes here because forces are zero at this point.  I don't need to save any forces this way
+           // tune();
+        }
 
         // Recalculate forces
         force(virialMode);

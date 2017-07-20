@@ -22,6 +22,7 @@ __global__ void zeroVectorPreserveW(float4 *xs, int n) {
     }
 }
 
+
 void Integrator::stepInit(bool computeVirials)
 {
     /*
@@ -244,7 +245,7 @@ boost::python::list Integrator::singlePointEngPythonPerParticle() {
     for (int i=0, ii=state->atoms.size(); i<ii; i++) {
         int id = ids[i];
         int idxWriteTo = idToIdxsOnCopy[id];
-        sortedEngs[idxWriteTo] = engs[i];
+        sortedEngs[idxWriteTo] = eng:tas[i];
     }
     boost::python::list asPy(sortedEngs);
     basicFinish();
@@ -255,6 +256,57 @@ boost::python::list Integrator::singlePointEngPythonPerParticle() {
     */
 
 
+void Integrator::tune() {
+    
+    int currentThreadPerBlock = state->nThreadPerBlock; 
+    int currentThreadPerAtom = state->nThreadPerAtom;
+    std::vector<int> threadPerBlocks= {32, 64, 128, 256, 512};
+    std::vector<int> threadPerAtoms = {1, 2, 4, 8, 16, 32};
+    vector<vector<double> > times;
+    int nNlistBuilds = 0;
+    int nForceEvals = 25;
+    //REMEMBER TO MAKE COPY OF FORCES AND SET THEM BACK AFTER THIS;
+    for (int i=0; i<threadPerBlocks.size(); i++) {
+        vector<double> timesWithBlock;
+        for (int j=0; j<threadPerAtoms.size(); j++) {
+            int threadPerBlock = threadPerBlocks[i];
+            int threadPerAtom = threadPerAtoms[j];
+            state->gridGPU.nThreadPerBlock(threadPerBlock);
+            state->gridGPU.nThreadPerAtom(threadPerAtom);
+            state->nThreadPerBlock = threadPerBlock;
+            state->nThreadPerAtom = threadPerAtom;
+            state->gridGPU.initArraysTune();
+            for (auto fix : state->fixes) {
+                fix->takeStateNThreadPerBlock(threadPerBlock);
+                fix->takeStateNThreadPerAtom(threadPerAtom);
+            }
+            SAFECALL((state->gridGPU.periodicBoundaryConditions()));
+            cudaDeviceSynchronize();
+            cout << "Gonna do some running!" << endl;
+            auto start = std::chrono::high_resolution_clock::now();
+            for (int k=0; k<nNlistBuilds; k++) {
+                SAFECALL((state->gridGPU.periodicBoundaryConditions(-1, true)));
+            }
+            for (int k=0; k<nForceEvals; k++) {
+                cout << k << endl;
+                SAFECALL((force(false)));
+            }
+            cudaDeviceSynchronize();
+            auto end = std::chrono::high_resolution_clock::now();
+            std::chrono::duration<double> duration = end - start;
+            timesWithBlock.push_back(duration.count());
+
+
+
+
+            
+
+        }
+    }
+    
+    //then pick best one
+    zeroVectorPreserveW<<<NBLOCKVAR(state->atoms.size(), state->nThreadPerBlock), state->nThreadPerBlock>>>(state->gpd.fs.getDevData(), state->atoms.size());
+}
 
 void export_Integrator() {
     boost::python::class_<Integrator,
