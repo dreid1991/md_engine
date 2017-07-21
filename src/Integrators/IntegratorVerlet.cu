@@ -528,9 +528,11 @@ double IntegratorVerlet::run(int numTurns)
 
 	
     auto start = std::chrono::high_resolution_clock::now();
+
     DataManager &dataManager = state->dataManager;
     dtf = 0.5f * state->dt * state->units.ftm_to_v;
     int tuneEvery = state->tuneEvery;
+    double timeTune = 0;
     for (int i=0; i<numTurns; ++i) {
 
         if (state->turn % periodicInterval == 0) {
@@ -556,7 +558,7 @@ double IntegratorVerlet::run(int numTurns)
 
         if (state->turn % tuneEvery == 0) {
             //this goes here because forces are zero at this point.  I don't need to save any forces this way
-           // tune();
+            timeTune += tune();
         }
 
         // Recalculate forces
@@ -589,7 +591,7 @@ double IntegratorVerlet::run(int numTurns)
     CUT_CHECK_ERROR("after run\n");
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> duration = end - start;
-    double ptsps = state->atoms.size()*numTurns / duration.count();
+    double ptsps = state->atoms.size()*numTurns / (duration.count() - timeTune);
     mdMessage("runtime %f\n%e particle timesteps per second\n",
               duration.count(), ptsps);
 

@@ -73,7 +73,7 @@ protected:
     void setActiveData();
 
     //set runtime tunable parameters for performance
-    void tune();
+    double tune();
 
 
 

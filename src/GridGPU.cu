@@ -681,7 +681,6 @@ __global__ void setCumulativeSumPerBlock(int numBlocks, uint32_t *perBlockArray,
 
 void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
 
-    cout << "grid periodic " << nThreadPerBlock() << "   " << nThreadPerAtom() << endl;
     DeviceManager &devManager = state->devManager;
     int warpSize = devManager.prop.warpSize;
 
@@ -712,6 +711,7 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
     cudaDeviceSynchronize();
 
     if (buildFlag.h_data[0] or forceBuild) {
+        state->nlistBuildCount++;
 
         float3 ds_orig = ds;
         float3 os_orig = os;

@@ -481,6 +481,12 @@ void State::initializeGrid() {
     double maxRCut = getMaxRCut();// ALSO PADDING PLS
     double gridDim = maxRCut + padding;
     gridGPU = GridGPU(this, gridDim, gridDim, gridDim, gridDim, exclusionMode);
+    //testing
+    //nThreadPerBlock = 64;
+    //nThreadPerAtom = 4;
+    //gridGPU.nThreadPerBlock(nThreadPerBlock);
+    //gridGPU.nThreadPerAtom(nThreadPerAtom);
+    //gridGPU.initArraysTune();
 
 }
 
@@ -551,7 +557,6 @@ bool State::prepareForRun() {
     boundsGPU = bounds.makeGPU();
     float maxRCut = getMaxRCut();
     initializeGrid();
-    //gridGPU = grid.makeGPU(maxRCut);  // uses os, ns, ds, dsOrig from AtomGrid
 
     gpd.xsBuffer = GPUArrayGlobal<float4>(nAtoms);
     gpd.vsBuffer = GPUArrayGlobal<float4>(nAtoms);
