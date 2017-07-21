@@ -261,7 +261,7 @@ double Integrator::tune() {
     
     auto startTune = std::chrono::high_resolution_clock::now();
 
-    std::vector<int> threadPerBlocks= {32, 64, 128, 256, 512};
+    std::vector<int> threadPerBlocks= {32, 64, 128, 256};
     std::vector<int> threadPerAtoms = {1, 2, 4, 8, 16, 32};
     //if we have run for a while, guess the fraction of turns where we build nlists, else guess that we build every other time
     double nlistBuildFrac = state->turn > state->runInit ? (double) state->nlistBuildCount/(state->turn-state->runInit) : 1/(2.0 * state->periodicInterval);
@@ -289,12 +289,13 @@ double Integrator::tune() {
             int threadPerBlock = threadPerBlocks[i];
             int threadPerAtom = threadPerAtoms[j];
             setParams(threadPerBlock, threadPerAtom);
-            SAFECALL((state->gridGPU.periodicBoundaryConditions(-1, true)));
+            state->gridGPU.periodicBoundaryConditions(-1, true);
             state->nlistBuildCount--;
             cudaDeviceSynchronize();
             auto start = std::chrono::high_resolution_clock::now();
             for (int k=0; k<nNlistBuilds; k++) {
                 state->gridGPU.periodicBoundaryConditions(-1, true);
+                state->nlistBuildCount--;
             }
             for (int k=0; k<nForceEvals; k++) {
                 force(false);

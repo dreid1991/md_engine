@@ -532,6 +532,7 @@ double IntegratorVerlet::run(int numTurns)
     DataManager &dataManager = state->dataManager;
     dtf = 0.5f * state->dt * state->units.ftm_to_v;
     int tuneEvery = state->tuneEvery;
+    bool haveTunedWithData = false;
     double timeTune = 0;
     for (int i=0; i<numTurns; ++i) {
 
@@ -559,6 +560,9 @@ double IntegratorVerlet::run(int numTurns)
         if (state->turn % tuneEvery == 0) {
             //this goes here because forces are zero at this point.  I don't need to save any forces this way
             timeTune += tune();
+        } else if (not haveTunedWithData and state->turn-state->runInit < tuneEvery and state->nlistBuildCount > 20) {
+            timeTune += tune();
+            haveTunedWithData = true;
         }
 
         // Recalculate forces
