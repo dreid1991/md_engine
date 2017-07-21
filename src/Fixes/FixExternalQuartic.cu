@@ -19,16 +19,16 @@ FixExternalQuartic::FixExternalQuartic(SHARED(State) state_, std::string handle_
     r0(r0_.asFloat3()) { };
 
 // compute function
-void FixExternalQuartic::compute(bool computeVirials) {
+void FixExternalQuartic::compute(int virialMode) {
 	GPUData &gpd  = state->gpd;
 	int activeIdx = gpd.activeIdx();
 	int n         = state->atoms.size();
-	if (computeVirials) {
+	if (virialMode==2 or virialMode==1) {
 		compute_force_external<EvaluatorExternalQuartic, true> <<<NBLOCK(n), PERBLOCK>>>(n,  gpd.xs(activeIdx),
-                    gpd.fs(activeIdx), groupTag, evaluator);
+                    gpd.fs(activeIdx), groupTag, gpd.virials.d_data.data(), evaluator);
 	} else {
 		compute_force_external<EvaluatorExternalQuartic, false> <<<NBLOCK(n), PERBLOCK>>>(n, gpd.xs(activeIdx),
-                    gpd.fs(activeIdx), groupTag, evaluator);
+                    gpd.fs(activeIdx), groupTag, gpd.virials.d_data.data(), evaluator);
 	}
 };
 

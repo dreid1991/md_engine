@@ -110,7 +110,7 @@ void __global__ resample_cu(int nAtoms, uint groupTag, float4 *vs, float4 *fs, c
     }
 }
 
-void FixNVTAndersen::compute(bool computeVirials) {
+void FixNVTAndersen::compute(int virialMode) {
 
     tempComputer.computeScalar_GPU(true, groupTag);
     int nAtoms    = state->atoms.size();

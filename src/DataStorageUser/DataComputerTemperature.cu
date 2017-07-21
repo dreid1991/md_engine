@@ -29,6 +29,11 @@ void DataComputerTemperature::computeScalar_GPU(bool transferToCPU, uint32_t gro
 }
 
 
+void DataComputerTemperature::prepareForRun() {
+    DataComputer::prepareForRun();
+    //then my own stuff
+}
+
 
 void DataComputerTemperature::computeVector_GPU(bool transferToCPU, uint32_t groupTag) {
     GPUData &gpd = state->gpd;
@@ -42,7 +47,7 @@ void DataComputerTemperature::computeVector_GPU(bool transferToCPU, uint32_t gro
         gpuBuffer.dataToHost();
         gpd.ids.dataToHost();
     }
-    
+
 }
 
 void DataComputerTemperature::computeTensor_GPU(bool transferToCPU, uint32_t groupTag) {
@@ -107,13 +112,13 @@ void DataComputerTemperature::computeTensor_CPU() {
     Virial total = *(Virial *) &gpuBuffer.h_data[0];
     total *= (state->units.mvv_to_eng / state->units.boltz);
     /*
-    int n;
-    if (lastGroupTag == 1) {
-        n = state->atoms.size();
-    } else {
-        n = * (int *) &gpuBuffer.h_data[1];
-    }
-    */
+       int n;
+       if (lastGroupTag == 1) {
+       n = state->atoms.size();
+       } else {
+       n = * (int *) &gpuBuffer.h_data[1];
+       }
+     */
     tempTensor = total;
 }
 
@@ -143,7 +148,7 @@ void DataComputerTemperature::computeScalarFromTensor() {
     } else {
         ndf = 3*(n-1);
     }
-    totalKEScalar = tempTensor[0] + tempTensor[1] + tempTensor[2];
+    totalKEScalar = (tempTensor[0] + tempTensor[1] + tempTensor[2]) * state->units.boltz;
     tempScalar = totalKEScalar / ndf;
 
 

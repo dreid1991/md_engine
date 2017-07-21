@@ -22,10 +22,12 @@
 
 #include "State.h"
 
+using std::cout;
+using std::endl;
 using namespace MD_ENGINE;
 
 namespace py = boost::python;
-State::State() {
+State::State() : units(&dt) {
     groupTags["all"] = (unsigned int) 1;
     is2d = false;
     rCut = RCUT_INIT;
@@ -34,7 +36,6 @@ State::State() {
     maxIdExisting = -1;
     maxExclusions = 0;
     dangerousRebuilds = 0;
-    dt = .005;
     periodicInterval = 50;
     shoutEvery = 5000;
     for (int i=0; i<3; i++) {
@@ -55,15 +56,19 @@ State::State() {
     specialNeighborCoefs[2] = 0.5;
     rng_is_seeded = false;
     nPerRingPoly  = 1;
-    units.setLJ();//default units are lj
     exclusionMode = EXCLUSIONMODE::DISTANCE;
+
+    nThreadPerAtom = 1;
 
 
 }
 
 
 uint State::groupTagFromHandle(std::string handle) {
-    assert(groupTags.find(handle) != groupTags.end());
+    if (groupTags.find(handle) == groupTags.end()) {
+        std::cout << "Count not find group " << handle << ".  Quitting. " << std::endl;
+        assert(groupTags.find(handle) != groupTags.end());
+    }
     return groupTags[handle];
 }
 
@@ -266,7 +271,7 @@ py::object State::duplicateMolecule(Molecule &molec, int n) {
 
 }
 
-void unwrapMolec(State *state, int id, std::vector<int> &molecIds, std::unordered_map<int, std::vector<int> > bondMap) {
+void unwrapMolec(State *state, int id, std::vector<int> &molecIds, std::unordered_map<int, std::vector<int> > &bondMap) {
     Vector myPos = state->idToAtom(id).pos;
     if (bondMap.find(id) != bondMap.end()) {
         std::vector<int> &myConnections = bondMap[id];
@@ -301,13 +306,18 @@ void State::unwrapMolecules() {
         allMolecIds.insert(allMolecIds.end(), molec->ids.begin(), molec->ids.end());
         molecs.push_back(molec);
     }
+    if (molecs.size() == 0) {
+        return;
+    }
     std::unordered_map<int, std::vector<int> > bondMap;
+    //we do unwrapping based on topology so that it unwraps property even if it spans more than half the simulation box
+    //This may be slow, but writes are async
 
     for (Fix *f : fixes) {
         std::vector<BondVariant> *fixBonds = f->getBonds();
         if (fixBonds != nullptr) {
             for (BondVariant &bv : *fixBonds) {
-                Bond b = boost::get<Bond>(bv);
+                const Bond &b = boost::apply_visitor(bondDowncast(bv), bv);
                 if (find(allMolecIds.begin(), allMolecIds.end(), b.ids[0]) != allMolecIds.end() and find(allMolecIds.begin(), allMolecIds.end(), b.ids[1]) != allMolecIds.end()) {
                     bondMap[b.ids[0]].push_back(b.ids[1]);
                     bondMap[b.ids[1]].push_back(b.ids[0]);
@@ -677,15 +687,15 @@ bool State::deleteGroup(std::string handle) {
     return true;
 }
 
-bool State::createGroup(std::string handle, py::list forGrp) {
+bool State::createGroup(std::string handle, py::list ids) {
     uint32_t res = addGroupTag(handle);
     if (!res) {
         std::cout << "Tried to create group " << handle
                   << " << that already exists" << std::endl;
         return false;
     }
-    if (py::len(forGrp)) {
-        addToGroupPy(handle, forGrp);
+    if (py::len(ids)) {
+        addToGroupPy(handle, ids);
     }
     return true;
 }

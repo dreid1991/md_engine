@@ -25,7 +25,7 @@ class LAMMPS_Reader:
         self.LMPTypeToSimTypeDihedral = {}
         self.LMPTypeToSimTypeImproper = {}
 
-    def read(self, dataFn='', inputFns=[]):
+    def read(self, dataFn='', inputFns=[], isMolecular=True):
         if dataFn != '':
             assert(os.path.isfile(dataFn))
         for fn in inputFns:
@@ -222,12 +222,21 @@ class LAMMPS_Reader:
 
         rawInput = self.scanFilesForOccurance(re.compile('pair_coeff[\s\d\-\.]+'), self.inFileLines, num=-1)
         for line in rawInput:
-            handleIdxA = int(line[1]) - 1
-            handleIdxB = int(line[2]) - 1
+            curIdx=1
+            handleIdxA = int(line[curIdx]) - 1
+            curIdx += 1
+            if int(eval(line[curIdx]))==float(line[curIdx]): #proxy for testing if we're specifying two types or not
+                handleIdxB = int(line[curIdx]) - 1
+                curIdx += 1
+            else:
+                handleIdxB = handleIdxA
+
             handleA = self.myAtomHandles[handleIdxA]
             handleB = self.myAtomHandles[handleIdxB]
-            eps = float(line[3])
-            sig = float(line[4])
+            eps = float(line[curIdx])
+            curIdx += 1
+            sig = float(line[curIdx])
+            curIdx += 1
             self.nonbondFix.setParameter('sig', handleA=handleA, handleB=handleB, val=sig)
             self.nonbondFix.setParameter('eps', handleA=handleA, handleB=handleB, val=eps)
 
@@ -375,6 +384,32 @@ def bondHarmonic_input(reader, args):
     rEq = float(args[3])
     return [type, k, rEq]
 
+def bondQuartic_data(reader, args):
+    LMPType = int(args[0])
+    if not LMPType in reader.LMPTypeToSimTypeBond:
+        print 'Ignoring LAMMPS bond type %d from data file.  Bond not used in data file' % LMPType
+        return False
+    type = reader.LMPTypeToSimTypeBond[LMPType]
+    rEq = float(args[1])
+    k2 =  float(args[2])
+    k3 =  float(args[3])
+    k4 =  float(args[4])
+
+    return [type, k2,k3,k4,rEq]
+
+
+def bondQuartic_input(reader, args):
+    LMPType = int(args[1])
+    if not LMPType in reader.LMPTypeToSimTypeBond:
+        print 'Ignoring LAMMPS bond type %d from input script.  Bond not used in data file' % LMPType
+        return False
+    type = reader.LMPTypeToSimTypeBond[LMPType]
+    rEq = float(args[1])
+    k2 =  float(args[2])
+    k3 =  float(args[3])
+    k4 =  float(args[4])
+    return [type, k2,k3,k4, rEq]
+
 def bondFENE_data(reader, args):
     LMPType = int(args[0])
     if not LMPType in reader.LMPTypeToSimTypeBond:
@@ -488,7 +523,10 @@ def dihedralOPLS_input(reader, args):
         print 'Ignoring LAMMPS dihedral type %d from input script.  Dihedral not used in data file' % LMPType
         return False
     type = reader.LMPTypeToSimTypeDihedral[LMPType]
-    coefs = [float(x) for x in args[2:6]]
+    try:
+        coefs = [float(x) for x in args[2:6]]
+    except:
+        coefs = [float(x) for x in args[3:7]]
     return [type, coefs]
 
 
@@ -545,9 +583,9 @@ def improperCVFF_data(reader, args):
         return False
     type = reader.LMPTypeToSimTypeImproper[LMPType]
 
-    k = float(args[2])
-    d = int(args[3])
-    n = int(args[4])
+    k = float(args[1])
+    d = int(args[2])
+    n = int(args[3])
 
     return [type, k, d, n]
 
@@ -567,6 +605,7 @@ argumentConverters = {
         'data':
         {
             'BondHarmonic'    : bondHarmonic_data,
+            'BondQuartic'     : bondQuartic_data,
             'BondFENE'        : bondFENE_data,
             'AngleHarmonic'   : angleHarmonic_data,
             'AngleCHARMM'     : angleCHARMM_data,
@@ -579,6 +618,7 @@ argumentConverters = {
         'input':
         {
             'BondHarmonic'    : bondHarmonic_input,
+            'BondQuartic'     : bondQuartic_input,
             'BondFENE'        : bondFENE_input,
             'AngleHarmonic'   : angleHarmonic_input,
             'AngleCHARMM'     : angleCHARMM_input,

@@ -2,7 +2,7 @@ import sys
 sys.path = sys.path + ['../build/python/build/lib.linux-x86_64-2.7' ]
 print sys.path
 sys.path.append('../util_py')
-from Sim import *
+from DASH import *
 from math import *
 import random
 state = State()
@@ -23,11 +23,11 @@ offset2 = Vector(0.240255,0.1859558,0)
 sig = 3.15061
 eps = 0.6364 # kJ/mol                                                                                                                                                                                    
 tempUnit = 1.38e-23/(.6364*1000/6.022*10e23)
-tSim = 300 * tempUnit
+tDASH = 300 * tempUnit
 
 # real temp in units K, Boltzmann constant J/K, eps should be in J                                                                                                                                      
 # pressure = sig^3/eps                                                                                                                                                                                   
-temp = tSim
+temp = tDASH
 sigSI = sig*1e-10
 epsSI = eps*1000 / 6.022e23
 pUnit = sigSI**3 / epsSI
@@ -90,9 +90,9 @@ for i in xrange(200):
 #barostat = FixPressureBerendsen(state, 'barostat', 101325*pUnit, 1000*state.dt, 1)
 #state.activateFix(barostat)
 
-#nvt = FixNoseHoover(state, handle='nvt', groupHandle='all', temp=tSim, timeConstant=1000*state.dt)
+#nvt = FixNoseHoover(state, handle='nvt', groupHandle='all', temp=tDASH, timeConstant=1000*state.dt)
 #state.activateFix(nvt)
-#InitializeAtoms.initTemp(state,'all',tSim)
+#InitializeAtoms.initTemp(state,'all',tDASH)
 
 # activate rigid fix
 state.activateFix(rigid)

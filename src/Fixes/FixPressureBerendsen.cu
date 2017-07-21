@@ -8,6 +8,7 @@ using namespace MD_ENGINE;
 FixPressureBerendsen::FixPressureBerendsen(boost::shared_ptr<State> state_, std::string handle_, double pressure_, double period_, int applyEvery_) : Interpolator(pressure_), Fix(state_, handle_, "all", BerendsenType, false, true, false, applyEvery_), pressureComputer(state, "scalar"), period(period_) {
     bulkModulus = 10; //lammps
     maxDilation = 0.00001;
+    requiresPerAtomVirials=true;
 };
 
 bool FixPressureBerendsen::prepareForRun() {
@@ -32,7 +33,7 @@ bool FixPressureBerendsen::stepFinal() {
     } else if (dilation > dilationUpper) {
         dilation = dilationUpper;
     }
-    Mod::scaleSystem(state, dilation);
+    Mod::scaleSystem(state, make_float3(dilation, dilation, dilation));
     return true;
 }
 

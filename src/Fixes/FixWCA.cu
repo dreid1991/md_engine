@@ -20,7 +20,7 @@ FixWCA::FixWCA(SHARED(State) state_, std::string handle_)
     readFromRestart();
     setEvalWrapper();
 }
-void FixWCA::compute(bool computeVirials) {
+void FixWCA::compute(int virialMode) {
     int nAtoms = state->atoms.size();
     int nPerRingPoly = state->nPerRingPoly;
     int numTypes = state->atomParams.numTypes;
@@ -34,7 +34,7 @@ void FixWCA::compute(bool computeVirials) {
     evalWrap->compute(nAtoms,nPerRingPoly, gpd.xs(activeIdx), gpd.fs(activeIdx),
                       neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(),
                       state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU,
-                      neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.virials.d_data.data(), gpd.qs(activeIdx), chargeRCut, computeVirials);
+                      neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.virials.d_data.data(), gpd.qs(activeIdx), chargeRCut, virialMode);
 
 
 
@@ -101,12 +101,14 @@ bool FixWCA::prepareForRun() {
 }
 
 void FixWCA::setEvalWrapper() {
-    EvaluatorWCA eval;
-    evalWrap = pickEvaluator<EvaluatorWCA, 3, true>(eval, chargeCalcFix);
-}
-void FixWCA::setEvalWrapperOrig() {
-    EvaluatorWCA eval;
-    evalWrap = pickEvaluator<EvaluatorWCA, 3, true>(eval, nullptr);
+    if (evalWrapperMode == "offload") {
+        EvaluatorWCA eval;
+        evalWrap = pickEvaluator<EvaluatorWCA, 3, true>(eval, chargeCalcFix);
+    } else if (evalWrapperMode == "self") {
+        EvaluatorWCA eval;
+        evalWrap = pickEvaluator<EvaluatorWCA, 3, true>(eval, nullptr);
+    }
+
 }
 
 std::string FixWCA::restartChunk(std::string format) {

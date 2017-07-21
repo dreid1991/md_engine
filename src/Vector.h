@@ -397,7 +397,7 @@ public:
     /*! \brief Convert vector to string for output */
     std::string asStr() const {
         std::ostringstream oss;
-        oss << "x: " << vals[0] << ", y: " << vals[1] << ", z: " << vals[2];
+        oss << "(" << vals[0] << ", " << vals[1] << ", " << vals[2] << ")";
         return oss.str();
     }
 

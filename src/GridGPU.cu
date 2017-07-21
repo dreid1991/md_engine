@@ -9,7 +9,8 @@
 #include "cutils_func.h"
 #include "cutils_math.h"
 
-
+using std::endl;
+using std::cout;
 /* GridGPU members */
 
 void GridGPU::initArrays() {
@@ -237,7 +238,7 @@ __global__ void sortPerAtomArrays(
     if (idx < nRingPoly) {
         float4 posWhole  = centroids[idx]; 
         float3 pos       = make_float3(posWhole);
-        uint   id        = idsFrom[idx * nPerRingPoly];
+        //uint   id        = idsFrom[idx * nPerRingPoly];
         int3   sqrIdx    = make_int3((pos - os) / ds);
         int    sqrLinIdx = LINEARIDX(sqrIdx, ns);
         int    sortedIdx = gridCellArrayIdxs[sqrLinIdx] + idxInGridCell[idx];
@@ -267,11 +268,11 @@ __global__ void sortPerAtomArrays(
 /*! modifies myCount to be the number of neighbors in this cell */
 __device__ void checkCell(float3 pos, float4 *xs,
                           uint32_t *gridCellArrayIdxs, int squareIdx,
-                          float3 loop, float neighCutSqr, int &myCount) {
+                          float3 loop, float neighCutSqr, int &myCount, int nThreadPerRP, int myIdxInAtomTeam) {
 
     uint32_t idxMin = gridCellArrayIdxs[squareIdx];
     uint32_t idxMax = gridCellArrayIdxs[squareIdx+1];
-    for (int i=idxMin; i<idxMax; i++) {
+    for (int i=idxMin+myIdxInAtomTeam; i<idxMax; i+=nThreadPerRP) {
         float3 otherPos = make_float3(xs[i]);
         float3 distVec  = otherPos + loop - pos;
         if (dot(distVec, distVec) < neighCutSqr) {
@@ -283,18 +284,23 @@ __device__ void checkCell(float3 pos, float4 *xs,
 __global__ void countNumNeighbors(float4 *xs, int nRingPoly,
                                   uint16_t *neighborCounts, uint32_t *gridCellArrayIdxs,
                                   float3 os, float3 ds, int3 ns,
-                                  float3 periodic, float3 trace, float neighCutSqr) {
+                                  float3 periodic, float3 trace, float neighCutSqr, int nThreadPerRP) {
 
+    extern __shared__ uint16_t counts_shr[];
     int idx = GETIDX();
-    if (idx < nRingPoly) {
-        float4 posWhole = xs[idx];
+    int myCount = 0;
+    bool validThread = idx < nRingPoly*nThreadPerRP;
+    int atomIdx = idx/nThreadPerRP;
+    if (validThread) {
+        float4 posWhole = xs[atomIdx];
         float3 pos      = make_float3(posWhole);
         int3   sqrIdx   = make_int3((pos - os) / ds);
+
+        int myIdxInAtomTeam = threadIdx.x % nThreadPerRP;
 
         int xIdx, yIdx, zIdx;
         int xIdxLoop, yIdxLoop, zIdxLoop;
         float3 offset = make_float3(0, 0, 0);
-        int myCount = 0;
         for (xIdx=sqrIdx.x-1; xIdx<=sqrIdx.x+1; xIdx++) {
             offset.x = -floorf((float) xIdx / ns.x);
             xIdxLoop = xIdx + ns.x * offset.x;
@@ -315,7 +321,7 @@ __global__ void countNumNeighbors(float4 *xs, int nRingPoly,
                                 // updates myCount for this cell
                                 checkCell(pos, xs, 
                                           gridCellArrayIdxs, sqrIdxOtherLin,
-                                          loop, neighCutSqr, myCount);
+                                          loop, neighCutSqr, myCount, nThreadPerRP, myIdxInAtomTeam);
                                 //note sign switch on offset!
 
                             } // endif periodic.z
@@ -326,12 +332,17 @@ __global__ void countNumNeighbors(float4 *xs, int nRingPoly,
 
             } //endif periodic.x
         } // endfor xIdx
-        neighborCounts[idx] = myCount - 1; //because I counted myself.  have to subtract that off
         // XXX
 	//__syncthreads();
         //if (idx == 0) {
         //  for ( int j = 0; j<nRingPoly; j++) {printf("my id = %d, # neigh = %d\n",j,neighborCounts[j]);}
         //}
+    }
+    counts_shr[threadIdx.x] = myCount;
+    reduceByN_NOSYNC<uint16_t>(counts_shr, nThreadPerRP);
+    if (validThread and not (threadIdx.x % nThreadPerRP)) {
+        //printf("c %d %d\n ", (int) counts_shr[threadIdx.x], nThreadPerRP);
+        neighborCounts[atomIdx] = counts_shr[threadIdx.x] - 1; //-1 because I counted myself
     }
 }
 
@@ -571,6 +582,8 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
     int nPerRingPoly = state->nPerRingPoly;
     int nRingPoly    = nAtoms / nPerRingPoly;
 
+    int nThreadPerRP = state->nThreadPerAtom;
+
     int activeIdx = state->gpd.activeIdx();
     if (boundsLastBuild != state->boundsGPU) {
         setBounds(state->boundsGPU);
@@ -684,11 +697,32 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
          *     call this for ghosts too; everything after this has to be done on
          *     ghosts too
          */
-        countNumNeighbors<<<NBLOCK(nRingPoly), PERBLOCK>>>(
+        countNumNeighbors<<<NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerRP), nThreadPerBlock(), nThreadPerBlock()*sizeof(uint16_t)>>>(
                     centroids, nRingPoly, 
                     perAtomArray.d_data.data(), perCellArray.d_data.data(),
-                    os, ds, ns, bounds.periodic, trace, neighCut*neighCut); //PER RP CENTROID
+                    os, ds, ns, bounds.periodic, trace, neighCut*neighCut, nThreadPerRP); //PER RP CENTROID
 
+        //ADDED STUFF
+        /*
+        perAtomArray.dataToHost();
+        state->gpd.ids.dataToHost();
+        
+
+        cudaDeviceSynchronize();
+        std::vector<int> nNeigh(state->atoms.size());
+
+        for (int i=0, ii=state->atoms.size(); i<ii; i++) {
+            int id = state->gpd.ids.h_data[i];
+            int idxWriteTo = state->gpd.idToIdxsOnCopy[id];
+            nNeigh[idxWriteTo] = perAtomArray.h_data[i];
+        }
+        for (auto n : nNeigh) {
+            cout << n << endl;
+        }
+        exit(0);
+        */
+
+        //END ADDED
         computeMaxNumNeighPerBlock<<<NBLOCK(nRingPoly), PERBLOCK, PERBLOCK*sizeof(uint16_t)>>>(
                     nRingPoly, perAtomArray.d_data.data(),
                     perBlockArray_maxNeighborsInBlock.data(), warpSize); // MAKE NUM NP VARIABLE
@@ -969,6 +1003,7 @@ bool GridGPU::closerThan(const ExclusionList &exclude,
     return closerThan;
 }
 
+/*
 // allows us to extract any type of Bond from a BondVariant
 class bondDowncast : public boost::static_visitor<const Bond &> {
     const BondVariant &_bv;
@@ -979,7 +1014,7 @@ class bondDowncast : public boost::static_visitor<const Bond &> {
             return boost::get<T>(_bv);
         }
 };
-
+*/
 GridGPU::ExclusionList GridGPU::generateExclusionList(const int16_t maxDepth) {
 
     ExclusionList exclude;

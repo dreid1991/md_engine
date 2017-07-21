@@ -22,7 +22,7 @@ FixLJCutFS::FixLJCutFS(SHARED(State) state_, std::string handle_)
     canAcceptChargePairCalc = true;
     setEvalWrapper();
 }
-void FixLJCutFS::compute(bool computeVirials) {
+void FixLJCutFS::compute(int virialMode) {
     int nAtoms = state->atoms.size();
     int nPerRingPoly = state->nPerRingPoly;
     int numTypes = state->atomParams.numTypes;
@@ -34,7 +34,7 @@ void FixLJCutFS::compute(bool computeVirials) {
     evalWrap->compute(nAtoms,nPerRingPoly, gpd.xs(activeIdx), gpd.fs(activeIdx),
                       neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(),
                       state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU,
-                      neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.virials.d_data.data(), gpd.qs(activeIdx), chargeRCut, computeVirials);
+                      neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.virials.d_data.data(), gpd.qs(activeIdx), chargeRCut, virialMode);
 
 
 
@@ -52,9 +52,19 @@ void FixLJCutFS::singlePointEng(float *perParticleEng) {
 
     evalWrap->energy(nAtoms,nPerRingPoly, gpd.xs(activeIdx), perParticleEng, neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.qs(activeIdx), chargeRCut);
 
+}
 
+void FixLJCutFS::singlePointEngGroupGroup(float *perParticleEng, uint32_t tagA, uint32_t tagB) {
+    int nAtoms = state->atoms.size();
+    int nPerRingPoly = state->nPerRingPoly;
+    int numTypes = state->atomParams.numTypes;
+    GPUData &gpd = state->gpd;
+    GridGPU &grid = state->gridGPU;
+    int activeIdx = gpd.activeIdx();
+    uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
+    float *neighborCoefs = state->specialNeighborCoefs;
 
-
+    evalWrap->energyGroupGroup(nAtoms,nPerRingPoly, gpd.xs(activeIdx), gpd.fs(activeIdx), perParticleEng, neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.qs(activeIdx), chargeRCut, tagA, tagB);
 
 }
 

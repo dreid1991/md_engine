@@ -3,7 +3,7 @@ sys.path = sys.path + ['/home/daniel/Documents/md_engine/core/build/python/build
 sys.path.append('/home/daniel/Documents/md_engine/core/util_py')
 import matplotlib.pyplot as plt
 from LAMMPS_Reader import LAMMPS_Reader
-from Sim import *
+from DASH import *
 from math import *
 state = State()
 state.deviceManager.setDevice(0)

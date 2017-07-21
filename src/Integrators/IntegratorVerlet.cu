@@ -2,6 +2,8 @@
 
 #include <chrono>
 
+#undef _XOPEN_SOURCE
+#undef _POSIX_C_SOURCE
 #include <boost/python.hpp>
 #include <boost/shared_ptr.hpp>
 #include "Logging.h"
@@ -55,6 +57,8 @@ __global__ void nve_xPIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, float4 
     bool useThread = idx < nAtoms;
     float3 xn = make_float3(0, 0, 0);
     float3 vn = make_float3(0, 0, 0);
+    float xW;
+    float vW;
 
     // helpful reference indices/identifiers
     bool   needSync= nPerRingPoly>warpSize;
@@ -88,8 +92,12 @@ __global__ void nve_xPIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, float4 
 
     // %%%%%%%%%%% POSITIONS %%%%%%%%%%%
     if (useThread) {
-        xn = make_float3(xs[idx]);
-        vn = make_float3(vs[idx]);
+        float4 xWhole = xs[idx];
+        float4 vWhole = vs[idx];
+        xn = make_float3(xWhole);
+        vn = make_float3(vWhole);
+        xW = xWhole.w;
+        vW = vWhole.w;
     }
     // k = 0, n = 1,...,P
     tbr[threadIdx.x]  = xn;
@@ -111,8 +119,8 @@ __global__ void nve_xPIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, float4 
     for (int k = 1; k < halfP; k++) {
         float cosval = cosf(twoPiInvP * k * n);	// cos(2*pi*k*n/P)
         tbr[threadIdx.x] = xn*sqrt2*cosval;
-        reduceByN<float3>(tbr, nPerRingPoly, warpSize);
         if (needSync)   { __syncthreads();}
+        reduceByN<float3>(tbr, nPerRingPoly, warpSize);
         if (useThread && amRoot)     {xsNM[threadIdx.x+k] = tbr[threadIdx.x]*invSqrtP;}
     }
 
@@ -120,16 +128,16 @@ __global__ void nve_xPIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, float4 
     for (int k = halfP+1; k < nPerRingPoly; k++) {
         float  sinval = sinf(twoPiInvP * k * n);	// sinf(2*pi*k*n/P)
         tbr[threadIdx.x] = xn*sqrt2*sinval;
-        reduceByN<float3>(tbr, nPerRingPoly, warpSize);
         if (needSync)   { __syncthreads();}
+        reduceByN<float3>(tbr, nPerRingPoly, warpSize);
         if (useThread && amRoot)     {xsNM[threadIdx.x+k] = tbr[threadIdx.x]*invSqrtP;}
     }
 
     // %%%%%%%%%%% VELOCITIES %%%%%%%%%%%
 	// k = 0, n = 1,...,P
     tbr[threadIdx.x]  = vn;
-    reduceByN<float3>(tbr, nPerRingPoly, warpSize);
     if (needSync)   { __syncthreads();}
+    reduceByN<float3>(tbr, nPerRingPoly, warpSize);
     if (useThread && amRoot)     {vsNM[threadIdx.x] = tbr[threadIdx.x]*invSqrtP;}
 
     // k = P/2, n = 1,...,P
@@ -138,16 +146,16 @@ __global__ void nve_xPIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, float4 
     } else {
         tbr[threadIdx.x] = vn ;
     }
-    reduceByN<float3>(tbr, nPerRingPoly, warpSize);
     if (needSync)   { __syncthreads();}
+    reduceByN<float3>(tbr, nPerRingPoly, warpSize);
     if (useThread && amRoot)     {vsNM[threadIdx.x+halfP] = tbr[threadIdx.x]*invSqrtP;}
 
 	// k = 1,...,P/2-1; n = 1,...,P
     for (int k = 1; k < halfP; k++) {
         float cosval = cosf(twoPiInvP * k * n);	// cos(2*pi*k*n/P)
         tbr[threadIdx.x] = vn*sqrt2*cosval;
-        reduceByN<float3>(tbr, nPerRingPoly, warpSize);
         if (needSync)   { __syncthreads();}
+        reduceByN<float3>(tbr, nPerRingPoly, warpSize);
         if (useThread && amRoot)     {vsNM[threadIdx.x+k] = tbr[threadIdx.x]*invSqrtP;}
     }
 
@@ -155,8 +163,8 @@ __global__ void nve_xPIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, float4 
     for (int k = halfP+1; k < nPerRingPoly; k++) {
 	    float  sinval = sinf(twoPiInvP * k * n);	// sinf(2*pi*k*n/P)
         tbr[threadIdx.x] = vn*sqrt2*sinval;
-        reduceByN<float3>(tbr, nPerRingPoly, warpSize);
         if (needSync)   { __syncthreads();}
+        reduceByN<float3>(tbr, nPerRingPoly, warpSize);
         if (useThread && amRoot)     {vsNM[threadIdx.x+k] = tbr[threadIdx.x]*invSqrtP;}
     }
 
@@ -182,6 +190,10 @@ __global__ void nve_xPIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, float4 
 	        xsNM[threadIdx.x] += vsNMk * sindt / omegaK;
 	        vsNM[threadIdx.x] -= xsNMk * sindt * omegaK;
         }
+    }
+    if (needSync) {__syncthreads();}
+
+    if (useThread) {
 
 	    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	    // 3. COORDINATE BACK TRANSFORMATION
@@ -216,8 +228,8 @@ __global__ void nve_xPIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, float4 
 	    // replace evolved back-transformation
         xn *= invSqrtP;
         vn *= invSqrtP;
-	    xs[idx]   = make_float4(xn.x,xn.y,xn.z,xs[idx].w);
-	    vs[idx]   = make_float4(vn.x,vn.y,vn.z,vs[idx].w);
+	    xs[idx]   = make_float4(xn.x,xn.y,xn.z,xW);
+	    vs[idx]   = make_float4(vn.x,vn.y,vn.z,vW);
     }
 
 }
@@ -265,6 +277,8 @@ __global__ void preForcePIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, floa
     bool useThread = idx < nAtoms;
     float3 xn = make_float3(0, 0, 0);
     float3 vn = make_float3(0, 0, 0);
+    float xW;
+    float vW;
     // helpful reference indices/identifiers
     bool   needSync= nPerRingPoly>warpSize;
     bool   amRoot  = (threadIdx.x % nPerRingPoly) == 0;
@@ -282,6 +296,7 @@ __global__ void preForcePIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, floa
         vs[idx]        = vel;
         fs[idx]        = make_float4(0.0f,0.0f,0.0f,force.w); // reset forces to zero before force calculation
     }
+    //NOT SYNCED
 
     // 1. Transform to normal mode positions and velocities
     // 	xNM_k = \sum_{n=1}^P x_n* Cnk
@@ -308,14 +323,20 @@ __global__ void preForcePIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, floa
 
     // %%%%%%%%%%% POSITIONS %%%%%%%%%%%
     if (useThread) {
-        xn = make_float3(xs[idx]);
-        vn = make_float3(vs[idx]);
+        float4 xWhole = xs[idx];
+        float4 vWhole = vs[idx];
+        xn = make_float3(xWhole);
+        vn = make_float3(vWhole);
+        xW = xWhole.w;
+        vW = vWhole.w;
     }
+    //STILL NOT SYNCED
     // k = 0, n = 1,...,P
     tbr[threadIdx.x]  = xn;
     if (needSync)    __syncthreads();
     reduceByN<float3>(tbr, nPerRingPoly, warpSize);
     if (useThread && amRoot)     {xsNM[threadIdx.x] = tbr[threadIdx.x]*invSqrtP;}
+    //SYNCED
 
     // k = P/2, n = 1,...,P
     if (threadIdx.x % 2 == 0) {
@@ -331,8 +352,8 @@ __global__ void preForcePIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, floa
     for (int k = 1; k < halfP; k++) {
         float cosval = cosf(twoPiInvP * k * n);	// cosf(2*pi*k*n/P)
         tbr[threadIdx.x] = xn*sqrt2*cosval;
-        reduceByN<float3>(tbr, nPerRingPoly, warpSize);
         if (needSync)   { __syncthreads();}
+        reduceByN<float3>(tbr, nPerRingPoly, warpSize);
         if (useThread && amRoot)     {xsNM[threadIdx.x+k] = tbr[threadIdx.x]*invSqrtP;}
     }
 
@@ -340,16 +361,16 @@ __global__ void preForcePIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, floa
     for (int k = halfP+1; k < nPerRingPoly; k++) {
         float  sinval = sinf(twoPiInvP * k * n);	// sinf(2*pi*k*n/P)
         tbr[threadIdx.x] = xn*sqrt2*sinval;
-        reduceByN<float3>(tbr, nPerRingPoly, warpSize);
         if (needSync)   { __syncthreads();}
+        reduceByN<float3>(tbr, nPerRingPoly, warpSize);
         if (useThread && amRoot)     {xsNM[threadIdx.x+k] = tbr[threadIdx.x]*invSqrtP;}
     }
 
     // %%%%%%%%%%% VELOCITIES %%%%%%%%%%%
 	// k = 0, n = 1,...,P
     tbr[threadIdx.x]  = vn;
-    reduceByN<float3>(tbr, nPerRingPoly, warpSize);
     if (needSync)   { __syncthreads();}
+    reduceByN<float3>(tbr, nPerRingPoly, warpSize);
     if (useThread && amRoot)     {vsNM[threadIdx.x] = tbr[threadIdx.x]*invSqrtP;}
 
     // k = P/2, n = 1,...,P
@@ -358,16 +379,16 @@ __global__ void preForcePIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, floa
     } else {
         tbr[threadIdx.x] = vn ;
     }
-    reduceByN<float3>(tbr, nPerRingPoly, warpSize);
     if (needSync)   { __syncthreads();}
+    reduceByN<float3>(tbr, nPerRingPoly, warpSize);
     if (useThread && amRoot)     {vsNM[threadIdx.x+halfP] = tbr[threadIdx.x]*invSqrtP;}
 
 	// k = 1,...,P/2-1; n = 1,...,P
     for (int k = 1; k < halfP; k++) {
         float cosval = cosf(twoPiInvP * k * n);	// cosf(2*pi*k*n/P)
         tbr[threadIdx.x] = vn*sqrt2*cosval;
-        reduceByN<float3>(tbr, nPerRingPoly, warpSize);
         if (needSync)   { __syncthreads();}
+        reduceByN<float3>(tbr, nPerRingPoly, warpSize);
         if (useThread && amRoot)     {vsNM[threadIdx.x+k] = tbr[threadIdx.x]*invSqrtP;}
     }
 
@@ -375,8 +396,8 @@ __global__ void preForcePIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, floa
     for (int k = halfP+1; k < nPerRingPoly; k++) {
 	    float  sinval = sinf(twoPiInvP * k * n);	// sinf(2*pi*k*n/P)
         tbr[threadIdx.x] = vn*sqrt2*sinval;
-        reduceByN<float3>(tbr, nPerRingPoly, warpSize);
         if (needSync)   { __syncthreads();}
+        reduceByN<float3>(tbr, nPerRingPoly, warpSize);
         if (useThread && amRoot)     {vsNM[threadIdx.x+k] = tbr[threadIdx.x]*invSqrtP;}
     }
 
@@ -402,7 +423,10 @@ __global__ void preForcePIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, floa
 	        xsNM[threadIdx.x] += vsNMk * sindt / omegaK;
 	        vsNM[threadIdx.x] -= xsNMk * sindt * omegaK;
         }
+    }
+    if (needSync) {__syncthreads();}
 
+    if (useThread) {
 	    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	    // 3. COORDINATE BACK TRANSFORMATION
 	    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -412,9 +436,10 @@ __global__ void preForcePIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, floa
 	    // k = halfP
 	    // xn += xsNM[halfP]*(-1)**n
         if (threadIdx.x % 2) {
+//POTENTIAL PROBLEM
             xn += xsNM[rootIdx+halfP];
             vn += vsNM[rootIdx+halfP];
-        } else {
+        } else {//THIS TOO
             xn -= xsNM[rootIdx+halfP];
             vn -= vsNM[rootIdx+halfP];
         }
@@ -436,8 +461,8 @@ __global__ void preForcePIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, floa
 	    // replace evolved back-transformation
         xn *= invSqrtP;
         vn *= invSqrtP;
-	    xs[idx]   = make_float4(xn.x,xn.y,xn.z,xs[idx].w);
-	    vs[idx]   = make_float4(vn.x,vn.y,vn.z,vs[idx].w);
+	    xs[idx]   = make_float4(xn.x,xn.y,xn.z,xW);
+	    vs[idx]   = make_float4(vn.x,vn.y,vn.z,vW);
     }
 }
     //if (useThread && amRoot ) {
@@ -481,8 +506,22 @@ void IntegratorVerlet::run(int numTurns)
 {
 
     basicPreRunChecks();
-    basicPrepare(numTurns); //nlist built here
-    force(false);
+    //basicPrepare(numTurns); //nlist built here
+    //force(false);
+
+    std::vector<bool> prepared = basicPrepare(numTurns);
+    force(true);
+
+    for (int i = 0; i<prepared.size(); i++) {
+        if (!prepared[i]) {
+            for (Fix *f : state->fixes) {
+                bool isPrepared = f->prepareForRun();
+                if (!isPrepared) {
+                    mdError("A fix is unable to be instantiated correctly.");
+                }
+            }
+        }
+    }
     int periodicInterval = state->periodicInterval;
 
 	
@@ -493,9 +532,9 @@ void IntegratorVerlet::run(int numTurns)
         if (state->turn % periodicInterval == 0) {
             state->gridGPU.periodicBoundaryConditions();
         }
-        bool computeVirialsInForce = dataManager.virialTurns.find(state->turn) != dataManager.virialTurns.end();
+        int virialMode = dataManager.getVirialModeForTurn(state->turn);
 
-        stepInit(computeVirialsInForce);
+        stepInit(virialMode==1 or virialMode==2);
 
         // Perform first half of velocity-Verlet step
         if (state->requiresPostNVE_V) {
@@ -511,7 +550,10 @@ void IntegratorVerlet::run(int numTurns)
         handleBoundsChange();
 
         // Recalculate forces
-        force(computeVirialsInForce);
+        force(virialMode);
+
+        //quits if ctrl+c has been pressed
+        checkQuit();
 
 
         // Perform second half of velocity-Verlet step
@@ -572,7 +614,7 @@ void IntegratorVerlet::nve_x() {
 	    int   nPerRingPoly = state->nPerRingPoly;
         int   nRingPoly = state->atoms.size() / nPerRingPoly;
 	    float omegaP    = (float) state->units.boltz * temp / state->units.hbar  ;
-    	nve_xPIMD_cu<<<NBLOCK(state->atoms.size()), PERBLOCK, sizeof(float3) * 2 *PERBLOCK>>>(
+    	nve_xPIMD_cu<<<NBLOCK(state->atoms.size()), PERBLOCK, sizeof(float3) * 3 *PERBLOCK>>>(
 	        state->atoms.size(),
 	 	    nPerRingPoly,
 		    omegaP,
@@ -641,6 +683,6 @@ void export_IntegratorVerlet()
         "IntegratorVerlet",
         py::init<State *>()
     )
-    .def("run", &IntegratorVerlet::run)
+    .def("run", &IntegratorVerlet::run,(py::arg("numTurns")))
     ;
 }

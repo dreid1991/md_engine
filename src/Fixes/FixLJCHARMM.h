@@ -36,10 +36,11 @@ class FixLJCHARMM : public FixPair {
         FixLJCHARMM(SHARED(State), std::string handle);
 
         //! Compute forces
-        void compute(bool);
+        void compute(int);
 
         //! Compute single point energy
         void singlePointEng(float *);
+        void singlePointEngGroupGroup(float *, uint32_t, uint32_t);
 
         //! Prepare Fix
         /*!
@@ -76,7 +77,6 @@ class FixLJCHARMM : public FixPair {
         std::vector<float> getRCuts();
     public:
         void setEvalWrapper();
-        void setEvalWrapperOrig();
         const std::string epsHandle; //!< Handle for parameter epsilon
         const std::string sigHandle; //!< Handle for parameter sigma
         const std::string eps14Handle; //!< Handle for parameter epsilon for 1-4 interactions

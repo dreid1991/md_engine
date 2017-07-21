@@ -111,13 +111,13 @@ public:
 
     //! Apply fix
     /*!
-     * \param computeVirials Compute virials for this Fix
+     * \param virialMode Compute virials for this Fix
      * \return False if a problem occured, else return true
      *
      * This function is called during the force calculation of the integration
      * step.
      */
-    virtual void compute(bool computeVirials) {}
+    virtual void compute(int virialMode) {}
 
     //! Calculate single point energy of this Fix
     /*!
@@ -132,6 +132,7 @@ public:
      * \todo Make this function purely virtual.
      */
     virtual void singlePointEng(float *perParticleEng) {}
+    virtual void singlePointEngGroupGroup(float *perParticleEng, uint32_t groupTagA, uint32_t groupTagB) {}
 
     //! Accomodate for new type of Atoms added to the system
     /*!
@@ -232,7 +233,6 @@ public:
 
     virtual void setEvalWrapper(){};
 
-    virtual void updateForPIMD(){};
 
     std::string evalWrapperMode;
     //self or offload
@@ -246,6 +246,7 @@ public:
     unsigned int groupTag; //!< Bitmask for the group handle
     const bool forceSingle; //!< True if Fix contributes to single point energy.
     bool requiresVirials; //!< True if Fix needs virials.  Fixes will compute virials if any fix has this as true
+    bool requiresPerAtomVirials; //!< True if Fix needs perAtom virials.  Fixes will compute per atom virials if any fix has this as true
     bool requiresCharges; //!< True if Fix needs charges.  Fixes will be stored if any fix has this as true
     //these are 
     bool isThermostat; //!< True if is a thermostat. Used for barostats.

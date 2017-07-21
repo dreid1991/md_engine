@@ -16,7 +16,8 @@ public:
     std::vector<int> ids;
     Molecule(State *, std::vector<int> &ids_);
     void translate(Vector &);
-    void rotate(Vector &around, Vector &axis, double theta);
+    void rotate(Vector axis, double theta);
+    void rotateRandom();
     Vector COM();
     bool operator==(const Molecule &other) {
         return ids == other.ids;

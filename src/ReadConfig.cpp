@@ -175,7 +175,7 @@ pugi::xml_node ReadConfig::readFix(string type, string handle) {
 
 
 bool ReadConfig::read() {
-    cout << "READING A CONFIG" << endl;
+    cout << "Reading a configuration" << endl;
 	//state->deleteBonds();
 	state->deleteAtoms();
 	vector<Atom> readAtoms;
@@ -186,7 +186,6 @@ bool ReadConfig::read() {
     double dt = boost::lexical_cast<double>(config->attribute("dt").value());
 	bool readIs2d = !strcmp(config->attribute("dimension").value(), "2");
 	const char *periodic = config->attribute("periodic").value();
-    cout << "periodic is " << periodic << endl;
 	for (int i=0; i<3; i++) {
 		char bit[1];
 		bit[0] = periodic[i];

@@ -2,7 +2,7 @@ import sys
 sys.path = sys.path + ['../build/python/build/lib.linux-x86_64-2.7' ]
 print sys.path
 sys.path.append('../util_py')
-from Sim import *
+from DASH import *
 from math import *
 state = State()
 state.deviceManager.setDevice(1)

@@ -25,7 +25,7 @@ void FixSpringStatic::updateTethers() {
     if (PyCallable_Check(funcRaw)) {
         for (Atom &a : state->atoms) {
             if (a.groupTag & groupTag) {
-                Vector res = boost::python::call<Vector>(funcRaw, a.id, a.pos);
+                Vector res = boost::python::call<Vector>(funcRaw, a);
                 tethers_loc.push_back(make_float4(res[0], res[1], res[2], *(float *)&a.id));
             }
         }
@@ -62,7 +62,7 @@ void __global__ compute_cu(int nTethers, float4 *tethers, float4 *xs, float4 *fs
         fs[atomIdx] += force;
     }
 }
-void FixSpringStatic::compute(bool computeVirials) {
+void FixSpringStatic::compute(int virialMode) {
     GPUData &gpd = state->gpd;
     int activeIdx = state->gpd.activeIdx();
     compute_cu<<<NBLOCK(tethers.h_data.size()), PERBLOCK>>>(
@@ -134,8 +134,8 @@ bool FixSpringStatic::readFromRestart() {
 void export_FixSpringStatic() {
     py::class_<FixSpringStatic, boost::shared_ptr<FixSpringStatic>, py::bases<Fix> > (
             "FixSpringStatic",
-            py::init<boost::shared_ptr<State>, std::string, std::string,
-                     py::optional<double, py::object, Vector>
+            py::init<boost::shared_ptr<State>, std::string, std::string, double,
+                     py::optional<py::object, Vector>
                     >(
                 py::args("state", "handle", "groupHandle",
                          "k", "tetherFunc", "multiplier")

@@ -6,7 +6,6 @@
 #include "PairEvaluatorLJFS.h"
 #include "xml_func.h"
 
-//! Make FixLJCut available to the pair base class in boost
 void export_FixLJCutFS();
 
 //! Fix for truncated Lennard-Jones interactions
@@ -23,10 +22,11 @@ class FixLJCutFS : public FixPair {
         FixLJCutFS(SHARED(State), std::string handle);
 
         //! Compute forces
-        void compute(bool);
+        void compute(int);
 
         //! Compute single point energy
         void singlePointEng(float *);
+        void singlePointEngGroupGroup(float *, uint32_t, uint32_t);
 
         //! Prepare Fix
         /*!
@@ -72,7 +72,6 @@ class FixLJCutFS : public FixPair {
         std::vector<float> FCuts; //!< vector storing force at cutoff distance
 
         void setEvalWrapper();
-        void setEvalWrapperOrig();
 };
 
 #endif

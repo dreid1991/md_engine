@@ -21,6 +21,8 @@
 #include <boost/shared_ptr.hpp>
 #include <boost/type_traits/remove_cv.hpp> //boost 1.58 bug workaround
 #include <boost/variant/get.hpp>
+#undef _XOPEN_SOURCE
+#undef _POSIX_C_SOURCE
 #include <boost/python.hpp>
 
 #include "globalDefs.h"
@@ -320,6 +322,8 @@ public:
     boost::python::object duplicateMolecule(Molecule &, int n);
     Atom &duplicateAtom(Atom);
     void refreshIdToIdx();
+    
+    int nThreadPerAtom; //!< number of threads per atom for pair computations and nlist building
     
     bool verbose; //!< Verbose output
     int shoutEvery; //!< Report state of simulation every this many timesteps

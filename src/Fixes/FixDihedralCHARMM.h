@@ -2,6 +2,8 @@
 #ifndef FIXDIHEDRALCHARMM_H
 #define FIXDIHEDRALCHARMM_H
 
+#undef _XOPEN_SOURCE
+#undef _POSIX_C_SOURCE
 #include <boost/python.hpp>
 
 #include "FixPotentialMultiAtom.h"
@@ -20,7 +22,7 @@ public:
 
     FixDihedralCHARMM(boost::shared_ptr<State> state_, std::string handle);
 
-    void compute(bool);
+    void compute(int);
     void singlePointEng(float *);
 
     void createDihedral(Atom *, Atom *, Atom *, Atom *, double, int, double, int);

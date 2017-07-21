@@ -1,9 +1,15 @@
 #pragma once
+#undef _XOPEN_SOURCE
+#undef _POSIX_C_SOURCE
+#undef _XOPEN_SOURCE
+#undef _POSIX_C_SOURCE
 #include "Python.h"
 #include <vector>
 #include <map>
 #include "globalDefs.h"
 #include <boost/shared_ptr.hpp>
+#undef _XOPEN_SOURCE
+#undef _POSIX_C_SOURCE
 #include <boost/python.hpp>
 #include <iostream>
 #include "boost_for_export.h"
@@ -40,6 +46,7 @@ namespace MD_ENGINE {
         virtual void appendTensor(boost::python::list &) = 0;
 
         bool requiresVirials;
+        bool requiresPerAtomVirials;
 
         GPUArrayGlobal<float> gpuBuffer; //will be cast as virial if necessary
         GPUArrayGlobal<float> gpuBufferReduce; //target for reductions, also maybe cast as virial

@@ -24,7 +24,7 @@ const std::string chargePairDSFType = "ChargePairDSF";
 
 //or F=q_i*q_j*[erf(alpha*r    )/r^2   +A*exp(-alpha^2*r^2    )/r- shift*r]
 //with   A   = 2*alpha/sqrt(Pi)
-//     shift = erf(alpha*r_cut)/r_cut^3+2*alpha/sqrt(Pi)*exp(-alpha^2*r_cut^2)/r_cut^2
+//     shift = erf(alpha*r_cut)/r_cut^2+2*alpha/sqrt(Pi)*exp(-alpha^2*r_cut^2)/r_cut
 
 
 //    compute_cu<<<NBLOCK(nAtoms), PERBLOCK>>>(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx), neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), gpd.qs(activeIdx), alpha, r_cut, A, shift, state->boundsGPU, state->devManager.prop.warpSize, 0.5);// state->devManager.prop.warpSize, sigmas.getDevData(), epsilons.getDevData(), numTypes, state->rCut, state->boundsGPU, oneFourStrength);
@@ -51,7 +51,7 @@ std::vector<float> FixChargePairDSF::getRCuts() {
     return res;
 }
 
-void FixChargePairDSF::compute(bool computeVirials) {
+void FixChargePairDSF::compute(int virialMode) {
     int nAtoms = state->atoms.size();
     int nPerRingPoly = state->nPerRingPoly;
     GPUData &gpd = state->gpd;
@@ -62,9 +62,39 @@ void FixChargePairDSF::compute(bool computeVirials) {
     evalWrap->compute(nAtoms,nPerRingPoly, gpd.xs(activeIdx), gpd.fs(activeIdx),
                   neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(),
                   state->devManager.prop.warpSize, nullptr, 0, state->boundsGPU,
-                  neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.virials.d_data.data(), gpd.qs(activeIdx), r_cut, computeVirials);
+                  neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.virials.d_data.data(), gpd.qs(activeIdx), r_cut, virialMode);
 
 
+
+}
+
+void FixChargePairDSF::singlePointEng(float * perParticleEng) {
+    int nAtoms = state->atoms.size();
+    int nPerRingPoly = state->nPerRingPoly;
+    GPUData &gpd = state->gpd;
+    GridGPU &grid = state->gridGPU;
+    int activeIdx = gpd.activeIdx();
+    uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
+    float *neighborCoefs = state->specialNeighborCoefs;
+    evalWrap->energy(nAtoms,nPerRingPoly, gpd.xs(activeIdx), perParticleEng,
+                  neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(),
+                  state->devManager.prop.warpSize, nullptr, 0, state->boundsGPU,
+                  neighborCoefs[0], neighborCoefs[1], neighborCoefs[2],  gpd.qs(activeIdx), r_cut);
+
+}
+
+void FixChargePairDSF::singlePointEngGroupGroup(float * perParticleEng, uint32_t tagA, uint32_t tagB) {
+    int nAtoms = state->atoms.size();
+    int nPerRingPoly = state->nPerRingPoly;
+    GPUData &gpd = state->gpd;
+    GridGPU &grid = state->gridGPU;
+    int activeIdx = gpd.activeIdx();
+    uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
+    float *neighborCoefs = state->specialNeighborCoefs;
+    evalWrap->energyGroupGroup(nAtoms,nPerRingPoly, gpd.xs(activeIdx), gpd.fs(activeIdx), perParticleEng,
+                  neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(),
+                  state->devManager.prop.warpSize, nullptr, 0, state->boundsGPU,
+                  neighborCoefs[0], neighborCoefs[1], neighborCoefs[2],  gpd.qs(activeIdx), r_cut, tagA, tagB);
 
 }
 
@@ -82,7 +112,7 @@ void FixChargePairDSF::setEvalWrapper() {
 }
 
 ChargeEvaluatorDSF FixChargePairDSF::generateEvaluator() {
-    return ChargeEvaluatorDSF(alpha, A, shift, state->units.qqr_to_eng);
+    return ChargeEvaluatorDSF(alpha, A, shift, state->units.qqr_to_eng,r_cut);
 }
 void export_FixChargePairDSF() {
     py::class_<FixChargePairDSF, SHARED(FixChargePairDSF), boost::python::bases<FixCharge> > (

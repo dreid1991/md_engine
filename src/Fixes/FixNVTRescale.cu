@@ -85,7 +85,7 @@ void __global__ rescale(int nAtoms, uint groupTag, float4 *vs, float4 *fs, float
 
 
 
-void FixNVTRescale::compute(bool computeVirials) {
+void FixNVTRescale::compute(int virialMode) {
 
     tempComputer.computeScalar_GPU(true, groupTag);
     int nAtoms = state->atoms.size();

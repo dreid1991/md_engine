@@ -2,7 +2,11 @@
 #ifndef FIXNVTANDERSEN_H
 #define FIXNVTANDERSEN_H
 
+#undef _XOPEN_SOURCE
+#undef _POSIX_C_SOURCE
 #include <boost/python.hpp>
+#undef _XOPEN_SOURCE
+#undef _POSIX_C_SOURCE
 #include <boost/python/list.hpp>
 #include <string>
 #include <vector>
@@ -30,7 +34,7 @@ private:
 
     MD_ENGINE::DataComputerTemperature tempComputer;
     bool prepareForRun();
-    void compute(bool);
+    void compute(int);
     bool postRun();
 
 public:

@@ -1,7 +1,7 @@
 #pragma once
-#ifndef FIXINTERPOLATOR_BASE_H
-#define FIXINTERPOLATOR_BASE_H
 
+#undef _XOPEN_SOURCE
+#undef _POSIX_C_SOURCE
 #include <boost/python.hpp>
 #include "BoundsGPU.h"
 #include "cutils_math.h"
@@ -35,4 +35,3 @@ public:
 };
 
 
-#endif

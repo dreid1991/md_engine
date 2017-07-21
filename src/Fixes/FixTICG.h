@@ -22,7 +22,7 @@ class FixTICG : public FixPair {
         FixTICG(SHARED(State), std::string handle);
 
         //! Compute forces
-        void compute(bool);
+        void compute(int);
 
         //! Compute single point energy
         void singlePointEng(float *);
@@ -68,7 +68,6 @@ class FixTICG : public FixPair {
         std::vector<float> rCuts; //!< vector storing cutoff distance values
 
         void setEvalWrapper();
-        void setEvalWrapperOrig();
 };
 
 #endif

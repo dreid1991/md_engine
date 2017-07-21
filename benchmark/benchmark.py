@@ -1,7 +1,7 @@
 import sys
 sys.path = sys.path + ['../build/python/build/lib.linux-x86_64-2.7']
-#from Sim import *
-from Sim import *
+#from DASH import *
+from DASH import *
 state = State()
 state.deviceManager.setDevice(0)
 state.bounds = Bounds(state, lo = Vector(0, 0, 0), hi = Vector(55.12934875488, 55.12934875488, 55.12934875488))
@@ -25,30 +25,31 @@ for i in range(len(f)):
 #state.addAtom('spc1', pos = Vector(10.5, 10.5, 10.7))
 InitializeAtoms.initTemp(state, 'all', 1.2)
 
-#fixNVT = FixLangevin(state, 'temp', 'all', 1.2)
-fixNVT = FixNoseHoover(state, 'temp', 'all', 1.2, 0.1)
+fixNVT = FixLangevin(state, 'temp', 'all', 1.2)
 #fixNVT = FixNVTRescale(state, 'temp', 'all', 1.2)
-
+#fixNPT = FixNoseHoover(state,'npt','all')
+#fixNPT.setTemperature(1.2,5.0*state.dt)
+#fixNPT.setPressure('ANISO',0.2,1000*state.dt)
 state.activateFix(fixNVT)
 
 integVerlet = IntegratorVerlet(state)
 
-#tempData = state.dataManager.recordTemperature('all', 100)
-#pressureData = state.dataManager.recordPressure('all', 100)
+#empData = state.dataManager.recordTemperature('all','scalar', 100)
+#pressureData = state.dataManager.recordPressure('all','scalar', 1)
 #engData = state.dataManager.recordEnergy('all', 100)
 #boundsData = state.dataManager.recordBounds(100)
 
-#pressure = FixPressureBerendsen(state, "constP", 0.2, 5, 1);
+#pressure = FixPressureBerendsen(state, "constP", .2, 10, 1);
 #state.activateFix(pressure);
+#deform = FixDeform(state, 'def', 'all', 1, Vector(1, 0, 0))
+#state.activateFix(deform)
 
-writeconfig = WriteConfig(state, fn='test_out', writeEvery=100, format='xyz', handle='writer')
-state.activateWriteConfig(writeconfig)
+writeconfig = WriteConfig(state, fn='test_out', writeEvery=10, format='xyz', handle='writer')
+#state.activateWriteConfig(writeconfig)
 integVerlet.run(10000)
 sumV = 0.
 for a in state.atoms:
     sumV += a.vel.lenSqr()
-#print state.bounds.volume()
-#print pressureData.vals
 #print engData.vals
 #print sumV / len(state.atoms)/3.0
 #plt.plot(pressureData.turns, pressureData.vals)
