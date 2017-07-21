@@ -26,6 +26,7 @@ class FixRigidData {
         double4 sideLengths;
 
         // canonical lengths, with center of mass as origin
+        // as (ra, rb, rc, 0.0)
         double4 canonicalTriangle;
 
         // mass weights - make these double precision!
