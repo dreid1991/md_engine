@@ -28,6 +28,13 @@ class Virial {
                 vals[i] *= x;
             }
         }
+        inline __host__ __device__ Virial operator *(float x) {
+            Virial res;
+            for (int i=0; i<6; i++) {
+                res[i] = vals[i] * x;
+            }
+            return res;
+        }
         inline __host__ __device__ void operator *=(double x) {
             for (int i=0; i<6; i++) {
                 vals[i] *= x;

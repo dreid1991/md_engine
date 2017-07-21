@@ -29,7 +29,7 @@ public:
                 if (nThreadPerAtom==1) {
                     compute_force_iso<PAIR_EVAL, COMP_PAIRS, N_PARAM, true, CHARGE_EVAL, COMP_CHARGES, 0> <<<NBLOCKTEAM(nAtoms, nThreadPerBlock, nThreadPerAtom), nThreadPerBlock, N_PARAM*numTypes*numTypes*sizeof(float)>>>(nAtoms,nPerRingPoly, xs, fs, neighborCounts, neighborlist, cumulSumMaxPerBlock, warpSize, parameters, numTypes, bounds, onetwoStr, onethreeStr, onefourStr, virials, qs, qCutoff*qCutoff, nThreadPerAtom, pairEval, chargeEval);
                 } else {
-                    compute_force_iso<PAIR_EVAL, COMP_PAIRS, N_PARAM, true, CHARGE_EVAL, COMP_CHARGES, 1> <<<NBLOCKTEAM(nAtoms, nThreadPerBlock, nThreadPerAtom), nThreadPerBlock, N_PARAM*numTypes*numTypes*sizeof(float) + nThreadPerBlock*sizeof(float3)>>>(nAtoms,nPerRingPoly, xs, fs, neighborCounts, neighborlist, cumulSumMaxPerBlock, warpSize, parameters, numTypes, bounds, onetwoStr, onethreeStr, onefourStr, virials, qs, qCutoff*qCutoff, nThreadPerAtom, pairEval, chargeEval);
+                    compute_force_iso<PAIR_EVAL, COMP_PAIRS, N_PARAM, true, CHARGE_EVAL, COMP_CHARGES, 1> <<<NBLOCKTEAM(nAtoms, nThreadPerBlock, nThreadPerAtom), nThreadPerBlock, N_PARAM*numTypes*numTypes*sizeof(float) + nThreadPerBlock*(sizeof(float3) + sizeof(Virial))>>>(nAtoms,nPerRingPoly, xs, fs, neighborCounts, neighborlist, cumulSumMaxPerBlock, warpSize, parameters, numTypes, bounds, onetwoStr, onethreeStr, onefourStr, virials, qs, qCutoff*qCutoff, nThreadPerAtom, pairEval, chargeEval);
                 }
             } else {
 
@@ -42,7 +42,11 @@ public:
         }
     }
     virtual void energy(int nAtoms, int nPerRingPoly, float4 *xs, float *perParticleEng, uint16_t *neighborCounts, uint *neighborlist, uint32_t *cumulSumMaxPerBlock, int warpSize, float *parameters, int numTypes, BoundsGPU bounds, float onetwoStr, float onethreeStr, float onefourStr, float *qs, float qCutoff, int nThreadPerBlock, int nThreadPerAtom) {
-       compute_energy_iso<PAIR_EVAL, COMP_PAIRS, N_PARAM, CHARGE_EVAL, COMP_CHARGES> <<<NBLOCKTEAM(nAtoms, nThreadPerBlock, nThreadPerAtom), nThreadPerBlock, N_PARAM*numTypes*numTypes*sizeof(float)>>> (nAtoms, nPerRingPoly, xs, perParticleEng, neighborCounts, neighborlist, cumulSumMaxPerBlock, warpSize, parameters, numTypes, bounds, onetwoStr, onethreeStr, onefourStr, qs, qCutoff*qCutoff, nThreadPerAtom, pairEval, chargeEval);
+        if (nThreadPerAtom==1) {
+           compute_energy_iso<PAIR_EVAL, COMP_PAIRS, N_PARAM, CHARGE_EVAL, COMP_CHARGES, 0> <<<NBLOCKTEAM(nAtoms, nThreadPerBlock, nThreadPerAtom), nThreadPerBlock, N_PARAM*numTypes*numTypes*sizeof(float)>>> (nAtoms, nPerRingPoly, xs, perParticleEng, neighborCounts, neighborlist, cumulSumMaxPerBlock, warpSize, parameters, numTypes, bounds, onetwoStr, onethreeStr, onefourStr, qs, qCutoff*qCutoff, nThreadPerAtom, pairEval, chargeEval);
+        } else {
+           compute_energy_iso<PAIR_EVAL, COMP_PAIRS, N_PARAM, CHARGE_EVAL, COMP_CHARGES, 1> <<<NBLOCKTEAM(nAtoms, nThreadPerBlock, nThreadPerAtom), nThreadPerBlock, N_PARAM*numTypes*numTypes*sizeof(float) + sizeof(float) * nThreadPerBlock>>> (nAtoms, nPerRingPoly, xs, perParticleEng, neighborCounts, neighborlist, cumulSumMaxPerBlock, warpSize, parameters, numTypes, bounds, onetwoStr, onethreeStr, onefourStr, qs, qCutoff*qCutoff, nThreadPerAtom, pairEval, chargeEval);
+        }
     }
     virtual void energyGroupGroup(int nAtoms, int nPerRingPoly, float4 *xs, float4 *fs, float *perParticleEng, uint16_t *neighborCounts, uint *neighborlist, uint32_t *cumulSumMaxPerBlock, int warpSize, float *parameters, int numTypes, BoundsGPU bounds, float onetwoStr, float onethreeStr, float onefourStr, float *qs, float qCutoff, uint32_t tagA, uint32_t tagB, int nThreadPerBlock, int nThreadPerAtom) {
        compute_energy_iso_group_group<PAIR_EVAL, COMP_PAIRS, N_PARAM, CHARGE_EVAL, COMP_CHARGES> <<<NBLOCKTEAM(nAtoms, nThreadPerBlock, nThreadPerAtom), nThreadPerBlock, N_PARAM*numTypes*numTypes*sizeof(float)>>> (nAtoms, nPerRingPoly, xs, fs, perParticleEng, neighborCounts, neighborlist, cumulSumMaxPerBlock, warpSize, parameters, numTypes, bounds, onetwoStr, onethreeStr, onefourStr, qs, qCutoff*qCutoff, tagA, tagB, nThreadPerAtom, pairEval, chargeEval);
