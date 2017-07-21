@@ -45,8 +45,9 @@ integVerlet = IntegratorVerlet(state)
 #state.activateFix(deform)
 
 writeconfig = WriteConfig(state, fn='test_out', writeEvery=20, format='xyz', handle='writer')
-state.activateWriteConfig(writeconfig)
-integVerlet.run(1000)
+#state.activateWriteConfig(writeconfig)
+state.tuneEvery = 5000
+integVerlet.run(10000)
 sumV = 0.
 for a in state.atoms:
     sumV += a.vel.lenSqr()

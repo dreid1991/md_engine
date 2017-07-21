@@ -333,9 +333,6 @@ __global__ void compute_energy_iso
             if (COMP_CHARGES && lenSqr < qCutoffSqr) {
                 float qj = qs[otherIdx];
                 float eng = chargeEval.energy(lenSqr, qi, qj, multiplier);
-                //printf("len is %f\n", sqrtf(lenSqr));
-                //printf("qi qj %f %f\n", qi, qj);
-                //printf("eng is %f\n", eng);
                 engSum += eng;
 
             }
@@ -363,7 +360,7 @@ __global__ void compute_energy_iso
 
 
 
-template <class PAIR_EVAL, bool COMP_PAIRS, int N, class CHARGE_EVAL, bool COMP_CHARGES>
+template <class PAIR_EVAL, bool COMP_PAIRS, int N, class CHARGE_EVAL, bool COMP_CHARGES, int MULTITHREADPERATOM>
 __global__ void compute_energy_iso_group_group
         (int nAtoms, 
 	 int nPerRingPoly,
@@ -392,6 +389,12 @@ __global__ void compute_energy_iso_group_group
     extern __shared__ float paramsAll[];
     int sqrSize = numTypes*numTypes;
     float *params_shr[N];
+    float *engs_shr;
+    if (MULTITHREADPERATOM) {
+        engs_shr = paramsAll + N*sqrSize;
+    }
+
+
     if (COMP_PAIRS) {
         for (int i=0; i<N; i++) {
             params_shr[i] = paramsAll + i * sqrSize;
@@ -404,14 +407,25 @@ __global__ void compute_energy_iso_group_group
     // This assumes that all ring polymers are the same size
     // this will change in later implementations where a variable number of beads may be used per RP
     int idx = GETIDX();
-    if (idx < nAtoms) { //change this
-	// information based on ring polymer and bead
-    // okay so we can assign multiple atoms per ring poly.  This manifests as multiple threads per bead
-        int ringPolyIdx = (idx/nThreadPerAtom) / nPerRingPoly;	// which ring polymer
-        int beadIdx     = (idx/nThreadPerAtom) % nPerRingPoly;	// which time slice
+    if (idx < nAtoms*nThreadPerAtom) {
+        int atomIdx;
+        if (MULTITHREADPERATOM) {
+            atomIdx = idx/nThreadPerAtom;
+        } else {
+            atomIdx = idx;
+        }
+        int ringPolyIdx = atomIdx / nPerRingPoly;	// which ring polymer
+        int beadIdx     = atomIdx % nPerRingPoly;	// which time slice
 
-	//int baseIdx = baseNeighlistIdx(cumulSumMaxPerBlock, warpSize);
-        int baseIdx = baseNeighlistIdxFromRPIndex(cumulSumMaxPerBlock, warpSize, ringPolyIdx, nThreadPerAtom);
+        //load where my neighborlist starts
+        //int baseIdx = baseNeighlistIdx(cumulSumMaxPerBlock, warpSize);
+        int baseIdx;
+        if (MULTITHREADPERATOM) {
+            baseIdx = baseNeighlistIdxFromRPIndex(cumulSumMaxPerBlock, warpSize, ringPolyIdx, nThreadPerAtom);
+            //printf("pair force tid %d baseIdx %d\n", threadIdx.x, baseIdx);
+        } else {
+            baseIdx = baseNeighlistIdxFromRPIndex(cumulSumMaxPerBlock, warpSize, ringPolyIdx);
+        }
         uint32_t groupTagSelf = __float_as_uint(fs[idx].w);
         uint32_t groupTagCheck;
         if (groupTagSelf & tagA) {
@@ -431,16 +445,33 @@ __global__ void compute_energy_iso_group_group
         float3 pos = make_float3(posWhole);
 
         float engSum = 0;
+        int myIdxInTeam;
+        if (MULTITHREADPERATOM) {
+            myIdxInTeam = threadIdx.x % nThreadPerAtom;
+        } else {
+            myIdxInTeam = 0;
+        }
+        int numNeigh = neighborCounts[ringPolyIdx];
+        for (int nthNeigh=myIdxInTeam; nthNeigh<numNeigh; nthNeigh+=nThreadPerAtom) {
+            int nlistIdx;
+            if (MULTITHREADPERATOM) {
+                nlistIdx = baseIdx + myIdxInTeam + warpSize * (nthNeigh/nThreadPerAtom);
+            } else {
+                nlistIdx = baseIdx + warpSize * nthNeigh;
+            }
 
-        int numNeigh = neighborCounts[idx];
-        for (int i=0; i<numNeigh; i++) {
-            int nlistIdx = baseIdx + warpSize * i;
             uint otherIdxRaw = neighborlist[nlistIdx];
+            //The leftmost two bits in the neighbor entry say if it is a 1-2, 1-3, or 1-4 neighbor, or none of these
             uint neighDist = otherIdxRaw >> 30;
             float multiplier = multipliers[neighDist];
+            //uint otherIdx = otherIdxRaw & EXCL_MASK;
+
             // Extract corresponding index for pair interaction (at same time slice)
             uint otherRPIdx = otherIdxRaw & EXCL_MASK;
-	    uint otherIdx   = nPerRingPoly*otherRPIdx + beadIdx;  // atom = P*ring_polymer + k, k = 0,...,P-1
+            uint otherIdx   = nPerRingPoly*otherRPIdx + beadIdx;  // atom = P*ring_polymer + k, k = 0,...,P-1
+
+
+            // Extract corresponding index for pair interaction (at same time slice)
             //uint otherIdx = otherIdxRaw & EXCL_MASK;
             uint32_t otherGroupTag = __float_as_uint(fs[otherIdx].w);
             if (otherGroupTag & groupTagCheck) {
@@ -476,9 +507,17 @@ __global__ void compute_energy_iso_group_group
 
         }   
 
+        if (MULTITHREADPERATOM) {
+            engs_shr[threadIdx.x] = engSum;
+            reduceByN_NOSYNC<float>(engs_shr, nThreadPerAtom);
+            if (myIdxInTeam==0) {
+                perParticleEng[atomIdx] += engs_shr[threadIdx.x];
+            }
 
+        } else {
+            perParticleEng[atomIdx] += engSum;
+        }
 
-        perParticleEng[idx] += engSum;
 
     }
 
