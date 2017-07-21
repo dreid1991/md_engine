@@ -509,6 +509,8 @@ __global__ void compute_SETTLE(int4 *waterIds, float4 *xs, float4 *xs_0,
         axis3 /= length(axis3);
         
         /* At this point it is useful to make the transpose axes */
+        // -- for an orthogonal matrix, R^T ~ R^{-1}.
+        //    so we can use this to transform back to our original coordinate system later
         float3 axis1T = make_float3(axis1.x, axis2.x, axis3.x);
         float3 axis2T = make_float3(axis1.y, axis2.y, axis3.y);
         float3 axis3T = make_float3(axis1.z, axis2.z, axis3.z);
@@ -627,15 +629,33 @@ __global__ void compute_SETTLE(int4 *waterIds, float4 *xs, float4 *xs_0,
         xs[idxH1]= posH1_new;
         xs[idxH2]= posH2_new;
 
-        // and now get the velocity correction term - simply (a_pos - posO)/dt
+        // add a velocity component corresponding to the displacements of the vertices
+        // TODO: this contributes to the virial!
+        //       ---- algebraic equivalence ??!! We need a per-atom sum here...
         float3 dvO = (a_pos - posO) / dt;
         float3 dvH1= (b_pos - posH1)/ dt;
         float3 dvH2= (c_pos - posH2)/ dt;
 
-        // grab the global velocities
-        float4 velO = vs[idxO];
-        float4 velH1= vs[idxH1];
-        float4 velH2= vs[idxH2];
+        // grab the global velocities; these are our v0_a, v0_b, v0_c variables
+        float3 velO = make_float3(vs[idxO]);
+        float3 velH1= make_float3(vs[idxH1]);
+        float3 velH2= make_float3(vs[idxH2]);
+
+        // and our velocities of the constrained triangle $\Delta A_3 B_3 C_3$
+        //  --- /before/ the components along the bond have been satisified.
+        //      at this point, only the bond /length/ constraints have been solved.
+        float3 v_a = velO + dvO;
+        float3 v_b = velH1 + dvH1;
+        float3 v_c = velH2 + dvH2;
+
+        // so
+        
+
+
+
+
+
+
 
         // add the float3 differential velocity vectors
         velO += dvO;
@@ -650,6 +670,16 @@ __global__ void compute_SETTLE(int4 *waterIds, float4 *xs, float4 *xs_0,
     }
 }
 
+// 
+void FixRigid::populateRigidData() {
+    // so we have our three bond lengths; these are stored in 
+    //fixedSides = make_double4(r_OH, r_OH, r_HH, r_OM);
+
+    // set the sideLengths variable in fixRigidData to the fixedSides values
+    //fixRigidData.sideLengths = fixedSides;
+    // so, 
+
+}
 
 void FixRigid::handleBoundsChange() {
 
@@ -802,7 +832,6 @@ void FixRigid::setStyleBondLengths() {
 
     // set the sideLengths variable in fixRigidData to the fixedSides values
     fixRigidData.sideLengths = fixedSides;
-
     return;
 
 }
@@ -1034,6 +1063,8 @@ bool FixRigid::prepareForRun() {
     fixRigidData = FixRigidData();
     setStyleBondLengths();
 
+    // populate the constants for velocity constraints now that we have a specified geometry
+    populateRigidData();
     printf("number of molecules in waterIds: %d\n", nMolecules);
     waterIdsGPU = GPUArrayDeviceGlobal<int4>(nMolecules);
     waterIdsGPU.set(waterIds.data());

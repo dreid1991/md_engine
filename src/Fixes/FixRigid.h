@@ -36,8 +36,29 @@ class FixRigidData {
         //    weights.z = massO;
         //    weights.w = massH;
         double4 weights;
+        
+        // no point in reducing precision here; invariant parameters of the triangle - 
+        // cosines of the apex angles
+        double cosA;
+        double cosB;
+        double cosC;
+        
+        // so a few things worth calculating beforehand...
+        // --- Miyamoto, equations B2, constants in the tau expressions
+        double tauAB1; // (m_a / d) * ( 2*(m_a + m_b) - m_a cos^2 C )
+        double tauAB2; // (m_a / d) * (m_b cosC cosA - (m_a + m_b) * cosB)
+        double tauAB3; // (m_a / d) * ( m_a cosB cosC - 2 * m_b cosA )
 
-        // 
+        double tauBC1; // ( (m_a + m_b)^2 - (m_b*m_b*cosA*cosA) ) / d 
+        double tauBC2; // ( m_a * (m_b * cosA * cosB - (m_a + m_b) * cosC) ) / d
+        double tauBC3; // ( m_a * (m_b * cosC * cosA - (M_a + m_b) * cosB) ) / d
+
+        double tauCA1; // ( m_a / d) * ( 2 * (m_a + m_b) - m_a * cosB * cosB)
+        double tauCA2; // ( m_a / d) * ( m_a * cosB * cosC - 2 * m_b * cosA )
+        double tauCA3; // ( m_a / d) * ( m_b * cosA * cosB - (m_a + m_b) * cosC ) 
+
+        double denominator; // 'd' in expression B2; a constant of the rigid geometry
+
         FixRigidData() {};
 };
 
@@ -133,6 +154,8 @@ class FixRigid : public Fix {
          */
         bool stepFinal();
 
+        // populate the FixRigidData instance
+        void populateRigidData();
 
         //! Prepare FixRigid for simulation run
         bool prepareForRun();
