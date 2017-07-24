@@ -71,7 +71,52 @@ class BondHarmonic : public Bond, public BondHarmonicType {
 void export_BondHarmonic();
 //end bond harmonic classes
 
+//bond quartic classes
+//
+class BondQuarticType {
+public:
+    float k2;
+    float k3;
+    float k4;
+    float r0;
+    BondQuarticType(){};
+    bool operator==(const BondQuarticType &) const;
+    std::string getInfoString();
+};
+//
+//for forcer maps
+namespace std {
+    template<> struct hash<BondQuarticType> {
+        size_t operator() (BondQuarticType const& bond) const {
+            size_t seed = 0;
+            boost::hash_combine(seed, bond.k2);
+            boost::hash_combine(seed, bond.k3);
+            boost::hash_combine(seed, bond.k4);
+            boost::hash_combine(seed, bond.r0);
+            return seed;
+        }
+    };
+}
 
+/*! \brief Bond with a Quartic potential
+ *
+ * Bond with quartic potential (like class2 in lammps).
+ *
+ */
+
+class BondQuartic;
+
+class BondQuartic : public Bond, public BondQuarticType {
+	public:
+        BondQuartic(Atom *a, Atom *b, double k2_, double k3_, double k4_, double r0_, int type_=-1);
+        BondQuartic(double k2_, double k3_, double k4_, double r0_, int type_=-1); 
+        BondQuartic(){};
+        int type;
+	std::string getInfoString();
+};	
+
+void export_BondQuartic();
+//end bond quartic classes
 
 
 //bond fene classes
@@ -137,6 +182,7 @@ class __align__(16) BondGPU {
 /*! \typedef Boost Variant for any bond */
 typedef boost::variant<
 	BondHarmonic, 
+	BondQuartic, 
     BondFENE,
 	Bond
 > BondVariant;

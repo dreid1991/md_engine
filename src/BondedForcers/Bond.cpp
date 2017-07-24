@@ -56,6 +56,57 @@ void export_BondHarmonic() {
     ;
 }
 
+//BondQuarticType::BondQuarticType(BondQuartic *bond) {
+//    k2 = bond->k2;
+//    k3 = bond->k3;
+//    k4 = bond->k4;
+//    r0 = bond->r0;
+//}
+
+bool BondQuarticType::operator==(const BondQuarticType &other) const {
+    return k2 == other.k2 and k3 == other.k3 and k4 == other.k4 and r0 == other.r0;
+}
+
+BondQuartic::BondQuartic(Atom *a, Atom *b, double k2_, double k3_, double k4_, double r0_, int type_) {
+    ids[0] = a->id;
+    ids[1] = b->id;
+    k2 = k2_;
+    k3 = k3_;
+    k4 = k4_;
+    r0 = r0_;
+    type = type_;
+}
+BondQuartic::BondQuartic(double k2_, double k3_, double k4_, double r0_, int type_) {
+    k2 = k2_;
+    k3 = k3_;
+    k4 = k4_;
+    r0 = r0_;
+    type = type_;
+}
+
+std::string BondQuarticType::getInfoString() {
+  std::stringstream ss;
+  ss << " k2='" << k2 << " k3='" << k3 << " k4='" << k4 << "' r0='" << r0;
+  return ss.str();
+}
+
+std::string BondQuartic::getInfoString() {
+  std::stringstream ss;
+  ss << "<member type='" << type << " k2='" << k2 << " k3='" << k3 << " k4='" << k4 << "' r0='" << r0 << "' atomID_a='" << ids[0] <<  "' atomID_b='" << ids[1] << "'/>\n";
+  return ss.str();
+}
+
+void export_BondQuartic() {
+  
+    boost::python::class_<BondQuartic,SHARED(BondQuartic)> ( "BondQuartic", boost::python::init<>())
+//         .def(boost::python::init<int, int ,double, double,int>())
+        .def_readonly("ids", &BondQuartic::ids)
+        .def_readwrite("k2", &BondQuartic::k2)
+        .def_readwrite("k3", &BondQuartic::k3)
+        .def_readwrite("k4", &BondQuartic::k4)
+        .def_readwrite("r0", &BondQuartic::r0)
+    ;
+}
 
 
 
