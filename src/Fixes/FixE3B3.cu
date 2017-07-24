@@ -31,10 +31,9 @@ FixE3B3::FixE3B3(boost::shared_ptr<State> state_,
 //
 // what arguments do we need here? we are updating the molecule positions from 
 // the current atom positions
-// __global__ void compute_COM(int4 *waterIds, float4 *xs, float4 *vs, int *idToIdxs, int nMols, float4 *com, BoundsGPU bounds) {
 
 // from FixRigid.cu
-__device__ inline float3 positionsToCOM(float3 *pos, float *mass, float ims) {
+__device__ inline float3 positionsToCOM_E3B3(float3 *pos, float *mass, float ims) {
   return (pos[0]*mass[0] + pos[1]*mass[1] + pos[2]*mass[2] + pos[3]*mass[3])*ims;
 }
 
@@ -209,7 +208,7 @@ __global__ void update_xs(int nMolecules, int4 *waterIds, float4 *mol_xs, int* m
         }
 
         // and here is the COM of our water molecule
-        mol_xs[mol_idToIdxs[molId]]  = make_float4(positionsToCOM(pos, mass,ims));
+        mol_xs[mol_idToIdxs[molId]]  = make_float4(positionsToCOM_E3B3(pos, mass,ims));
         // and corresponding inverse mass
         mol_xs[mol_idToIdxs[molId]].w = ims;
 

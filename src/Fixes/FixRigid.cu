@@ -633,11 +633,10 @@ __global__ void compute_SETTLE(int4 *waterIds, float4 *xs, float4 *xs_0,
         // TODO: this contributes to the virial!
         //       ---- algebraic equivalence ??!! We need a per-atom sum here...
         
-        /* TODO: perhaps this should not be done, since we always solve for the constraint forces
         float3 dvO = (a_pos - posO) / dt;
         float3 dvH1= (b_pos - posH1)/ dt;
         float3 dvH2= (c_pos - posH2)/ dt;
-        */ // END TODO
+        
         float4 velO_whole = vs[idxO];
         float4 velH1_whole= vs[idxH1];
         float4 velH2_whole= vs[idxH2];
@@ -650,11 +649,9 @@ __global__ void compute_SETTLE(int4 *waterIds, float4 *xs, float4 *xs_0,
         // add the float3 differential velocity vectors
         // --- so these correspond to v0_a, v0_b, v0_c, respectively
         
-        /* TODO: perhaps this should not be done, since we always solve for constraint forces
         velO += dvO;
         velH1+= dvH1;
         velH2+= dvH2;
-        */ // End TODO
         // so... do the velocity constraints.
         
         // first things first: get the unit vectors e_AB, e_BC, e_CA;
@@ -669,7 +666,7 @@ __global__ void compute_SETTLE(int4 *waterIds, float4 *xs, float4 *xs_0,
         e_BC /= length(e_BC);
         e_CA /= length(e_CA);
 
-        // and get the pertinent dot products
+        // now, compute the dot product of the relative velocity along the bond with the bond vector
         float3 vel0_AB = velH1 - velO;
         float3 vel0_BC = velH2 - velH1;
         float3 vel0_CA = velO - velH2;
@@ -677,7 +674,7 @@ __global__ void compute_SETTLE(int4 *waterIds, float4 *xs, float4 *xs_0,
         float v0_AB = dot(e_AB, vel0_AB);
         float v0_BC = dot(e_BC, vel0_BC);
         float v0_CA = dot(e_CA, vel0_CA);
-
+        
         // all data required to compute tau_AB etc. are in fixRigidData... do the algebra here
         double tau_AB = (v0_AB * fixRigidData.tauAB1) + 
                         (v0_BC * fixRigidData.tauAB2) + 
@@ -693,17 +690,24 @@ __global__ void compute_SETTLE(int4 *waterIds, float4 *xs, float4 *xs_0,
 
         // we have now computed our lagrange multipliers, and can add these to our velO, 
         // velH1, velH2 vectors.
-        float3 constraints_dvO = dtf * (velO_whole.w) * ( (tau_AB * e_AB) - (tau_CA * e_CA) );
-        float3 constraints_dvH1= dtf * (velH1_whole.w)* ( (tau_BC * e_BC) - (tau_AB * e_AB) );
-        float3 constraints_dvH2= dtf * (velH2_whole.w)* ( (tau_CA * e_CA) - (tau_BC * e_BC) );
+        float invMassO = velO_whole.w;
+        float invMassH = velH1_whole.w;
+        /* // see if this changes things
+        float3 constraints_dvO = dtf * (invMassO) * ( (tau_AB * e_AB) - (tau_CA * e_CA) );
+        float3 constraints_dvH1= dtf * (invMassH)* ( (tau_BC * e_BC) - (tau_AB * e_AB) );
+        float3 constraints_dvH2= dtf * (invMassH)* ( (tau_CA * e_CA) - (tau_BC * e_BC) );
+        */
+        float3 constraints_dvO = 0.5 * dt * (invMassO)* ( (tau_AB * e_AB) - (tau_CA * e_CA) );
+        float3 constraints_dvH1= 0.5 * dt * (invMassH)* ( (tau_BC * e_BC) - (tau_AB * e_AB) );
+        float3 constraints_dvH2= 0.5 * dt * (invMassH)* ( (tau_CA * e_CA) - (tau_BC * e_BC) );
         
-        //velO_whole += dvO;
+        velO_whole += dvO;
         velO_whole += constraints_dvO;
 
-        //velH1_whole+= dvH1;
+        velH1_whole+= dvH1;
         velH1_whole+= constraints_dvH1;
 
-        //velH2_whole+= dvH2;
+        velH2_whole+= dvH2;
         velH2_whole+= constraints_dvH2;
         // add the float3 differential velocity vectors
 
@@ -1061,6 +1065,7 @@ void FixRigid::compute_gamma() {
 
     // our gamma value; 0.1546 is the bond length O-M in Angstroms (which we can 
     // assume is the units being used, because those are only units of distance used in DASH)
+    // TODO - remove this hardcoded value
     gamma = 0.1546 / denominator;
     //printf("gamma value: %f\n", gamma);
 

@@ -120,9 +120,6 @@ for i in range(numMolecules):
     for atomId in molecule.ids:
         ids.append(atomId)
 
-    # set velocity to 0..
-    for atom in ids:
-        state.atoms[atom].vel = Vector(0,0,0)
     # make a harmonic OH1 bond with some high stiffness, and OH2, and H1H2
     '''
     harmonicBonds.createBond(state.atoms[ids[0]], state.atoms[ids[1]],
@@ -156,15 +153,15 @@ state.activateFix(rigid)
 #############################################
 # initialize at some temperature
 #############################################
-#InitializeAtoms.initTemp(state, 'all', 350.0)
+InitializeAtoms.initTemp(state, 'all', 550.0)
 
 
 #############################################
 # Temperature control
 #############################################
-fixNVT = FixNoseHoover(state,'nvt','all')
-fixNVT.setTemperature(300.0, 100*state.dt)
-state.activateFix(fixNVT)
+#fixNVT = FixNoseHoover(state,'nvt','all')
+#fixNVT.setTemperature(300.0, 100*state.dt)
+#state.activateFix(fixNVT)
 
 
 ########################################
@@ -185,10 +182,10 @@ tempData = state.dataManager.recordTemperature('all', interval = 1)
 #state.preparePIMD(the_temp)
 
 writer = WriteConfig(state, handle='writer', fn='rigid_tip3p', format='xyz',
-                     writeEvery=5)
+                     writeEvery=10)
 state.activateWriteConfig(writer)
 
-integVerlet.run(500000)
+integVerlet.run(5000000)
 
 fid = open('thermo.dat', "w")
 
