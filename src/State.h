@@ -323,6 +323,8 @@ public:
     Atom &duplicateAtom(Atom);
     void refreshIdToIdx();
     
+    int nThreadPerAtom; //!< number of threads per atom for pair computations and nlist building
+    
     bool verbose; //!< Verbose output
     int shoutEvery; //!< Report state of simulation every this many timesteps
     AtomParams atomParams; //!< Generic properties of the Atoms, e.g. masses,
