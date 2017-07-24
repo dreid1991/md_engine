@@ -58,6 +58,11 @@ State::State() : units(&dt) {
     nPerRingPoly  = 1;
     exclusionMode = EXCLUSIONMODE::DISTANCE;
 
+    nThreadPerAtom = 1;
+    nThreadPerBlock = 256;
+
+    tuneEvery = 1000000;
+
 
 }
 
@@ -476,6 +481,12 @@ void State::initializeGrid() {
     double maxRCut = getMaxRCut();// ALSO PADDING PLS
     double gridDim = maxRCut + padding;
     gridGPU = GridGPU(this, gridDim, gridDim, gridDim, gridDim, exclusionMode);
+    //testing
+    //nThreadPerBlock = 64;
+    //nThreadPerAtom = 4;
+    //gridGPU.nThreadPerBlock(nThreadPerBlock);
+    //gridGPU.nThreadPerAtom(nThreadPerAtom);
+    //gridGPU.initArraysTune();
 
 }
 
@@ -546,7 +557,6 @@ bool State::prepareForRun() {
     boundsGPU = bounds.makeGPU();
     float maxRCut = getMaxRCut();
     initializeGrid();
-    //gridGPU = grid.makeGPU(maxRCut);  // uses os, ns, ds, dsOrig from AtomGrid
 
     gpd.xsBuffer = GPUArrayGlobal<float4>(nAtoms);
     gpd.vsBuffer = GPUArrayGlobal<float4>(nAtoms);
@@ -950,6 +960,9 @@ BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(State_seedRNG_overloads,State::seedRNG,0,
                 .def("preparePIMD", &State::preparePIMD)
                 .def_readwrite("is2d", &State::is2d)
                 .def_readwrite("turn", &State::turn)
+                .def_readwrite("nThreadPerAtom", &State::nThreadPerAtom)
+                .def_readwrite("nThreadPerBlock", &State::nThreadPerBlock)
+                .def_readwrite("tuneEvery", &State::tuneEvery)
                 .def_readwrite("periodicInterval", &State::periodicInterval)
                 .def_readwrite("rCut", &State::rCut)
                 .def_readwrite("nPerRingPoly", &State::nPerRingPoly)

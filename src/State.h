@@ -115,6 +115,7 @@ public:
                                    //!< 1-4 neighbors)
     int64_t turn; //!< Step of the simulation
     int runningFor; //!< How long the simulation is currently running
+    int nlistBuildCount; //!< number of times we have build nlists
     int64_t runInit; //!< Timestep at which the current run started
     int dangerousRebuilds; //!< Unused
     int periodicInterval; //!< Periodicity to wrap atoms and rebuild neighbor
@@ -322,6 +323,10 @@ public:
     boost::python::object duplicateMolecule(Molecule &, int n);
     Atom &duplicateAtom(Atom);
     void refreshIdToIdx();
+    
+    int nThreadPerAtom; //!< number of threads per atom for pair computations and nlist building
+    int nThreadPerBlock; //!< number of threads per block for pair computations and nlist building
+    int tuneEvery;
     
     bool verbose; //!< Verbose output
     int shoutEvery; //!< Report state of simulation every this many timesteps

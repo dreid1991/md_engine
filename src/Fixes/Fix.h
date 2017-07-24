@@ -7,6 +7,7 @@
 #include <pugixml.hpp>
 #include <map>
 #include "Interpolator.h"
+#include "Tunable.h"
 
 class Atom;
 class State;
@@ -29,7 +30,7 @@ void export_Fix();
  * \todo Compile list of preferences. I think each Fix should have an order
  *       preference.
  */
-class Fix {
+class Fix : public Tunable {
 
 protected:
     //! Default constructor
@@ -270,6 +271,9 @@ public:
     virtual Interpolator *getInterpolator(std::string);
 
     virtual void updateForPIMD(int nPerRingPoly) {};
+
+    virtual void takeStateNThreadPerBlock(int);
+    virtual void takeStateNThreadPerAtom(int);
 
 };
 

@@ -22,6 +22,7 @@ __global__ void zeroVectorPreserveW(float4 *xs, int n) {
     }
 }
 
+
 void Integrator::stepInit(bool computeVirials)
 {
     /*
@@ -96,26 +97,7 @@ void Integrator::asyncOperations() {
         state->asyncHostOperation(writeAndPy);
     }
 }
-/*
-__global__ void printFloats(cudaTextureObject_t xs, int n) {
-    int idx = GETIDX();
-    if (idx < n) {
-        int xIdx = XIDX(idx, sizeof(float4));
-        int yIdx = YIDX(idx, sizeof(float4));
-        float4 x = tex2D<float4>(xs, xIdx, yIdx);
-        printf("idx %d, vals %f %f %f %d\n", idx, x.x, x.y, x.z, *(int *) &x.w);
 
-    }
-}
-__global__ void printFloats(float4 *xs, int n) {
-    int idx = GETIDX();
-    if (idx < n) {
-        float4 x = xs[idx];
-        printf("idx %d, vals %f %f %f %f\n", idx, x.x, x.y, x.z, x.w);
-
-    }
-}
-*/
 
 
 void Integrator::basicPreRunChecks() {
@@ -147,6 +129,7 @@ std::vector<bool> Integrator::basicPrepare(int numTurns) {
     int nAtoms = state->atoms.size();
     state->runningFor = numTurns;
     state->runInit = state->turn;
+    state->nlistBuildCount = 0;
     state->prepareForRun();
     state->atomParams.guessAtomicNumbers();
     setActiveData();
@@ -155,6 +138,8 @@ std::vector<bool> Integrator::basicPrepare(int numTurns) {
     }
     std::vector<bool> prepared;
     for (Fix *f : state->fixes) {
+        f->takeStateNThreadPerBlock(state->nThreadPerBlock);//grid will also have this value
+        f->takeStateNThreadPerAtom(state->nThreadPerAtom);//grid will also have this value
         f->updateGroupTag();
         prepared.push_back(f->prepareForRun());
         f->setVirialTurnPrepare();
@@ -261,7 +246,7 @@ boost::python::list Integrator::singlePointEngPythonPerParticle() {
     for (int i=0, ii=state->atoms.size(); i<ii; i++) {
         int id = ids[i];
         int idxWriteTo = idToIdxsOnCopy[id];
-        sortedEngs[idxWriteTo] = engs[i];
+        sortedEngs[idxWriteTo] = eng:tas[i];
     }
     boost::python::list asPy(sortedEngs);
     basicFinish();
@@ -272,6 +257,86 @@ boost::python::list Integrator::singlePointEngPythonPerParticle() {
     */
 
 
+double Integrator::tune() {
+    
+    auto startTune = std::chrono::high_resolution_clock::now();
+
+    std::vector<int> threadPerBlocks= {32, 64, 128, 256};
+    std::vector<int> threadPerAtoms = {1, 2, 4, 8, 16, 32};
+    //if we have run for a while, guess the fraction of turns where we build nlists, else guess that we build every other time
+    double nlistBuildFrac = state->turn > state->runInit ? (double) state->nlistBuildCount/(state->turn-state->runInit) : 1/(2.0 * state->periodicInterval);
+    int nForceEvals = 30;
+    //estimating how many times we should build nlists for good estimate
+    int nNlistBuilds = round(nForceEvals * nlistBuildFrac);
+
+    auto setParams = [this] (int ntpb, int ntpa) {
+        state->nThreadPerBlock = ntpb;
+        state->nThreadPerAtom = ntpa;
+        state->gridGPU.nThreadPerBlock(ntpb);
+        state->gridGPU.nThreadPerAtom(ntpa);
+        state->gridGPU.initArraysTune();
+        for (auto fix : state->fixes) {
+            fix->takeStateNThreadPerBlock(ntpb);
+            fix->takeStateNThreadPerAtom(ntpa);
+        }
+    };
+
+    vector<vector<double> > times;
+    //REMEMBER TO MAKE COPY OF FORCES AND SET THEM BACK AFTER THIS;
+    for (int i=0; i<threadPerBlocks.size(); i++) {
+        vector<double> timesWithBlock;
+        for (int j=0; j<threadPerAtoms.size(); j++) {
+            int threadPerBlock = threadPerBlocks[i];
+            int threadPerAtom = threadPerAtoms[j];
+            setParams(threadPerBlock, threadPerAtom);
+            state->gridGPU.periodicBoundaryConditions(-1, true);
+            state->nlistBuildCount--;
+            cudaDeviceSynchronize();
+            auto start = std::chrono::high_resolution_clock::now();
+            for (int k=0; k<nNlistBuilds; k++) {
+                state->gridGPU.periodicBoundaryConditions(-1, true);
+                state->nlistBuildCount--;
+            }
+            for (int k=0; k<nForceEvals; k++) {
+                force(false);
+            }
+            cudaDeviceSynchronize();
+            auto end = std::chrono::high_resolution_clock::now();
+            std::chrono::duration<double> duration = end - start;
+            timesWithBlock.push_back(duration.count());
+        }
+        times.push_back(timesWithBlock);
+    }
+
+    double bestTime = times[0][0];
+    int bestNTPB, bestNTPA;
+    bestNTPB = 0;
+    bestNTPA = 0;
+    
+    
+    
+    for (int i=0; i<threadPerBlocks.size(); i++) {
+        for (int j=0; j<threadPerAtoms.size(); j++) {
+            if (times[i][j] < bestTime) {
+                bestNTPB=threadPerBlocks[i];
+                bestNTPA=threadPerAtoms[j];
+                bestTime = times[i][j];
+            }
+        }
+    }
+    setParams(bestNTPB, bestNTPA);
+    state->gridGPU.periodicBoundaryConditions(-1, true);
+    state->nlistBuildCount--;
+    //then pick best one
+
+
+    //zero forces that you calculated here
+    zeroVectorPreserveW<<<NBLOCKVAR(state->atoms.size(), state->nThreadPerBlock), state->nThreadPerBlock>>>(state->gpd.fs.getDevData(), state->atoms.size());
+    auto endTune = std::chrono::high_resolution_clock::now();
+
+    std::chrono::duration<double> durationTune = endTune - startTune;
+    return durationTune.count();
+}
 
 void export_Integrator() {
     boost::python::class_<Integrator,
