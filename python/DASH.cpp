@@ -20,6 +20,7 @@ using namespace std;
 #include "IntegratorVerlet.h"
 #include "IntegratorRelax.h"
 #include "IntegratorGradientDescent.h"
+#include "IntegratorMC.h"
 #include "FixLangevin.h"
 #include "boost_stls.h"
 #include "PythonOperation.h"
@@ -44,6 +45,7 @@ BOOST_PYTHON_MODULE(DASH) {
     export_IntegratorVerlet();
     export_IntegratorRelax();
     export_IntegratorGradientDescent();
+    export_IntegratorMC();
     export_TypedItemHolder();
     export_Fix();
     export_FixBondHarmonic();

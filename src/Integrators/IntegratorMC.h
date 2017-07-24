@@ -2,8 +2,8 @@
 
 #include "Integrator.h"
 #include <random>
+#include "DataComputer.h"
 class State;
-class DataComputer;
 void export_IntegratorMC();
 
 class IntegratorMC: public Integrator
@@ -14,7 +14,7 @@ public:
      * \param statePtr Pointer to the simulation state
      */
     IntegratorMC(State *statePtr);
-    void *comp;
+    boost::shared_ptr<MD_ENGINE::DataComputer> comp;
     uint32_t groupTag;
     double engLast;
     double temp;

@@ -141,7 +141,7 @@ void Mod::FDotR(State *state) {
 
 }
 
-Vector randomUV(std::mt19937 &rng) {
+Vector Mod::randomUV(std::mt19937 &rng) {
     double range = rng.max() - rng.min();
     double r1 = 2*(rng()-rng.min()) / range - 1;
     double r2 = 2*M_PI*(rng()-rng.min()) / range;

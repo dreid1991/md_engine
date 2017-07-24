@@ -4,6 +4,8 @@
 #include "State.h"
 namespace py = boost::python;
 using namespace MD_ENGINE;
+using std::cout;
+using std::endl;
 
 DataComputerEnergy::DataComputerEnergy(State *state_, py::list fixes_, std::string computeMode_, std::string groupHandleB_) : DataComputer(state_, computeMode_, false), groupHandleB(groupHandleB_) {
 
@@ -51,6 +53,7 @@ void DataComputerEnergy::computeScalar_GPU(bool transferToCPU, uint32_t groupTag
     if (transferToCPU) {
         //does NOT sync
         gpuBufferReduce.dataToHost();
+
     }
 }
 

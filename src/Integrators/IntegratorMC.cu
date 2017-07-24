@@ -9,6 +9,8 @@ using namespace MD_ENGINE;
 
 namespace py = boost::python;
 
+using std::cout;
+using std::endl;
 IntegratorMC::IntegratorMC(State *state_)
     : Integrator(state_)
 {
@@ -17,6 +19,10 @@ IntegratorMC::IntegratorMC(State *state_)
 
 double IntegratorMC::run(int numTurns, double maxMoveDist, double temp_) {
     
+    DataManager &dataManager = state->dataManager;
+    //so here's we're kinda abusing the system.  We're just getting the data manager to create a data set for us, but then we ask it to stop recording data - we will do it manually.
+    boost::shared_ptr<DataSetUser> engDataSet = dataManager.recordEnergy("all", "scalar", 1, py::object(), py::list(), "all");
+
     temp = temp_; 
     basicPreRunChecks();
     //basicPrepare(numTurns); //nlist built here
@@ -37,16 +43,14 @@ double IntegratorMC::run(int numTurns, double maxMoveDist, double temp_) {
 
     groupTag = state->groupTagFromHandle("all");	
 
-    DataManager &dataManager = state->dataManager;
-    //so here's we're kinda abusing the system.  We're just getting the data manager to create a data set for us, but then we ask it to stop recording data - we will do it manually.
-    boost::shared_ptr<DataSetUser> engDataSet = dataManager.recordEnergy("all", "scalar", 1, py::object(), py::list(), "all");
+    //make it stop recording only after 
     dataManager.stopRecord(engDataSet);
-    comp = (void *) engDataSet->computer.get();
+    comp = engDataSet->computer;
 
-    MD_ENGINE::DataComputer *comp_loc = (MD_ENGINE::DataComputer *)comp;
-    comp_loc->computeScalar_GPU(true, groupTag);
+    //MD_ENGINE::DataComputer *comp_loc = (MD_ENGINE::DataComputer *)comp;
+    comp->computeScalar_GPU(true, groupTag);
     cudaDeviceSynchronize();
-    engLast = comp_loc->gpuBufferReduce.h_data[0];
+    engLast = comp->gpuBufferReduce.h_data[0];
 
     auto start = std::chrono::high_resolution_clock::now();
     dtf = 0.5f * state->dt * state->units.ftm_to_v;
@@ -55,6 +59,7 @@ double IntegratorMC::run(int numTurns, double maxMoveDist, double temp_) {
     double timeTune = 0;
     std::mt19937 &rng = state->getRNG();
     for (int i=0; i<numTurns; ++i) {
+
 
         //doing PBC every turn to be safe
         state->gridGPU.periodicBoundaryConditions();
@@ -70,6 +75,11 @@ double IntegratorMC::run(int numTurns, double maxMoveDist, double temp_) {
         //HEY - MAKE DATA APPENDING HAPPEN WHILE SOMETHING IS GOING ON THE GPU.  
         doDataComputation();
         doDataAppending();
+        checkQuit();
+        state->turn++;
+        if (state->verbose && (i+1 == numTurns || state->turn % state->shoutEvery == 0)) {
+            mdMessage("Turn %d %.2f percent done.\n", (int)state->turn, 100.0*(i+1)/numTurns);
+        }
     }
     cudaDeviceSynchronize();
     CUT_CHECK_ERROR("after run\n");
@@ -97,16 +107,20 @@ void IntegratorMC::MCDisplace(double maxMoveDist, std::mt19937 &rng) {
     Vector moveVec = Mod::randomUV(rng) * moveDist;
     int particleIdx = state->atoms.size() * (rng()-rng.min())/range;
     displace<<<1, 1>>>(state->gpd.xs.getDevData()+particleIdx, moveVec.asFloat3());
-    MD_ENGINE::DataComputer *comp_loc = (MD_ENGINE::DataComputer *)comp;
-    comp_loc->computeScalar_GPU(true, groupTag);
+    state->gridGPU.periodicBoundaryConditions();
+    comp->computeScalar_GPU(true, groupTag);
     cudaDeviceSynchronize();
-    double eng = comp_loc->gpuBufferReduce.h_data[0];
+    double eng = comp->gpuBufferReduce.h_data[0];
     double rand = (rng()-rng.min())/range;
     double accept = exp(-(eng-engLast) / (temp*state->units.boltz));
+    //printf("%f, %f\n", eng, engLast);
     if (rand < accept) {
+        //cout << " ACCEPT " << (eng-engLast) << endl;
         engLast = eng;
     } else {
+        //cout << "REJECT" << endl;
         displace<<<1, 1>>>(state->gpd.xs.getDevData()+particleIdx, (moveVec * -1).asFloat3());
+        state->gridGPU.periodicBoundaryConditions();
     }
 }
 
