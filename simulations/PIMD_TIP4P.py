@@ -32,7 +32,7 @@ state.rCut = 10.0
 state.padding = 1.0
 state.periodicInterval = 7
 state.shoutEvery = 100
-state.dt = 0.5
+state.dt = 0.2
 
 
 ##############################################
@@ -82,7 +82,7 @@ flexibleTIP4P = FixTIP4PFlexible(state,'TIP4PFlexible', 'all')
 #############################################################
 # The quartic bond potential, and harmonic angle potential
 #############################################################
-bondQuartic = FixBondQuartic(state,'bondQuart')
+bondQuart = FixBondQuartic(state,'bondQuart')
 bondQuart.setBondTypeCoefs(type=0, k2=607.19, k3=-1388.65, k4=1852.58, r0=0.9419)
 
 harmonicAngle = FixAngleHarmonic(state,'angleH')
@@ -116,13 +116,13 @@ for i in range(numMolecules):
     ids = []
     for atomId in molecule.ids:
         ids.append(atomId)
-    
+
     # add the atom ids to our instance of FixTIP4PFlexible
     flexibleTIP4P.addMolecule(ids[0], ids[1], ids[2], ids[3])
-    
+
     # create the intramolecular OH bonds
-    bondQuartic.createBond(state.atoms[ids[0]], state.atoms[ids[1]], type=0)
-    bondQuartic.createBond(state.atoms[ids[0]], state.atoms[ids[2]], type=0)
+    bondQuart.createBond(state.atoms[ids[0]], state.atoms[ids[1]], type=0)
+    bondQuart.createBond(state.atoms[ids[0]], state.atoms[ids[2]], type=0)
 
     # and the harmonic angle HOH
     harmonicAngle.createAngle(state.atoms[ids[1]], state.atoms[ids[0]], state.atoms[ids[2]],type=0)
@@ -149,17 +149,31 @@ state.activateFix(nonbond)
 ##############################
 state.activateFix(flexibleTIP4P)
 state.activateFix(harmonicAngle)
-state.activateFix(bondQuartic)
+state.activateFix(bondQuart)
 
 #############################################
 # initialize at some temperature
 #############################################
-InitializeAtoms.initTemp(state, 'all', 350.0)
+InitializeAtoms.initTemp(state, 'all', 450.0)
 
 ########################################
 # our integrator
 ########################################
 integVerlet = IntegratorVerlet(state)
+
+
+########################################
+# Thermostatting
+########################################
+fixNVT = FixNVTRescale(state,'nvt','all',320.0,5)
+state.activateFix(fixNVT)
+
+print 'activated fixNVT'
+state.deactivateFix(fixNVT)
+print 'deactivated fix'
+state.activateFix(fixNVT)
+print 'activated fixNVT again'
+
 
 ########################################
 # Data recording
@@ -174,10 +188,16 @@ tempData = state.dataManager.recordTemperature('all', interval = 1)
 #state.preparePIMD(the_temp)
 
 writer = WriteConfig(state, handle='writer', fn='configPIMD', format='xyz',
-                     writeEvery=1)
+                     writeEvery=10)
 state.activateWriteConfig(writer)
 
-integVerlet.run(5000)
+# equilibration
+integVerlet.run(50000)
+
+# and remove fixNVT
+state.deactivateFix(fixNVT)
+
+integVerlet.run(500000)
 
 fid = open('thermo.dat', "w")
 
