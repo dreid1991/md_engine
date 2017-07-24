@@ -140,6 +140,14 @@ void Mod::FDotR(State *state) {
 
 
 }
+
+Vector randomUV(std::mt19937 &rng) {
+    double range = rng.max() - rng.min();
+    double r1 = 2*(rng()-rng.min()) / range - 1;
+    double r2 = 2*M_PI*(rng()-rng.min()) / range;
+    double diff = sqrt(1-r1*r1);
+    return Vector(diff*cos(r2), diff*sin(r2), r1);
+}
 // CPU versions
 /*
 void Mod::scaleAtomCoords(SHARED(State) state, string groupHandle, Vector around, Vector scaleBy) {

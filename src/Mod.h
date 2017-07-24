@@ -60,6 +60,7 @@ namespace Mod {
         }
         return v;
     }
+    Vector randomUV(std::mt19937 &);
 }
 
 #endif
