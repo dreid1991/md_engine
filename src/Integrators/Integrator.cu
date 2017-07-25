@@ -258,6 +258,7 @@ boost::python::list Integrator::singlePointEngPythonPerParticle() {
 
 
 double Integrator::tune() {
+    return 0;
     
     auto startTune = std::chrono::high_resolution_clock::now();
 

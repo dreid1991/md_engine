@@ -23,6 +23,7 @@ public:
     PAIR_EVAL pairEval;
     CHARGE_EVAL chargeEval;
     virtual void compute(int nAtoms, int nPerRingPoly, float4 *xs, float4 *fs, uint16_t *neighborCounts, uint *neighborlist, uint32_t *cumulSumMaxPerBlock, int warpSize, float *parameters, int numTypes,  BoundsGPU bounds, float onetwoStr, float onethreeStr, float onefourStr, Virial *virials, float *qs, float qCutoff, int virialMode, int nThreadPerBlock, int nThreadPerAtom) {
+        printf("NTPB %d NPTA %d\n", nThreadPerBlock, nThreadPerAtom);
         //printf("forcers!\n");
         if (COMP_PAIRS or COMP_CHARGES) {
             if (virialMode==2 or virialMode == 1) {

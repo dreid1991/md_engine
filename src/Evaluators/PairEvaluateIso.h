@@ -171,6 +171,7 @@ __global__ void compute_force_iso
             }
 
         }   
+        printf("force %f %f %f\n", forceSum.x, forceSum.y, forceSum.z);
         if (MULTITHREADPERATOM) {
             forces_shr[threadIdx.x] = forceSum;
             reduceByN_NOSYNC<float3>(forces_shr, nThreadPerAtom);

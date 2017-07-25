@@ -504,12 +504,14 @@ __global__ void assignNeighbors(float4 *xs, int nRingPoly, int nPerRingPoly, uin
     //not going to worry about this right now, get base case working then this
 
 
+    int myIdxInTeam = threadIdx.x % nThreadPerRP;
  
     int idx = GETIDX();
     float4 posWhole;
     int myId;
     int exclIdxLo_shr, exclIdxHi_shr, numExclusions;
-    exclIdxLo_shr = threadIdx.x * maxExclusionsPerAtom;
+    int nthRPInBlock = threadIdx.x/nThreadPerRP;
+    exclIdxLo_shr = nthRPInBlock * maxExclusionsPerAtom;
     bool validThread = idx < nRingPoly * nThreadPerRP;
     if (validThread) {
         myId = ids[(idx/nThreadPerRP)*nPerRingPoly]; //in PIMD, I just need the id of _one_ of the atoms in my ring poly b/c all the 1-2,3,4 dists are the same
@@ -517,11 +519,13 @@ __global__ void assignNeighbors(float4 *xs, int nRingPoly, int nPerRingPoly, uin
         int exclIdxHi = exclusionIndexes[myId+1];
         numExclusions = exclIdxHi - exclIdxLo;
         exclIdxHi_shr = exclIdxLo_shr + numExclusions;
-        for (int i=exclIdxLo; i<exclIdxHi; i++) {
-            uint exclusion = exclusionIds[i];
-            exclusionIds_shr[maxExclusionsPerAtom*threadIdx.x + i - exclIdxLo] = exclusion;
-            //printf("I am thread %d and I am copying %u from global %d to shared %d\n",
-            //threadIdx.x, exclusion, i, maxExclusionsPerAtom*threadIdx.x+i-exclIdxLo);
+        if (myIdxInTeam==0) {
+            for (int i=exclIdxLo; i<exclIdxHi; i++) {
+                uint exclusion = exclusionIds[i];
+                exclusionIds_shr[maxExclusionsPerAtom*nthRPInBlock + i - exclIdxLo] = exclusion;
+                //printf("I am thread %d and I am copying %u from global %d to shared %d\n",
+                //threadIdx.x, exclusion, i, maxExclusionsPerAtom*threadIdx.x+i-exclIdxLo);
+            }
         }
     }
     //okay, now we have exclusions copied into shared
@@ -540,7 +544,6 @@ __global__ void assignNeighbors(float4 *xs, int nRingPoly, int nPerRingPoly, uin
     int xIdxLoop, yIdxLoop, zIdxLoop;
     int currentNeighborIdx;
 
-    int myIdxInTeam = threadIdx.x % nThreadPerRP;
 
     if (validThread) {
         //printf("valid thread\n");
@@ -859,14 +862,14 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
         }
 
         if (nThreadPerRP==1) {
-            assignNeighbors<0><<<NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerRP), nThreadPerBlock(), nThreadPerBlock()*maxExclusionsPerAtom*sizeof(uint32_t)>>>(
+            assignNeighbors<0><<<NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerRP), nThreadPerBlock(), (nThreadPerBlock()/nThreadPerRP)*maxExclusionsPerAtom*sizeof(uint32_t)>>>(
                             centroids, nRingPoly, nPerRingPoly, state->gpd.ids(gridIdx),
                             perCellArray.d_data.data(), perBlockArray.d_data.data(), os, ds, ns,
                             bounds.periodic, trace, neighCut*neighCut, neighborlist.data(), warpSize,
                             exclusionIndexes.data(), exclusionIds.data(), maxExclusionsPerAtom, nThreadPerRP
                             ); //PER RP CENTROID
         } else {
-            assignNeighbors<1><<<NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerRP), nThreadPerBlock(), nThreadPerBlock()*maxExclusionsPerAtom*sizeof(uint32_t) + nThreadPerBlock()*sizeof(uint32_t)>>>(
+            assignNeighbors<1><<<NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerRP), nThreadPerBlock(), (nThreadPerBlock()/nThreadPerRP)*maxExclusionsPerAtom*sizeof(uint32_t) + nThreadPerBlock()*sizeof(uint32_t)>>>(
                             centroids, nRingPoly, nPerRingPoly, state->gpd.ids(gridIdx),
                             perCellArray.d_data.data(), perBlockArray.d_data.data(), os, ds, ns,
                             bounds.periodic, trace, neighCut*neighCut, neighborlist.data(), warpSize,
