@@ -47,15 +47,13 @@ class FixTIP4PFlexible: public Fix {
 
         void compute_gamma();
 
+        float gamma;
+
         std::vector<int4> waterIds;
 
         int nMolecules;
   
         std::vector<BondVariant> bonds;
-
-        // partition constant derived for the M-site; 
-        // this constant is a function of the geometry for a given TIP4P model
-        float gamma;
 
         bool firstPrepare;
 

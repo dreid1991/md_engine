@@ -423,10 +423,22 @@ __global__ void set_init_vel_correction(int4 *waterIds, float4 *dvs_0, int nMole
   }
 }
 
+template <class DATA, bool DEBUG_BOOL>
+__global__ void settleVelocities(int4 *waterIds, float4 *xs, float4 *xs_0, 
+                               float4 *vs, float4 *vs_0, float4 *dvs_0, 
+                               float4 *fs, float4 *fs_0, float4 *comOld, 
+                               DATA fixRigidData, int nMolecules, 
+                               float dt, float dtf,
+                               int *idToIdxs, BoundsGPU bounds) {
+    int idx = GETIDX();
+    if (idx < nMolecules) {
+        return;
+    }
+}
 
 // implements the SETTLE algorithm for maintaining a rigid water molecule
 template <class DATA, bool DEBUG_BOOL>
-__global__ void compute_SETTLE(int4 *waterIds, float4 *xs, float4 *xs_0, 
+__global__ void settlePositions(int4 *waterIds, float4 *xs, float4 *xs_0, 
                                float4 *vs, float4 *vs_0, float4 *dvs_0, 
                                float4 *fs, float4 *fs_0, float4 *comOld, 
                                DATA fixRigidData, int nMolecules, 
@@ -542,13 +554,14 @@ __global__ void compute_SETTLE(int4 *waterIds, float4 *xs, float4 *xs_0,
         float cosPsi = sqrtf(cosPsiSqr);
 
         // these assertions should likely be removed in the production release
-        if ( (cosPhiSqr <= 0.0) or (cosPsiSqr <= 0.0)) {
+        if (DEBUG_BOOL) {
+            if ( (cosPhiSqr <= 0.0) or (cosPsiSqr <= 0.0)) {
             printf("Molecule %d computed cosPhiSqr %f cosPsiSqr value %f\nAborting.\n", idx, cosPhiSqr, cosPsiSqr);
             __syncthreads();
             assert(cosPhiSqr > 0.0);
             assert(cosPsiSqr > 0.0);
+            }
         }
-        
         // -- all that remains is calculating $\theta$
         // first, do the displacements of the canonical triangle.
         float3 aPrime0 = make_float3(0.0, ra, 0.0);
@@ -632,7 +645,8 @@ __global__ void compute_SETTLE(int4 *waterIds, float4 *xs, float4 *xs_0,
         // add a velocity component corresponding to the displacements of the vertices
         // TODO: this contributes to the virial!
         //       ---- algebraic equivalence ??!! We need a per-atom sum here...
-        
+        // ----- is this /always/ done in GMX? check in their mdrunner when it does constraints
+        //       ---- also check when they call the individual econqForceDispl, etc.
         float3 dvO = (a_pos - posO) / dt;
         float3 dvH1= (b_pos - posH1)/ dt;
         float3 dvH2= (c_pos - posH2)/ dt;
@@ -1338,7 +1352,7 @@ bool FixRigid::stepFinal() {
     int nAtoms = state->atoms.size();
     // first, unconstrained velocity update continues: distribute the force from the M-site
     //        and integrate the velocities accordingly.  Update the forces as well.
-    // Next,  do compute_SETTLE as usual on the (as-yet) unconstrained positions & velocities
+    // Next,  do settlePositions as usual on the (as-yet) unconstrained positions & velocities
 
     printf("FixRigid::stepFinal at turn %d\n", (int) state->turn);
     // from IntegratorVerlet
@@ -1369,17 +1383,21 @@ bool FixRigid::stepFinal() {
 
     }
 
-    cudaDeviceSynchronize();
-
-    SAFECALL((compute_SETTLE<FixRigidData, true><<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), 
+    // algorithm for 'settling' the positions
+    settlePositions<FixRigidData, true><<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), 
                                                 xs_0.data(), gpd.vs(activeIdx), vs_0.data(), 
                                                 dvs_0.data(), gpd.fs(activeIdx), fs_0.data(), 
                                                 com.data(), fixRigidData, nMolecules, dt, dtf, 
-                                                gpd.idToIdxs.d_data.data(), bounds)));
+                                                gpd.idToIdxs.d_data.data(), bounds);
 
- 
-    cudaDeviceSynchronize();
-    //printf("did compute_SETTLE!\n");
+    // algorithm for 'settling the velocities
+    settleVelocities<FixRigidData,true><<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx),
+                                                xs_0.data(), gpd.vs(activeIdx), vs_0.data(), 
+                                                dvs_0.data(), gpd.fs(activeIdx), fs_0.data(), 
+                                                com.data(), fixRigidData, nMolecules, dt, dtf, 
+                                                gpd.idToIdxs.d_data.data(), bounds);
+
+
     // finally, reset the position of the M-site to be consistent with that of the new, constrained water molecule
     if (TIP4P) {
         /*

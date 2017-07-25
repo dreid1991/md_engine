@@ -85,6 +85,7 @@ __global__ void printGPD_Flexible(int4 *waterIds, int* idToIdxs, float4 *xs, flo
 // distribute the m site forces, and do an unconstrained integration of the velocity component corresponding to this additional force
 // -- this is required for 4-site models with a massless particle.
 //    see compute_gamma() function for details.
+// ---- but! gamma is a /variable/ for flexible geometries!
 template <bool VIRIALS>
 __global__ void distributeMSiteFlexible(int4 *waterIds, float4 *xs, float4 *vs, float4 *fs, 
                                 Virial *virials,
@@ -122,8 +123,8 @@ __global__ void distributeMSiteFlexible(int4 *waterIds, float4 *xs, float4 *vs, 
 
         // this expression derived below in FixTIP4PFlexible::compute_gamma() function
         // -- these are the forces from the M-site partitioned for distribution to the atoms of the water molecule
-        float3 fs_O_d = make_float3(fs_M) * (1.0 - (2.0 * gamma));
-        float3 fs_H_d = make_float3(fs_M) * gamma;
+        float3 fs_O_d = make_float3(fs_M) * gamma;
+        float3 fs_H_d = make_float3(fs_M) * (1.0 - gamma) * 0.5;
 
         // get the inverse masses from velocity variables above
         float invMassO = vel_O.w;
@@ -182,7 +183,7 @@ __global__ void distributeMSiteFlexible(int4 *waterIds, float4 *xs, float4 *vs, 
     }
 }
 
-__global__ void setMSiteFlexible(int4 *waterIds, int *idToIdxs, float4 *xs, int nMolecules, double rOM, BoundsGPU bounds) {
+__global__ void setMSiteFlexible(int4 *waterIds, int *idToIdxs, float4 *xs, float gamma, int nMolecules, BoundsGPU bounds) {
 
     int idx = GETIDX();
     if (idx < nMolecules) {
@@ -213,7 +214,8 @@ __global__ void setMSiteFlexible(int4 *waterIds, int *idToIdxs, float4 *xs, int 
         float3 r_ik = bounds.minImage( (pos_H2 - pos_O) );
 
         // rOM is the O-M bond length
-        float3 r_M  = (pos_O) + (rOM * ( (r_ij + r_ik) / ( (length(r_ij + r_ik)))));
+        // -- see formula in q-TIP4P/F paper
+        float3 r_M  = (gamma * pos_O) + (0.5 * (1.0 - gamma) * (r_ij + r_ik)) ;
         //printf("new position of M-site molecule %d r_M: %f %f %f\n      position of oxygen %d: %f %f %f\n", idx, r_M.x, r_M.y, r_M.z, id_O, pos_O.x, pos_O.y, pos_O.z);
         float4 pos_M_new = make_float4(r_M.x, r_M.y, r_M.z, pos_M_whole.w);
         xs[idToIdxs[id_M]] = pos_M_new;
@@ -309,12 +311,14 @@ void FixTIP4PFlexible::setStyleBondLengths() {
         rOH = 0.95720000000;
         theta = 1.82421813;
         rHH = 2.0 * rOH * sin(0.5*theta);
+        compute_gamma();
+
     } else if ( (style == "DEFAULT") or (style == "q-TIP4P/F")) {
         rOM = 0.147144032; // calculated separately, as (1.0 - gamma) * ( (h1Pos + h2Pos) / 2), gamma = 0.73612 in the paper
         rOH = 0.9419; // given directly in the paper
         theta = 1.8744836; // given directly in the paper
         rHH = 2.0 * rOH * sin(0.5*theta);
-        
+        gamma = 0.73612;
     } else {
         // other models here; give appropriate keywords
         if ( (rOM == 0.0) or (rOH == 0.0) or (rHH == 0.0)) {
@@ -337,7 +341,7 @@ void FixTIP4PFlexible::handleBoundsChange() {
     //    within the simulation.  Otherwise, the M-site will be out of its prescribed position.
     // we need to reset the position of the M-Site prior to calculating the forces
     
-    setMSiteFlexible<<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), gpd.idToIdxs.d_data.data(), gpd.xs(activeIdx), nMolecules, rOM,  bounds);
+    setMSiteFlexible<<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), gpd.idToIdxs.d_data.data(), gpd.xs(activeIdx), gamma, nMolecules,  bounds);
 
     return;
 
@@ -404,17 +408,17 @@ void FixTIP4PFlexible::compute_gamma() {
      *  Then, we have the following expression for r_d:
      * 
      *  (Expression 1)
-     *  r_d = r_i + 0.1546 * ((r_ij + r_ik) / ( len(r_ij + r_ik)))
+     *  r_d = r_i + r_OM * ((r_ij + r_ik) / ( len(r_ij + r_ik)))
      *
      *  Then, rearranging,
      *  
      *  (Expression 2)
-     *  r_d = r_i + 0.1546 * ( (r_j + r_k - 2 * r_i) / (len(r_j + r_k - 2 * r_i)))
+     *  r_d = r_i + r_OM * ( (r_j + r_k - 2 * r_i) / (len(r_j + r_k - 2 * r_i)))
      * 
      *  So, gamma is then
      *  
      *  (Expression 3)
-     *  gamma = 0.1546 / len(r_j + r_k - 2 * r_i)
+     *  gamma = r_OM / len(r_j + r_k - 2 * r_i)
      *
      *  And force is partitioned according to:
      *
@@ -425,35 +429,6 @@ void FixTIP4PFlexible::compute_gamma() {
      *  which we get from straightforward differentiation of the re-arranged positions in Expression 2 above.
      */
 
-    /*
-    // get the bounds
-    BoundsGPU &bounds = state->boundsGPU;
-
-    
-    // grab any water molecule; the first will do
-    // -- at this point, the waterIds array is set up
-    int4 waterMolecule = waterIds[0];
-
-    // ids in waterMolecule are (.x, .y, .z, .w) ~ (O, H1, H2, M)
-    Vector r_i_v = state->idToAtom(waterMolecule.x).pos;
-    Vector r_j_v = state->idToAtom(waterMolecule.y).pos;
-    Vector r_k_v = state->idToAtom(waterMolecule.z).pos;
-
-    // cast above vectors as float3 for use in bounds.minImage
-
-    float3 r_i = make_float3(r_i_v[0], r_i_v[1], r_i_v[2]);
-    float3 r_j = make_float3(r_j_v[0], r_j_v[1], r_j_v[2]);
-    float3 r_k = make_float3(r_k_v[0], r_k_v[1], r_k_v[2]);
-    
-    // get the minimum image vectors r_ij, r_ikz
-    float3 r_ij = bounds.minImage(r_j - r_i);
-    float3 r_ik = bounds.minImage(r_k - r_i);
-
-    // denominator of expression 3, written using the minimum image
-    float denominator = length( ( r_ij + r_ik) );
-    */
-
-    // so take it that a fictitious oxygen is at the origin (0,0,0)
     double phi = (M_PI - theta) * 0.5;
     Vector H1Pos = Vector(cos(phi), sin(phi), 0.);
     phi += theta;
@@ -528,20 +503,6 @@ bool FixTIP4PFlexible::prepareForRun() {
     GPUData &gpd = state->gpd;
     int activeIdx = gpd.activeIdx();
     BoundsGPU &bounds = state->boundsGPU;
-
-    // compute the force partition constant
-    compute_gamma();
-    
-    //printf("printing data prior to partitioning in FixTIP4PFlexible::prepareForRun\n");
-    //cudaDeviceSynchronize();
-    //printGPD_Flexible<<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(),
-    //                                                    gpd.idToIdxs.d_data.data(), gpd.xs(activeIdx),
-    //                                                    gpd.vs(activeIdx),  gpd.fs(activeIdx),
-    //                                                    nMolecules);
-    //
-    //
-    //cudaDeviceSynchronize();
-    //printf("END: printing data prior to partitioning in FixTIP4PFlexible::prepareForRun\n");
     
 
     // partition the intitial forces ( no velocity update )
@@ -572,7 +533,6 @@ bool FixTIP4PFlexible::stepFinal() {
     // first, unconstrained velocity update continues: distribute the force from the M-site
     //        and integrate the velocities accordingly.  Update the forces as well.
 
-    // TODO: correct M-site partitioning of the virials.  likely need to take a look at the change of variables occurring
     bool Virials = false;
 
     float dtf = 0.5f * state->dt * state->units.ftm_to_v;
