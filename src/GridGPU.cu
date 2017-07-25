@@ -513,18 +513,20 @@ __global__ void assignNeighbors(float4 *xs, int nRingPoly, int nPerRingPoly, uin
     int nthRPInBlock = threadIdx.x/nThreadPerRP;
     exclIdxLo_shr = nthRPInBlock * maxExclusionsPerAtom;
     bool validThread = idx < nRingPoly * nThreadPerRP;
+    //printf("N RING POLY IS %d my tid %d nthreadper %d valid %d, \n", nRingPoly, threadIdx.x, nThreadPerRP, (int)validThread);
     if (validThread) {
         myId = ids[(idx/nThreadPerRP)*nPerRingPoly]; //in PIMD, I just need the id of _one_ of the atoms in my ring poly b/c all the 1-2,3,4 dists are the same
         int exclIdxLo = exclusionIndexes[myId];
         int exclIdxHi = exclusionIndexes[myId+1];
         numExclusions = exclIdxHi - exclIdxLo;
         exclIdxHi_shr = exclIdxLo_shr + numExclusions;
+        //printf("copying bounds %d %d, shared bounds %d %d\n", exclIdxLo, exclIdxHi, exclIdxLo_shr, exclIdxHi_shr);
         if (myIdxInTeam==0) {
             for (int i=exclIdxLo; i<exclIdxHi; i++) {
                 uint exclusion = exclusionIds[i];
-                exclusionIds_shr[maxExclusionsPerAtom*nthRPInBlock + i - exclIdxLo] = exclusion;
-                //printf("I am thread %d and I am copying %u from global %d to shared %d\n",
-                //threadIdx.x, exclusion, i, maxExclusionsPerAtom*threadIdx.x+i-exclIdxLo);
+                exclusionIds_shr[exclIdxLo_shr + i - exclIdxLo] = exclusion;
+                //exclusionIds_shr[exclIdxLo_shr + i] = exclusion;
+                //printf("I am thread %d and I am copying %u from global %d to shared %d\n", threadIdx.x, exclusion, i, maxExclusionsPerAtom*threadIdx.x+i-exclIdxLo);
             }
         }
     }
