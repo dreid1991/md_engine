@@ -1,6 +1,7 @@
 #pragma once
 
 #include "FixBondHarmonic.h"
+#include "FixBondQuartic.h"
 #include "FixBondFENE.h"
 #include "FixAngleHarmonic.h"
 #include "FixAngleCHARMM.h"
