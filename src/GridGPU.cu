@@ -817,22 +817,21 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
          *     ghosts too
          */
         if (nThreadPerRP==1) {
-            SAFECALL((countNumNeighbors<0><<<NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerRP), nThreadPerBlock()>>>(
+            countNumNeighbors<0><<<NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerRP), nThreadPerBlock()>>>(
                             centroids, nRingPoly, 
                             perAtomArray.d_data.data(), perCellArray.d_data.data(),
-                            os, ds, ns, bounds.periodic, trace, neighCut*neighCut, nThreadPerRP))); //PER RP CENTROID
+                            os, ds, ns, bounds.periodic, trace, neighCut*neighCut, nThreadPerRP); //PER RP CENTROID
         } else {
-            printf("NBLOCK %d\n", NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerRP));
-            SAFECALL((countNumNeighbors<1><<<NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerRP), nThreadPerBlock(), nThreadPerBlock()*sizeof(uint16_t)>>>(
+            countNumNeighbors<1><<<NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerRP), nThreadPerBlock(), nThreadPerBlock()*sizeof(uint16_t)>>>(
                             centroids, nRingPoly, 
                             perAtomArray.d_data.data(), perCellArray.d_data.data(),
-                            os, ds, ns, bounds.periodic, trace, neighCut*neighCut, nThreadPerRP))); //PER RP CENTROID
+                            os, ds, ns, bounds.periodic, trace, neighCut*neighCut, nThreadPerRP); //PER RP CENTROID
         }
 
  
-        SAFECALL((computeMaxMemSizePerWarp<<<NBLOCKVAR(nRingPoly, nThreadPerBlock()), nThreadPerBlock(), nThreadPerBlock()*sizeof(uint16_t)>>>(
+        computeMaxMemSizePerWarp<<<NBLOCKVAR(nRingPoly, nThreadPerBlock()), nThreadPerBlock(), nThreadPerBlock()*sizeof(uint16_t)>>>(
                     nRingPoly, perAtomArray.d_data.data(),
-                    perBlockArray_maxNeighborsInBlock.data(), warpSize, nThreadPerRP))); // MAKE NUM NP VARIABLE
+                    perBlockArray_maxNeighborsInBlock.data(), warpSize, nThreadPerRP); // MAKE NUM NP VARIABLE
 
         /*
         //delete
@@ -872,21 +871,19 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
         }
 
         if (nThreadPerRP==1) {
-            cout << "MAX EXCLUSIONS " << maxExclusionsPerAtom << endl;
-            SAFECALL((assignNeighbors<0><<<NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerRP), nThreadPerBlock(), (nThreadPerBlock()/nThreadPerRP)*maxExclusionsPerAtom*sizeof(uint32_t)>>>(
+            assignNeighbors<0><<<NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerRP), nThreadPerBlock(), (nThreadPerBlock()/nThreadPerRP)*maxExclusionsPerAtom*sizeof(uint32_t)>>>(
                             centroids, nRingPoly, nPerRingPoly, state->gpd.ids(gridIdx),
                             perCellArray.d_data.data(), perBlockArray.d_data.data(), os, ds, ns,
                             bounds.periodic, trace, neighCut*neighCut, neighborlist.data(), warpSize,
                             exclusionIndexes.data(), exclusionIds.data(), maxExclusionsPerAtom, nThreadPerRP
-                            ))); //PER RP CENTROID
+                            ); //PER RP CENTROID
         } else {
-            cout << "Building nlists " << nThreadPerBlock() << " " << nThreadPerRP << endl;
-            SAFECALL((assignNeighbors<1><<<NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerRP), nThreadPerBlock(), (nThreadPerBlock()/nThreadPerRP)*maxExclusionsPerAtom*sizeof(uint32_t) + nThreadPerBlock()*sizeof(uint32_t)>>>(
+            assignNeighbors<1><<<NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerRP), nThreadPerBlock(), (nThreadPerBlock()/nThreadPerRP)*maxExclusionsPerAtom*sizeof(uint32_t) + nThreadPerBlock()*sizeof(uint32_t)>>>(
                             centroids, nRingPoly, nPerRingPoly, state->gpd.ids(gridIdx),
                             perCellArray.d_data.data(), perBlockArray.d_data.data(), os, ds, ns,
                             bounds.periodic, trace, neighCut*neighCut, neighborlist.data(), warpSize,
                             exclusionIndexes.data(), exclusionIds.data(), maxExclusionsPerAtom, nThreadPerRP
-                            ))); //PER RP CENTROID
+                            ); //PER RP CENTROID
         }
 
         /*

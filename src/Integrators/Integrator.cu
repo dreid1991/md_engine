@@ -296,7 +296,6 @@ double Integrator::tune() {
                 cudaDeviceSynchronize();
                 auto start = std::chrono::high_resolution_clock::now();
                 for (int k=0; k<nNlistBuilds; k++) {
-                    printf("nlist build tune %d %d\n", threadPerBlock, threadPerAtom);
                     state->gridGPU.periodicBoundaryConditions(-1, true);
                     state->nlistBuildCount--;
                 }

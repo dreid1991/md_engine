@@ -154,14 +154,8 @@ __global__ void compute_force_iso
             bool computedForce = false;
             if (COMP_PAIRS && lenSqr < rCutSqr) {
                 //add to running total of the atom's forces
-                //float3 DIFF = pairEval.force(dr, params_pair, lenSqr, multiplier);
                 
                 force += pairEval.force(dr, params_pair, lenSqr, multiplier);
-                /*
-                if (length(DIFF) > 100) {
-                    printf("tid %d force %f dr %f mult %f myX %f\n", threadIdx.x, length(DIFF), sqrtf(lenSqr), multiplier, pos.x);
-                }
-                */
                 computedForce = true;
             }
             if (COMP_CHARGES && lenSqr < qCutoffSqr) {
