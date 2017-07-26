@@ -73,6 +73,9 @@ class FixTIP4PFlexible: public Fix {
         // handleBoundsChange
         void handleBoundsChange();
     
+        // does exactly what it says
+        void callPrintKernel();
+
         // add a molecule to the fix
         void addMolecule(int, int, int, int);
 

@@ -647,9 +647,9 @@ __global__ void settlePositions(int4 *waterIds, float4 *xs, float4 *xs_0,
         //       ---- algebraic equivalence ??!! We need a per-atom sum here...
         // ----- is this /always/ done in GMX? check in their mdrunner when it does constraints
         //       ---- also check when they call the individual econqForceDispl, etc.
-        float3 dvO = (a_pos - posO) / dt;
-        float3 dvH1= (b_pos - posH1)/ dt;
-        float3 dvH2= (c_pos - posH2)/ dt;
+        float3 dvO = (a_pos - make_float3(posO_whole)) / dt;
+        float3 dvH1= (b_pos - make_float3(posH1_whole))/ dt;
+        float3 dvH2= (c_pos - make_float3(posH2_whole))/ dt;
         
         float4 velO_whole = vs[idxO];
         float4 velH1_whole= vs[idxH1];

@@ -210,12 +210,25 @@ __global__ void setMSiteFlexible(int4 *waterIds, int *idToIdxs, float4 *xs, floa
         // compute vectors r_ij and r_ik according to minimum image convention
         // where r_ij = r_j - r_i, r_ik = r_k - r_i,
         // and r_i, r_j, r_k are the 3-component vectors describing the positions of O, H1, H2, respectively
-        float3 r_ij = bounds.minImage( (pos_H1 - pos_O) );
-        float3 r_ik = bounds.minImage( (pos_H2 - pos_O) );
+        float3 r_ij = bounds.minImage( pos_H1 - pos_O );
+        float3 r_ik = bounds.minImage( pos_H2 - pos_O );
+
+        printf("Coords O, H, H, M:\n%f %f %f\n%f %f %f\n%f %f %f\n%f %f %f\n",
+               pos_O.x, pos_O.y, pos_O.z,
+               pos_H1.x, pos_H1.y, pos_H1.z,
+               pos_H2.x, pos_H2.y, pos_H2.z,
+               pos_M.x, pos_M.y, pos_M.z);
+
+        printf("Minimum image vectors found to be:\n%f %f %f\n%f %f %f\n",
+               r_ij.x, r_ij.y, r_ij.z,
+               r_ik.x, r_ik.y, r_ik.z);
 
         // rOM is the O-M bond length
         // -- see formula in q-TIP4P/F paper
         float3 r_M  = (gamma * pos_O) + (0.5 * (1.0 - gamma) * (r_ij + r_ik)) ;
+
+        printf("r_M calculated to be: \n%f %f %f\n",
+               r_M.x, r_M.y, r_M.z);
         //printf("new position of M-site molecule %d r_M: %f %f %f\n      position of oxygen %d: %f %f %f\n", idx, r_M.x, r_M.y, r_M.z, id_O, pos_O.x, pos_O.y, pos_O.z);
         float4 pos_M_new = make_float4(r_M.x, r_M.y, r_M.z, pos_M_whole.w);
         xs[idToIdxs[id_M]] = pos_M_new;
@@ -223,7 +236,7 @@ __global__ void setMSiteFlexible(int4 *waterIds, int *idToIdxs, float4 *xs, floa
 }
 
 template <bool VIRIALS>
-__global__ void initialForcePartitionFlexible(int4 *waterIds, float4 *xs, float4 *fs, 
+__global__ void initialForcePartitionFlexible(int4 *waterIds, float4 *xs, float4* vs, float4 *fs, 
                                       Virial *virials, int nMolecules, float gamma,
                                       int *idToIdxs, BoundsGPU bounds) {
 
@@ -257,14 +270,14 @@ __global__ void initialForcePartitionFlexible(int4 *waterIds, float4 *xs, float4
         // this expression derived below in FixTIP4PFlexible::compute_gamma() function
         // -- these are the forces from the M-site partitioned for distribution to the atoms of the water molecule
         float3 fs_O_d = (make_float3(fs_M)) * (1.0 - (2.0 * gamma));
-        printf("value of fs_O_d from atom M id %d: %f %f %f\n", waterIds[idx].w, fs_O_d.x, fs_O_d.y, fs_O_d.z);
+        //printf("value of fs_O_d from atom M id %d: %f %f %f\n", waterIds[idx].w, fs_O_d.x, fs_O_d.y, fs_O_d.z);
         float3 fs_H_d = (make_float3(fs_M)) * gamma;
 
         if (VIRIALS) {
             Virial virialToDistribute = virials[idToIdxs[id_M]];
         
-            Virial distribute_O = virialToDistribute * (1.0 - (2.0 * gamma));
-            Virial distribute_H = virialToDistribute * gamma;
+            Virial distribute_O = virialToDistribute * gamma;
+            Virial distribute_H = virialToDistribute * (0.5) * (1.0 - gamma);
             
             virials[idToIdxs[id_O]] += distribute_O;
             virials[idToIdxs[id_H1]] += distribute_H;
@@ -284,9 +297,11 @@ __global__ void initialForcePartitionFlexible(int4 *waterIds, float4 *xs, float4
         fs[idx_O] = fs_O;
         fs[idx_H1]= fs_H1;
         fs[idx_H2]= fs_H2;
-
+        
+        float4 vs_M = vs[idx_M];
         // zero the force on the M-site, just because
         fs[idx_M] = make_float4(0.0, 0.0, 0.0,fs_M.w);
+        vs[idx_M] = make_float4(0.0, 0.0, 0.0, vs_M.w);
         // this concludes re-distribution of the forces;
     }
 }
@@ -354,10 +369,6 @@ void FixTIP4PFlexible::updateForPIMD(int nPerRingPoly) {
     // at this point, we have all of our molecules added via ::addMolecule(*args)
     nMolecules = waterIds.size() * nPerRingPoly; // this is the total number of beads for PIMD
     
-    // note that this is implemented /before/ ::prepareForRun is called!
-    
-
-
     // we have multiplied all instances of a given atom in the simulation by nPerRingPoly,
     // --- so, now there are nPerRingPoly copies of, e.g., oxygen, before we encounter  the hydrogen, etc.
   
@@ -508,10 +519,13 @@ bool FixTIP4PFlexible::prepareForRun() {
     // partition the intitial forces ( no velocity update )
     initialForcePartitionFlexible<false><<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), 
                                                             gpd.xs(activeIdx),
+                                                            gpd.vs(activeIdx),
                                                             gpd.fs(activeIdx),
                                                             gpd.virials.d_data.data(),
                                                             nMolecules, gamma, gpd.idToIdxs.d_data.data(), bounds);
     
+    
+    setMSiteFlexible<<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), gpd.idToIdxs.d_data.data(), gpd.xs(activeIdx), gamma, nMolecules,  bounds);
 
     //printf("Finished the initial force partition in FixTIP4PFlexible!\n");
     //cudaDeviceSynchronize();

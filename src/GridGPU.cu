@@ -32,9 +32,6 @@ void GridGPU::initArrays() {
     buildFlag.d_data.memset(0);
     copyPositionsAsync();
     
-    buildFlag.d_data.memset(0);
-    // TODO delete cudaDS() call below
-    cudaDeviceSynchronize();
 }
 
 
