@@ -258,8 +258,6 @@ boost::python::list Integrator::singlePointEngPythonPerParticle() {
 
 
 double Integrator::tune() {
-    return 0;
-    
     auto startTune = std::chrono::high_resolution_clock::now();
 
     std::vector<int> threadPerBlocks= {32, 64, 128, 256};
@@ -289,22 +287,29 @@ double Integrator::tune() {
         for (int j=0; j<threadPerAtoms.size(); j++) {
             int threadPerBlock = threadPerBlocks[i];
             int threadPerAtom = threadPerAtoms[j];
-            setParams(threadPerBlock, threadPerAtom);
-            state->gridGPU.periodicBoundaryConditions(-1, true);
-            state->nlistBuildCount--;
-            cudaDeviceSynchronize();
-            auto start = std::chrono::high_resolution_clock::now();
-            for (int k=0; k<nNlistBuilds; k++) {
+
+            int nBlock = NBLOCKTEAM(state->atoms.size(), threadPerBlock, threadPerAtom);
+            if (nBlock < 65536) {
+                setParams(threadPerBlock, threadPerAtom);
                 state->gridGPU.periodicBoundaryConditions(-1, true);
                 state->nlistBuildCount--;
+                cudaDeviceSynchronize();
+                auto start = std::chrono::high_resolution_clock::now();
+                for (int k=0; k<nNlistBuilds; k++) {
+                    printf("nlist build tune %d %d\n", threadPerBlock, threadPerAtom);
+                    state->gridGPU.periodicBoundaryConditions(-1, true);
+                    state->nlistBuildCount--;
+                }
+                for (int k=0; k<nForceEvals; k++) {
+                    force(false);
+                }
+                cudaDeviceSynchronize();
+                auto end = std::chrono::high_resolution_clock::now();
+                std::chrono::duration<double> duration = end - start;
+                timesWithBlock.push_back(duration.count());
+            } else {
+                timesWithBlock.push_back(DBL_MAX);
             }
-            for (int k=0; k<nForceEvals; k++) {
-                force(false);
-            }
-            cudaDeviceSynchronize();
-            auto end = std::chrono::high_resolution_clock::now();
-            std::chrono::duration<double> duration = end - start;
-            timesWithBlock.push_back(duration.count());
         }
         times.push_back(timesWithBlock);
     }
