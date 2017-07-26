@@ -154,6 +154,7 @@ __global__ void compute_force_iso
             bool computedForce = false;
             if (COMP_PAIRS && lenSqr < rCutSqr) {
                 //add to running total of the atom's forces
+                
                 force += pairEval.force(dr, params_pair, lenSqr, multiplier);
                 computedForce = true;
             }
@@ -171,6 +172,7 @@ __global__ void compute_force_iso
             }
 
         }   
+       // printf("force %f %f %f\n", forceSum.x, forceSum.y, forceSum.z);
         if (MULTITHREADPERATOM) {
             forces_shr[threadIdx.x] = forceSum;
             reduceByN_NOSYNC<float3>(forces_shr, nThreadPerAtom);
@@ -180,7 +182,7 @@ __global__ void compute_force_iso
                 fs[atomIdx] = forceCur;
             }
             if (COMP_VIRIALS) {
-                virials_shr[threadIdx.x] = virialsSum;;
+                virials_shr[threadIdx.x] = virialsSum;
                 reduceByN_NOSYNC<Virial>(virials_shr, nThreadPerAtom);
                 if (myIdxInTeam==0) {
                     Virial tmp = virials_shr[threadIdx.x] * 0.5;

@@ -134,7 +134,7 @@ void InitializeAtoms::initTemp(SHARED(State) state, string groupHandle,
         }
         sumKe += 2.0 * a->kinetic();
     }
-    double curTemp = (state->units.mvv_to_eng / state->units.boltz) * sumKe / ((state->is2d ? 2 : 3) * (atoms.size()-1));
+    double curTemp = (state->units.mvv_to_eng / state->units.boltz) * sumKe / ((state->is2d ? 2 : 3) * (atoms.size()));
     for (Atom *a : atoms) {
         a->vel *= sqrt(temp / curTemp);
     }
