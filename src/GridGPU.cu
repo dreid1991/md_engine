@@ -1084,6 +1084,7 @@ void GridGPU::handleExclusionsForcers() {
 
 void GridGPU::handleExclusionsDistance() {
 
+	//argument denontes how far OUT we are looking, so 3 corresponds to look for 1-2, 1-3, and 1-4 neighbors
     const ExclusionList exclList = generateExclusionList(3);
     std::vector<int> idxs;
     std::vector<uint> excludedById;
