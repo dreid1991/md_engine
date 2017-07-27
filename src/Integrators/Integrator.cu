@@ -280,6 +280,8 @@ double Integrator::tune() {
         }
     };
 
+	int curNTPB = state->nThreadPerBlock;
+	int curNTPA = state->nThreadPerAtom;
     vector<vector<double> > times;
     //REMEMBER TO MAKE COPY OF FORCES AND SET THEM BACK AFTER THIS;
     for (int i=0; i<threadPerBlocks.size(); i++) {
@@ -330,6 +332,10 @@ double Integrator::tune() {
         }
     }
     setParams(bestNTPB, bestNTPA);
+	if (bestNTPB != curNTPB or bestNTPA != curNTPA) {
+		printf("Optimized runtime parameters from %d to %d threads per block and from %d to %d threads per atom\n", curNTPB, bestNTPB, curNTPA, bestNTPA);
+	}
+
     state->gridGPU.periodicBoundaryConditions(-1, true);
     state->nlistBuildCount--;
     //then pick best one
