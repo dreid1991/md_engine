@@ -12,6 +12,8 @@
 #include "cutils_func.h"
 
 using namespace MD_ENGINE;
+using std::cout;
+using std::endl;
 
 namespace py = boost::python;
 
@@ -502,7 +504,7 @@ IntegratorVerlet::IntegratorVerlet(State *state_)
 {
 
 }
-void IntegratorVerlet::run(int numTurns)
+double IntegratorVerlet::run(int numTurns)
 {
 
     basicPreRunChecks();
@@ -526,12 +528,18 @@ void IntegratorVerlet::run(int numTurns)
 
 	
     auto start = std::chrono::high_resolution_clock::now();
+
     DataManager &dataManager = state->dataManager;
     dtf = 0.5f * state->dt * state->units.ftm_to_v;
+    int tuneEvery = state->tuneEvery;
+    bool haveTunedWithData = false;
+    double timeTune = 0;
     for (int i=0; i<numTurns; ++i) {
+
         if (state->turn % periodicInterval == 0) {
             state->gridGPU.periodicBoundaryConditions();
         }
+
         int virialMode = dataManager.getVirialModeForTurn(state->turn);
 
         stepInit(virialMode==1 or virialMode==2);
@@ -548,6 +556,14 @@ void IntegratorVerlet::run(int numTurns)
         //printf("preForce IS COMMENTED OUT\n");
 
         handleBoundsChange();
+
+        if (state->turn % tuneEvery == 0) {
+            //this goes here because forces are zero at this point.  I don't need to save any forces this way
+            timeTune += tune();
+        } else if (not haveTunedWithData and state->turn-state->runInit < tuneEvery and state->nlistBuildCount > 20) {
+            timeTune += tune();
+            haveTunedWithData = true;
+        }
 
         // Recalculate forces
         force(virialMode);
@@ -579,10 +595,12 @@ void IntegratorVerlet::run(int numTurns)
     CUT_CHECK_ERROR("after run\n");
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> duration = end - start;
+    double ptsps = state->atoms.size()*numTurns / (duration.count() - timeTune);
     mdMessage("runtime %f\n%e particle timesteps per second\n",
-              duration.count(), state->atoms.size()*numTurns / duration.count());
+              duration.count(), ptsps);
 
     basicFinish();
+    return ptsps;
 }
 
 void IntegratorVerlet::nve_v() {

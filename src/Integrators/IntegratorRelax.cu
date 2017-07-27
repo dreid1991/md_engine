@@ -2,6 +2,7 @@
 #include "cutils_func.h"
 #include "State.h"
 
+#include "Fix.h"
 using namespace MD_ENGINE;
 
 IntegratorRelax::IntegratorRelax(SHARED(State) state_)
@@ -87,7 +88,19 @@ __global__ void FIRE_preForce_cu(int nAtoms, float4 *xs, float4 *vs, float4 *fs,
 double IntegratorRelax::run(int numTurns, double fTol) {
     std::cout << "FIRE relaxation\n";
     basicPreRunChecks();  
-    basicPrepare(numTurns);
+    std::vector<bool> prepared = basicPrepare(numTurns);
+    force(true);
+
+    for (int i = 0; i<prepared.size(); i++) {
+        if (!prepared[i]) {
+            for (Fix *f : state->fixes) {
+                bool isPrepared = f->prepareForRun();
+                if (!isPrepared) {
+                    mdError("A fix is unable to be instantiated correctly.");
+                }
+            }
+        }
+    }
 
     CUT_CHECK_ERROR("FIRE relaxation init failed");  // Debug feature, checks error code
 

@@ -9,23 +9,49 @@
 #define N_DATA_PER_THREAD 4 //must be power of 2, 4 found to be fastest for a floats and float4s
 //tests show that N_DATA_PER_THREAD = 4 is fastest
 
-inline __device__ int baseNeighlistIdx(const uint32_t *cumulSumMaxPerBlock, int warpSize) { 
-    uint32_t cumulSumUpToMe = cumulSumMaxPerBlock[blockIdx.x];
-    uint32_t maxNeighInMyBlock = cumulSumMaxPerBlock[blockIdx.x+1] - cumulSumUpToMe;
+inline __device__ int baseNeighlistIdx(const uint32_t *cumulSumMaxMemPerWarp, int warpSize, int nThreadPerAtom) { 
+    uint32_t cumulSumUpToMe = cumulSumMaxMemPerWarp[blockIdx.x];
+    uint32_t memSizePerWarpMe = cumulSumMaxMemPerWarp[blockIdx.x+1] - cumulSumUpToMe;
+    int warpsPerBlock = blockDim.x/warpSize;
     int myWarp = threadIdx.x / warpSize;
     int myIdxInWarp = threadIdx.x % warpSize;
-    return blockDim.x * cumulSumMaxPerBlock[blockIdx.x] + maxNeighInMyBlock * warpSize * myWarp + myIdxInWarp;
+    return warpsPerBlock * cumulSumUpToMe + memSizePerWarpMe * myWarp + myIdxInWarp;
 }
 
-inline __device__ int baseNeighlistIdxFromRPIndex(const uint32_t *cumulSumMaxPerBlock, int warpSize, int myRingPolyIdx) { 
+inline __device__ int baseNeighlistIdxFromRPIndex(const uint32_t *cumulSumMaxMemPerWarp, int warpSize, int myRingPolyIdx, int nThreadPerAtom) { 
+    int nAtomPerBlock = blockDim.x / nThreadPerAtom;
+    int      blockIdx           = myRingPolyIdx / nAtomPerBlock;
+    uint32_t cumulSumUpToMe     = cumulSumMaxMemPerWarp[blockIdx];
+    uint32_t memSizePerWarpMe   = cumulSumMaxMemPerWarp[blockIdx+1] - cumulSumUpToMe;
+    int nthAtomInBlock          = myRingPolyIdx % nAtomPerBlock;
+    int nAtomPerWarp            = warpSize / nThreadPerAtom;
+    int myWarp                  = nthAtomInBlock / nAtomPerWarp;
+    int myIdxInWarp             = nthAtomInBlock % nAtomPerWarp;
+    int warpsPerBlock           = blockDim.x/warpSize;
+    return warpsPerBlock * cumulSumUpToMe + memSizePerWarpMe * myWarp + myIdxInWarp * nThreadPerAtom;
+}
+inline __device__ int baseNeighlistIdxFromRPIndex(const uint32_t *cumulSumMaxMemPerWarp, int warpSize, int myRingPolyIdx) { 
     int      blockIdx           = myRingPolyIdx / blockDim.x;
-    uint32_t cumulSumUpToMe     = cumulSumMaxPerBlock[blockIdx];
-    uint32_t maxNeighInMyBlock  = cumulSumMaxPerBlock[blockIdx+1] - cumulSumUpToMe;
+    uint32_t cumulSumUpToMe     = cumulSumMaxMemPerWarp[blockIdx];
+    uint32_t memSizePerWarpMe   = cumulSumMaxMemPerWarp[blockIdx+1] - cumulSumUpToMe;
+    int nthAtomInBlock          = myRingPolyIdx % blockDim.x;
+    int myWarp                  = nthAtomInBlock / warpSize;
+    int myIdxInWarp             = nthAtomInBlock % warpSize;
+    int warpsPerBlock           = blockDim.x/warpSize;
+    return warpsPerBlock * cumulSumUpToMe + memSizePerWarpMe * myWarp + myIdxInWarp;
+}
+/*
+inline __device__ int baseNeighlistIdxFromRPIndex(const uint32_t *cumulSumMaxMemPerWarp, int warpSize, int myRingPolyIdx, int nThreadPerAtom) { 
+    int      blockIdx           = myRingPolyIdx / blockDim.x;
+    uint32_t cumulSumUpToMe     = cumulSumMaxMemPerWarp[blockIdx];
+    uint32_t memSizePerWarpMe = cumulSumMaxMemPerWarp[blockIdx+1] - cumulSumUpToMe;
     int      myWarp             = ( myRingPolyIdx % blockDim.x) / warpSize;
     int      myIdxInWarp        = myRingPolyIdx % warpSize;
-    return blockDim.x * cumulSumMaxPerBlock[blockIdx] + maxNeighInMyBlock * warpSize * myWarp + myIdxInWarp;
+    int warpsPerBlock = blockDim.x/warpSize;
+    return warpsPerBlock * cumulSumUpToMe + memSizePerWarpMe * myWarp + myIdxInWarp;
 }
 
+*/
 inline __device__ int baseNeighlistIdxFromIndex(uint32_t *cumulSumMaxPerBlock, int warpSize, int idx) {
     int blockIdx = idx / blockDim.x;
     int warpIdx = (idx - blockIdx * blockDim.x) / warpSize;
@@ -88,6 +114,41 @@ inline __device__ void reduceByN_NOSYNC(T *src, int span) { // where span is how
             src[threadIdx.x] += src[threadIdx.x + curLookahead];
         }
         curLookahead *= 2;
+    }
+}
+
+
+
+//toSort should be of size blockDim.x, sorted should be of size nWarp, sortSize <= warpSize
+template
+<class T>
+inline __device__ void sortBubble_NOSYNC(T *toSort, bool *sorted, int sortSize, int warpSize) {
+    int warpIdx = threadIdx.x / warpSize;
+    sorted[warpIdx] = false; //so each warp does its own thing  
+    bool amLast = (threadIdx.x + 1)%sortSize == 0; //I am the last thread in my sorting chunk, I don't need to do anything
+    bool amEven = threadIdx.x%2 == 0;
+    while (sorted[warpIdx] == false) {
+        sorted[warpIdx] = true;
+        bool didSwap = false;
+        if (!amEven and !amLast) {
+            if (toSort[threadIdx.x+1] < toSort[threadIdx.x]) {
+                T tmp = toSort[threadIdx.x+1];
+                toSort[threadIdx.x+1] = toSort[threadIdx.x];
+                toSort[threadIdx.x] = tmp;
+                didSwap = true;
+            }
+        }
+        if (amEven) {
+            if (toSort[threadIdx.x+1] < toSort[threadIdx.x]) {
+                T tmp = toSort[threadIdx.x+1];
+                toSort[threadIdx.x+1] = toSort[threadIdx.x];
+                toSort[threadIdx.x] = tmp;
+                didSwap = true;
+            }
+        }
+        if (didSwap) {
+            sorted[warpIdx] = false;
+        }
     }
 }
 
