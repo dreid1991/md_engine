@@ -333,7 +333,7 @@ double Integrator::tune() {
     }
     setParams(bestNTPB, bestNTPA);
 	if (bestNTPB != curNTPB or bestNTPA != curNTPA) {
-		printf("Optimized runtime parameters from %d to %d threads per block and from %d to %d threads per atom\n", curNTPB, bestNTPB, curNTPA, bestNTPA);
+		printf("Optimized runtime parameters from (%d, %d) to (%d, %d)\n", curNTPB, curNTPA, bestNTPB, bestNTPA);
 	}
 
     state->gridGPU.periodicBoundaryConditions(-1, true);
