@@ -155,6 +155,7 @@ class FixRigid : public Fix {
          */
         bool stepFinal();
 
+
         // populate the FixRigidData instance
         void populateRigidData();
 
