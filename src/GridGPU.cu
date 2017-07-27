@@ -9,8 +9,7 @@
 #include "cutils_func.h"
 #include "cutils_math.h"
 
-using std::endl;
-using std::cout;
+
 /* GridGPU members */
 
 void GridGPU::initArrays() {
@@ -32,6 +31,9 @@ void GridGPU::initArrays() {
     buildFlag.d_data.memset(0);
     copyPositionsAsync();
     
+    buildFlag.d_data.memset(0);
+    // TODO delete cudaDS() call below
+    cudaDeviceSynchronize();
 }
 
 
@@ -335,11 +337,11 @@ __global__ void sortPerAtomArrays_xsOnly(
 /*! modifies myCount to be the number of neighbors in this cell */
 __device__ void checkCell(float3 pos, float4 *xs,
                           uint32_t *gridCellArrayIdxs, int squareIdx,
-                          float3 loop, float neighCutSqr, int &myCount, int nThreadPerRP, int myIdxInAtomTeam) {
+                          float3 loop, float neighCutSqr, int &myCount) {
 
     uint32_t idxMin = gridCellArrayIdxs[squareIdx];
     uint32_t idxMax = gridCellArrayIdxs[squareIdx+1];
-    for (int i=idxMin+myIdxInAtomTeam; i<idxMax; i+=nThreadPerRP) {
+    for (int i=idxMin; i<idxMax; i++) {
         float3 otherPos = make_float3(xs[i]);
         float3 distVec  = otherPos + loop - pos;
         if (dot(distVec, distVec) < neighCutSqr) {
@@ -351,23 +353,18 @@ __device__ void checkCell(float3 pos, float4 *xs,
 __global__ void countNumNeighbors(float4 *xs, int nRingPoly,
                                   uint16_t *neighborCounts, uint32_t *gridCellArrayIdxs,
                                   float3 os, float3 ds, int3 ns,
-                                  float3 periodic, float3 trace, float neighCutSqr, int nThreadPerRP) {
+                                  float3 periodic, float3 trace, float neighCutSqr) {
 
-    extern __shared__ uint16_t counts_shr[];
     int idx = GETIDX();
-    int myCount = 0;
-    bool validThread = idx < nRingPoly*nThreadPerRP;
-    int atomIdx = idx/nThreadPerRP;
-    if (validThread) {
-        float4 posWhole = xs[atomIdx];
+    if (idx < nRingPoly) {
+        float4 posWhole = xs[idx];
         float3 pos      = make_float3(posWhole);
         int3   sqrIdx   = make_int3((pos - os) / ds);
-
-        int myIdxInAtomTeam = threadIdx.x % nThreadPerRP;
 
         int xIdx, yIdx, zIdx;
         int xIdxLoop, yIdxLoop, zIdxLoop;
         float3 offset = make_float3(0, 0, 0);
+        int myCount = 0;
         for (xIdx=sqrIdx.x-1; xIdx<=sqrIdx.x+1; xIdx++) {
             offset.x = -floorf((float) xIdx / ns.x);
             xIdxLoop = xIdx + ns.x * offset.x;
@@ -388,7 +385,7 @@ __global__ void countNumNeighbors(float4 *xs, int nRingPoly,
                                 // updates myCount for this cell
                                 checkCell(pos, xs, 
                                           gridCellArrayIdxs, sqrIdxOtherLin,
-                                          loop, neighCutSqr, myCount, nThreadPerRP, myIdxInAtomTeam);
+                                          loop, neighCutSqr, myCount);
                                 //note sign switch on offset!
 
                             } // endif periodic.z
@@ -399,17 +396,12 @@ __global__ void countNumNeighbors(float4 *xs, int nRingPoly,
 
             } //endif periodic.x
         } // endfor xIdx
+        neighborCounts[idx] = myCount - 1; //because I counted myself.  have to subtract that off
         // XXX
 	//__syncthreads();
         //if (idx == 0) {
         //  for ( int j = 0; j<nRingPoly; j++) {printf("my id = %d, # neigh = %d\n",j,neighborCounts[j]);}
         //}
-    }
-    counts_shr[threadIdx.x] = myCount;
-    reduceByN_NOSYNC<uint16_t>(counts_shr, nThreadPerRP);
-    if (validThread and not (threadIdx.x % nThreadPerRP)) {
-        //printf("c %d %d\n ", (int) counts_shr[threadIdx.x], nThreadPerRP);
-        neighborCounts[atomIdx] = counts_shr[threadIdx.x] - 1; //-1 because I counted myself
     }
 }
 
@@ -747,8 +739,6 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
     int nRingPoly    = nAtoms / nPerRingPoly;
 
     int activeIdx = gpd->activeIdx();
-    int nThreadPerRP = state->nThreadPerAtom;
-
     if (boundsLastBuild != state->boundsGPU) {
         setBounds(state->boundsGPU);
     }
@@ -883,32 +873,11 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
          *     call this for ghosts too; everything after this has to be done on
          *     ghosts too
          */
-        countNumNeighbors<<<NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerRP), nThreadPerBlock(), nThreadPerBlock()*sizeof(uint16_t)>>>(
+        countNumNeighbors<<<NBLOCK(nRingPoly), PERBLOCK>>>(
                     centroids, nRingPoly, 
                     perAtomArray.d_data.data(), perCellArray.d_data.data(),
-                    os, ds, ns, bounds.periodic, trace, neighCut*neighCut, nThreadPerRP); //PER RP CENTROID
+                    os, ds, ns, bounds.periodic, trace, neighCut*neighCut); //PER RP CENTROID
 
-        //ADDED STUFF
-        /*
-        perAtomArray.dataToHost();
-        state->gpd.ids.dataToHost();
-        
-
-        cudaDeviceSynchronize();
-        std::vector<int> nNeigh(state->atoms.size());
-
-        for (int i=0, ii=state->atoms.size(); i<ii; i++) {
-            int id = state->gpd.ids.h_data[i];
-            int idxWriteTo = state->gpd.idToIdxsOnCopy[id];
-            nNeigh[idxWriteTo] = perAtomArray.h_data[i];
-        }
-        for (auto n : nNeigh) {
-            cout << n << endl;
-        }
-        exit(0);
-        */
-
-        //END ADDED
         computeMaxNumNeighPerBlock<<<NBLOCK(nRingPoly), PERBLOCK, PERBLOCK*sizeof(uint16_t)>>>(
                     nRingPoly, perAtomArray.d_data.data(),
                     perBlockArray_maxNeighborsInBlock.data(), warpSize); // MAKE NUM NP VARIABLE

@@ -11,6 +11,7 @@
 #include "Fix.h"
 #include "cutils_func.h"
 #include "globalDefs.h"
+#include "FixTIP4PFlexible.h"
 
 using namespace MD_ENGINE;
 

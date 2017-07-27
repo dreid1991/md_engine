@@ -393,5 +393,6 @@ void export_WriteConfig() {
     .def_readwrite("unwrapMolecules", &WriteConfig::unwrapMolecules)
     .def_readonly("handle", &WriteConfig::handle)
     .def("write", &WriteConfig::writePy)
+    .def_readwrite("andVelocities", &WriteConfig::andVelocities)
     ;
 }
