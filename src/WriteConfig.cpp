@@ -163,6 +163,46 @@ void writeXMLfileBase64(State *state, string fnFinal, int64_t turn, bool oneFile
 }
 
 
+void writeLAMMPSTRJFile(State *state, string fn, int64_t turn, bool oneFilePerWrite, uint groupBit) {
+    vector<Atom> &atoms = state->atoms;
+    AtomParams &params = state->atomParams;
+    int count = 0;
+    
+    ofstream outFile;
+    if (oneFilePerWrite) {
+        outFile.open(fn.c_str(), ofstream::out);
+    } else {
+        outFile.open(fn.c_str(), ofstream::app);
+    }
+	if (groupBit == 1) {
+        count = atoms.size();
+	} else {
+		for (Atom &a : atoms) {
+			if (a.groupTag & groupBit) {
+				count ++;
+			}
+		}
+	}
+
+    // WRITE THE HEADER INFORMATION
+    outFile << "ITEM: TIMESTEP" << endl << state->turn << endl;    // TIMESTEP
+    outFile << "ITEM: NUMBER OF ATOMS" << endl << count << endl;   // NUMBER OF ATOMS
+    outFile << "ITEM: BOX BOUNDS pp pp pp" << endl;
+    outFile << state->bounds.lo[0] << " " << state->bounds.lo[0] + state->bounds.rectComponents[0] << endl;
+    outFile << state->bounds.lo[1] << " " << state->bounds.lo[1] + state->bounds.rectComponents[1] << endl;
+    outFile << state->bounds.lo[2] << " " << state->bounds.lo[2] + state->bounds.rectComponents[2] << endl;       // BOX DIMENSION
+
+    // WRITE THE ATOM rectINFORMATION
+    outFile << "ITEM: ATOMS id type x y z" << endl;         // ATOM HEADER
+    for (Atom &a : atoms) {
+        if (a.groupTag & groupBit) {
+            outFile << a.id << " " << a.type << " " << a.pos[0] << " " << a.pos[1] << " " << a.pos[2] << endl;
+        }
+    }
+
+    outFile.close();
+}
+
 void writeXYZFile(State *state, string fn, int64_t turn, bool oneFilePerWrite, uint groupBit) {
     vector<Atom> &atoms = state->atoms;
     AtomParams &params = state->atomParams;
@@ -317,6 +357,8 @@ string WriteConfig::getCurrentFn(int64_t turn) {
         sprintf(buffer, "%s.xml", fn.c_str());
     } else if (format == "xyz" ) {
         sprintf(buffer, "%s.xyz", fn.c_str());
+    } else if (format == "lammpstrj" ) {
+        sprintf(buffer, "%s.lammpstrj", fn.c_str());
     } else {
         sprintf(buffer, "%s.xml", fn.c_str());
     }
@@ -342,6 +384,9 @@ WriteConfig::WriteConfig(SHARED(State) state_, string fn_, string handle_, strin
         isXML = true;
     } else if (format == "xyz") {
         writeFormat = &writeXYZFile;
+        isXML = false;
+    } else if (format == "lammpstrj") {
+        writeFormat = &writeLAMMPSTRJFile;
         isXML = false;
     } else {
         writeFormat = &writeXMLfile;
