@@ -11,6 +11,8 @@
 
 #include "Tunable.h"
 
+#include "Tunable.h"
+
 #include "BoundsGPU.h"
 class State;
 

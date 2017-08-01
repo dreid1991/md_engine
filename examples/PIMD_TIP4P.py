@@ -31,7 +31,7 @@ state.rCut = 9.0
 state.padding = 1.0
 state.periodicInterval = 7
 state.shoutEvery = 1000
-state.dt = 0.05
+state.dt = 1.0
 
 
 ##############################################
@@ -83,11 +83,19 @@ flexibleTIP4P = FixTIP4PFlexible(state,'TIP4PFlexible', 'all')
 # and also, for now an arbitrary harmonic bond potential
 # just so things don't explode.
 #############################################################
-harmonicBonds = FixBondHarmonic(state,'harmonic')
-harmonicAngle = FixAngleHarmonic(state,'angleH')
+#harmonicBonds = FixBondHarmonic(state,'harmonic')
+#harmonicAngle = FixAngleHarmonic(state,'angleH')
 
-state.activateFix(harmonicBonds)
-state.activateFix(harmonicAngle)
+#state.activateFix(harmonicBonds)
+#state.activateFix(harmonicAngle)
+
+anglePot = FixAngleHarmonic(state, 'angleHarm')
+anglePot.setAngleTypeCoefs(type=0, k=87.85, theta0=(107.4/180.0)*pi)
+
+bondQuart = FixBondQuartic(state, 'bondQuart')
+bondQuart.setBondTypeCoefs(type=0, k2=607.19,k3=-1388.65,k4=1852.58,r0=0.9419)
+
+
 
 # our vector of centers
 positions = []
@@ -111,7 +119,6 @@ for i in range(numMolecules):
     ## for TIP4P
     molecule = create_TIP4P_Flexible(state,oxygenHandle,hydrogenHandle,mSiteHandle,center,"random")
 
-    #molecule = create_TIP3P(state,oxygenHandle,hydrogenHandle,bondLength=0.9572,center=center,orientation="random")
     ids = []
     for atomId in molecule.ids:
         ids.append(atomId)
@@ -124,14 +131,23 @@ for i in range(numMolecules):
     #for atom in ids:
     #    print 'atom ', atom, ' with mass ', state.atoms[atom].mass, ' and force ', state.atoms[atom].force, ' placed at position ', state.atoms[atom].pos,'\n'
 
+    # add quartic bonds so that the molecules don't collapse
+    # and angle harmonic angle 0 1 2
+    bondQuart.createBond(state.atoms[ids[0]], state.atoms[ids[1]], type=0)
+    bondQuart.createBond(state.atoms[ids[0]], state.atoms[ids[2]], type=0)
+    anglePot.createAngle(state.atoms[ids[1]], state.atoms[ids[0]], state.atoms[ids[2]], type=0)
+
+
+
     # make a harmonic OH1 bond with some high stiffness, and OH2, and H1H2
+    '''
     harmonicBonds.createBond(state.atoms[ids[0]], state.atoms[ids[1]],
                              k=200000, r0 = 0.9419)
     harmonicBonds.createBond(state.atoms[ids[0]], state.atoms[ids[2]],
                              k=200000, r0 = 0.9419)
     harmonicAngle.createAngle(state.atoms[ids[1]], state.atoms[ids[0]], state.atoms[ids[2]],
                               k=200000, theta0=1.8744836)
-
+    '''
 print 'done adding molecules to simulation'
 #############################################################
 # Initialization of potentials
@@ -142,6 +158,11 @@ print 'done adding molecules to simulation'
 #####################
 # -- we defined the LJ interactions above
 state.activateFix(nonbond)
+#####################
+# Intramolecular Bonds - Quartic and Angle potentials
+#####################
+state.activateFix(bondQuart)
+state.activateFix(anglePot)
 
 ########################################################################################
 # Flexible TIP4P - note that this /only/ distributes the M-site forces!
@@ -168,9 +189,11 @@ tempData = state.dataManager.recordTemperature('all', interval = 1)
 # Thermostatting
 ################################################
 fixNVT = FixNoseHoover(state,'nvt','all')
-fixNVT.setTemperature(300.0, 200*state.dt)
+fixNVT.setTemperature(330.0, 200*state.dt)
 state.activateFix(fixNVT)
 
+tempData = state.dataManager.recordTemperature('all','vector', interval = 1)
+enerData = state.dataManager.recordEnergy('all', 'scalar', interval = 1, fixes = [nonbond,charge,anglePot,bondQuart] )
 
 #################################
 # and some calls to PIMD
@@ -182,8 +205,21 @@ writer = WriteConfig(state, handle='writer', fn='configPIMD', format='xyz',
                      writeEvery=10)
 state.activateWriteConfig(writer)
 
-integVerlet.run(500000)
+integVerlet.run(10000)
 
+print 'deactivating thermostat\n'
+
+for index, item in enumerate(enerData.vals):
+    print enerData.vals[index], sum(tempData.vals[index]), enerData.vals[index] + sum(tempData.vals[index])
+
+state.deactivateFix(fixNVT)
+
+integVerlet.run(50000)
+
+for index, item in enumerate(enerData.vals):
+    print enerData.vals[index], sum(tempData.vals[index]), enerData.vals[index] + sum(tempData.vals[index])
+
+state.dt = 1.0
 fid = open('thermo.dat', "w")
 
 for t, T in zip(tempData.turns, tempData.vals):
