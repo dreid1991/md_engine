@@ -172,7 +172,7 @@ class FixRigid : public Fix {
 
 
         //! Halfstep solution to velocity constraints
-        bool postNVE_V();
+        //bool postNVE_V();
 
         //! Reset the position of the M-site after integrating the position of the molecule.
         //  -- Note that we do /not/ solve the rigid body constraints at this point;
@@ -181,7 +181,10 @@ class FixRigid : public Fix {
         //     Also, check if this is rigorously correct or a valid approximation. \TODO/
         void handleBoundsChange();
 
-        //! Create a rigid constraint on a TIP3P water molecule
+        //! Removes NDOF corresponding to the number of water molecules in the fix
+        int removeNDOF();
+
+        // Create a rigid constraint on a TIP3P water molecule
         /*!
          * \ param id_a The atom id in the simulation state of the Oxygen atom in TIP3P
          * \ param id_b The atom id in the simulation state of a Hydrogen atom in TIP3P

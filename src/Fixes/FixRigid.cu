@@ -17,7 +17,7 @@ FixRigid::FixRigid(boost::shared_ptr<State> state_, std::string handle_, std::st
     TIP4P = false;
     TIP3P = false;
     printing = false;
-    requiresPostNVE_V = true;
+    //requiresPostNVE_V = true;
     style = "DEFAULT";
 }
 
@@ -32,6 +32,7 @@ inline __host__ __device__ float3 rotation(float3 vector, float3 X, float3 Y, fl
 // this function removes any residual velocities along the lengths of the bonds, 
 // thus permitting the use of our initializeTemperature() method without violation of the constraints
 // on initializing a simulation
+
 /*
 __global__ void adjustInitialVelocities(int4* waterIds, int *idToIdxs, float4 *xs, float4 *vs, int nMolecules, BoundsGPU bounds) {
     
@@ -102,6 +103,7 @@ __global__ void adjustInitialVelocities(int4* waterIds, int *idToIdxs, float4 *x
     }
 }
 */
+
 
 // called at the end of stepFinal, this will be silent unless something is amiss (if the constraints are not satisifed for every molecule)
 // i.e., bond lengths should be fixed, and the dot product of the relative velocities along a bond with the 
@@ -215,7 +217,7 @@ __global__ void printGPD_Rigid(uint* ids, float4 *xs, float4 *vs, float4 *fs, in
     int idx = GETIDX();
     if (idx < nAtoms) {
         uint id = ids[idx];
-        if (id < 200) {
+        if (id < 4) {
             float4 pos = xs[idx];
             int type = xs[idx].w;
             float4 vel = vs[idx];
@@ -242,21 +244,21 @@ __global__ void distributeMSite(int4 *waterIds, float4 *xs, float4 *vs, float4 *
         //printf("in distributeMSite idx %d\n", idx);
         // by construction, the id's of the molecules are ordered as follows in waterIds array
 
-        int idx_O  = idToIdxs[waterIds[idx].x];
-        int idx_H1 = idToIdxs[waterIds[idx].y];
-        int idx_H2 = idToIdxs[waterIds[idx].z];
-        int idx_M  = idToIdxs[waterIds[idx].w];
+        int id_O  = waterIds[idx].x;
+        int id_H1 = waterIds[idx].y;
+        int id_H2 = waterIds[idx].z;
+        int id_M  = waterIds[idx].w;
 
-        float4 vel_O = vs[idx_O];
-        float4 vel_H1 = vs[idx_H1];
-        float4 vel_H2 = vs[idx_H2];
+        float4 vel_O = vs[idToIdxs[id_O]];
+        float4 vel_H1 = vs[idToIdxs[id_H1]];
+        float4 vel_H2 = vs[idToIdxs[id_H2]];
 
         //printf("In distributeMSite, velocity of Oxygen %d is %f %f %f\n", id_O, vel_O.x, vel_O.y, vel_O.z);
         // need the forces from O, H1, H2, and M
-        float4 fs_O  = fs[idx_O];
-        float4 fs_H1 = fs[idx_H1];
-        float4 fs_H2 = fs[idx_H2];
-        float4 fs_M  = fs[idx_M];
+        float4 fs_O  = fs[idToIdxs[id_O]];
+        float4 fs_H1 = fs[idToIdxs[id_H1]];
+        float4 fs_H2 = fs[idToIdxs[id_H2]];
+        float4 fs_M  = fs[idToIdxs[id_M]];
 
         //printf("Force on m site: %f %f %f\n", fs_M.x, fs_M.y, fs_M.z);
         //printf("Force on Oxygen : %f %f %f\n", fs_O.x, fs_M.y, fs_M.z);
@@ -284,20 +286,20 @@ __global__ void distributeMSite(int4 *waterIds, float4 *xs, float4 *vs, float4 *
         vel_H2 += dv_H;
 
         // set the velocities to the new velocities in vel_O, vel_H1, vel_H2
-        vs[idToIdxs[idx_O]] = vel_O; 
-        vs[idToIdxs[idx_H1]]= vel_H1;
-        vs[idToIdxs[idx_H2]]= vel_H2;
-       
-        Virial virialToDistribute = virials[idx_M];
+        vs[idToIdxs[id_O]] = vel_O; 
+        vs[idToIdxs[id_H1]]= vel_H1;
+        vs[idToIdxs[id_H2]]= vel_H2;
+        
+        Virial virialToDistribute = virials[idToIdxs[id_M]];
         
         Virial distribute_O = virialToDistribute * (1.0 - (2.0 * gamma));
         Virial distribute_H = virialToDistribute * gamma;
         
-        virials[idx_O] += distribute_O;
-        virials[idx_H1] += distribute_H;
-        virials[idx_H2] += distribute_H;
+        virials[idToIdxs[id_O]] += distribute_O;
+        virials[idToIdxs[id_H1]] += distribute_H;
+        virials[idToIdxs[id_H2]] += distribute_H;
 
-        vs[idx_M] = make_float4(0,0,0,INVMASSLESS);
+        vs[idToIdxs[id_M]] = make_float4(0,0,0,INVMASSLESS);
         // finally, modify the forces; this way, the distributed force from M-site is incorporated in to nve_v() integration step
         // at beginning of next iteration in IntegratorVerlet.cu
         fs_O += fs_O_d;
@@ -305,12 +307,12 @@ __global__ void distributeMSite(int4 *waterIds, float4 *xs, float4 *vs, float4 *
         fs_H2 += fs_H_d;
        
         // set the global variables *fs[idToIdx[id]] to the new values
-        fs[idx_O] = fs_O;
-        fs[idx_H1]= fs_H1;
-        fs[idx_H2]= fs_H2;
+        fs[idToIdxs[id_O]] = fs_O;
+        fs[idToIdxs[id_H1]]= fs_H1;
+        fs[idToIdxs[id_H2]]= fs_H2;
 
         // zero the force on the M-site, just because
-        fs[idx_M] = make_float4(0.0, 0.0, 0.0,fs_M.w);
+        fs[idToIdxs[id_M]] = make_float4(0.0, 0.0, 0.0,fs_M.w);
         // this concludes re-distribution of the forces;
         // we assume nothing needs to be done re: virials; this sum is already tabulated at inner force loop computation
         // in the evaluators; for safety, we might just set 
@@ -330,21 +332,17 @@ __global__ void setMSite(int4 *waterIds, int *idToIdxs, float4 *xs, int nMolecul
          */
 
         // first, get the ids of the atoms composing this molecule
-        int idx_O  = idToIdxs[waterIds[idx].x];
-        int idx_H1 = idToIdxs[waterIds[idx].y];
-        int idx_H2 = idToIdxs[waterIds[idx].z];
-        int idx_M  = idToIdxs[waterIds[idx].w];
+        int id_O  = waterIds[idx].x;
+        int id_H1 = waterIds[idx].y;
+        int id_H2 = waterIds[idx].z;
+        int id_M  = waterIds[idx].w;
 
-        float4 pos_M_whole = xs[idx_M];
-        float4 pos_O_whole = xs[idx_O];
-        float4 pos_H1_whole = xs[idx_H1];
-        float4 pos_H2_whole = xs[idx_H2];
-
+        float4 pos_M_whole = xs[idToIdxs[id_M]];
         // get the positions of said atoms
-        float3 pos_O = make_float3(pos_O_whole);
-        float3 pos_H1= make_float3(pos_H1_whole);
-        float3 pos_H2= make_float3(pos_H2_whole);
-        float3 pos_M = make_float3(pos_M_whole);
+        float3 pos_O = make_float3(xs[idToIdxs[id_O]]);
+        float3 pos_H1= make_float3(xs[idToIdxs[id_H1]]);
+        float3 pos_H2= make_float3(xs[idToIdxs[id_H2]]);
+        float3 pos_M = make_float3(xs[idToIdxs[id_M]]);
 
         // compute vectors r_ij and r_ik according to minimum image convention
         // where r_ij = r_j - r_i, r_ik = r_k - r_i,
@@ -357,7 +355,7 @@ __global__ void setMSite(int4 *waterIds, int *idToIdxs, float4 *xs, int nMolecul
         float3 r_M  = (pos_O) + 0.1546 * ( (r_ij + r_ik) / ( (length(r_ij + r_ik))));
     
         float4 pos_M_new = make_float4(r_M.x, r_M.y, r_M.z, pos_M_whole.w);
-        xs[idx_M] = pos_M_new;
+        xs[idToIdxs[id_M]] = pos_M_new;
     }
 }
 
@@ -433,13 +431,13 @@ __global__ void set_init_vel_correction(int4 *waterIds, float4 *dvs_0, int nMole
   }
 }
 
-template <class DATA, bool DEBUG_BOOL>
+template <class DATA, bool HALFSTEP, bool DEBUG_BOOL>
 __global__ void settleVelocities(int4 *waterIds, float4 *xs, float4 *xs_0, 
                                float4 *vs, float4 *vs_0, float4 *dvs_0, 
                                float4 *fs, float4 *fs_0, float4 *comOld, 
                                DATA fixRigidData, int nMolecules, 
                                float dt, float dtf,
-                               int *idToIdxs, BoundsGPU bounds, int turn) {
+                               int *idToIdxs, BoundsGPU bounds) {
     int idx = GETIDX();
     if (idx < nMolecules) {
         
@@ -451,38 +449,6 @@ __global__ void settleVelocities(int4 *waterIds, float4 *xs, float4 *xs_0,
         int idxH1= idToIdxs[atomsFromMolecule.y];
         int idxH2= idToIdxs[atomsFromMolecule.z];
         
-        // extract the whole positions
-        float4 posO_whole = xs[idxO];
-        float4 posH1_whole= xs[idxH1];
-        float4 posH2_whole= xs[idxH2];
-
-        // and the unconstrained, updated positions
-        float3 posO = make_float3(posO_whole);
-        float3 posH1= make_float3(posH1_whole);
-        float3 posH2= make_float3(posH2_whole);
-
-        float3 a_pos = posO;
-        float3 b_pos = posO + bounds.minImage( (posH1 - posO) );
-        float3 c_pos = posO + bounds.minImage( (posH2 - posO) );
-
-        // note that a_pos, b_pos, c_pos are already minimum image vectors...
-        float3 e_AB = b_pos - a_pos;
-        float3 e_BC = c_pos - b_pos;
-        float3 e_CA = a_pos - c_pos;
-
-        // make them unit vectors by dividing by their length
-        float inv_len_AB = 1.0 / (length(e_AB));
-        float inv_len_BC = 1.0 / (length(e_BC));
-        float inv_len_CA = 1.0 / (length(e_CA));
-
-        e_AB *= inv_len_AB;
-        e_BC *= inv_len_BC;
-        e_CA *= inv_len_CA;
-
-        float cosA = dot(-e_AB,e_CA);
-        float cosB = dot(-e_BC,e_AB);
-        float cosC = dot(-e_CA,e_BC);
-
         float4 velO_whole = vs[idxO];
         float4 velH1_whole= vs[idxH1];
         float4 velH2_whole= vs[idxH2];
@@ -492,75 +458,134 @@ __global__ void settleVelocities(int4 *waterIds, float4 *xs, float4 *xs_0,
         float3 velH1= make_float3(velH1_whole);
         float3 velH2= make_float3(velH2_whole);
 
-        // and get the pertinent dot products
-        float3 vel0_AB = velH1 - velO;
-        float3 vel0_BC = velH2 - velH1;
-        float3 vel0_CA = velO - velH2;
-
-        float v0_AB = dot(e_AB, vel0_AB);
-        float v0_BC = dot(e_BC, vel0_BC);
-        float v0_CA = dot(e_CA, vel0_CA);
-
-        double4 weights = fixRigidData.weights;
-        float ma = (float) weights.z;
-        float mb = (float) weights.w;
-        float mamb = ma + mb;
-        float mambSqr = mamb * mamb;
-
-        // exactly as in Miyamoto
-        // --- except, since all three are /divided/ by d, and then later multiplied by dt
-        //     for numerical precision, we just don't involve the timestep dt.
-        float d = ( (2.0 * mambSqr) + ( 2.0 * ma * mb * cosA * cosB * cosC) - (2.0 * mb * mb * cosA * cosA) - 
-                    ( ( ma * mamb) * ((cosB * cosB) + (cosC * cosC)) ) ) / (2.0 * mb);
-
-        float tau_AB = ma * ( (v0_AB * (2.0*mamb - (ma * cosC * cosC))) +
-                              (v0_BC * ((mb * cosC * cosA) - (mamb * cosB)) ) + 
-                              (v0_CA * (ma * cosB * cosC - (2.0 * mb * cosA) ) ) ) / d;
-
-        float tau_BC = ( (v0_BC * ( ( mambSqr - (mb * mb * cosA * cosA) ) )) + 
-                         (v0_CA * ma * ((mb * cosA * cosB) - (mamb * cosC ) ) ) + 
-                         (v0_AB * ma * ((mb * cosC * cosA) - (mamb * cosB) ) ) ) / d;
-
-        float tau_CA = ma * ( (v0_CA * ((2.0 * mamb) - (ma * cosB * cosB) )) + 
-                              (v0_AB * ((ma * cosB * cosC) - (2.0 * mb * cosA) )) + 
-                              (v0_BC * ((mb * cosA * cosB) - (mamb * cosC) )) ) / d;
-
-        float3 g_AB = e_AB * tau_AB;
-        float3 g_BC = e_BC * tau_BC;
-        float3 g_CA = e_CA * tau_CA;
+        if (HALFSTEP) {
+            
+            float3 constraints_dvO = make_float3(dvs_0[idx*3]);
+            float3 constraints_dvH1= make_float3(dvs_0[idx*3 + 1]);
+            float3 constraints_dvH2= make_float3(dvs_0[idx*3 + 2]);
+            //= constraints_dvO;
+            //dvs_0[idx*3 + 1] = constraints_dvH1;
+            //dvs_0[idx*3 + 2] = constraints_dvH2;
 
 
-        // all data required to compute tau_AB etc. are in fixRigidData... do the algebra here
-        /*
-        double tau_AB = (v0_AB * fixRigidData.tauAB1) + 
-                        (v0_BC * fixRigidData.tauAB2) + 
-                        (v0_BC * fixRigidData.tauAB3);
+        } else {
+        // extract the whole positions
+            float4 posO_whole = xs[idxO];
+            float4 posH1_whole= xs[idxH1];
+            float4 posH2_whole= xs[idxH2];
 
-        double tau_BC = (v0_BC * fixRigidData.tauBC1) + 
-                        (v0_CA * fixRigidData.tauBC2) + 
-                        (v0_AB * fixRigidData.tauBC3);
+            // and the unconstrained, updated positions
+            float3 posO = make_float3(posO_whole);
+            float3 posH1= make_float3(posH1_whole);
+            float3 posH2= make_float3(posH2_whole);
 
-        double tau_CA = (v0_CA * fixRigidData.tauCA1) + 
-                        (v0_AB * fixRigidData.tauCA2) + 
-                        (v0_BC * fixRigidData.tauCA3);
-        */
-        // we have now computed our lagrange multipliers, and can add these to our velO, 
-        // velH1, velH2 vectors.
-        float3 constraints_dvO = 0.5 * (velO_whole.w) * ( (g_AB) - (g_CA) );
-        float3 constraints_dvH1= 0.5 * (velH1_whole.w)* ( (g_BC) - (g_AB) );
-        float3 constraints_dvH2= 0.5 * (velH2_whole.w)* ( (g_CA) - (g_BC) );
+            float3 a_pos = posO;
+            float3 b_pos = posO + bounds.minImage( (posH1 - posO) );
+            float3 c_pos = posO + bounds.minImage( (posH2 - posO) );
+
+            // note that a_pos, b_pos, c_pos are already minimum image vectors...
+            float3 e_AB = b_pos - a_pos;
+            float3 e_BC = c_pos - b_pos;
+            float3 e_CA = a_pos - c_pos;
+
+            // make them unit vectors by dividing by their length
+            float inv_len_AB = 1.0 / (length(e_AB));
+            float inv_len_BC = 1.0 / (length(e_BC));
+            float inv_len_CA = 1.0 / (length(e_CA));
+
+            e_AB *= inv_len_AB;
+            e_BC *= inv_len_BC;
+            e_CA *= inv_len_CA;
+
+            float cosA = dot(-e_AB,e_CA);
+            float cosB = dot(-e_BC,e_AB);
+            float cosC = dot(-e_CA,e_BC);
+
+            float4 velO_whole = vs[idxO];
+            float4 velH1_whole= vs[idxH1];
+            float4 velH2_whole= vs[idxH2];
+
+            // grab the global velocities; these are our v0_a, v0_b, v0_c variables
+            float3 velO = make_float3(velO_whole);
+            float3 velH1= make_float3(velH1_whole);
+            float3 velH2= make_float3(velH2_whole);
+
+            // and get the pertinent dot products
+            float3 vel0_AB = velH1 - velO;
+            float3 vel0_BC = velH2 - velH1;
+            float3 vel0_CA = velO - velH2;
+
+            float v0_AB = dot(e_AB, vel0_AB);
+            float v0_BC = dot(e_BC, vel0_BC);
+            float v0_CA = dot(e_CA, vel0_CA);
+
+            double4 weights = fixRigidData.weights;
+            float ma = (float) weights.z;
+            float mb = (float) weights.w;
+            float mamb = ma + mb;
+            float mambSqr = mamb * mamb;
+
+            // exactly as in Miyamoto
+            // --- except, since all three are /divided/ by d, and then later multiplied by dt
+            //     for numerical precision, we just don't involve the timestep dt.
+            float d = ( (2.0 * mambSqr) + ( 2.0 * ma * mb * cosA * cosB * cosC) - (2.0 * mb * mb * cosA * cosA) - 
+                        ( ( ma * mamb) * ((cosB * cosB) + (cosC * cosC)) ) ) / (2.0 * mb);
+
+            float tau_AB = ma * ( (v0_AB * (2.0*mamb - (ma * cosC * cosC))) +
+                                  (v0_BC * ((mb * cosC * cosA) - (mamb * cosB)) ) + 
+                                  (v0_CA * (ma * cosB * cosC - (2.0 * mb * cosA) ) ) ) / d;
+
+            float tau_BC = ( (v0_BC * ( ( mambSqr - (mb * mb * cosA * cosA) ) )) + 
+                             (v0_CA * ma * ((mb * cosA * cosB) - (mamb * cosC ) ) ) + 
+                             (v0_AB * ma * ((mb * cosC * cosA) - (mamb * cosB) ) ) ) / d;
+
+            float tau_CA = ma * ( (v0_CA * ((2.0 * mamb) - (ma * cosB * cosB) )) + 
+                                  (v0_AB * ((ma * cosB * cosC) - (2.0 * mb * cosA) )) + 
+                                  (v0_BC * ((mb * cosA * cosB) - (mamb * cosC) )) ) / d;
+
+            float3 g_AB = e_AB * tau_AB;
+            float3 g_BC = e_BC * tau_BC;
+            float3 g_CA = e_CA * tau_CA;
+
+
+            // all data required to compute tau_AB etc. are in fixRigidData... do the algebra here
+            /*
+            double tau_AB = (v0_AB * fixRigidData.tauAB1) + 
+                            (v0_BC * fixRigidData.tauAB2) + 
+                            (v0_BC * fixRigidData.tauAB3);
+
+            double tau_BC = (v0_BC * fixRigidData.tauBC1) + 
+                            (v0_CA * fixRigidData.tauBC2) + 
+                            (v0_AB * fixRigidData.tauBC3);
+
+            double tau_CA = (v0_CA * fixRigidData.tauCA1) + 
+                            (v0_AB * fixRigidData.tauCA2) + 
+                            (v0_BC * fixRigidData.tauCA3);
+            */
+            // we have now computed our lagrange multipliers, and can add these to our velO, 
+            // velH1, velH2 vectors.
+            float3 constraints_dvO = 0.5 * (velO_whole.w) * ( (g_AB) - (g_CA) );
+            float3 constraints_dvH1= 0.5 * (velH1_whole.w)* ( (g_BC) - (g_AB) );
+            float3 constraints_dvH2= 0.5 * (velH2_whole.w)* ( (g_CA) - (g_BC) );
         
-        velO_whole += constraints_dvO;
-        velH1_whole+= constraints_dvH1;
-        velH2_whole+= constraints_dvH2;
-        // add the float3 differential velocity vectors
+            // save our constraint velocity correction
+            dvs_0[idx*3] = make_float4(constraints_dvO.x, constraints_dvO.y, constraints_dvO.z, 0);
+            dvs_0[idx*3 + 1] = make_float4(constraints_dvH1.x, constraints_dvH1.y, constraints_dvH2.z, 0);
+            dvs_0[idx*3 + 2] = make_float4(constraints_dvH2.x, constraints_dvH2.y, constraints_dvH2.z, 0);
 
-        // and assign the new vectors to global memory
-        vs[idxO] = velO_whole;
-        vs[idxH1]= velH1_whole;
-        vs[idxH2]= velH2_whole;
-        
-        return;
+            velO_whole += constraints_dvO;
+            velH1_whole+= constraints_dvH1;
+            velH2_whole+= constraints_dvH2;
+            // add the float3 differential velocity vectors
+
+            // and assign the new vectors to global memory
+            vs[idxO] = velO_whole;
+            vs[idxH1]= velH1_whole;
+            vs[idxH2]= velH2_whole;
+            
+
+            return;
+        }
     }
 }
 
@@ -707,8 +732,8 @@ __global__ void settlePositions(int4 *waterIds, float4 *xs, float4 *xs_0,
             __syncthreads();
             assert(cosPhiSqr > 0.0);
             assert(cosPsiSqr > 0.0);
-            }
         }
+        
         // -- all that remains is calculating $\theta$
         // first, do the displacements of the canonical triangle.
         float3 aPrime0 = make_float3(0.0, ra, 0.0);
@@ -716,7 +741,6 @@ __global__ void settlePositions(int4 *waterIds, float4 *xs, float4 *xs_0,
         float3 cPrime0 = make_float3(rc, -rb, 0.0);
 
         // aPrime1 == aPrime0
-        // -- check that all of our Psi's and Phi's are correctly placed TODO
         float3 bPrime1 = make_float3(-rc*cosPsi, -rb, rc*sinPsi);
         float3 cPrime1 = make_float3(rc*cosPsi, -rb, -rc*sinPsi);
 
@@ -774,10 +798,6 @@ __global__ void settlePositions(int4 *waterIds, float4 *xs, float4 *xs_0,
         float3 a_pos = rotation(aPrime3, axis1T, axis2T, axis3T);
         float3 b_pos = rotation(bPrime3, axis1T, axis2T, axis3T);
         float3 c_pos = rotation(cPrime3, axis1T, axis2T, axis3T);
-        
-        float3 dvO = (a_pos - make_float3(posO_whole)) / dt;
-        float3 dvH1= (b_pos - make_float3(posH1_whole))/ dt;
-        float3 dvH2= (c_pos - make_float3(posH2_whole))/ dt;
 
         // while everything is reduced (COM @ origin)... get the differential contribution to the velocity
         float3 dvO = (a_pos - posO) / dt;
@@ -802,8 +822,6 @@ __global__ void settlePositions(int4 *waterIds, float4 *xs, float4 *xs_0,
         // add a velocity component corresponding to the displacements of the vertices
         // TODO: this contributes to the virial!
         //       ---- algebraic equivalence ??!! We need a per-atom sum here...
-        // ----- is this /always/ done in GMX? check in their mdrunner when it does constraints
-        //       ---- also check when they call the individual econqForceDispl, etc.
         
         // NOTE XXX: order is important here, do not do this after moving a_pos /up/
         // by += COM_d1 while posO (& posH1 & posH2) are still at the origin!!!!
@@ -825,74 +843,21 @@ __global__ void settlePositions(int4 *waterIds, float4 *xs, float4 *xs_0,
         // add the float3 differential velocity vectors
         // --- so these correspond to v0_a, v0_b, v0_c, respectively
         
-        velO += dvO;
-        velH1+= dvH1;
-        velH2+= dvH2;
+        velO_whole += dvO;
+        velH1_whole += dvH1;
+        velH2_whole += dvH2;
         // so... do the velocity constraints.
         
-        // first things first: get the unit vectors e_AB, e_BC, e_CA;
-    
-        // note that a_pos, b_pos, c_pos are already minimum image vectors...
-        float3 e_AB = b_pos - a_pos;
-        float3 e_BC = c_pos - b_pos;
-        float3 e_CA = a_pos - c_pos;
-
-        // make them unit vectors by dividing by their length
-        e_AB /= length(e_AB);
-        e_BC /= length(e_BC);
-        e_CA /= length(e_CA);
-
-        // now, compute the dot product of the relative velocity along the bond with the bond vector
-        float3 vel0_AB = velH1 - velO;
-        float3 vel0_BC = velH2 - velH1;
-        float3 vel0_CA = velO - velH2;
-
-        float v0_AB = dot(e_AB, vel0_AB);
-        float v0_BC = dot(e_BC, vel0_BC);
-        float v0_CA = dot(e_CA, vel0_CA);
-        
-        // all data required to compute tau_AB etc. are in fixRigidData... do the algebra here
-        double tau_AB = (v0_AB * fixRigidData.tauAB1) + 
-                        (v0_BC * fixRigidData.tauAB2) + 
-                        (v0_BC * fixRigidData.tauAB3);
-
-        double tau_BC = (v0_BC * fixRigidData.tauBC1) + 
-                        (v0_CA * fixRigidData.tauBC2) + 
-                        (v0_AB * fixRigidData.tauBC3);
-
-        double tau_CA = (v0_CA * fixRigidData.tauCA1) + 
-                        (v0_AB * fixRigidData.tauCA2) + 
-                        (v0_BC * fixRigidData.tauCA3);
-
-        // we have now computed our lagrange multipliers, and can add these to our velO, 
-        // velH1, velH2 vectors.
-        float invMassO = velO_whole.w;
-        float invMassH = velH1_whole.w;
-         // see if this changes things
-        float3 constraints_dvO = dtf * (invMassO) * ( (tau_AB * e_AB) - (tau_CA * e_CA) );
-        float3 constraints_dvH1= dtf * (invMassH)* ( (tau_BC * e_BC) - (tau_AB * e_AB) );
-        float3 constraints_dvH2= dtf * (invMassH)* ( (tau_CA * e_CA) - (tau_BC * e_BC) );
-        
-        float3 constraints_dvO = 0.5 * dt * (invMassO)* ( (tau_AB * e_AB) - (tau_CA * e_CA) );
-        float3 constraints_dvH1= 0.5 * dt * (invMassH)* ( (tau_BC * e_BC) - (tau_AB * e_AB) );
-        float3 constraints_dvH2= 0.5 * dt * (invMassH)* ( (tau_CA * e_CA) - (tau_BC * e_BC) );
-         
-        */
-        velO_whole += dvO;
-        //velO_whole += constraints_dvO;
-
-        velH1_whole+= dvH1;
-        //velH1_whole+= constraints_dvH1;
-
-        velH2_whole+= dvH2;
-        //velH2_whole+= constraints_dvH2;
-        // add the float3 differential velocity vectors
-
         // and assign the new vectors to global memory
         vs[idxO] = velO_whole;
         vs[idxH1]= velH1_whole;
         vs[idxH2]= velH2_whole;
+        */
     }
+}
+
+int FixRigid::removeNDOF() {
+
 }
 
 // 
@@ -999,6 +964,7 @@ void FixRigid::populateRigidData() {
 
 }
 
+/*
 bool FixRigid::postNVE_V() {
 
     float dt = state->dt;
@@ -1018,10 +984,9 @@ bool FixRigid::postNVE_V() {
                                                 dvs_0.data(), gpd.fs(activeIdx), fs_0.data(), 
                                                 com.data(), fixRigidData, nMolecules, dt, dtf, 
                                                 gpd.idToIdxs.d_data.data(), bounds);
-
     return true;
 }
-
+*/
 void FixRigid::handleBoundsChange() {
 
     if (TIP4P) {
@@ -1264,7 +1229,6 @@ void FixRigid::compute_gamma() {
 
     // our gamma value; 0.1546 is the bond length O-M in Angstroms (which we can 
     // assume is the units being used, because those are only units of distance used in DASH)
-    // TODO - remove this hardcoded value
     gamma = 0.1546 / denominator;
     //printf("gamma value: %f\n", gamma);
 
@@ -1473,22 +1437,24 @@ bool FixRigid::stepInit() {
     //float dtf = 0.5f * state->dt * state->units.ftm_to_v;
     int nAtoms = state->atoms.size();
     float dt = state->dt;
-
-    cudaDeviceSynchronize();
-    printf("Calling printGPD_Rigid at turn %d\n in FixRigid::stepInit, before doing anything\n", (int) state->turn);
-    printGPD_Rigid<<<NBLOCK(nAtoms), PERBLOCK>>>(gpd.ids(activeIdx),gpd.xs(activeIdx),gpd.vs(activeIdx),gpd.fs(activeIdx),nAtoms);
+    if (TIP4P) {
+        if (printing) {
+            cudaDeviceSynchronize();
+            printf("Calling printGPD_Rigid at turn %d\n in FixRigid::stepInit, before doing anything\n", (int) state->turn);
+            printGPD_Rigid<<<NBLOCK(nAtoms), PERBLOCK>>>(gpd.ids(activeIdx),gpd.xs(activeIdx),gpd.vs(activeIdx),gpd.fs(activeIdx),nAtoms);
+            cudaDeviceSynchronize();
+        }
+    }
 
     // compute the current center of mass for the solved constraints at the beginning of this turn
     compute_COM<FixRigidData><<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), 
                                            gpd.vs(activeIdx), gpd.idToIdxs.d_data.data(), 
                                            nMolecules, com.data(), bounds, fixRigidData);
 
-    // save the positions, velocities, forces 
-    // from the previous, fully updated turn in to our local arrays
-    compute_prev_val<<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), 
-                                                       gpd.xs(activeIdx), xs_0.data(), 
-                                                        gpd.vs(activeIdx), vs_0.data(), gpd.fs(activeIdx), 
-                                                        fs_0.data(), nMolecules, gpd.idToIdxs.d_data.data());
+    // save the positions, velocities, forces from the previous, fully updated turn in to our local arrays
+    compute_prev_val<<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), xs_0.data(), 
+                                                gpd.vs(activeIdx), vs_0.data(), gpd.fs(activeIdx), 
+                                                fs_0.data(), nMolecules, gpd.idToIdxs.d_data.data());
 
 
     if (TIP4P) {
@@ -1514,7 +1480,7 @@ bool FixRigid::stepFinal() {
     int nAtoms = state->atoms.size();
     // first, unconstrained velocity update continues: distribute the force from the M-site
     //        and integrate the velocities accordingly.  Update the forces as well.
-    // Next,  do settlePositions as usual on the (as-yet) unconstrained positions & velocities
+    // Next,  do compute_SETTLE as usual on the (as-yet) unconstrained positions & velocities
 
     // from IntegratorVerlet
     float dtf = 0.5f * state->dt * state->units.ftm_to_v;
@@ -1544,6 +1510,8 @@ bool FixRigid::stepFinal() {
 
     }
 
+    cudaDeviceSynchronize();
+
     settlePositions<FixRigidData, true><<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), 
                                                 xs_0.data(), gpd.vs(activeIdx), vs_0.data(), 
                                                 dvs_0.data(), gpd.fs(activeIdx), fs_0.data(), 
@@ -1551,7 +1519,7 @@ bool FixRigid::stepFinal() {
                                                 gpd.idToIdxs.d_data.data(), bounds, (int) state->turn);
     
     
-    settleVelocities<FixRigidData, true><<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), 
+    settleVelocities<FixRigidData,false, true><<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), 
                                                 xs_0.data(), gpd.vs(activeIdx), vs_0.data(), 
                                                 dvs_0.data(), gpd.fs(activeIdx), fs_0.data(), 
                                                 com.data(), fixRigidData, nMolecules, dt, dtf, 
