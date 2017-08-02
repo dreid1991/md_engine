@@ -12,6 +12,7 @@
 #include "State.h"
 
 #include "FixBondHarmonic.h"
+#include "FixBondQuartic.h"
 #include "FixPair.h"
 #include "includeFixes.h"
 
