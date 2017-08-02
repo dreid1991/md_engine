@@ -183,7 +183,8 @@ integVerlet = IntegratorVerlet(state)
 ########################################
 # Data recording
 ########################################
-tempData = state.dataManager.recordTemperature('all', interval = 1)
+tempData = state.dataManager.recordTemperature('all','vector', interval = 1)
+enerData = state.dataManager.recordEnergy('all', 'scalar', interval = 1, fixes = [nonbond,charge,anglePot,bondQuart] )
 
 ################################################
 # Thermostatting
@@ -191,9 +192,6 @@ tempData = state.dataManager.recordTemperature('all', interval = 1)
 fixNVT = FixNoseHoover(state,'nvt','all')
 fixNVT.setTemperature(330.0, 200*state.dt)
 state.activateFix(fixNVT)
-
-tempData = state.dataManager.recordTemperature('all','vector', interval = 1)
-enerData = state.dataManager.recordEnergy('all', 'scalar', interval = 1, fixes = [nonbond,charge,anglePot,bondQuart] )
 
 #################################
 # and some calls to PIMD
@@ -209,9 +207,6 @@ integVerlet.run(10000)
 
 print 'deactivating thermostat\n'
 
-for index, item in enumerate(enerData.vals):
-    print enerData.vals[index], sum(tempData.vals[index]), enerData.vals[index] + sum(tempData.vals[index])
-
 state.deactivateFix(fixNVT)
 
 integVerlet.run(50000)
@@ -220,8 +215,8 @@ for index, item in enumerate(enerData.vals):
     print enerData.vals[index], sum(tempData.vals[index]), enerData.vals[index] + sum(tempData.vals[index])
 
 state.dt = 1.0
-fid = open('thermo.dat', "w")
+#fid = open('thermo.dat', "w")
 
-for t, T in zip(tempData.turns, tempData.vals):
-    fid.write("{:<8}{:>15.5f}\n".format(t,T))
+#for t, T in zip(tempData.turns, tempData.vals):
+#    fid.write("{:<8}{:>15.5f}\n".format(t,T))
 
