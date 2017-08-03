@@ -52,6 +52,7 @@ Potentials
 
    fix-bond-harmonic
    fix-bond-fene
+   fix-bond-quartic
    fix-angle-harmonic
    fix-angle-charmm
    fix-angle-cosinedelta
