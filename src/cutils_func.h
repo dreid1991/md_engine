@@ -134,8 +134,6 @@ ACCUMULATION_CLASS(SumVectorToVirial, Virial, float4, v, Virial(v.x*v.x, v.y*v.y
 ACCUMULATION_CLASS(SumVectorToVirialOverW, Virial, float4, v, Virial(v.x*v.x/v.w, v.y*v.y/v.w, v.z*v.z/v.w, v.x*v.y/v.w, v.x*v.z/v.w, v.y*v.z/v.w), Virial(0, 0, 0, 0, 0, 0)); 
 ACCUMULATION_CLASS(SumVirialToScalar, float, Virial, vir, (vir[0]+vir[1]+vir[2]), 0); 
 
-
-
 template <class K, class T, class C, int NPERTHREAD>
 __global__ void oneToOne_gpu(K *dest, T *src, int n, C instance) {
     
@@ -190,8 +188,8 @@ __global__ void accumulate_gpu(K *dest, T *src, int n, int warpSize, C instance)
         atomicAdd(destFloat + threadIdx.x, tmpFloat[threadIdx.x]);
     }
 }
-//dealing with the common case of summing based on group tags
 
+//dealing with the common case of summing based on group tags
 template <class K, class T, class C, int NPERTHREAD>
 __global__ void accumulate_gpu_if(K *dest, T *src, int n, int warpSize, C instance) {
     SharedMemory<K> sharedMem;

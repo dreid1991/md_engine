@@ -5,6 +5,7 @@
 #include "DataComputerEnergy.h"
 #include "DataComputerPressure.h"
 #include "DataComputerBounds.h"
+#include "DataComputerCOMV.h"
 #include "DataSetUser.h"
 using namespace MD_ENGINE;
 using std::set;
@@ -88,8 +89,15 @@ boost::shared_ptr<DataSetUser> DataManager::recordBounds(int interval, py::objec
     dataSets.push_back(dataSet);
     return dataSet;
 
+}
 
-
+boost::shared_ptr<DataSetUser> DataManager::recordCOMV(int interval, py::object collectGenerator) {
+    int dataType = DATATYPE::COMV;
+    boost::shared_ptr<DataComputer> comp = boost::shared_ptr<DataComputer>( (DataComputer *) new DataComputerCOMV(state) );
+    uint32_t groupTag = 1;
+    boost::shared_ptr<DataSetUser> dataSet = createDataSet(comp, groupTag, interval, collectGenerator);
+    dataSets.push_back(dataSet);
+    return dataSet;
 
 }
 void DataManager::addVirialTurn(int64_t t, bool perAtomVirials) {
@@ -169,6 +177,10 @@ void export_DataManager() {
     .def("recordBounds", &DataManager::recordBounds,
             (py::arg("interval") = 0,
              py::arg("collectGenerator") = py::object())
+        )
+    .def("recordCOMV", &DataManager::recordCOMV,
+         (py::arg("interval") = 0,
+          py::arg("collectGenerator") = py::object())
         )
    /* 
     .def("stopRecordBounds", &DataManager::stopRecordBounds)

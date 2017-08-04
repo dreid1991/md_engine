@@ -830,29 +830,21 @@ __global__ void settlePositions(int4 *waterIds, float4 *xs, float4 *xs_0,
         //float3 dvH1= (b_pos - posH1)/ dt;
         //float3 dvH2= (c_pos - posH2)/ dt;
         
-        /*
+        
         float4 velO_whole = vs[idxO];
         float4 velH1_whole= vs[idxH1];
         float4 velH2_whole= vs[idxH2];
 
-        // grab the global velocities; these are our v0_a, v0_b, v0_c variables
-        //float3 velO = make_float3(velO_whole);
-        //float3 velH1= make_float3(velH1_whole);
-        //float3 velH2= make_float3(velH2_whole);
-        
         // add the float3 differential velocity vectors
-        // --- so these correspond to v0_a, v0_b, v0_c, respectively
         
         velO_whole += dvO;
         velH1_whole += dvH1;
         velH2_whole += dvH2;
-        // so... do the velocity constraints.
         
         // and assign the new vectors to global memory
         vs[idxO] = velO_whole;
         vs[idxH1]= velH1_whole;
         vs[idxH2]= velH2_whole;
-        */
     }
 }
 
