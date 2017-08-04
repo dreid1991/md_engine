@@ -185,7 +185,7 @@ void writeLAMMPSTRJFile(State *state, string fn, int64_t turn, bool oneFilePerWr
 	}
 
     // WRITE THE HEADER INFORMATION
-    outFile << "ITEM: TIMESTEP" << endl << state->turn << endl;    // TIMESTEP
+    outFile << "ITEM: TIMESTEP" << endl << turn << endl;    // TIMESTEP
     outFile << "ITEM: NUMBER OF ATOMS" << endl << count << endl;   // NUMBER OF ATOMS
     outFile << "ITEM: BOX BOUNDS pp pp pp" << endl;
     outFile << state->bounds.lo[0] << " " << state->bounds.lo[0] + state->bounds.rectComponents[0] << endl;
