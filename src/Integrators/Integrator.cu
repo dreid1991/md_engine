@@ -131,8 +131,58 @@ void Integrator::basicPreRunChecks() {
 
 }
 
+void Integrator::prepareFixes(bool requiresForces_) {
+    for (Fix *f : state->fixes) {
+        // f->requiresForces refers to Fix member in Fix.h, defaults to False
+        if (f->requiresForces == requiresForces_) {
+            f->updateGroupTag();
+            f->prepareForRun();
+        }
+    }
 
-std::vector<bool> Integrator::basicPrepare(int numTurns) {
+    // the first call to prepareFixes is prepareFixes(false);
+    // the second is prepareFixes(true);
+    // some unique stuff for the second call:
+    if (requiresForces_) {
+        for (Fix *f : state->fixes) {
+            f->setVirialTurnPrepare();
+        }
+        state->handleChargeOffloading();
+        for (Fix *f : state->fixes) {
+            f->setEvalWrapper();
+        }
+        for (boost::shared_ptr<MD_ENGINE::DataSetUser> ds : state->dataManager.dataSets) {
+            ds->prepareForRun(); //will also prepare those data sets' computers
+            if (ds->requiresVirials()) {
+                state->dataManager.addVirialTurn(ds->nextCompute, ds->requiresPerAtomVirials());
+            }
+        }
+    }
+    
+}
+
+void Integrator::prepareFinal() {
+    // prepare the DataComputers that are present
+    for (boost::shared_ptr<MD_ENGINE::DataSetUser> ds : state->dataManager.dataSets) {
+        ds->prepareForRun(); //will also prepare those data sets' computers
+        if (ds->requiresVirials()) {
+            state->dataManager.addVirialTurn(ds->nextCompute, ds->requiresPerAtomVirials());
+        }
+    }
+
+    // finally, prepare any barostats or thermostats that are present in simulation
+    for (Fix *f : state->fixes) {
+        //
+        if (f->isThermostat or f->isBarostat) {
+            f->prepareOther();
+        }
+    }
+
+
+}
+
+
+void Integrator::basicPrepare(int numTurns) {
     int nAtoms = state->atoms.size();
     state->runningFor = numTurns;
     state->runInit = state->turn;
@@ -142,6 +192,7 @@ std::vector<bool> Integrator::basicPrepare(int numTurns) {
     for (GPUArray *dat : activeData) {
         dat->dataToDevice();
     }
+    /*
     std::vector<bool> prepared;
     for (Fix *f : state->fixes) {
         f->updateGroupTag();
@@ -152,15 +203,16 @@ std::vector<bool> Integrator::basicPrepare(int numTurns) {
     for (Fix *f : state->fixes) {
         f->setEvalWrapper(); //have to do this after prepare b/c pair calcs need evaluators from charge that have been updated with correct alpha or other coefficiants, and change calcs need to know that handoffs happened
     }
-    state->gridGPU.periodicBoundaryConditions(-1, true);
     for (boost::shared_ptr<MD_ENGINE::DataSetUser> ds : state->dataManager.dataSets) {
         ds->prepareForRun(); //will also prepare those data sets' computers
         if (ds->requiresVirials()) {
             state->dataManager.addVirialTurn(ds->nextCompute, ds->requiresPerAtomVirials());
         }
     }
+    */
+    state->gridGPU.periodicBoundaryConditions(-1, true);
 
-    return prepared;
+    return;
 }
 
 

@@ -13,12 +13,14 @@ const std::string rigidType = "Rigid";
 FixRigid::FixRigid(boost::shared_ptr<State> state_, std::string handle_, std::string groupHandle_) : Fix(state_, handle_, groupHandle_, rigidType, true, true, false, 1) {
 
     // set both to false initially; using one of the createRigid functions will flip the pertinent flag to true
-    firstPrepare = true;
     TIP4P = false;
     TIP3P = false;
     printing = false;
     //requiresPostNVE_V = true;
     style = "DEFAULT";
+    // this fix requires the forces to have already been computed before we can 
+    // call prepareForRun()
+    requiresForces = true;
 }
 
 __device__ inline float3 positionsToCOM(float3 *pos, float *mass, float ims) {
@@ -825,7 +827,7 @@ __global__ void settlePositions(int4 *waterIds, float4 *xs, float4 *xs_0,
         
         // NOTE XXX: order is important here, do not do this after moving a_pos /up/
         // by += COM_d1 while posO (& posH1 & posH2) are still at the origin!!!!
-        //  ---- if you do, life will be unpleassant
+        //  ---- if you do, life will be unpleasant
         //float3 dvO = (a_pos - posO) / dt;
         //float3 dvH1= (b_pos - posH1)/ dt;
         //float3 dvH2= (c_pos - posH2)/ dt;
@@ -848,8 +850,35 @@ __global__ void settlePositions(int4 *waterIds, float4 *xs, float4 *xs_0,
     }
 }
 
-int FixRigid::removeNDOF() {
+// so, removeNDF is called by instances of DataComputerTemperature on instantiation,
+// which occurs (see IntegratorVerlet.cu, Integrator.cu) after 
+int FixRigid::removeNDF() {
+    int ndf = 0;
 
+    if (TIP4P) {
+    // so, for each molecule, we have three constraints on the positions of the real atoms:
+    // -- two OH bond lengths, and the angle between them (+3)
+    // we have three constraints on the velocities along the length of the bonds:
+    // -- the relative velocities along the length of the bonds must be zero (+3)
+    // and we have three constraints on the virtual site (its position is completely defined) (+3)
+    // 
+    // in total, we have a reduction in DOF of 9 per molecule if this is a 4-site model
+        ndf = 9 * nMolecules;
+        
+    } else {
+    
+    // so, for each molecule, we have three constraints on the positions of the real atoms:
+    // -- two OH bond lengths, and the angle between them (+3)
+    // we have three constraints on the velocities along the length of the bonds:
+    // -- the relative velocities along the length of the bonds must be zero (+3)
+    // 
+    // in total, we have a reduction in DOF of 6 per molecule
+        ndf = 6 * nMolecules;
+
+    }
+
+    
+    return ndf;
 }
 
 // 
@@ -1336,10 +1365,7 @@ void FixRigid::createRigid(int id_a, int id_b, int id_c) {
 
 
 bool FixRigid::prepareForRun() {
-    if (firstPrepare) {
-        firstPrepare = false;
-        return false;
-    }
+    
     nMolecules = waterIds.size();
     // cannot have more than one water model present
     if (TIP3P && TIP4P) {

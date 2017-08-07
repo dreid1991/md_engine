@@ -523,26 +523,24 @@ void IntegratorVerlet::run(int numTurns)
 
     basicPreRunChecks();
 
-    std::vector<bool> prepared = basicPrepare(numTurns);
-    
-    printf("\nBack in IntegratorVerlet.cu\n");
+    // basicPrepare now only handles State prepare and sending global State data to device
+    basicPrepare(numTurns);
+
+    // prepare the fixes that do not require forces to be computed
+    prepareFixes(false);
     
     force(true);
 
-    bool retry = false;
-    for (int i = 0; i<prepared.size(); i++) {
-        if (!prepared[i]) {
-            retry = true;
-        }
-    }
-    if (retry) {
-        for (Fix *f : state->fixes) {
-            bool isPrepared = f->prepareForRun();
-            if (!isPrepared) {
-                mdError("A fix is unable to be instantiated correctly.");
-            }
-        }
-    }
+    // prepare the fixes that require forces to be computed on instantiation;
+    // --- we also handle the datacomputers here, now that all information is available
+    //     (e.g., for tempComputers, rigid fix will be able to quantify the reduction in DOF)
+    prepareFixes(true);
+
+    // finally, prepare barostats, thermostats, datacomputers, etc.
+    // now that pair potentials, electrostatics, and constraints are prepared.
+    // -- should we prepare the datacomputers first? possibly..
+    prepareFinal();
+
 
     int periodicInterval = state->periodicInterval;
 	

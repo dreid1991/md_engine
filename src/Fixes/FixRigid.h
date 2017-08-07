@@ -181,8 +181,8 @@ class FixRigid : public Fix {
         //     Also, check if this is rigorously correct or a valid approximation. \TODO/
         void handleBoundsChange();
 
-        //! Removes NDOF corresponding to the number of water molecules in the fix
-        int removeNDOF();
+        //! Removes NDF corresponding to the number of water molecules in the fix
+        int removeNDF();
 
         // Create a rigid constraint on a TIP3P water molecule
         /*!

@@ -142,7 +142,7 @@ FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state_, std::string handle
 
     // denote whether or not this is the first time prepareForRun was called
     // --- need this, because we need to initialize this with proper virials
-    firstPrepareCalled = true;
+    //firstPrepareCalled = true;
 
 }
 
@@ -233,18 +233,20 @@ void FixNoseHoover::setTemperature(py::list temps, py::list intervals, double ti
 
 
 
-bool FixNoseHoover::prepareForRun()
+//bool FixNoseHoover::prepareForRun()
+bool FixNoseHoover::prepareFinal()
 {
 
     // if we are barostatting, we need the virials.
     // if this is the first time that prepareForRun was called, we do not have them
     // so, return false and it'll get called again
+    /*
     if (firstPrepareCalled && barostatting) {
         firstPrepareCalled = false;
         return false;
 
     }
-
+    */
     // get our boltzmann constant
     boltz = state->units.boltz;
 

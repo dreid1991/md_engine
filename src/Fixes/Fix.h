@@ -101,6 +101,12 @@ public:
     virtual bool postNVE_V() {return true; }
     virtual bool postNVE_X() {return true; } //postNVE_V and X are just called in first half step
 
+    //! Prepares a fix for run if it must be prepared after all other fixes have been instantiated
+    /*!
+     * \return False if a problem occurred, else True
+     */
+    virtual bool prepareFinal() {return true; }
+
     //! Perform operations at the end of a simulation step
     /*!
      * \return False if a problem was encountered, else return true
@@ -250,6 +256,7 @@ public:
     bool requiresCharges; //!< True if Fix needs charges.  Fixes will be stored if any fix has this as true
     //these are 
     bool isThermostat; //!< True if is a thermostat. Used for barostats.
+    bool requiresForces; //!< True if the fix requires forces on instantiation; defaults to false.
     bool requiresPostNVE_V;
 
     bool canOffloadChargePairCalc;

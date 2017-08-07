@@ -15,9 +15,8 @@ const std::string TIP4PFlexibleType = "TIP4PFlexible";
 FixTIP4PFlexible::FixTIP4PFlexible(boost::shared_ptr<State> state_, std::string handle_, std::string groupHandle_) : Fix(state_, handle_, groupHandle_, TIP4PFlexibleType, true, true, false, 1) {
 
     // set both to false initially; using one of the createRigid functions will flip the pertinent flag to true
-    firstPrepare = true;
     style = "DEFAULT";
-    
+    requiresForces = true;
     // set to default values of zero
     rOM = 0.0;
     rHH = 0.0;
@@ -400,6 +399,14 @@ void FixTIP4PFlexible::updateForPIMD(int nPerRingPoly) {
 
     return;
 
+}
+int FixTIP4PFlexible::removeNDF() {
+    int ndf = 0;
+
+    // the position of the M-site is completely defined, otherwise we have no constraints
+    ndf = 3 * nMolecules;
+
+    return ndf;
 }
 
 void FixTIP4PFlexible::compute_gamma() {
