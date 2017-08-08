@@ -172,10 +172,9 @@ void Integrator::prepareFinal() {
 
     // finally, prepare any barostats or thermostats that are present in simulation
     for (Fix *f : state->fixes) {
-        //
-        if (f->isThermostat or f->isBarostat) {
-            f->prepareOther();
-        }
+        // final stuff that needs to be prepared; in the cases of barostats & thermostats, all the things.
+        f->prepareFinal();
+
     }
 
 

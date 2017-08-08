@@ -7,7 +7,7 @@ using namespace MD_ENGINE;
 
 // scalar, because we just need the one return - not a per-atom thing.
 DataComputerCOMV::DataComputerCOMV(State *state_) : DataComputer(state_, "scalar", false) {
-
+    sumMomentum = GPUArrayGlobal<float4>(2);
 }
 
 
@@ -22,7 +22,7 @@ void DataComputerCOMV::computeScalar_GPU(bool transferToCPU, uint32_t groupTag) 
              sumMomentum.getDevData(),
              gpd.vs.getDevData(),
              nAtoms,
-             warpSize,
+             state->devManager.prop.warpSize,
              SumVectorXYZOverW()
             );
     
@@ -40,11 +40,19 @@ void DataComputerCOMV::prepareForRun() {
 
 
 void DataComputerCOMV::computeScalar_CPU() {
-    systemMomentum = * (float4 *) sumMomentum.h_data.data();
-
+    systemMomentum = sumMomentum.h_data[0];
 
 }
 
 void DataComputerCOMV::appendScalar(boost::python::list &vals) {
-    vals.append(systemMomentum);
+    //Virial tmp = Virial(systemMomentum.x, systemMomentum.y, systemMomentum.z,
+    //                    systemMomentum.w, 0, 0);
+    // boost is an enigma
+    std::vector<double> tmp = std::vector<double>(4,0);
+    tmp[0] = systemMomentum.x;
+    tmp[1] = systemMomentum.y;
+    tmp[2] = systemMomentum.z;
+    tmp[3] = systemMomentum.w;
+    //vals.append(systemMomentum);
+    vals.append(tmp);
 }

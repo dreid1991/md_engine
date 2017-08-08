@@ -20,7 +20,8 @@ state.deviceManager.setDevice(0)
 ##############################
 numMolecules = 512
 sideLength = 27.0
-
+numTurnsEquil = 500
+numTurnsProd = 500
 loVector = Vector(0,0,0)
 hiVector = Vector(sideLength, sideLength, sideLength)
 
@@ -29,9 +30,9 @@ state.units.setReal()
 state.bounds = Bounds(state, lo = loVector, hi = hiVector)
 state.rCut = 9.0
 state.padding = 1.0
-state.periodicInterval = 7
+state.periodicInterval = 3
 state.shoutEvery = 100
-state.dt = 0.5
+state.dt = 1.0
 
 
 ##############################################
@@ -49,7 +50,6 @@ mSiteHandle = 'M'
 # add our oxygen and hydrogen species to the simulation
 state.atomParams.addSpecies(handle=oxygenHandle, mass=15.9994, atomicNum=8)
 state.atomParams.addSpecies(handle=hydrogenHandle, mass=1.008, atomicNum=1)
-#state.atomParams.addSpecies(handle=mSiteHandle,mass=0.0,atomicNum=0)
 
 ##############################################################
 # TIP3P parameters
@@ -57,27 +57,16 @@ state.atomParams.addSpecies(handle=hydrogenHandle, mass=1.008, atomicNum=1)
 epsilon = 0.1521 # given in kcal/mol
 sigma = 3.5365 # given in Angstroms
 
-
-#####################
-# Charge interactions
-#####################
-charge = FixChargeEwald(state, 'charge', 'all')
-charge.setParameters(128,state.rCut-1, 3)
-state.activateFix(charge)
-
-
 ######################
 # LJ Interactions
 ######################
 nonbond = FixLJCut(state,'cut')
 nonbond.setParameter('sig',oxygenHandle, oxygenHandle, sigma)
 nonbond.setParameter('eps',oxygenHandle, oxygenHandle, epsilon)
-nonbond.setParameter('sig',hydrogenHandle, hydrogenHandle, 0.449)
+nonbond.setParameter('sig',hydrogenHandle, hydrogenHandle, 0.0)
 nonbond.setParameter('eps',hydrogenHandle, hydrogenHandle, 0.0)
 nonbond.setParameter('sig',oxygenHandle, hydrogenHandle, 0.0)
 nonbond.setParameter('eps',oxygenHandle, hydrogenHandle, 0.0)
-#nonbond.setParameter('sig',mSiteHandle, mSiteHandle, 0.0)
-#nonbond.setParameter('eps',mSiteHandle, mSiteHandle, 0.0)
 
 
 #############################################################
@@ -91,7 +80,6 @@ nonbond.setParameter('eps',oxygenHandle, hydrogenHandle, 0.0)
 #state.activateFix(harmonicAngle)
 
 rigid = FixRigid(state,'rigid','all')
-
 
 # our vector of centers
 positions = []
@@ -108,6 +96,8 @@ for x in xrange(xyzrange):
             #print pos
             positions.append(pos)
 
+velocities = Vector(0.02, 0.02, 0.02)
+
 # create the molecules, and add them to the FixFlexibleTIP4P fix
 for i in range(numMolecules):
     center = positions[i]
@@ -118,7 +108,11 @@ for i in range(numMolecules):
     molecule = create_TIP3P(state,oxygenHandle,hydrogenHandle,bondLength=0.9572,center=center,orientation="random")
     ids = []
     for atomId in molecule.ids:
+        #state.atoms[atomId].vel = velocities
+        #state.atoms[atomId].force= Vector(0,0,0)
         ids.append(atomId)
+
+    velocities *= -1.0
 
     # make a harmonic OH1 bond with some high stiffness, and OH2, and H1H2
     '''
@@ -138,6 +132,12 @@ print 'done adding molecules to simulation'
 # Initialization of potentials
 #############################################################
 
+#####################
+# Charge interactions
+#####################
+charge = FixChargeEwald(state, 'charge', 'all')
+charge.setParameters(128,state.rCut-1, 3)
+state.activateFix(charge)
 
 #####################
 # LJ Interactions
@@ -153,8 +153,7 @@ state.activateFix(rigid)
 #############################################
 # initialize at some temperature
 #############################################
-InitializeAtoms.initTemp(state, 'all', 550.0)
-
+InitializeAtoms.initTemp(state, 'all', 350.0)
 
 #############################################
 # Temperature control
@@ -163,7 +162,8 @@ InitializeAtoms.initTemp(state, 'all', 550.0)
 #fixNVT.setTemperature(300.0, 100*state.dt)
 #state.activateFix(fixNVT)
 
-
+fixNVT = FixNVTRescale(state,'nvt','all',350,100)
+state.activateFix(fixNVT)
 ########################################
 # our integrator
 ########################################
@@ -172,8 +172,12 @@ integVerlet = IntegratorVerlet(state)
 ########################################
 # Data recording
 ########################################
-tempData = state.dataManager.recordTemperature('all', interval = 1)
+#tempData = state.dataManager.recordTemperature('all','vector', interval = 1)
+#enerData = state.dataManager.recordEnergy('all', interval = 1)
 
+tempData = state.dataManager.recordTemperature('all','vector', interval = 1)
+enerData = state.dataManager.recordEnergy('all', 'scalar', interval = 1, fixes = [nonbond,charge] )
+comvData = state.dataManager.recordCOMV(interval=1)
 
 #################################
 # and some calls to PIMD
@@ -182,13 +186,31 @@ tempData = state.dataManager.recordTemperature('all', interval = 1)
 #state.preparePIMD(the_temp)
 
 writer = WriteConfig(state, handle='writer', fn='rigid_tip3p', format='xyz',
-                     writeEvery=10)
+                     writeEvery=5)
 state.activateWriteConfig(writer)
 
-integVerlet.run(5000000)
+integVerlet.run(numTurnsEquil)
+#print dir(tempData)
+#print sum(tempData.vals[0])
+state.deactivateFix(fixNVT)
+integVerlet.run(numTurnsProd)
 
+for index, item in enumerate(enerData.vals):
+    print enerData.vals[index], sum(tempData.vals[index]), enerData.vals[index] + sum(tempData.vals[index])
+
+#state.deactivateFix(fixNVT)
+
+integVerlet.run(numTurnsProd)
+
+for index, item in enumerate(enerData.vals):
+    print enerData.vals[index], sum(tempData.vals[index]), enerData.vals[index] + sum(tempData.vals[index])
+
+print "now printing COMV data\n"
+for index, item in enumerate(comvData.vals):
+    print item[0], "  ", item[1], "  ", item[2], "   ", item[3]
+
+print "END printing COMV data\n"
 fid = open('thermo.dat', "w")
 
 for t, T in zip(tempData.turns, tempData.vals):
-    fid.write("{:<8}{:>15.5f}\n".format(t,T))
-
+    fid.write("{:<8}{:>15.5f}\n".format(t,sum(T)))

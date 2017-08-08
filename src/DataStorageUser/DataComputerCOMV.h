@@ -4,6 +4,7 @@
 
 #include "DataComputer.h"
 #include "GPUArrayGlobal.h"
+#include "Virial.h"
 
 // a data computer for the center of mass velocity
 namespace MD_ENGINE {
