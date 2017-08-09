@@ -78,6 +78,13 @@ public:
         v -= rectComponents * img * periodic;
         return v;
     }
+    /*
+    __host__ __device__ float3 minImage(double3 v) {
+        double3 img = make_double3(rintf(v.x * invRectComponents.x), rintf(v.y * invRectComponents.y), rintf(v.z * invRectComponents.z));
+        v -= rectComponents * img * periodic;
+        return v;
+    }
+    */
     __host__ __device__ float volume() {
         return rectComponents.x * rectComponents.y * rectComponents.z;
     }

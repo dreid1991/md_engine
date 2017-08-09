@@ -151,12 +151,14 @@ void Integrator::prepareFixes(bool requiresForces_) {
         for (Fix *f : state->fixes) {
             f->setEvalWrapper();
         }
+        /*
         for (boost::shared_ptr<MD_ENGINE::DataSetUser> ds : state->dataManager.dataSets) {
             ds->prepareForRun(); //will also prepare those data sets' computers
             if (ds->requiresVirials()) {
                 state->dataManager.addVirialTurn(ds->nextCompute, ds->requiresPerAtomVirials());
             }
         }
+        */
     }
     
 }

@@ -439,7 +439,7 @@ __global__ void settleVelocities(int4 *waterIds, float4 *xs, float4 *xs_0,
                                float4 *fs, float4 *fs_0, float4 *comOld, 
                                DATA fixRigidData, int nMolecules, 
                                float dt, float dtf,
-                               int *idToIdxs, BoundsGPU bounds) {
+                               int *idToIdxs, BoundsGPU bounds, int turn) {
     int idx = GETIDX();
     if (idx < nMolecules) {
         
@@ -499,9 +499,27 @@ __global__ void settleVelocities(int4 *waterIds, float4 *xs, float4 *xs_0,
             e_BC *= inv_len_BC;
             e_CA *= inv_len_CA;
 
+            /*
             float cosA = dot(-e_AB,e_CA);
             float cosB = dot(-e_BC,e_AB);
             float cosC = dot(-e_CA,e_BC);
+            */
+
+            /*
+            double cosA = fixRigidData.cosA;
+            double cosB = fixRigidData.cosB;
+            double cosC = fixRigidData.cosC;
+            */
+
+            /*
+            if (( (turn % 100) == 0) and idx == 3) {
+                printf("cosA, cosB, cosC: %f %f %f\n", cosA, cosB, cosC);
+                printf("fixRigidData members: %f %f %f\n", 
+                       fixRigidData.cosA,
+                       fixRigidData.cosB,
+                       fixRigidData.cosC);
+            }
+            */
 
             float4 velO_whole = vs[idxO];
             float4 velH1_whole= vs[idxH1];
@@ -517,44 +535,45 @@ __global__ void settleVelocities(int4 *waterIds, float4 *xs, float4 *xs_0,
             float3 vel0_BC = velH2 - velH1;
             float3 vel0_CA = velO - velH2;
 
-            float v0_AB = dot(e_AB, vel0_AB);
-            float v0_BC = dot(e_BC, vel0_BC);
-            float v0_CA = dot(e_CA, vel0_CA);
+            double v0_AB =(double)  dot(e_AB, vel0_AB);
+            double v0_BC =(double)  dot(e_BC, vel0_BC);
+            double v0_CA = (double) dot(e_CA, vel0_CA);
 
             double4 weights = fixRigidData.weights;
-            float ma = (float) weights.z;
-            float mb = (float) weights.w;
-            float mamb = ma + mb;
-            float mambSqr = mamb * mamb;
+            double ma =  weights.z;
+            double mb =  weights.w;
+            double mamb = ma + mb;
+            double mambSqr = mamb * mamb;
 
             // exactly as in Miyamoto
             // --- except, since all three are /divided/ by d, and then later multiplied by dt
             //     for numerical precision, we just don't involve the timestep dt.
-            float d = ( (2.0 * mambSqr) + ( 2.0 * ma * mb * cosA * cosB * cosC) - (2.0 * mb * mb * cosA * cosA) - 
+            /*
+            double d = ( (2.0 * mambSqr) + ( 2.0 * ma * mb * cosA * cosB * cosC) - (2.0 * mb * mb * cosA * cosA) - 
                         ( ( ma * mamb) * ((cosB * cosB) + (cosC * cosC)) ) ) / (2.0 * mb);
 
-            float tau_AB = ma * ( (v0_AB * (2.0*mamb - (ma * cosC * cosC))) +
+            double tau_AB = ma * ( (v0_AB * (2.0*mamb - (ma * cosC * cosC))) +
                                   (v0_BC * ((mb * cosC * cosA) - (mamb * cosB)) ) + 
                                   (v0_CA * (ma * cosB * cosC - (2.0 * mb * cosA) ) ) ) / d;
 
-            float tau_BC = ( (v0_BC * ( ( mambSqr - (mb * mb * cosA * cosA) ) )) + 
+            double tau_BC = ( (v0_BC * ( ( mambSqr - (mb * mb * cosA * cosA) ) )) + 
                              (v0_CA * ma * ((mb * cosA * cosB) - (mamb * cosC ) ) ) + 
                              (v0_AB * ma * ((mb * cosC * cosA) - (mamb * cosB) ) ) ) / d;
 
-            float tau_CA = ma * ( (v0_CA * ((2.0 * mamb) - (ma * cosB * cosB) )) + 
+            double tau_CA = ma * ( (v0_CA * ((2.0 * mamb) - (ma * cosB * cosB) )) + 
                                   (v0_AB * ((ma * cosB * cosC) - (2.0 * mb * cosA) )) + 
                                   (v0_BC * ((mb * cosA * cosB) - (mamb * cosC) )) ) / d;
 
             float3 g_AB = e_AB * tau_AB;
             float3 g_BC = e_BC * tau_BC;
             float3 g_CA = e_CA * tau_CA;
-
+            */
 
             // all data required to compute tau_AB etc. are in fixRigidData... do the algebra here
-            /*
+           
             double tau_AB = (v0_AB * fixRigidData.tauAB1) + 
                             (v0_BC * fixRigidData.tauAB2) + 
-                            (v0_BC * fixRigidData.tauAB3);
+                            (v0_CA * fixRigidData.tauAB3);
 
             double tau_BC = (v0_BC * fixRigidData.tauBC1) + 
                             (v0_CA * fixRigidData.tauBC2) + 
@@ -563,7 +582,11 @@ __global__ void settleVelocities(int4 *waterIds, float4 *xs, float4 *xs_0,
             double tau_CA = (v0_CA * fixRigidData.tauCA1) + 
                             (v0_AB * fixRigidData.tauCA2) + 
                             (v0_BC * fixRigidData.tauCA3);
-            */
+
+            float3 g_AB = e_AB * tau_AB;
+            float3 g_BC = e_BC * tau_BC;
+            float3 g_CA = e_CA * tau_CA;
+            
             // we have now computed our lagrange multipliers, and can add these to our velO, 
             // velH1, velH2 vectors.
             float3 constraints_dvO = 0.5 * (velO_whole.w) * ( (g_AB) - (g_CA) );
@@ -773,7 +796,7 @@ __global__ void settlePositions(int4 *waterIds, float4 *xs, float4 *xs_0,
 
         // sin(theta) = ( alpha * gamma - beta * sqrt(alpha^2 + beta^2 - gamma^2)) / (alpha^2 + beta^2)
         double alphaSqrBetaSqr = (alpha * alpha) + (beta * beta);
-        double sinTheta = (alpha * gamma - (beta * sqrt(alphaSqrBetaSqr - (beta*beta)))) / (alphaSqrBetaSqr);
+        double sinTheta = (alpha * gamma - (beta * sqrt(alphaSqrBetaSqr - (gamma*gamma)))) / (alphaSqrBetaSqr);
     
         double cosThetaSqr = 1.0 - (sinTheta * sinTheta);
         double cosTheta = sqrt(cosThetaSqr);
@@ -928,10 +951,10 @@ void FixRigid::populateRigidData() {
     // --- these are initialized in ::set_fixed_sides()
     double ma = fixRigidData.weights.z;
     double mb = fixRigidData.weights.w;
-    double mc = mb;
+    //double mc = mb;
 
     // first, we need to calculate the denominator expression, d
-    double d = ((state->dt) / (2.0 * mb) ) * ( (2.0 * ( (ma+mb) * (ma+mb) ) ) + 
+    double d = (1.0 / (2.0 * mb) ) * ( (2.0 * ( (ma+mb) * (ma+mb) ) ) + 
                                                (2.0 * ma * mb * cosA * cosB * cosC) - 
                                                (2.0 * mb * mb * cosA * cosA) - 
                                                (ma * (ma + mb) * ( (cosB * cosB) + (cosC * cosC) ) ) ) ;
@@ -1414,6 +1437,7 @@ bool FixRigid::prepareForRun() {
         compute_gamma();
     }
 
+
     BoundsGPU &bounds = state->boundsGPU;
     compute_COM<FixRigidData><<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), gpd.vs(activeIdx), 
                                          gpd.idToIdxs.d_data.data(), nMolecules, com.data(), bounds, fixRigidData);
@@ -1422,7 +1446,8 @@ bool FixRigid::prepareForRun() {
     
     set_init_vel_correction<<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), dvs_0.data(), nMolecules);
 
-    cudaDeviceSynchronize();
+
+
     // adjust the initial velocities to conform to our velocity constraints
     // -- here, we preserve the COMV of the system, while imposing strictly translational motion on the molecules
     //    - we use shared memory to compute center of mass velocity of the group, allowing for one kernel call
@@ -1454,7 +1479,7 @@ bool FixRigid::stepInit() {
     BoundsGPU &bounds = state->boundsGPU;
     //float dtf = 0.5f * state->dt * state->units.ftm_to_v;
     int nAtoms = state->atoms.size();
-    float dt = state->dt;
+    //float dt = state->dt;
     if (TIP4P) {
         if (printing) {
             cudaDeviceSynchronize();
@@ -1541,7 +1566,7 @@ bool FixRigid::stepFinal() {
                                                 xs_0.data(), gpd.vs(activeIdx), vs_0.data(), 
                                                 dvs_0.data(), gpd.fs(activeIdx), fs_0.data(), 
                                                 com.data(), fixRigidData, nMolecules, dt, dtf, 
-                                                gpd.idToIdxs.d_data.data(), bounds);
+                                                gpd.idToIdxs.d_data.data(), bounds, (int) state->turn);
     
     cudaDeviceSynchronize();
     
