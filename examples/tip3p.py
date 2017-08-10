@@ -18,23 +18,40 @@ state.deviceManager.setDevice(0)
 ##############################
 # Set initial density here
 ##############################
-numMolecules = 512
-sideLength = 27.0
-numTurnsEquil = 500
-numTurnsProd = 500
+numMolecules = 1028
+density = 1.0
+numTurnsEquil = 50000
+numTurnsProd = 50000
+
+###############################
+# Calculating box dimensions
+###############################
+gPerMol = 18.02
+molPerG = 1.0 / gPerMol
+cmPerAngstrom = 100 * (1.0 * (10 ** (-10.0)))
+avogadro = 6.0221409e23
+numberDensity = density * (cmPerAngstrom ** (3.0)) * molPerG * avogadro
+sideLength = (numMolecules / numberDensity) ** (1.0/3.0)
+
+print 'sideLength calculated to be: ', sideLength
+
+#######################################################
+# setting the box bounds and other attributes of state
+#######################################################
 loVector = Vector(0,0,0)
 hiVector = Vector(sideLength, sideLength, sideLength)
 
 state.units.setReal()
 
 state.bounds = Bounds(state, lo = loVector, hi = hiVector)
-state.rCut = 9.0
+state.rCut = 12.0
 state.padding = 1.0
-state.periodicInterval = 3
+state.periodicInterval = 7
 state.shoutEvery = 100
 state.dt = 1.0
 
-
+print "running for %d equil turns and %d prod turns with a timestep of %f" %(numTurnsEquil, numTurnsProd, state.dt)
+print "there are %d molecules in this simulation" %numMolecules
 ##############################################
 # PIMD parameters - as from examples from Mike
 ##############################################
@@ -96,7 +113,6 @@ for x in xrange(xyzrange):
             #print pos
             positions.append(pos)
 
-velocities = Vector(0.02, 0.02, 0.02)
 
 # create the molecules, and add them to the FixFlexibleTIP4P fix
 for i in range(numMolecules):
@@ -112,7 +128,6 @@ for i in range(numMolecules):
         #state.atoms[atomId].force= Vector(0,0,0)
         ids.append(atomId)
 
-    velocities *= -1.0
 
     # make a harmonic OH1 bond with some high stiffness, and OH2, and H1H2
     '''
@@ -162,7 +177,7 @@ InitializeAtoms.initTemp(state, 'all', 350.0)
 #fixNVT.setTemperature(300.0, 100*state.dt)
 #state.activateFix(fixNVT)
 
-fixNVT = FixNVTRescale(state,'nvt','all',350,100)
+fixNVT = FixNVTRescale(state,'nvt','all',298.15,200)
 state.activateFix(fixNVT)
 ########################################
 # our integrator
@@ -175,8 +190,8 @@ integVerlet = IntegratorVerlet(state)
 #tempData = state.dataManager.recordTemperature('all','vector', interval = 1)
 #enerData = state.dataManager.recordEnergy('all', interval = 1)
 
-tempData = state.dataManager.recordTemperature('all','vector', interval = 1)
-enerData = state.dataManager.recordEnergy('all', 'scalar', interval = 1, fixes = [nonbond,charge] )
+tempData = state.dataManager.recordTemperature('all','scalar', interval = 10)
+enerData = state.dataManager.recordEnergy('all', 'scalar', interval = 10)
 comvData = state.dataManager.recordCOMV(interval=1)
 
 #################################
@@ -193,24 +208,21 @@ integVerlet.run(numTurnsEquil)
 #print dir(tempData)
 #print sum(tempData.vals[0])
 state.deactivateFix(fixNVT)
-integVerlet.run(numTurnsProd)
+state.dataManager.stopRecord(enerData)
 
-for index, item in enumerate(enerData.vals):
-    print enerData.vals[index], sum(tempData.vals[index]), enerData.vals[index] + sum(tempData.vals[index])
+enerData = state.dataManager.recordEnergy('all', 'scalar', interval = 10)
+
+integVerlet.run(numTurnsProd)
 
 #state.deactivateFix(fixNVT)
 
-integVerlet.run(numTurnsProd)
-
+#integVerlet.run(numTurnsProd)
 for index, item in enumerate(enerData.vals):
-    print enerData.vals[index], sum(tempData.vals[index]), enerData.vals[index] + sum(tempData.vals[index])
+    print enerData.vals[index], tempData.vals[index], enerData.vals[index] + tempData.vals[index]
 
 print "now printing COMV data\n"
 for index, item in enumerate(comvData.vals):
     print item[0], "  ", item[1], "  ", item[2], "   ", item[3]
 
 print "END printing COMV data\n"
-fid = open('thermo.dat', "w")
 
-for t, T in zip(tempData.turns, tempData.vals):
-    fid.write("{:<8}{:>15.5f}\n".format(t,sum(T)))

@@ -75,16 +75,17 @@ public:
      */
     __host__ __device__ float3 minImage(float3 v) {
         float3 img = make_float3(rintf(v.x * invRectComponents.x), rintf(v.y * invRectComponents.y), rintf(v.z * invRectComponents.z));
+
         v -= rectComponents * img * periodic;
         return v;
     }
-    /*
-    __host__ __device__ float3 minImage(double3 v) {
-        double3 img = make_double3(rintf(v.x * invRectComponents.x), rintf(v.y * invRectComponents.y), rintf(v.z * invRectComponents.z));
-        v -= rectComponents * img * periodic;
+    
+    __host__ __device__ double3 minImage(double3 v) {
+        double3 img = make_double3(rint(v.x * invRectComponents.x), rint(v.y * invRectComponents.y), rint(v.z * invRectComponents.z));
+        v -= make_double3(rectComponents) * img * make_double3(periodic);
         return v;
     }
-    */
+    
     __host__ __device__ float volume() {
         return rectComponents.x * rectComponents.y * rectComponents.z;
     }
@@ -125,6 +126,7 @@ public:
 
 
         invRectComponents = 1 / rectComponents;
+
 
     }
     bool operator ==(BoundsGPU &other) {
