@@ -52,7 +52,7 @@ public:
         if (nThreadPerAtom==1) {
             compute_energy_iso_group_group<PAIR_EVAL, COMP_PAIRS, N_PARAM, CHARGE_EVAL, COMP_CHARGES, 0> <<<NBLOCKTEAM(nAtoms, nThreadPerBlock, nThreadPerAtom), nThreadPerBlock, N_PARAM*numTypes*numTypes*sizeof(float)>>> (nAtoms, nPerRingPoly, xs, fs, perParticleEng, neighborCounts, neighborlist, cumulSumMaxPerBlock, warpSize, parameters, numTypes, bounds, onetwoStr, onethreeStr, onefourStr, qs, qCutoff*qCutoff, tagA, tagB, nThreadPerAtom, pairEval, chargeEval);
         } else {
-            compute_energy_iso_group_group<PAIR_EVAL, COMP_PAIRS, N_PARAM, CHARGE_EVAL, COMP_CHARGES, 1> <<<NBLOCKTEAM(nAtoms, nThreadPerBlock, nThreadPerAtom), nThreadPerBlock, N_PARAM*numTypes*numTypes*sizeof(float)>>> (nAtoms, nPerRingPoly, xs, fs, perParticleEng, neighborCounts, neighborlist, cumulSumMaxPerBlock, warpSize, parameters, numTypes, bounds, onetwoStr, onethreeStr, onefourStr, qs, qCutoff*qCutoff, tagA, tagB, nThreadPerAtom, pairEval, chargeEval);
+            compute_energy_iso_group_group<PAIR_EVAL, COMP_PAIRS, N_PARAM, CHARGE_EVAL, COMP_CHARGES, 1> <<<NBLOCKTEAM(nAtoms, nThreadPerBlock, nThreadPerAtom), nThreadPerBlock, N_PARAM*numTypes*numTypes*sizeof(float) + sizeof(float) * nThreadPerBlock>>> (nAtoms, nPerRingPoly, xs, fs, perParticleEng, neighborCounts, neighborlist, cumulSumMaxPerBlock, warpSize, parameters, numTypes, bounds, onetwoStr, onethreeStr, onefourStr, qs, qCutoff*qCutoff, tagA, tagB, nThreadPerAtom, pairEval, chargeEval);
         }
 
     }
