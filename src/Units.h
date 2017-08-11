@@ -11,6 +11,7 @@ public:
     float nktv_to_press;
     float ftm_to_v;
     float *dt; //points to state's dt
+    double toSIDensity;
     int unitType;
     //assumung dialectric constant is 1
 

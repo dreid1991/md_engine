@@ -17,6 +17,9 @@ public:
     Vector multiplier;
     bool prepareForRun();
     bool stepFinal();
+    //sets deform fix to linearly move to set volume over next run
+    void toVolume(double vol);
+    double setPtVolume;
 
 
 };
