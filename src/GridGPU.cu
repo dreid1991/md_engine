@@ -848,13 +848,12 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
     // NOTE:  nothing to do here, if onlyPositionsFlag is True
     setBuildFlag<<<NBLOCK(nAtoms), PERBLOCK, PERBLOCK * sizeof(short)>>>(
                 gpd->xs(activeIdx), xsLastBuild.data(), nAtoms, bounds,
-                padding * padding, buildFlag.d_data.data(), numChecksSinceLastBuild, warpSize);
+		padding * padding, buildFlag.d_data.data(), numChecksSinceLastBuild, warpSize);
     buildFlag.dataToHost();
     cudaDeviceSynchronize();
 
     if (buildFlag.h_data[0] or forceBuild) {
         state->nlistBuildCount++;
-    if (buildFlag.h_data[0] or forceBuild) {
         float3 ds_orig = ds;
         float3 os_orig = os;
 
