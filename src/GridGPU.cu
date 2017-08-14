@@ -9,8 +9,10 @@
 #include "cutils_func.h"
 #include "cutils_math.h"
 
-
+using std::endl;
+using std::cout;
 /* GridGPU members */
+
 
 void GridGPU::initArrays() {
     //this happens in adjust for new bounds
@@ -21,10 +23,9 @@ void GridGPU::initArrays() {
     }
     perAtomArray = GPUArrayGlobal<uint16_t>(nRingPoly + 1);
     // also cumulative sum, tracking cumul. sum of max per block
-    perBlockArray = GPUArrayGlobal<uint32_t>(NBLOCK(nRingPoly) + 1);
-    // not +1 on this one, isn't cumul sum
-    perBlockArray_maxNeighborsInBlock = GPUArrayDeviceGlobal<uint16_t>(NBLOCK(nRingPoly));
-    xsLastBuild = GPUArrayDeviceGlobal<float4>(gpd->xs.size());
+//NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerRP)
+    initArraysTune();
+    xsLastBuild = GPUArrayDeviceGlobal<float4>(state->atoms.size());
 
     // in prepare for run, you make GPU grid _after_ copying xs to device
     buildFlag = GPUArrayGlobal<int>(1);
@@ -36,7 +37,13 @@ void GridGPU::initArrays() {
     cudaDeviceSynchronize();
 }
 
+void GridGPU::initArraysTune() {
+    int nRingPoly = state->atoms.size() / state->nPerRingPoly;   // number of ring polymers/atom representations
+    perBlockArray = GPUArrayGlobal<uint32_t>(NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerAtom()) + 1);
+    // not +1 on this one, isn't cumul sum
+    perBlockArray_maxNeighborsInBlock = GPUArrayDeviceGlobal<uint16_t>(NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerAtom()));
 
+}
 
 void GridGPU::setBounds(BoundsGPU &newBounds) {
     Vector trace = state->boundsGPU.rectComponents;  
@@ -101,6 +108,8 @@ __global__ void printGPD_xsOnly(uint* ids, float4 *xs, int nAtoms) {
 
 GridGPU::GridGPU(State *state_, float dx_, float dy_, float dz_, float neighCutoffMax_, int exclusionMode_, double padding_, GPUData *gpd_, int nPerRingPoly_)
   : state(state_), nPerRingPoly(nPerRingPoly_) {
+    nThreadPerAtom(state->nThreadPerAtom);
+    nThreadPerBlock(state->nThreadPerBlock);
     neighCutoffMax = neighCutoffMax_;
     gpd = gpd_;
     padding = padding_;
@@ -226,6 +235,7 @@ __global__ void printNeighbors(int *neighborlistBounds, cudaTextureObject_t neig
 */
 
 
+/*
 template <typename T>
 __device__ void copyToOtherSurf(cudaSurfaceObject_t from, cudaSurfaceObject_t to,
                                 int idx_init, int idx_final) {
@@ -240,6 +250,7 @@ __device__ void copyToOtherSurf(cudaSurfaceObject_t from, cudaSurfaceObject_t to
     surf2Dwrite(val, to, xAddr, yIdx);
 }
 
+*/
 template <typename T>
 __device__ void copyToOtherList(T *from, T *to, int idx_init, int idx_final, int nPerRingPoly) {
     int initPerAtom  = idx_init  * nPerRingPoly;
@@ -337,11 +348,11 @@ __global__ void sortPerAtomArrays_xsOnly(
 /*! modifies myCount to be the number of neighbors in this cell */
 __device__ void checkCell(float3 pos, float4 *xs,
                           uint32_t *gridCellArrayIdxs, int squareIdx,
-                          float3 loop, float neighCutSqr, int &myCount) {
+                          float3 loop, float neighCutSqr, int &myCount, int nThreadPerRP, int myIdxInAtomTeam) {
 
     uint32_t idxMin = gridCellArrayIdxs[squareIdx];
     uint32_t idxMax = gridCellArrayIdxs[squareIdx+1];
-    for (int i=idxMin; i<idxMax; i++) {
+    for (int i=idxMin+myIdxInAtomTeam; i<idxMax; i+=nThreadPerRP) {
         float3 otherPos = make_float3(xs[i]);
         float3 distVec  = otherPos + loop - pos;
         if (dot(distVec, distVec) < neighCutSqr) {
@@ -350,21 +361,40 @@ __device__ void checkCell(float3 pos, float4 *xs,
     }
 }
 
+template
+<int MULTITHREADPERATOM>
 __global__ void countNumNeighbors(float4 *xs, int nRingPoly,
                                   uint16_t *neighborCounts, uint32_t *gridCellArrayIdxs,
                                   float3 os, float3 ds, int3 ns,
-                                  float3 periodic, float3 trace, float neighCutSqr) {
+                                  float3 periodic, float3 trace, float neighCutSqr, int nThreadPerRP) {
 
+    extern __shared__ uint16_t counts_shr[];
     int idx = GETIDX();
-    if (idx < nRingPoly) {
-        float4 posWhole = xs[idx];
+    int myCount = 0;
+    bool validThread;
+    int atomIdx;
+    if (MULTITHREADPERATOM) {
+        validThread = idx < nRingPoly*nThreadPerRP;
+        atomIdx = idx/nThreadPerRP;
+    } else {
+        validThread = idx < nRingPoly;
+        atomIdx = idx;
+    }
+    if (validThread) {
+        float4 posWhole = xs[atomIdx];
         float3 pos      = make_float3(posWhole);
         int3   sqrIdx   = make_int3((pos - os) / ds);
+
+        int myIdxInAtomTeam;
+        if (MULTITHREADPERATOM) {
+            myIdxInAtomTeam = threadIdx.x % nThreadPerRP;
+        } else {
+            myIdxInAtomTeam = 0;
+        }
 
         int xIdx, yIdx, zIdx;
         int xIdxLoop, yIdxLoop, zIdxLoop;
         float3 offset = make_float3(0, 0, 0);
-        int myCount = 0;
         for (xIdx=sqrIdx.x-1; xIdx<=sqrIdx.x+1; xIdx++) {
             offset.x = -floorf((float) xIdx / ns.x);
             xIdxLoop = xIdx + ns.x * offset.x;
@@ -385,7 +415,7 @@ __global__ void countNumNeighbors(float4 *xs, int nRingPoly,
                                 // updates myCount for this cell
                                 checkCell(pos, xs, 
                                           gridCellArrayIdxs, sqrIdxOtherLin,
-                                          loop, neighCutSqr, myCount);
+                                          loop, neighCutSqr, myCount, nThreadPerRP, myIdxInAtomTeam);
                                 //note sign switch on offset!
 
                             } // endif periodic.z
@@ -396,12 +426,22 @@ __global__ void countNumNeighbors(float4 *xs, int nRingPoly,
 
             } //endif periodic.x
         } // endfor xIdx
-        neighborCounts[idx] = myCount - 1; //because I counted myself.  have to subtract that off
         // XXX
 	//__syncthreads();
         //if (idx == 0) {
         //  for ( int j = 0; j<nRingPoly; j++) {printf("my id = %d, # neigh = %d\n",j,neighborCounts[j]);}
         //}
+    }
+    if (MULTITHREADPERATOM) {
+        counts_shr[threadIdx.x] = myCount;
+        reduceByN_NOSYNC<uint16_t>(counts_shr, nThreadPerRP);
+        if (validThread and not (threadIdx.x % nThreadPerRP)) {
+            //printf("c %d %d\n ", (int) counts_shr[threadIdx.x], nThreadPerRP);
+            //printf("tid %d counted %d\n", threadIdx.x, counts_shr[threadIdx.x]-1);
+            neighborCounts[atomIdx] = counts_shr[threadIdx.x] - 1; //-1 because I counted myself
+        }
+    } else {
+        neighborCounts[atomIdx] = myCount - 1;
     }
 }
 
@@ -410,117 +450,155 @@ __device__ uint addExclusion(uint otherId, uint *exclusionIds_shr,
                              int idxLo, int idxHi) {
 
     uint exclMask = EXCL_MASK;
+   // printf("tid %d Adding exclusion idxlo idxhi %d %d\n", threadIdx.x, idxLo, idxHi);
     for (int i=idxLo; i<idxHi; i++) {
         if ((exclusionIds_shr[i] & exclMask) == otherId) {
+
             return exclusionIds_shr[i] & (~exclMask);
         }
     }
     return 0;
 }
 
-template <bool EXCLUSIONS>
+
+
+template
+<int MULTITHREADPERATOM, int CHECKIDS, bool EXCLUSIONS>
 __device__ int assignFromCell(float3 pos, int idx, uint myId, float4 *xs, uint *ids,
                               uint32_t *gridCellArrayIdxs, int squareIdx,
                               float3 offset, float3 trace, float neighCutSqr,
-                              int currentNeighborIdx, uint *neighborlist,
+                              int currentNeighborIdx, uint32_t *teamNlist_base_shr, int teamOffset, uint *neighborlist,
                               uint *exclusionIds_shr, int exclIdxLo_shr, int exclIdxHi_shr,
-                              int nPerRingPoly,
-                              int warpSize) {
+                              int nPerRingPoly, int nThreadPerRP,
+                              int warpSize, int myIdxInTeam, bool validThread) {
 
-    uint idxMin = gridCellArrayIdxs[squareIdx];
-    uint idxMax = gridCellArrayIdxs[squareIdx+1];
-    for (uint i=idxMin; i<idxMax; i++) {
-        float3 otherPos = make_float3(xs[i]);
-        float3 distVec = otherPos + (offset * trace) - pos;
-        uint otherId = ids[i*nPerRingPoly];
-        if (myId != otherId && dot(distVec, distVec) < neighCutSqr/* &&
-            !(isExcluded(otherId, exclusions, numExclusions, maxExclusions))*/) {
-            if (EXCLUSIONS) {
-                uint exclusionTag = addExclusion(otherId, exclusionIds_shr, exclIdxLo_shr, exclIdxHi_shr);
-                neighborlist[currentNeighborIdx] = (i | exclusionTag);
-            } else {
-                neighborlist[currentNeighborIdx] = i;
+    uint idxMin = 0;
+    uint idxMax = 0;
+    if (validThread) {
+        idxMin = gridCellArrayIdxs[squareIdx];
+        idxMax = gridCellArrayIdxs[squareIdx+1];
+    }
+    int cellSpan = idxMax-idxMin;
+    int iterateTo;
+    if (MULTITHREADPERATOM) {
+        iterateTo = nThreadPerRP * ceilf((float) cellSpan / nThreadPerRP)+idxMin;
+    } else {
+        iterateTo = idxMax;
+    }
+
+    uint nlistDefault; 
+    if (MULTITHREADPERATOM) {
+        nlistDefault = UINT_MAX;
+    } 
+    for (uint i=idxMin+myIdxInTeam; i<iterateTo; i+=nThreadPerRP) {
+        bool validAtom = i<idxMax;
+        uint nlistItem = nlistDefault;
+        if (validAtom) {
+            float3 otherPos = make_float3(xs[i]);
+            float3 distVec = otherPos + (offset * trace) - pos;
+            uint otherId = ids[i*nPerRingPoly];
+            bool idsFine = CHECKIDS ? myId != otherId : true;
+            if (idsFine && dot(distVec, distVec) < neighCutSqr) {
+                if (EXCLUSIONS) {
+                    uint exclusionTag = addExclusion(otherId, exclusionIds_shr, exclIdxLo_shr, exclIdxHi_shr);
+
+                    if (MULTITHREADPERATOM) {
+                        nlistItem = (i | exclusionTag);
+                    } else {
+                        neighborlist[currentNeighborIdx] = (i | exclusionTag);
+                        currentNeighborIdx += warpSize;
+                    }
+                } else {
+                    if (MULTITHREADPERATOM) {
+                        nlistItem = i;
+                    } else {
+                        neighborlist[currentNeighborIdx] = i;
+                        currentNeighborIdx += warpSize;
+                    }
+                }
             }
-            currentNeighborIdx += warpSize;
         }
+        if (MULTITHREADPERATOM) { 
+            //okay, so we're going to sort teamNlist_base 
+            //and currentneighboridxs
+            //then those threads with nlist items != default will write, and that will
+            //pack the nlist densely
+            teamNlist_base_shr[threadIdx.x] = nlistItem;
+            //I tried sorting these to have more than one thread writing, but it was slower.
+            //printf("Going to write to nlist!\n");
 
+            
+            if (validAtom and myIdxInTeam==0) {
+                for (int tIdx=0; tIdx<nThreadPerRP; tIdx++) {
+                    if (teamNlist_base_shr[teamOffset+tIdx]!=nlistDefault) {
+                        neighborlist[currentNeighborIdx] = teamNlist_base_shr[teamOffset+tIdx];
+                        currentNeighborIdx++;
+                        if ((currentNeighborIdx % nThreadPerRP)==0) {
+                            currentNeighborIdx += (warpSize - nThreadPerRP);
+                        }
+                        //currentNeighborIdx += warpSize;//CHANGE THIS
+                    }
+                }
+
+            }
+        }
     }
 
     return currentNeighborIdx;
 }
-/*
-__device__ int assignFromCell_noExclusions(float3 pos, int idx, uint myId, float4 *xs, uint *ids,
-                              uint32_t *gridCellArrayIdxs, int squareIdx,
-                              float3 offset, float3 trace, float neighCutSqr,
-                              int currentNeighborIdx, uint *neighborlist,
-                              int warpSize) {
 
-    uint idxMin = gridCellArrayIdxs[squareIdx];
-    uint idxMax = gridCellArrayIdxs[squareIdx+1];
-    for (uint i=idxMin; i<idxMax; i++) {
-        float3 otherPos = make_float3(xs[i]);
-        float3 distVec = otherPos + (offset * trace) - pos;
-        uint otherId = ids[i];
-
-        if (myId != otherId && dot(distVec, distVec) < neighCutSqr) {
-            // if (myId==16) {
-            //     printf("my id is 16 and my threadIdx is %d\n\n\n\n\n", threadIdx.x);
-            // }
-            neighborlist[currentNeighborIdx] = i;
-            currentNeighborIdx += warpSize;
-        }
-
-    }
-
-    return currentNeighborIdx;
-}
-*/
-
-template <bool EXCLUSIONS>
+template <int MULTITHREADPERATOM, bool EXCLUSIONS>
 __global__ void assignNeighbors(float4 *xs, int nRingPoly, int nPerRingPoly, uint *ids,
                                 uint32_t *gridCellArrayIdxs, uint32_t *cumulSumMaxPerBlock,
                                 float3 os, float3 ds, int3 ns,
                                 float3 periodic, float3 trace, float neighCutSqr,
                                 uint *neighborlist, int warpSize,
-                                int *exclusionIndexes, uint *exclusionIds, int maxExclusionsPerAtom) {
+                                int *exclusionIndexes, uint *exclusionIds, int maxExclusionsPerAtom, int nThreadPerRP) {
 
     // extern __shared__ int exclusions_shr[];
-    extern __shared__ uint exclusionIds_shr[];
+    extern __shared__ uint32_t exclusionIds_shr[];
 
-    /*
-    int tidLo = blockIdx.x * blockDim.x;
-    int tidHi = min((blockIdx.x+1) * blockDim.x, nAtoms) - 1;
-    int idLo = *(int *) &tex2D<float4>(xs, XIDX(tidLo, sizeof(float4)), YIDX(tidLo, sizeof(float4))).w;
-    int idHi = *(int *) &tex2D<float4>(xs, XIDX(tidHi, sizeof(float4)), YIDX(tidHi, sizeof(float4))).w;
-    int copyLo = exclusionIndexes[idLo];
-    int copyHi = exclusionIndexes[idHi+1];
+    //for whole block, for compacting purposes
+    int teamOffset;
+    uint32_t *teamNlist_base_shr;
 
-    copyToShared<uint>(exclusionIds + copyLo, exclusionIds_shr, copyHi - copyLo);
-    __syncthreads();
-    */
+    if (MULTITHREADPERATOM) {
+        teamNlist_base_shr = exclusionIds_shr + (blockDim.x/nThreadPerRP)*maxExclusionsPerAtom;
+        teamOffset = (threadIdx.x / nThreadPerRP) * nThreadPerRP;//so move forward to my block in nThreadsPerRP size
+    } else {
+        teamOffset = threadIdx.x;
+    }
+    //not going to worry about this right now, get base case working then this
 
-    // so the exclusions that this contiguous block of atoms needs are scattered
-    // around the exclusionIndexes list because they're sorted by id.  Need to
-    // copy it into shared.  Each thread has to copy from diff block b/c
-    // scattered
+
+    int myIdxInTeam = threadIdx.x % nThreadPerRP;
+ 
     int idx = GETIDX();
     float4 posWhole;
     int myId;
     int exclIdxLo_shr, exclIdxHi_shr, numExclusions;
-    exclIdxLo_shr = threadIdx.x * maxExclusionsPerAtom;
-    if (idx < nRingPoly) {
-        posWhole = xs[idx];
-        myId = ids[idx*nPerRingPoly];
+    int nthRPInBlock = threadIdx.x/nThreadPerRP;
+    exclIdxLo_shr = nthRPInBlock * maxExclusionsPerAtom;
+    bool validThread = idx < nRingPoly * nThreadPerRP;
+    //printf("N RING POLY IS %d my tid %d nthreadper %d valid %d, \n", nRingPoly, threadIdx.x, nThreadPerRP, (int)validThread);
+    if (validThread) {
+        myId = ids[(idx/nThreadPerRP)*nPerRingPoly]; //in PIMD, I just need the id of _one_ of the atoms in my ring poly b/c all the 1-2,3,4 dists are the same
+       // printf("tid %d id %d\n", threadIdx.x, myId);
         if (EXCLUSIONS) {
             int exclIdxLo = exclusionIndexes[myId];
             int exclIdxHi = exclusionIndexes[myId+1];
             numExclusions = exclIdxHi - exclIdxLo;
             exclIdxHi_shr = exclIdxLo_shr + numExclusions;
-            for (int i=exclIdxLo; i<exclIdxHi; i++) {
-                uint exclusion = exclusionIds[i];
-                exclusionIds_shr[maxExclusionsPerAtom*threadIdx.x + i - exclIdxLo] = exclusion;
-                //printf("I am thread %d and I am copying %u from global %d to shared %d\n",
-                //threadIdx.x, exclusion, i, maxExclusionsPerAtom*threadIdx.x+i-exclIdxLo);
+            //printf("copying bounds %d %d, shared bounds %d %d\n", exclIdxLo, exclIdxHi, exclIdxLo_shr, exclIdxHi_shr);
+            if (myIdxInTeam==0) {
+                for (int i=exclIdxLo; i<exclIdxHi; i++) {
+                    uint exclusion = exclusionIds[i];
+                    exclusionIds_shr[exclIdxLo_shr + i - exclIdxLo] = exclusion;
+                   // uint mask = EXCL_MASK
+                   // uint tmp = (exclusion & (~mask))>>30;
+                    //printf("tid %d myId %d add exclusion %d at dist %u at shr %d\n", threadIdx.x, myId, exclusion & mask, tmp, exclIdxLo_shr + i - exclIdxLo);
+                    //printf("I am thread %d and I am copying %u from global %d to shared %d\n", threadIdx.x, exclusion, i, maxExclusionsPerAtom*threadIdx.x+i-exclIdxLo);
+                }
             }
         }
     }
@@ -536,56 +614,63 @@ __global__ void assignNeighbors(float4 *xs, int nRingPoly, int nPerRingPoly, uin
     //int myIdxInWarp = threadIdx.x % warpSize;
     //okay, then just start here and space by warpSize;
     //YOU JUST NEED TO UPDATE HOW WE CHECK EXCLUSIONS (IDXS IN SHARED)
-    if (idx < nRingPoly) {
-        posWhole = xs[idx];
-        //printf("threadid %d idx %x has lo, hi of %d, %d\n", threadIdx.x, idx, exclIdxLo_shr, exclIdxHi_shr);
-        int    currentNeighborIdx = baseNeighlistIdx(cumulSumMaxPerBlock, warpSize);
-        float3 pos = make_float3(posWhole);
-        int3   sqrIdx = make_int3((pos - os) / ds);
-        int    xIdx, yIdx, zIdx;
-        int    xIdxLoop, yIdxLoop, zIdxLoop;
-        float3 offset = make_float3(0, 0, 0);
-        currentNeighborIdx = assignFromCell<EXCLUSIONS>(pos, idx, myId, xs, ids, gridCellArrayIdxs, 
-                                                        LINEARIDX(sqrIdx, ns), offset, trace, neighCutSqr, 
-                                                        currentNeighborIdx, neighborlist, exclusionIds_shr,
-                                                        exclIdxLo_shr, exclIdxHi_shr,nPerRingPoly, warpSize);
-        for (xIdx=sqrIdx.x-1; xIdx<=sqrIdx.x+1; xIdx++) {
-            offset.x = -floorf((float) xIdx / ns.x);
-            xIdxLoop = xIdx + ns.x * offset.x;
-            if (periodic.x || (!periodic.x && xIdxLoop == xIdx)) {
+    float3 pos;
+    int3 sqrIdx;
+    float3 offset = make_float3(0, 0, 0);
+    int xIdx, yIdx, zIdx;
+    int xIdxLoop, yIdxLoop, zIdxLoop;
+    int currentNeighborIdx;
 
-                for (yIdx=sqrIdx.y-1; yIdx<=sqrIdx.y+1; yIdx++) {
-                    offset.y = -floorf((float) yIdx / ns.y);
-                    yIdxLoop = yIdx + ns.y * offset.y;
-                    if (periodic.y || (!periodic.y && yIdxLoop == yIdx)) {
 
-                        for (zIdx=sqrIdx.z-1; zIdx<=sqrIdx.z+1; zIdx++) {
-                            offset.z = -floorf((float) zIdx / ns.z);
-                            zIdxLoop = zIdx + ns.z * offset.z;
-                            if (periodic.z || (!periodic.z && zIdxLoop == zIdx)) {
-                                if (! (xIdx == sqrIdx.x and yIdx == sqrIdx.y and zIdx == sqrIdx.z) ) {
+    if (validThread) {
+        //printf("valid thread\n");
+        posWhole = xs[idx/nThreadPerRP];
+        currentNeighborIdx = baseNeighlistIdx(cumulSumMaxPerBlock, warpSize, nThreadPerRP);
+        //printf("atom idx %d tid %d base idx %d\n", idx/nThreadPerRP, threadIdx.x, currentNeighborIdx); 
+        pos = make_float3(posWhole);
+        sqrIdx = make_int3((pos - os) / ds);
+    }
+    currentNeighborIdx = assignFromCell<MULTITHREADPERATOM, 1,EXCLUSIONS>(pos, idx, myId, xs, ids, gridCellArrayIdxs, LINEARIDX(sqrIdx, ns), offset, trace, neighCutSqr, currentNeighborIdx, teamNlist_base_shr, teamOffset, neighborlist, exclusionIds_shr, exclIdxLo_shr, exclIdxHi_shr, nPerRingPoly, nThreadPerRP, warpSize, myIdxInTeam, validThread);
+    for (xIdx=sqrIdx.x-1; xIdx<=sqrIdx.x+1; xIdx++) {
+        offset.x = -floorf((float) xIdx / ns.x);
+        xIdxLoop = xIdx + ns.x * offset.x;
+        if (periodic.x || (!periodic.x && xIdxLoop == xIdx)) {
 
-                                    int3 sqrIdxOther = make_int3(xIdxLoop, yIdxLoop, zIdxLoop);
-                                    int sqrIdxOtherLin = LINEARIDX(sqrIdxOther, ns);
-                                    currentNeighborIdx = assignFromCell<EXCLUSIONS>(
-                                            pos, idx, myId, xs, ids, gridCellArrayIdxs,
-                                            sqrIdxOtherLin, -offset, trace, neighCutSqr,
-                                            currentNeighborIdx, neighborlist,
-                                            exclusionIds_shr, exclIdxLo_shr, exclIdxHi_shr, nPerRingPoly,
-                                            warpSize);
-                                }
+            for (yIdx=sqrIdx.y-1; yIdx<=sqrIdx.y+1; yIdx++) {
+                offset.y = -floorf((float) yIdx / ns.y);
+                yIdxLoop = yIdx + ns.y * offset.y;
+                if (periodic.y || (!periodic.y && yIdxLoop == yIdx)) {
 
-                            } // endif periodic.z
-                        } // endfor zIdx
+                    for (zIdx=sqrIdx.z-1; zIdx<=sqrIdx.z+1; zIdx++) {
+                        offset.z = -floorf((float) zIdx / ns.z);
+                        zIdxLoop = zIdx + ns.z * offset.z;
+                        if (periodic.z || (!periodic.z && zIdxLoop == zIdx)) {
+                            if (! (xIdx == sqrIdx.x and yIdx == sqrIdx.y and zIdx == sqrIdx.z) ) {
 
-                    } // endif periodic.y
-                } // endfor yIdx
+                                int3 sqrIdxOther = make_int3(xIdxLoop, yIdxLoop, zIdxLoop);
+                                int sqrIdxOtherLin = LINEARIDX(sqrIdxOther, ns);
+                                currentNeighborIdx = assignFromCell<MULTITHREADPERATOM, 0,EXCLUSIONS>(
+                                        pos, idx, myId, xs, ids, gridCellArrayIdxs,
+                                        sqrIdxOtherLin, -offset, trace, neighCutSqr,
+                                        currentNeighborIdx,
+                                        teamNlist_base_shr,
+                                        teamOffset, neighborlist,
+                                        exclusionIds_shr, exclIdxLo_shr, exclIdxHi_shr,
+                                        nPerRingPoly, nThreadPerRP,
+                                        warpSize, myIdxInTeam, validThread);
+                            }
 
-            } // endif periodic.x
-        } // endfor xIdx
+                        } // endif periodic.z
+                    } // endfor zIdx
 
-    } // endif idx < natoms
+                } // endif periodic.y
+            } // endfor yIdx
+
+        } // endif periodic.x
+    } // endfor xIdx
+
 }
+/**/
 
 
 
@@ -693,9 +778,10 @@ __global__ void setBuildFlag(float4 *xsA, float4 *xsB, int nAtoms, BoundsGPU bou
 }
 
 
-__global__ void computeMaxNumNeighPerBlock(int nAtoms, uint16_t *neighborCounts,
-                                           uint16_t *maxNeighInBlock, int warpSize) {
+__global__ void computeMaxMemSizePerWarp(int nAtoms, uint16_t *neighborCounts,
+                                           uint16_t *maxMemSizePerWarp, int warpSize, int nThreadPerAtom) {
 
+    //okay, so now blockDim.x/nThreadPerAtom threads maps to one block in pair computation
     int idx = GETIDX();
     extern __shared__ uint16_t counts_shr[];
     if (idx < nAtoms) {
@@ -705,9 +791,17 @@ __global__ void computeMaxNumNeighPerBlock(int nAtoms, uint16_t *neighborCounts,
         counts_shr[threadIdx.x] = 0;
     }
     __syncthreads();
-    maxByN<uint16_t>(counts_shr, blockDim.x, warpSize);
-    if (threadIdx.x == 0) {
-        maxNeighInBlock[blockIdx.x] = counts_shr[0];
+    //how many threads (or atoms) in this kernel map to a block in pair computation kernels
+    int virtualBlockSize = blockDim.x / nThreadPerAtom;
+    //printf("HERE %d %d %d\n", virtualBlockSize, blockDim.x, nThreadPerAtom);
+    maxByN<uint16_t>(counts_shr, virtualBlockSize, warpSize);
+    if (threadIdx.x % virtualBlockSize == 0) {
+        int offset = threadIdx.x / virtualBlockSize;
+        //block idx in pair computations
+        int blockIdxInPair = blockIdx.x * nThreadPerAtom + offset;
+        //this is the number of neighbor indeces required by a warp
+     //   printf("num %d\n", (int) ceilf((float) counts_shr[0] / nThreadPerAtom) * warpSize); 
+        maxMemSizePerWarp[blockIdxInPair] = ceilf((float) counts_shr[offset*virtualBlockSize] / nThreadPerAtom) * warpSize;
     }
 
 }
@@ -739,6 +833,8 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
     int nRingPoly    = nAtoms / nPerRingPoly;
 
     int activeIdx = gpd->activeIdx();
+    int nThreadPerRP = nThreadPerAtom();
+
     if (boundsLastBuild != state->boundsGPU) {
         setBounds(state->boundsGPU);
     }
@@ -756,8 +852,8 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
     buildFlag.dataToHost();
     cudaDeviceSynchronize();
 
-
-    //std::cout << "about to build neighborlist for (state gpd) (this gpd): " << &state->gpd << "  " << &*gpd << std::endl;
+    if (buildFlag.h_data[0] or forceBuild) {
+        state->nlistBuildCount++;
     if (buildFlag.h_data[0] or forceBuild) {
         float3 ds_orig = ds;
         float3 os_orig = os;
@@ -873,55 +969,106 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
          *     call this for ghosts too; everything after this has to be done on
          *     ghosts too
          */
-        countNumNeighbors<<<NBLOCK(nRingPoly), PERBLOCK>>>(
-                    centroids, nRingPoly, 
-                    perAtomArray.d_data.data(), perCellArray.d_data.data(),
-                    os, ds, ns, bounds.periodic, trace, neighCut*neighCut); //PER RP CENTROID
+        if (nThreadPerRP==1) {
+            countNumNeighbors<0><<<NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerRP), nThreadPerBlock()>>>(
+                            centroids, nRingPoly, 
+                            perAtomArray.d_data.data(), perCellArray.d_data.data(),
+                            os, ds, ns, bounds.periodic, trace, neighCut*neighCut, nThreadPerRP); //PER RP CENTROID
+        } else {
+            countNumNeighbors<1><<<NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerRP), nThreadPerBlock(), nThreadPerBlock()*sizeof(uint16_t)>>>(
+                            centroids, nRingPoly, 
+                            perAtomArray.d_data.data(), perCellArray.d_data.data(),
+                            os, ds, ns, bounds.periodic, trace, neighCut*neighCut, nThreadPerRP); //PER RP CENTROID
+        }
 
-        computeMaxNumNeighPerBlock<<<NBLOCK(nRingPoly), PERBLOCK, PERBLOCK*sizeof(uint16_t)>>>(
+ 
+        computeMaxMemSizePerWarp<<<NBLOCKVAR(nRingPoly, nThreadPerBlock()), nThreadPerBlock(), nThreadPerBlock()*sizeof(uint16_t)>>>(
                     nRingPoly, perAtomArray.d_data.data(),
-                    perBlockArray_maxNeighborsInBlock.data(), warpSize); // MAKE NUM NP VARIABLE
+                    perBlockArray_maxNeighborsInBlock.data(), warpSize, nThreadPerRP); // MAKE NUM NP VARIABLE
 
+        /*
+        //delete
+        perBlockArray_maxNeighborsInBlock.dataToHost();
+        cudaDeviceSynchronize();
+        cout << "new" << endl;
+        for (auto x : perBlockArray_maxNeighborsInBlock.h_data) {
+            cout << x << endl;
+        }
+        //end delete
+        */
         int numBlocks = perBlockArray_maxNeighborsInBlock.size();
-        setCumulativeSumPerBlock<<<NBLOCK(numBlocks+1), PERBLOCK>>>(
+        setCumulativeSumPerBlock<<<NBLOCKVAR(numBlocks+1, nThreadPerBlock()), nThreadPerBlock()>>>(
                     numBlocks, perBlockArray.d_data.data(),
                     perBlockArray_maxNeighborsInBlock.data());
-        uint32_t cumulSumPerBlock;
-        perBlockArray.d_data.get(&cumulSumPerBlock, numBlocks, 1);
+        uint32_t cumulMemSizePerWarp;
+        perBlockArray.d_data.get(&cumulMemSizePerWarp, numBlocks, 1);
         cudaDeviceSynchronize();
-
         //perAtomArray.dataToHost();
         //cudaDeviceSynchronize();
         //setPerBlockCounts(perAtomArray.h_data, perBlockArray.h_data);  // okay, now this is the start index (+1 is end index) of each atom's neighbors
         //perBlockArray.dataToDevice();
 
         //int totalNumNeighbors = perBlockArray.h_data.back() * PERBLOCK;
-        int totalNumNeighbors = cumulSumPerBlock * PERBLOCK;  // total number of possible neighbors
+        int totalNumNeighbors = cumulMemSizePerWarp * (nThreadPerBlock() / warpSize);  // total number of possible neighbors
+        if (totalNumNeighbors==0) {
+            totalNumNeighbors=1; // gets mad if you send a list of size zero
+        }
+       // cout << cumulMemSizePerWarp << endl;
+        //cout << totalNumNeighbors << endl;
         //std::cout << "TOTAL NUM IS " << totalNumNeighbors << std::endl;
+        //printf("TOTAL NUM NEIGH %d\n", totalNumNeighbors);
         if (totalNumNeighbors > neighborlist.size()) {
             neighborlist = GPUArrayDeviceGlobal<uint>(totalNumNeighbors*1.5);
         } else if (totalNumNeighbors < neighborlist.size() * 0.5) {
             neighborlist = GPUArrayDeviceGlobal<uint>(totalNumNeighbors*1.5);
         }
-   
-        if (exclusions) {
-            assignNeighbors<true> <<<NBLOCK(nRingPoly), PERBLOCK, PERBLOCK*maxExclusionsPerAtom*sizeof(uint)>>>(
-                centroids, nRingPoly, nPerRingPoly, gpd->ids(gridIdx),
-                perCellArray.d_data.data(), perBlockArray.d_data.data(), os, ds, ns,
-                bounds.periodic, trace, neighCut*neighCut, neighborlist.data(), warpSize,
-                exclusionIndexes.data(), exclusionIds.data(), maxExclusionsPerAtom
-            );
-        } else {
 
-            // no exclusions present (maxExclusionsPerAtom is 0)
-            assignNeighbors<false> <<<NBLOCK(nRingPoly), PERBLOCK, PERBLOCK*maxExclusionsPerAtom*sizeof(uint)>>>(
-                centroids, nRingPoly, nPerRingPoly, gpd->ids(gridIdx),
-                perCellArray.d_data.data(), perBlockArray.d_data.data(), os, ds, ns,
-                bounds.periodic, trace, neighCut*neighCut, neighborlist.data(), warpSize,
-                exclusionIndexes.data(), exclusionIds.data(), maxExclusionsPerAtom
-            );
+        if (nThreadPerRP==1) {
+            if (exclusions) {
+                assignNeighbors<0,true><<<NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerRP), nThreadPerBlock(), (nThreadPerBlock()/nThreadPerRP)*maxExclusionsPerAtom*sizeof(uint32_t)>>>(
+                                centroids, nRingPoly, nPerRingPoly, state->gpd.ids(gridIdx),
+                                perCellArray.d_data.data(), perBlockArray.d_data.data(), os, ds, ns,
+                                bounds.periodic, trace, neighCut*neighCut, neighborlist.data(), warpSize,
+                                exclusionIndexes.data(), exclusionIds.data(), maxExclusionsPerAtom, nThreadPerRP
+                                ); //PER RP CENTROID
+            } else {
+                assignNeighbors<0,false><<<NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerRP), nThreadPerBlock(), (nThreadPerBlock()/nThreadPerRP)*maxExclusionsPerAtom*sizeof(uint32_t)>>>(
+                                centroids, nRingPoly, nPerRingPoly, state->gpd.ids(gridIdx),
+                                perCellArray.d_data.data(), perBlockArray.d_data.data(), os, ds, ns,
+                                bounds.periodic, trace, neighCut*neighCut, neighborlist.data(), warpSize,
+                                exclusionIndexes.data(), exclusionIds.data(), maxExclusionsPerAtom, nThreadPerRP
+                                ); //PER RP CENTROID
+            }
+        } else {
+            if (exclusions) {
+                assignNeighbors<1,true><<<NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerRP), nThreadPerBlock(), (nThreadPerBlock()/nThreadPerRP)*maxExclusionsPerAtom*sizeof(uint32_t) + nThreadPerBlock()*sizeof(uint32_t)>>>(
+                                centroids, nRingPoly, nPerRingPoly, state->gpd.ids(gridIdx),
+                                perCellArray.d_data.data(), perBlockArray.d_data.data(), os, ds, ns,
+                                bounds.periodic, trace, neighCut*neighCut, neighborlist.data(), warpSize,
+                                exclusionIndexes.data(), exclusionIds.data(), maxExclusionsPerAtom, nThreadPerRP
+                                ); //PER RP CENTROID
+            } else {
+                assignNeighbors<1,false><<<NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerRP), nThreadPerBlock(), (nThreadPerBlock()/nThreadPerRP)*maxExclusionsPerAtom*sizeof(uint32_t) + nThreadPerBlock()*sizeof(uint32_t)>>>(
+                                centroids, nRingPoly, nPerRingPoly, state->gpd.ids(gridIdx),
+                                perCellArray.d_data.data(), perBlockArray.d_data.data(), os, ds, ns,
+                                bounds.periodic, trace, neighCut*neighCut, neighborlist.data(), warpSize,
+                                exclusionIndexes.data(), exclusionIds.data(), maxExclusionsPerAtom, nThreadPerRP
+                                ); //PER RP CENTROID
+            }
         }
-     
+
+        /*
+        std::vector<int> nlistCPU(neighborlist.size()); 
+        neighborlist.get(nlistCPU.data());
+        cudaDeviceSynchronize();
+
+        for (int i=0; i<nlistCPU.size(); i++) {
+            if (i%nThreadPerAtom() == 0) {
+                printf("new atom %d\n", i/nThreadPerAtom());
+            }
+            cout << "i " << i  << " nlist " << nlistCPU[i] << endl;
+        }
+        */
         if (bounds.isSkewed()) {
             //implement when adding skew
             //Mod::skewAtomsFromZero<<<NBLOCK(nAtoms), PERBLOCK>>>(
@@ -1120,7 +1267,8 @@ void GridGPU::handleExclusionsForcers() {
 
 void GridGPU::handleExclusionsDistance() {
 
-    const ExclusionList exclList = generateExclusionList(4);
+	//argument denontes how far OUT we are looking, so 3 corresponds to look for 1-2, 1-3, and 1-4 neighbors
+    const ExclusionList exclList = generateExclusionList(3);
     std::vector<int> idxs;
     std::vector<uint> excludedById;
     excludedById.reserve(state->maxIdExisting+1);
@@ -1143,6 +1291,7 @@ void GridGPU::handleExclusionsDistance() {
         //     std::cout << id << std::endl;
         // }
         for (int i=0; i<atomExclusions.size(); i++) {
+            //printf("I IS %d\n", i);
             const std::set<int> &idsAtLevel = atomExclusions[i];
             for (auto itId=idsAtLevel.begin(); itId!=idsAtLevel.end(); itId++) {
                 uint id = *itId;
@@ -1155,10 +1304,20 @@ void GridGPU::handleExclusionsDistance() {
     }
 
     // std::cout << "max excl per atom is " << maxExclusionsPerAtom << std::endl;
+    //these are start/end idxs of each atom's exclusions
     exclusionIndexes = GPUArrayDeviceGlobal<int>(idxs.size());
     exclusionIndexes.set(idxs.data());
     exclusionIds = GPUArrayDeviceGlobal<uint>(excludedById.size());
     exclusionIds.set(excludedById.data());
+    /*(
+    for (int idx : idxs) {
+        cout << "excl bound " << idx << endl;
+    }
+    for (uint x : excludedById) {
+        uint tmp = EXCL_MASK;
+        cout << "exclusion " << (x & (tmp)) << " dist " <<  ((x & (~tmp)) >> 30) << endl;
+    }
+    */
     //atoms is sorted by id.  list of ids may be sparse, so need to make sure
     //there's enough shared memory for PERBLOCK _atoms_, not just PERBLOCK ids
     //(when calling assign exclusions kernel)

@@ -11,6 +11,8 @@
 
 #include "Tunable.h"
 
+#include "Tunable.h"
+
 #include "BoundsGPU.h"
 class State;
 
@@ -132,6 +134,7 @@ public:
     void handleExclusionsDistance();
     void handleExclusionsForcers();
 
+    void initArraysTune();
     /*! \brief Remap atoms around periodic boundary conditions
      *
      * \param neighCut Cutoff distance for neighbor interactions.

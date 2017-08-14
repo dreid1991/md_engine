@@ -226,8 +226,8 @@ void FixNoseHoover::setTemperature(py::object tempFunc, double timeConstant) {
     frequency = 1.0 / timeConstant;
 }
 
-void FixNoseHoover::setTemperature(py::list temps, py::list intervals, double timeConstant) {
-    tempInterpolator = Interpolator(temps, intervals);
+void FixNoseHoover::setTemperature(py::list intervals, py::list temps, double timeConstant) {
+    tempInterpolator = Interpolator(intervals, temps);
     frequency = 1.0 / timeConstant;
 }
 
@@ -1113,8 +1113,8 @@ void export_FixNoseHoover()
          )
         )
     .def("setTemperature", setTemperature_x3,
-         (py::arg("tempList"),
-          py::arg("intervals"),
+         (py::arg("intervals"),
+          py::arg("tempList"),
           py::arg("timeConstant")
          )
         )

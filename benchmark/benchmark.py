@@ -26,9 +26,7 @@ for i in range(len(f)):
 #state.addAtom('spc1', pos = Vector(10.5, 10.5, 10.7))
 InitializeAtoms.initTemp(state, 'all', 1.2)
 
-fixNVT = FixLangevin(state, 'temp', 'all', 1.2)
 #fixNVT = FixNVTRescale(state, 'temp', 'all', 1.2)
-<<<<<<< HEAD
 fixNPT = FixNoseHoover(state,'npt','all')
 fixNPT.setTemperature(1.2,100.0*state.dt)
 fixNPT.setPressure('ANISO',0.2,1000*state.dt)
@@ -39,6 +37,11 @@ integVerlet = IntegratorVerlet(state)
 tempData = state.dataManager.recordTemperature('all','scalar', 1)
 #tempData = state.dataManager.recordTemperature('all','scalar', 100)
 pressureData = state.dataManager.recordPressure('all','scalar', 1)
+
+integVerlet = IntegratorVerlet(state)
+
+#empData = state.dataManager.recordTemperature('all','scalar', 100)
+#pressureData = state.dataManager.recordPressure('all','scalar', 1)
 #engData = state.dataManager.recordEnergy('all', 100)
 boundsData = state.dataManager.recordBounds(100)
 
@@ -47,8 +50,9 @@ boundsData = state.dataManager.recordBounds(100)
 #deform = FixDeform(state, 'def', 'all', 1, Vector(1, 0, 0))
 #state.activateFix(deform)
 
-writeconfig = WriteConfig(state, fn='test_out', writeEvery=10, format='xyz', handle='writer')
+writeconfig = WriteConfig(state, fn='test_out', writeEvery=20, format='xyz', handle='writer')
 #state.activateWriteConfig(writeconfig)
+state.tuneEvery = 5000
 integVerlet.run(10000)
 sumV = 0.
 for a in state.atoms:
