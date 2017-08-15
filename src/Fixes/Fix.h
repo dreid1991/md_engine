@@ -267,6 +267,7 @@ public:
     bool requiresForces; //!< True if the fix requires forces on instantiation; defaults to false.
     bool requiresPostNVE_V;
 
+    bool prepared; //!< True if the fix has been prepared; false otherwise.
     bool canOffloadChargePairCalc;
     bool canAcceptChargePairCalc;
     

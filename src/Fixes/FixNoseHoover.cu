@@ -384,8 +384,8 @@ bool FixNoseHoover::prepareFinal()
         
     }
 
-
-    return true;
+    prepared = true;
+    return prepared;
 }
 bool FixNoseHoover::postRun()
 {

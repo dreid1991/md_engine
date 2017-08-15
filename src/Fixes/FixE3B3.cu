@@ -456,8 +456,9 @@ bool FixE3B3::prepareForRun(){
     gpdLocal.idsBuffer = GPUArrayGlobal<uint>(nMolecules);
     
     gridGPULocal.periodicBoundaryConditions(-1, true);
- 
-    return true;
+
+    prepared = true;
+    return prepared;
 }
 
 

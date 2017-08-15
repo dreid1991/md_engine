@@ -64,7 +64,8 @@ bool FixNVTRescale::prepareForRun() {
     turnBeginRun = state->runInit;
     turnFinishRun = state->runInit + state->runningFor;
     tempComputer.prepareForRun();
-    return true;
+    prepared = true;
+    return prepared;
 }
 
 void __global__ rescale(int nAtoms, uint groupTag, float4 *vs, float4 *fs, float tempSet, float tempCur) {

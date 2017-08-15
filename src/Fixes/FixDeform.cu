@@ -26,7 +26,8 @@ FixDeform::FixDeform(boost::shared_ptr<State> state_, std::string handle_,
 bool FixDeform::prepareForRun() {
     deformRateInterpolator.turnBeginRun = state->runInit;
     deformRateInterpolator.turnFinishRun = state->runInit + state->runningFor;
-    return true;
+    prepared = true;
+    return prepared;
 }
 
 bool FixDeform::stepFinal() {

@@ -21,7 +21,7 @@ Fix::Fix(boost::shared_ptr<State> state_, std::string handle_, std::string group
     requiresPostNVE_V = false;
     requiresForces = false;
     requiresPerAtomVirials = false;
-
+    prepared = false;
     canOffloadChargePairCalc = false;
     canAcceptChargePairCalc = false;
     

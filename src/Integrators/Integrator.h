@@ -91,7 +91,8 @@ protected:
     double tune();
 
 
-
+    // checks that all fixes now register as 'prepared'
+    void verifyPrepared();
 
 public:
     //! Calculate and return single point energy

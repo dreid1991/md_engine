@@ -163,16 +163,16 @@ __global__ void printGPD_Rigid(uint* ids, float4 *xs, float4 *vs, float4 *fs, in
     int idx = GETIDX();
     if (idx < nAtoms) {
         uint id = ids[idx];
-        if (id < 4) {
-            float4 pos = xs[idx];
-            int type = xs[idx].w;
-            float4 vel = vs[idx];
-            float4 force = fs[idx];
-            uint groupTag = force.w;
-            printf("atom id %d type %d at coords %f %f %f\n", id, type, pos.x, pos.y, pos.z);
-            printf("atom id %d mass %f with vel  %f %f %f\n", id, vel.w, vel.x, vel.y, vel.z);
-            printf("atom id %d groupTag %d with force %f %f %f\n", id, groupTag,  force.x, force.y, force.z);
-        }
+        //if (id < 4) {
+        float4 pos = xs[idx];
+        int type = xs[idx].w;
+        float4 vel = vs[idx];
+        float4 force = fs[idx];
+        uint groupTag = force.w;
+        printf("atom id %d type %d at coords %f %f %f\n", id, type, pos.x, pos.y, pos.z);
+        printf("atom id %d mass %f with vel  %f %f %f\n", id, vel.w, vel.x, vel.y, vel.z);
+        printf("atom id %d mass %f with force %f %f %f\n", id, vel.w, force.x, force.y, force.z);
+        //}
     }
 }
 
@@ -831,7 +831,7 @@ int FixRigid::removeNDF() {
     // and we have three constraints on the virtual site (its position is completely defined) (+3)
     // 
     // in total, we have a reduction in DOF of 9 per molecule if this is a 4-site model
-        ndf = 9 * nMolecules;
+        ndf = 6 * nMolecules;
         
     } else {
     
@@ -841,7 +841,7 @@ int FixRigid::removeNDF() {
     // -- the relative velocities along the length of the bonds must be zero (+3)
     // 
     // in total, we have a reduction in DOF of 6 per molecule
-        ndf = 6 * nMolecules;
+        ndf = 3 * nMolecules;
 
     }
 
@@ -1380,7 +1380,10 @@ bool FixRigid::prepareForRun() {
     BoundsGPU &bounds = state->boundsGPU;
     int nAtoms = state->atoms.size();
     float dtf = 0.5f * state->dt * state->units.ftm_to_v;
+    
+    //SAFECALL((printGPD_Rigid<<<NBLOCK(nAtoms), PERBLOCK>>>(gpd.ids(activeIdx),gpd.xs(activeIdx),gpd.vs(activeIdx),gpd.fs(activeIdx),nAtoms)));
 
+    //printf("Completed printing GPD data in FixRigid::prepareForRun, before doing anything.\n\n");
     // compute the force partition constant
     if (TIP4P) {
         compute_gamma();
@@ -1409,15 +1412,16 @@ bool FixRigid::prepareForRun() {
                                                 gpd.idToIdxs.d_data.data(), bounds, (int) state->turn);
    
 
-    settleVelocities<FixRigidData,false, true><<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), 
+    SAFECALL((settleVelocities<FixRigidData,false, true><<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), 
                                                 xs_0.data(), gpd.vs(activeIdx), vs_0.data(), 
                                                 dvs_0.data(), gpd.fs(activeIdx), fs_0.data(), 
                                                 com.data(), fixRigidData, nMolecules, dt, dtf, 
-                                                gpd.idToIdxs.d_data.data(), bounds, (int) state->turn);
+                                                gpd.idToIdxs.d_data.data(), bounds, (int) state->turn)));
 
     // and remove the COMV we may have acquired from settling the velocity constraints just now.
     GPUArrayDeviceGlobal<float4> sumMomentum = GPUArrayDeviceGlobal<float4>(2);
 
+    CUT_CHECK_ERROR("Error occurred during solution of velocity constraints.");
     sumMomentum.memset(0);
     int warpSize = state->devManager.prop.warpSize;
 
@@ -1433,6 +1437,7 @@ bool FixRigid::prepareForRun() {
 
     rigid_remove_COMV<<<NBLOCK(nAtoms), PERBLOCK>>>(nAtoms, gpd.vs(activeIdx), sumMomentum.data(), dimsFloat3);
 
+    CUT_CHECK_ERROR("Removal of COMV in FixRigid failed.");
     
     // adjust the initial velocities to conform to our velocity constraints
     // -- here, we preserve the COMV of the system, while imposing strictly translational motion on the molecules
@@ -1448,14 +1453,19 @@ bool FixRigid::prepareForRun() {
     cudaDeviceSynchronize();
     
     // validate that we have good initial conditions
-    validateConstraints<FixRigidData> <<<NBLOCK(nMolecules), PERBLOCK>>> (waterIdsGPU.data(), gpd.idToIdxs.d_data.data(), 
+    SAFECALL((validateConstraints<FixRigidData> <<<NBLOCK(nMolecules), PERBLOCK>>> (waterIdsGPU.data(), gpd.idToIdxs.d_data.data(), 
                                                            gpd.xs(activeIdx), gpd.vs(activeIdx), 
                                                            nMolecules, bounds, fixRigidData, 
-                                                           constraints.data(), state->turn);
+                                                           constraints.data(), state->turn)));
     cudaDeviceSynchronize();
-    printf("validated constraints in FixRigid::prepareForRun()\n");
 
-    return true;
+    CUT_CHECK_ERROR("Validation of constraints failed in FixRigid.");
+    
+    //SAFECALL((printGPD_Rigid<<<NBLOCK(nAtoms), PERBLOCK>>>(gpd.ids(activeIdx),gpd.xs(activeIdx),gpd.vs(activeIdx),gpd.fs(activeIdx),nAtoms)));
+
+    //cudaDeviceSynchronize();
+    prepared = true;
+    return prepared;
 }
 
 bool FixRigid::stepInit() {

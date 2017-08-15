@@ -117,31 +117,14 @@ void Integrator::prepareFixes(bool requiresForces_) {
     for (Fix *f : state->fixes) {
         // f->requiresForces refers to Fix member in Fix.h, defaults to False
         if (f->requiresForces == requiresForces_) {
+            f->takeStateNThreadPerBlock(state->nThreadPerBlock);//grid will also have this value
+            f->takeStateNThreadPerAtom(state->nThreadPerAtom);//grid will also have this value
             f->updateGroupTag();
             f->prepareForRun();
+            f->setVirialTurnPrepare();
         }
     }
 
-    // the first call to prepareFixes is prepareFixes(false);
-    // the second is prepareFixes(true);
-    // some unique stuff for the second call:
-    if (requiresForces_) {
-        for (Fix *f : state->fixes) {
-            f->setVirialTurnPrepare();
-        }
-        state->handleChargeOffloading();
-        for (Fix *f : state->fixes) {
-            f->setEvalWrapper();
-        }
-        /*
-        for (boost::shared_ptr<MD_ENGINE::DataSetUser> ds : state->dataManager.dataSets) {
-            ds->prepareForRun(); //will also prepare those data sets' computers
-            if (ds->requiresVirials()) {
-                state->dataManager.addVirialTurn(ds->nextCompute, ds->requiresPerAtomVirials());
-            }
-        }
-        */
-    }
     
 }
 
@@ -160,10 +143,23 @@ void Integrator::prepareFinal() {
         f->prepareFinal();
 
     }
-
-
+    
+    state->handleChargeOffloading();
+    // so, set the eval wrappers..
+    for (Fix *f : state->fixes) {
+        f->setEvalWrapper();
+    }
 }
 
+void Integrator::verifyPrepared() {
+    for (Fix *f : state->fixes) {
+        if (!(f->prepared) ) {
+            std::string thisFix = f->handle;
+            printf("%s was unable to be prepared. Aborting.\n");
+            mdAssert(f->prepared, "A fix was found unprepared.\n");
+        }
+    }
+}
 
 void Integrator::basicPrepare(int numTurns) {
     int nAtoms = state->atoms.size();

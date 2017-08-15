@@ -531,7 +531,7 @@ double IntegratorVerlet::run(int numTurns)
     // prepare the fixes that do not require forces to be computed
     prepareFixes(false);
     
-    force(true);
+    forceInitial(true);
 
     // prepare the fixes that require forces to be computed on instantiation;
     // --- we also handle the datacomputers here, now that all information is available
@@ -543,6 +543,7 @@ double IntegratorVerlet::run(int numTurns)
     // -- should we prepare the datacomputers first? possibly..
     prepareFinal();
 
+    verifyPrepared();
 
     int periodicInterval = state->periodicInterval;
 	

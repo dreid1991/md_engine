@@ -112,7 +112,8 @@ bool FixLJCut::prepareForRun() {
 
     sendAllToDevice();
     setEvalWrapper();
-    return true;
+    prepared = true;
+    return prepared;
 }
 
 string FixLJCut::restartChunk(string format) {

@@ -930,7 +930,8 @@ bool FixChargeEwald::prepareForRun() {
         rpCentroids = GPUArrayDeviceGlobal<float4>(state->atoms.size() / state->nPerRingPoly);
     }
     setEvalWrapper();
-    return true;
+    prepared = true;
+    return prepared;
 }
 
 void FixChargeEwald::setEvalWrapper() {

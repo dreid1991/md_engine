@@ -504,11 +504,6 @@ void FixTIP4PFlexible::addMolecule(int id_a, int id_b, int id_c, int id_d) {
 bool FixTIP4PFlexible::prepareForRun() {
     // if this is the first time prepareForRun was called, flip the flag
     // -- we need the forces, which we subsequently partition
-    if (firstPrepare) {
-        printf("returning from first call to prepareForRun in FixTIP4PFlexible!\n");
-        firstPrepare = false;
-        return false;
-    }
 
     // then we'll know if we need to partition forces prior to integration
     nMolecules = waterIds.size();
@@ -541,7 +536,9 @@ bool FixTIP4PFlexible::prepareForRun() {
     //                                                          gpd.vs(activeIdx),  gpd.fs(activeIdx),
     //                                                          nMolecules);
     //cudaDeviceSynchronize();
-    return true;
+    prepared = true;
+
+    return prepared;
 }
 
 
