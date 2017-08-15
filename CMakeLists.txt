@@ -10,8 +10,8 @@ project (MDengine)
 
 set(Boost_DEBUG 1)
 find_package(Boost
-    #1.62
 	REQUIRED
+    1.62.0
 	COMPONENTS python 
 	)
 # Set the version number

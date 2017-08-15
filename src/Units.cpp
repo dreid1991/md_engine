@@ -13,6 +13,7 @@ void Units::setLJ() {
         *dt = 0.005;
     }
     unitType = UNITS::LJ;
+    toSIDensity = 1;
 }
 
 void Units::setReal() {
@@ -27,6 +28,7 @@ void Units::setReal() {
         *dt = 1.0;
     }
     unitType = UNITS::REAL;
+    toSIDensity = 1.0 / (1000*6.02214e23*1e-30);
 }
 
 
@@ -41,6 +43,7 @@ void export_Units() {
     //         py::arg("n"))
     //    )
     //.staticmethod("populateOnGrid")
+    .def_readonly("toSIDensity", &Units::toSIDensity)
     .def("setReal", &Units::setReal)
     .def("setLJ", &Units::setLJ)
     ;
