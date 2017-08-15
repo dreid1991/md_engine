@@ -20,8 +20,12 @@ state.deviceManager.setDevice(0)
 ##############################
 numMolecules = 1028
 density = 1.0
-numTurnsEquil = 50000
-numTurnsProd = 50000
+# consider dt = 1.0; then, 5 ps rescale
+numTurnsEquil_Rescale = 5000
+# do 195 ps NVT
+numTurnsEquil_NVT = 195000
+# do 800 ps NVE
+numTurnsProd = 800000
 
 ###############################
 # Calculating box dimensions
@@ -44,13 +48,16 @@ hiVector = Vector(sideLength, sideLength, sideLength)
 state.units.setReal()
 
 state.bounds = Bounds(state, lo = loVector, hi = hiVector)
-state.rCut = 12.0
+# if rCut + padding > 0.5 sideLength, you will have a bad day
+state.rCut = min(12.0, 0.45 * sideLength)
+print 'rcut found to be ', state.rCut
+
 state.padding = 1.0
 state.periodicInterval = 7
-state.shoutEvery = 100
+state.shoutEvery = 5000
 state.dt = 1.0
 
-print "running for %d equil turns and %d prod turns with a timestep of %f" %(numTurnsEquil, numTurnsProd, state.dt)
+print "running for %d equil turns and %d prod turns with a timestep of %f" %(numTurnsEquil_Rescale + numTurnsEquil_NVT, numTurnsProd, state.dt)
 print "there are %d molecules in this simulation" %numMolecules
 ##############################################
 # PIMD parameters - as from examples from Mike
@@ -151,7 +158,7 @@ print 'done adding molecules to simulation'
 # Charge interactions
 #####################
 charge = FixChargeEwald(state, 'charge', 'all')
-charge.setParameters(128,state.rCut-1, 3)
+charge.setParameters(256,state.rCut-1, 3)
 state.activateFix(charge)
 
 #####################
@@ -168,7 +175,7 @@ state.activateFix(rigid)
 #############################################
 # initialize at some temperature
 #############################################
-InitializeAtoms.initTemp(state, 'all', 350.0)
+InitializeAtoms.initTemp(state, 'all', 250.0)
 
 #############################################
 # Temperature control
@@ -177,7 +184,7 @@ InitializeAtoms.initTemp(state, 'all', 350.0)
 #fixNVT.setTemperature(300.0, 100*state.dt)
 #state.activateFix(fixNVT)
 
-fixNVT = FixNVTRescale(state,'nvt','all',298.15,200)
+fixNVT = FixNVTRescale(state,'nvt','all',298.15,100)
 state.activateFix(fixNVT)
 ########################################
 # our integrator
@@ -191,7 +198,7 @@ integVerlet = IntegratorVerlet(state)
 #enerData = state.dataManager.recordEnergy('all', interval = 1)
 
 tempData = state.dataManager.recordTemperature('all','scalar', interval = 10)
-enerData = state.dataManager.recordEnergy('all', 'scalar', interval = 10)
+enerData = state.dataManager.recordEnergy('all', 'scalar', interval = 10,fixes=[charge,nonbond])
 comvData = state.dataManager.recordCOMV(interval=1)
 
 #################################
@@ -200,29 +207,47 @@ comvData = state.dataManager.recordCOMV(interval=1)
 #state.nPerRingPoly = nBeads
 #state.preparePIMD(the_temp)
 
+# write every 10 fs
 writer = WriteConfig(state, handle='writer', fn='rigid_tip3p', format='xyz',
-                     writeEvery=5)
+                     writeEvery=10)
 state.activateWriteConfig(writer)
 
-integVerlet.run(numTurnsEquil)
+integVerlet.run(numTurnsEquil_Rescale)
 #print dir(tempData)
 #print sum(tempData.vals[0])
 state.deactivateFix(fixNVT)
-state.dataManager.stopRecord(enerData)
 
-enerData = state.dataManager.recordEnergy('all', 'scalar', interval = 10)
+NVT = FixNoseHoover(state,'nvt','all')
+NVT.setTemperature(298.15, 100*state.dt)
+state.activateFix(NVT)
+
+# make new data computers
+
+
+
+integVerlet.run(numTurnsEquil_NVT)
+
+state.deactivateFix(NVT)
+
+print '\nnow doing NVE run!\n'
 
 integVerlet.run(numTurnsProd)
 
-#state.deactivateFix(fixNVT)
-
-#integVerlet.run(numTurnsProd)
+energyFile = open('Energy.dat','w')
 for index, item in enumerate(enerData.vals):
-    print enerData.vals[index], tempData.vals[index], enerData.vals[index] + tempData.vals[index]
+    pe = str(enerData.vals[index])
+    ke = str(tempData.vals[index])
+    hamiltonian = str(enerData.vals[index] + tempData.vals[index])
+    spacing = "    "
+    energyFile.write(pe + spacing + ke + spacing + hamiltonian + "\n")
 
-print "now printing COMV data\n"
+f = open('COMV.dat','w')
 for index, item in enumerate(comvData.vals):
-    print item[0], "  ", item[1], "  ", item[2], "   ", item[3]
+    xCOMV = str(item[0])
+    yCOMV = str(item[1])
+    zCOMV = str(item[2])
+    mass = str(item[3])
+    spacing = "   "
+    f.write(xCOMV + spacing + yCOMV + spacing + zCOMV + spacing + mass + "\n")
 
-print "END printing COMV data\n"
-
+print "\nSimulation has concluded.\n"
