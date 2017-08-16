@@ -428,7 +428,7 @@ __global__ void compute_energy_iso_group_group
         } else {
             baseIdx = baseNeighlistIdxFromRPIndex(cumulSumMaxPerBlock, warpSize, ringPolyIdx);
         }
-        uint32_t groupTagSelf = __float_as_uint(fs[idx].w);
+        uint32_t groupTagSelf = __float_as_uint(fs[atomIdx].w);
         uint32_t groupTagCheck;
         if (groupTagSelf & tagA) {
             groupTagCheck = tagB;
@@ -436,13 +436,12 @@ __global__ void compute_energy_iso_group_group
             groupTagCheck = tagA;
         } else {
             return;
-
         }
-        float4 posWhole = xs[idx];
+        float4 posWhole = xs[atomIdx];
         int type = __float_as_int(posWhole.w);
         float qi;
         if (COMP_CHARGES) {
-            qi = qs[idx];
+            qi = qs[atomIdx];
         }
         float3 pos = make_float3(posWhole);
 

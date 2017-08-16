@@ -47,8 +47,10 @@ BOOST_PYTHON_MODULE(DASH) {
     export_TypedItemHolder();
     export_Fix();
     export_FixBondHarmonic();
+    export_FixBondQuartic();
     export_FixBondFENE();
     export_BondHarmonic();
+    export_BondQuartic();
     export_BondFENE();
     
     export_FixAngleHarmonic();

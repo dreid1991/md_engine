@@ -384,6 +384,32 @@ def bondHarmonic_input(reader, args):
     rEq = float(args[3])
     return [type, k, rEq]
 
+def bondQuartic_data(reader, args):
+    LMPType = int(args[0])
+    if not LMPType in reader.LMPTypeToSimTypeBond:
+        print 'Ignoring LAMMPS bond type %d from data file.  Bond not used in data file' % LMPType
+        return False
+    type = reader.LMPTypeToSimTypeBond[LMPType]
+    rEq = float(args[1])
+    k2 =  float(args[2])
+    k3 =  float(args[3])
+    k4 =  float(args[4])
+
+    return [type, k2,k3,k4,rEq]
+
+
+def bondQuartic_input(reader, args):
+    LMPType = int(args[1])
+    if not LMPType in reader.LMPTypeToSimTypeBond:
+        print 'Ignoring LAMMPS bond type %d from input script.  Bond not used in data file' % LMPType
+        return False
+    type = reader.LMPTypeToSimTypeBond[LMPType]
+    rEq = float(args[1])
+    k2 =  float(args[2])
+    k3 =  float(args[3])
+    k4 =  float(args[4])
+    return [type, k2,k3,k4, rEq]
+
 def bondFENE_data(reader, args):
     LMPType = int(args[0])
     if not LMPType in reader.LMPTypeToSimTypeBond:
@@ -579,6 +605,7 @@ argumentConverters = {
         'data':
         {
             'BondHarmonic'    : bondHarmonic_data,
+            'BondQuartic'     : bondQuartic_data,
             'BondFENE'        : bondFENE_data,
             'AngleHarmonic'   : angleHarmonic_data,
             'AngleCHARMM'     : angleCHARMM_data,
@@ -591,6 +618,7 @@ argumentConverters = {
         'input':
         {
             'BondHarmonic'    : bondHarmonic_input,
+            'BondQuartic'     : bondQuartic_input,
             'BondFENE'        : bondFENE_input,
             'AngleHarmonic'   : angleHarmonic_input,
             'AngleCHARMM'     : angleCHARMM_input,
