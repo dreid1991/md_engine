@@ -7,12 +7,14 @@
 #include <math.h>
 #include "globalDefs.h"
 #include "Vector.h"
+#include "xml_func.h"
 
 namespace py = boost::python;
+using namespace MD_ENGINE;
 
 const std::string TIP4PFlexibleType = "TIP4PFlexible";
 
-FixTIP4PFlexible::FixTIP4PFlexible(boost::shared_ptr<State> state_, std::string handle_, std::string groupHandle_) : Fix(state_, handle_, groupHandle_, TIP4PFlexibleType, true, true, false, 1) {
+FixTIP4PFlexible::FixTIP4PFlexible(boost::shared_ptr<State> state_, std::string handle_) : Fix(state_, handle_, std::string("None"), TIP4PFlexibleType, true, true, false, 1) {
 
     // set both to false initially; using one of the createRigid functions will flip the pertinent flag to true
     style = "DEFAULT";
@@ -22,13 +24,14 @@ FixTIP4PFlexible::FixTIP4PFlexible(boost::shared_ptr<State> state_, std::string 
     rHH = 0.0;
     rOH = 0.0;
     theta = 0.0;
+    readFromRestart();
 }
 
 __global__ void printGPD_Flexible(int4 *waterIds, int* idToIdxs, float4 *xs, float4 *vs, float4 *fs, int nMolecules) {
     int idx = GETIDX();
     
     // print 5 molecules per turn
-    if (idx < 5) {
+    if (idx < nMolecules) {
         int4 theseAtoms = waterIds[idx];
 
         int idO = theseAtoms.x;
@@ -145,17 +148,17 @@ __global__ void distributeMSiteFlexible(int4 *waterIds, float4 *xs, float4 *vs, 
         vs[idToIdxs[id_H1]]= vel_H1;
         vs[idToIdxs[id_H2]]= vel_H2;
         
-        // is this correct? -- TODO check LAMMPS method of distributing per-atom virials with massless site & constrained dynamics
         if (VIRIALS) {
             Virial virialToDistribute = virials[idx_M];
         
-            Virial distribute_O = virialToDistribute * (1.0 - (2.0 * gamma));
-            Virial distribute_H = virialToDistribute * gamma;
+            Virial distribute_O = virialToDistribute * gamma;
+            Virial distribute_H = virialToDistribute * (1.0 - gamma) * 0.5;
             
             virials[idx_O]  += distribute_O;
             virials[idx_H1] += distribute_H;
             virials[idx_H2] += distribute_H;
 
+            // and zero the virial
             virials[idx_M] = Virial(0.0, 0.0, 0.0, 
                                     0.0, 0.0, 0.0);
         };
@@ -172,7 +175,7 @@ __global__ void distributeMSiteFlexible(int4 *waterIds, float4 *xs, float4 *vs, 
         fs[idx_H1]= fs_H1;
         fs[idx_H2]= fs_H2;
 
-        // zero the force on the M-site
+        // zero the force and velocity (for completeness) on the M-site
         fs[idx_M] = make_float4(0.0, 0.0, 0.0,fs_M.w);
         vs[idx_M] = make_float4(0.0, 0.0, 0.0, INVMASSLESS);
         // this concludes re-distribution of the forces;
@@ -208,26 +211,18 @@ __global__ void setMSiteFlexible(int4 *waterIds, int *idToIdxs, float4 *xs, floa
 
         // compute vectors r_ij and r_ik according to minimum image convention
         // where r_ij = r_j - r_i, r_ik = r_k - r_i,
-        // and r_i, r_j, r_k are the 3-component vectors describing the positions of O, H1, H2, respectively
         float3 r_ij = bounds.minImage( pos_H1 - pos_O );
         float3 r_ik = bounds.minImage( pos_H2 - pos_O );
 
-        printf("Coords O, H, H, M:\n%f %f %f\n%f %f %f\n%f %f %f\n%f %f %f\n",
-               pos_O.x, pos_O.y, pos_O.z,
-               pos_H1.x, pos_H1.y, pos_H1.z,
-               pos_H2.x, pos_H2.y, pos_H2.z,
-               pos_M.x, pos_M.y, pos_M.z);
+        // now get the minimum image /positions/ (r_ij, r_ik are the minimum image displacements)
+        pos_H1 = pos_O + r_ij;
+        pos_H2 = pos_O + r_ik;
 
-        printf("Minimum image vectors found to be:\n%f %f %f\n%f %f %f\n",
-               r_ij.x, r_ij.y, r_ij.z,
-               r_ik.x, r_ik.y, r_ik.z);
-
-        // rOM is the O-M bond length
         // -- see formula in q-TIP4P/F paper
-        float3 r_M  = (gamma * pos_O) + (0.5 * (1.0 - gamma) * (r_ij + r_ik)) ;
+        float3 r_M  = (gamma * pos_O) + (0.5 * (1.0 - gamma) * (pos_H1 + pos_H2)) ;
 
-        printf("r_M calculated to be: \n%f %f %f\n",
-               r_M.x, r_M.y, r_M.z);
+        //printf("r_M calculated to be: \n%f %f %f\n",
+        //       r_M.x, r_M.y, r_M.z);
         //printf("new position of M-site molecule %d r_M: %f %f %f\n      position of oxygen %d: %f %f %f\n", idx, r_M.x, r_M.y, r_M.z, id_O, pos_O.x, pos_O.y, pos_O.z);
         float4 pos_M_new = make_float4(r_M.x, r_M.y, r_M.z, pos_M_whole.w);
         xs[idToIdxs[id_M]] = pos_M_new;
@@ -268,9 +263,9 @@ __global__ void initialForcePartitionFlexible(int4 *waterIds, float4 *xs, float4
 
         // this expression derived below in FixTIP4PFlexible::compute_gamma() function
         // -- these are the forces from the M-site partitioned for distribution to the atoms of the water molecule
-        float3 fs_O_d = (make_float3(fs_M)) * (1.0 - (2.0 * gamma));
+        float3 fs_O_d = (make_float3(fs_M)) * (gamma);
         //printf("value of fs_O_d from atom M id %d: %f %f %f\n", waterIds[idx].w, fs_O_d.x, fs_O_d.y, fs_O_d.z);
-        float3 fs_H_d = (make_float3(fs_M)) * gamma;
+        float3 fs_H_d = (make_float3(fs_M)) * (1.0 - gamma) * 0.5;
 
         if (VIRIALS) {
             Virial virialToDistribute = virials[idToIdxs[id_M]];
@@ -335,6 +330,7 @@ void FixTIP4PFlexible::setStyleBondLengths() {
         gamma = 0.73612;
     } else {
         // other models here; give appropriate keywords
+        printf("Using unknown style in FixTIP4PFlexible\n");
         if ( (rOM == 0.0) or (rOH == 0.0) or (rHH == 0.0)) {
             mdError("Only DEFAULT and TIP4P/2005 keywords currently supported.\nPlease manually set the rOM, rOH, and rHH values if TIP4P/2005 geometry is not desired.\n");
 
@@ -374,13 +370,17 @@ void FixTIP4PFlexible::updateForPIMD(int nPerRingPoly) {
     // so, make a new vector of int4's, and do the same process, and then reset our data structures.
     std::vector<int4> PIMD_waterIds;
 
+    // so, overwrite our current array of bonds
+    bonds.clear();
+
     // duplicate each molecule by nPerRingPoly, and stride accordingly
+    // --- we need to replicate the /bonds/ as well for PIMD. otherwise there will be trouble.
     for (int i = 0; i < waterIds.size(); i++) {
         int4 thisMolecule = waterIds[i];
-        int baseIdxO  = thisMolecule.x * nPerRingPoly;
-        int baseIdxH1 = thisMolecule.y * nPerRingPoly;
-        int baseIdxH2 = thisMolecule.z * nPerRingPoly;
-        int baseIdxM  = thisMolecule.w * nPerRingPoly;
+        int baseIdxO  = thisMolecule.x ;
+        int baseIdxH1 = thisMolecule.y ;
+        int baseIdxH2 = thisMolecule.z ;
+        int baseIdxM  = thisMolecule.w ;
 
         // make nPerRingPoly replicas of this molecule with atom ids
         for (int j = 0; j < nPerRingPoly; j++) {
@@ -390,10 +390,24 @@ void FixTIP4PFlexible::updateForPIMD(int nPerRingPoly) {
             int idM_PIMD  = baseIdxM  * nPerRingPoly + j;
             int4 newMol = make_int4(idO_PIMD, idH1_PIMD, idH2_PIMD, idM_PIMD);
             PIMD_waterIds.push_back(newMol);
+            // add the new molecule to our 'bonds' list (this is just so neighborlisting is 
+            // aware of exclusions
+            //Bond bondOH1;
+            //Bond bondOH2;
+            //Bond bondHH;
+            Bond bondOM;
+            //bondOH1.ids = { {newMol.x,newMol.y} };
+            //bondOH2.ids = { {newMol.x,newMol.z} };
+            //bondHH.ids =  { {newMol.y,newMol.z} };
+            bondOM.ids =  { {newMol.x,newMol.w} };
+
+            //bonds.push_back(bondOH1);
+            //bonds.push_back(bondOH2);
+            //bonds.push_back(bondHH);
+            bonds.push_back(bondOM);
     
         }
     }
-
     // and now just re-assign waterIds vector; prepareForRun will function as usual
     waterIds = PIMD_waterIds;
 
@@ -490,15 +504,21 @@ void FixTIP4PFlexible::addMolecule(int id_a, int id_b, int id_c, int id_d) {
     waterMol = make_int4(id_a, id_b, id_c, id_d);
     waterIds.push_back(waterMol);
 
-    Bond bondOH1;
-    Bond bondOH2;
-    Bond bondHH;
-    bondOH1.ids = { {waterMol.x,waterMol.y} };
-    bondOH2.ids = { {waterMol.x,waterMol.z} };
-    bondHH.ids =  { {waterMol.y,waterMol.z} };
-    bonds.push_back(bondOH1);
-    bonds.push_back(bondOH2);
-    bonds.push_back(bondHH);
+    //Bond bondOH1;
+    //Bond bondOH2;
+    //Bond bondHH;
+    Bond bondOM;
+
+    //bondOH1.ids = { {waterMol.x,waterMol.y} };
+    //bondOH2.ids = { {waterMol.x,waterMol.z} };
+    //bondHH.ids =  { {waterMol.y,waterMol.z} };
+    bondOM.ids =  { {waterMol.x,waterMol.w} };
+
+    //bonds.push_back(bondOH1);
+    //bonds.push_back(bondOH2);
+    //bonds.push_back(bondHH);
+    bonds.push_back(bondOM);
+
 }
 
 bool FixTIP4PFlexible::prepareForRun() {
@@ -518,6 +538,7 @@ bool FixTIP4PFlexible::prepareForRun() {
     BoundsGPU &bounds = state->boundsGPU;
     
 
+
     // partition the intitial forces ( no velocity update )
     initialForcePartitionFlexible<false><<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), 
                                                             gpd.xs(activeIdx),
@@ -527,15 +548,18 @@ bool FixTIP4PFlexible::prepareForRun() {
                                                             nMolecules, gamma, gpd.idToIdxs.d_data.data(), bounds);
     
     
+    // set the MSite position
     setMSiteFlexible<<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), gpd.idToIdxs.d_data.data(), gpd.xs(activeIdx), gamma, nMolecules,  bounds);
 
-    //printf("Finished the initial force partition in FixTIP4PFlexible!\n");
-    //cudaDeviceSynchronize();
-    //printGPD_Flexible<<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(),
-    //                                                    gpd.idToIdxs.d_data.data(), gpd.xs(activeIdx),
-    //                                                          gpd.vs(activeIdx),  gpd.fs(activeIdx),
-    //                                                          nMolecules);
-    //cudaDeviceSynchronize();
+    printf("Finished the initial force partition in FixTIP4PFlexible!\n");
+    /*
+    cudaDeviceSynchronize();
+    printGPD_Flexible<<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(),
+                                                        gpd.idToIdxs.d_data.data(), gpd.xs(activeIdx),
+                                                              gpd.vs(activeIdx),  gpd.fs(activeIdx),
+                                                              nMolecules);
+    cudaDeviceSynchronize();
+    */
     prepared = true;
 
     return prepared;
@@ -551,8 +575,11 @@ bool FixTIP4PFlexible::stepFinal() {
     // first, unconstrained velocity update continues: distribute the force from the M-site
     //        and integrate the velocities accordingly.  Update the forces as well.
 
-    bool Virials = false;
-
+    // get the virial mode from DataManager - as in IntegratorVerlet
+    DataManager &dataManager = state->dataManager;
+    int virialMode = dataManager.getVirialModeForTurn(state->turn);
+    bool Virials = (virialMode == 1 or virialMode == 2);
+    
     float dtf = 0.5f * state->dt * state->units.ftm_to_v;
     if (Virials) {
         distributeMSiteFlexible<true><<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), 
@@ -566,7 +593,7 @@ bool FixTIP4PFlexible::stepFinal() {
                                                      nMolecules, gamma, dtf, gpd.idToIdxs.d_data.data(), bounds);
     }
 
-    //setMSite<<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), gpd.idToIdxs.d_data.data(), gpd.xs(activeIdx), nMolecules, bounds);
+    setMSiteFlexible<<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), gpd.idToIdxs.d_data.data(), gpd.xs(activeIdx),gamma, nMolecules, bounds);
     
     //cudaDeviceSynchronize();
     //printGPD_Flexible<<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), 
@@ -578,6 +605,76 @@ bool FixTIP4PFlexible::stepFinal() {
     return true;
 }
 
+
+std::string FixTIP4PFlexible::restartChunk(std::string format) {
+    std::stringstream ss;
+    
+    ss << "<atomsInMolecule n=\"" << waterIds.size() << "\">\n";
+    for (int4 &atomIds : waterIds) {
+        ss << atomIds.x << " " << atomIds.y << " " << atomIds.z << " " << atomIds.w << "\n";
+    }
+    ss << "</atomsInMolecule>\n";
+
+    ss << "<style type=\'" << style << "\'>\n";
+    ss << "</style>\n";
+
+    return ss.str();
+}
+
+
+bool FixTIP4PFlexible::readFromRestart() {
+    auto restData = getRestartNode();
+
+    if (restData) {
+
+        auto curr_param = restData.first_child();
+        while (curr_param) {
+            std::string tag = curr_param.name();
+            if (tag == "atomsInMolecule") {
+                int n = boost::lexical_cast<int>(curr_param.attribute("n").value());
+                std::vector<int4> atomsInMolecule(n);
+                // we need to pass this data to atomsInMolecule, which will then be assigned to waterIds;
+                // and while we are here, we may as well make the bonds
+                xml_assignValues<int, 4>(curr_param, [&] (int i, int *vals) {
+                                            //int id = vals[3];
+                                            atomsInMolecule[i] = make_int4(vals[0], vals[1], vals[2], vals[3]);
+                                            });
+
+                // and assign our class member 'waterIds' the data denoted by atomsInMolecule
+                waterIds = atomsInMolecule;
+            } else if (tag == "style") {
+                std::string thisStyle = boost::lexical_cast<std::string>(curr_param.attribute("type").value());
+                style = thisStyle;
+                printf("In FixTIP4PFlexible::readFromRestart(), found style %s\n", style.c_str());
+            }
+            curr_param = curr_param.next_sibling();
+        }
+
+    }
+
+    for (int i = 0; i < waterIds.size(); i++) {
+        /* perhaps duplicity of the bonds in conjunction with FixBondQuartic is causing issues? */
+        //Bond bondOH1;
+        //Bond bondOH2;
+        //Bond bondHH;
+        Bond bondOM;
+        //bondOH1.ids = { {waterIds[i].x,waterIds[i].y} };
+        //bondOH2.ids = { {waterIds[i].x,waterIds[i].z} };
+        //bondHH.ids =  { {waterIds[i].y,waterIds[i].z} };
+        bondOM.ids =  { {waterIds[i].x,waterIds[i].w} };
+
+        //bonds.push_back(bondOH1);
+        //bonds.push_back(bondOH2);
+        //bonds.push_back(bondHH);
+        bonds.push_back(bondOM);
+    }
+
+    std::cout << "There are " << waterIds.size() << " molecules read in from the restart file and " << bonds.size() << " bonds were made in FixTIP4PFlexible.\n";
+    return true;
+}
+
+
+
 void (FixTIP4PFlexible::*addMolecule_x) (int, int, int, int) = &FixTIP4PFlexible::addMolecule;
 
 void export_FixTIP4PFlexible() 
@@ -585,8 +682,8 @@ void export_FixTIP4PFlexible()
   py::class_<FixTIP4PFlexible, boost::shared_ptr<FixTIP4PFlexible>, py::bases<Fix> > 
       ( 
 		"FixTIP4PFlexible",
-		py::init<boost::shared_ptr<State>, std::string, std::string>
-	    (py::args("state", "handle", "groupHandle")
+		py::init<boost::shared_ptr<State>, std::string>
+	    (py::args("state", "handle")
          )
         )
     .def("addMolecule", addMolecule_x,

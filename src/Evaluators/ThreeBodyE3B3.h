@@ -37,7 +37,7 @@ __global__ void compute_E3B3
         // here we should extract the positions of the O, H atoms of this water molecule
         // first, get the atom indices - maybe this will be stored as an array of ints?
 
-        int moleculeId = waterMolecIds[idx];
+        //int moleculeId = waterMolecIds[idx];
 
         int4 atomsMolecule1 = atomsFromMolecule[waterMolecIds[idx]];
 

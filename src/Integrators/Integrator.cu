@@ -155,7 +155,7 @@ void Integrator::verifyPrepared() {
     for (Fix *f : state->fixes) {
         if (!(f->prepared) ) {
             std::string thisFix = f->handle;
-            printf("%s was unable to be prepared. Aborting.\n");
+            printf("%s was unable to be prepared. Aborting.\n", thisFix.c_str());
             mdAssert(f->prepared, "A fix was found unprepared.\n");
         }
     }
