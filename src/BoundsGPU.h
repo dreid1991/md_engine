@@ -75,9 +75,17 @@ public:
      */
     __host__ __device__ float3 minImage(float3 v) {
         float3 img = make_float3(rintf(v.x * invRectComponents.x), rintf(v.y * invRectComponents.y), rintf(v.z * invRectComponents.z));
+
         v -= rectComponents * img * periodic;
         return v;
     }
+    
+    __host__ __device__ double3 minImage(double3 v) {
+        double3 img = make_double3(rint(v.x * invRectComponents.x), rint(v.y * invRectComponents.y), rint(v.z * invRectComponents.z));
+        v -= make_double3(rectComponents) * img * make_double3(periodic);
+        return v;
+    }
+    
     __host__ __device__ float volume() {
         return rectComponents.x * rectComponents.y * rectComponents.z;
     }
@@ -96,6 +104,18 @@ public:
         return false;
     }
 
+    __host__ __device__ float4 wrapCoords(float4 v) {
+        // do something here? its a periodic wrap
+        float4 newPos = v;
+        float id = v.w;
+        float3 trace = rectComponents;
+        float3 diffFromLo = make_float3(newPos) - lo;
+        float3 imgs = floorf(diffFromLo / trace); //are unskewed at this point
+        newPos -= make_float4(trace * imgs * periodic);
+        newPos.w = id;
+
+        return newPos;
+    }
     //around center
     __host__ void scale(float3 scaleBy) {
         float3 center = lo + rectComponents * 0.5;
@@ -106,6 +126,7 @@ public:
 
 
         invRectComponents = 1 / rectComponents;
+
 
     }
     bool operator ==(BoundsGPU &other) {

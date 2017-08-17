@@ -8,6 +8,7 @@
 #include "PythonOperation.h"
 #include "DataManager.h"
 #include "DataSetUser.h"
+#include "globalDefs.h"
 
 /* State is where everything is sewn together. We set global options:
  *   - gpu cuda device data and options
@@ -62,7 +63,6 @@ State::State() : units(&dt) {
     nThreadPerBlock = 256;
 
     tuneEvery = 1000000;
-
 
 }
 
@@ -134,6 +134,7 @@ bool State::addAtomDirect(Atom a) {
     }
 
     atoms.push_back(a);
+    //std::cout << "adding atom id " << a.id << " of type " << a.type << " with mass " << a.mass << std::endl;
     return true;
 }
 
@@ -480,7 +481,9 @@ float State::getMaxRCut() {
 void State::initializeGrid() {
     double maxRCut = getMaxRCut();// ALSO PADDING PLS
     double gridDim = maxRCut + padding;
-    gridGPU = GridGPU(this, gridDim, gridDim, gridDim, gridDim, exclusionMode);
+
+    // copy value of nPerRingPoly to make it local to gpd instance
+    gridGPU = GridGPU(this, gridDim, gridDim, gridDim, gridDim, exclusionMode, this->padding, &gpd,nPerRingPoly);
     //testing
     //nThreadPerBlock = 64;
     //nThreadPerAtom = 4;
@@ -495,18 +498,19 @@ bool State::prepareForRun() {
     std::vector<float4> xs_vec, vs_vec, fs_vec;
     std::vector<uint> ids;
     std::vector<float> qs;
-
     requiresCharges = false;
     std::vector<bool> requireCharges = LISTMAP(Fix *, bool, fix, fixes, fix->requiresCharges);
     if (!requireCharges.empty()) {
         requiresCharges = *std::max_element(requireCharges.begin(), requireCharges.end());
     }
+    //printf("State::prepareForRun print statement 2\n");
     requiresPostNVE_V = false;
     std::vector<bool> requirePostNVE_V = LISTMAP(Fix *, bool, fix, fixes, fix->requiresPostNVE_V);
     if (!requirePostNVE_V.empty()) {
         requiresPostNVE_V = *std::max_element(requirePostNVE_V.begin(), requirePostNVE_V.end());
     }
 
+    //printf("State::prepareForRun print statement 3\n");
 
     int nAtoms = atoms.size();
 
@@ -515,26 +519,43 @@ bool State::prepareForRun() {
     fs_vec.reserve(nAtoms);
     ids.reserve(nAtoms);
     qs.reserve(nAtoms);
+   
+    //printf("nAtoms value: %d\n", nAtoms);
+    //printf("added a cudaDeviceSynchronize() call here\n");
+    //cudaDeviceSynchronize();
+    //printf("State::prepareForRun print statement 3.5\n");
 
     for (const auto &a : atoms) {
         xs_vec.push_back(make_float4(a.pos[0], a.pos[1], a.pos[2],
                                      *(float *)&a.type));
-        vs_vec.push_back(make_float4(a.vel[0], a.vel[1], a.vel[2],
-                                     1/a.mass));
+        if (a.mass == 0.0) {
+            // make the inverse mass a very large, but finite number
+            // -- must be representable by floating point
+            // -- make it a few orders of magnitude small than 1e38 so overflow is
+            //    never an issue
+            vs_vec.push_back(make_float4(a.vel[0], a.vel[1], a.vel[2],
+                                         INVMASSLESS));
+        } else {
+            vs_vec.push_back(make_float4(a.vel[0], a.vel[1], a.vel[2],
+                                         1/a.mass));
+        }
         fs_vec.push_back(make_float4(a.force[0], a.force[1], a.force[2],
                                      *(float *)&a.groupTag));
         ids.push_back(a.id);
         qs.push_back(a.q);
     }
+    //printf("State::prepareForRun print statement 4\n");
     //just setting host-side vectors
     //transfer happs in integrator->basicPrepare
     gpd.xs.set(xs_vec);
+    //printf("State::prepareForRun print statement 4.5\n");
     gpd.vs.set(vs_vec);
     gpd.fs.set(fs_vec);
     gpd.ids.set(ids);
     if (requiresCharges) {
         gpd.qs.set(qs);
     }
+    //printf("State::prepareForRun print statement 5\n");
     std::vector<Virial> virials(atoms.size(), Virial(0, 0, 0, 0, 0, 0));
     gpd.virials = GPUArrayGlobal<Virial>(nAtoms);
     gpd.virials.set(virials);
@@ -544,6 +565,7 @@ bool State::prepareForRun() {
     std::vector<int> idToIdxs_vec;
     int size = *std::max_element(id_vec.begin(), id_vec.end()) + 1;
     idToIdxs_vec.reserve(size);
+    //printf("State::prepareForRun print statement 6\n");
     for (int i=0; i<size; i++) {
         idToIdxs_vec.push_back(-1);
     }
@@ -551,6 +573,7 @@ bool State::prepareForRun() {
         idToIdxs_vec[id_vec[i]] = i;
     }
 
+    //printf("State::prepareForRun print statement 7\n");
     gpd.idToIdxsOnCopy = idToIdxs_vec;
     gpd.idToIdxs.set(idToIdxs_vec);
     bounds.handle2d();
@@ -563,6 +586,9 @@ bool State::prepareForRun() {
     gpd.fsBuffer = GPUArrayGlobal<float4>(nAtoms);
     gpd.idsBuffer = GPUArrayGlobal<uint>(nAtoms);
 
+    //printf("state->prepareForRun, before calling initializeGrid()\n");
+    //initializeGrid();
+    //printf("state->prepareForRun, after calling initializeGrid()\n");
     return true;
 }
 void State::handleChargeOffloading() {

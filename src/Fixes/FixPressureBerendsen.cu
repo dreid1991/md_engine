@@ -15,7 +15,8 @@ bool FixPressureBerendsen::prepareForRun() {
     turnBeginRun = state->runInit;
     turnFinishRun = state->runInit + state->runningFor;
     pressureComputer.prepareForRun(); 
-    return true;
+    prepared = true;
+    return prepared;
 }
 
 bool FixPressureBerendsen::stepFinal() {

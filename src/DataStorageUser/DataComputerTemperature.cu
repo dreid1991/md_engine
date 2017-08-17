@@ -2,6 +2,7 @@
 #include "cutils_func.h"
 #include "boost_for_export.h"
 #include "State.h"
+#include "Fix.h"
 namespace py = boost::python;
 using namespace MD_ENGINE;
 
@@ -31,6 +32,20 @@ void DataComputerTemperature::computeScalar_GPU(bool transferToCPU, uint32_t gro
 
 void DataComputerTemperature::prepareForRun() {
     DataComputer::prepareForRun();
+    if (state->is2d) {
+        ndf =  2 * state->atoms.size();
+    } else {
+        ndf = 3 * state->atoms.size();
+    }
+
+    int reduction = 0;
+
+    for (Fix *f : state->fixes) {
+        reduction += f->removeNDF();
+    }
+
+    ndf -= reduction;
+
     //then my own stuff
 }
 
@@ -69,14 +84,19 @@ void DataComputerTemperature::computeTensor_GPU(bool transferToCPU, uint32_t gro
 }
 
 void DataComputerTemperature::computeScalar_CPU() {
-    int n;
+    
+    //int n;
     double total = gpuBuffer.h_data[0];
+    /*
     if (lastGroupTag == 1) {
-        n = state->atoms.size();//* (int *) &gpuBuffer.h_data[1];
+        n = state->atoms.size();//\* (int *) &gpuBuffer.h_data[1];
     } else {
         float *asfloat  = gpuBuffer.h_data.data() + 1;
         n = * (int *) asfloat;
     }
+    */ //
+
+    /*
     if (state->is2d) {
         //ndf = 2*(n-1); //-1 is analagous to extra_dof in lammps
         ndf = 2*n; // changed from a above to permit 1 particle thermostatting
@@ -84,6 +104,7 @@ void DataComputerTemperature::computeScalar_CPU() {
         //ndf = 3*(n-1);
         ndf = 3*n; // changed from a above to permit 1 particle thermostatting
     }
+    */
     totalKEScalar = total * state->units.mvv_to_eng; 
     tempScalar = state->units.mvv_to_eng * total / (state->units.boltz * ndf); 
 }
@@ -137,17 +158,21 @@ void DataComputerTemperature::computeTensorFromScalar() {
 }
 
 void DataComputerTemperature::computeScalarFromTensor() {
-    int n;
+    //int n;
+    /*
     if (lastGroupTag == 1) {
-        n = state->atoms.size();//* (int *) &gpuBuffer.h_data[1];
+        n = state->atoms.size();//\* (int *) &gpuBuffer.h_data[1];
     } else {
         n = * (int *) &gpuBuffer.h_data[1];
     }
+    */ //
+    /*
     if (state->is2d) {
         ndf = 2*(n-1); //-1 is analagous to extra_dof in lammps
     } else {
         ndf = 3*(n-1);
     }
+    */
     totalKEScalar = (tempTensor[0] + tempTensor[1] + tempTensor[2]) * state->units.boltz;
     tempScalar = totalKEScalar / ndf;
 

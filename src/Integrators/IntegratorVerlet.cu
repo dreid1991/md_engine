@@ -10,6 +10,8 @@
 #include "State.h"
 #include "Fix.h"
 #include "cutils_func.h"
+#include "globalDefs.h"
+#include "FixTIP4PFlexible.h"
 
 using namespace MD_ENGINE;
 using std::cout;
@@ -23,8 +25,14 @@ __global__ void nve_v_cu(int nAtoms, float4 *vs, float4 *fs, float dtf) {
         // Update velocity by a half timestep
         float4 vel = vs[idx];
         float invmass = vel.w;
-
         float4 force = fs[idx];
+        
+        // ghost particles should not have their velocities integrated; causes overflow
+        if (invmass > INVMASSBOOL) {
+            vs[idx] = make_float4(0.0f, 0.0f, 0.0f,invmass);
+            fs[idx] = make_float4(0.0f, 0.0f, 0.0f,force.w);
+            return;
+        }
 
         float3 dv = dtf * invmass * make_float3(force);
         vel += dv;
@@ -245,8 +253,13 @@ __global__ void preForce_cu(int nAtoms, float4 *xs, float4 *vs, float4 *fs,
         // Update velocity by a half timestep
         float4 vel = vs[idx];
         float invmass = vel.w;
-
         float4 force = fs[idx];
+        
+        if (invmass > INVMASSBOOL) {
+            vs[idx] = make_float4(0.0f, 0.0f, 0.0f,invmass);
+            fs[idx] = make_float4(0.0f, 0.0f, 0.0f, force.w);
+            return;
+        }
 
         float3 dv = dtf * invmass * make_float3(force);
         vel += dv;
@@ -490,7 +503,10 @@ __global__ void postForce_cu(int nAtoms, float4 *vs, float4 *fs, float dtf)
         // Update velocities by a halftimestep
         float4 vel = vs[idx];
         float invmass = vel.w;
-
+        if (invmass > INVMASSBOOL) {
+            vs[idx] = make_float4(0.0f, 0.0f, 0.0f,invmass);
+            return;
+        }
         float4 force = fs[idx];
 
         float3 dv = dtf * invmass * make_float3(force);
@@ -508,24 +524,28 @@ double IntegratorVerlet::run(int numTurns)
 {
 
     basicPreRunChecks();
-    //basicPrepare(numTurns); //nlist built here
-    //force(false);
 
-    std::vector<bool> prepared = basicPrepare(numTurns);
-    force(true);
+    // basicPrepare now only handles State prepare and sending global State data to device
+    basicPrepare(numTurns);
 
-    for (int i = 0; i<prepared.size(); i++) {
-        if (!prepared[i]) {
-            for (Fix *f : state->fixes) {
-                bool isPrepared = f->prepareForRun();
-                if (!isPrepared) {
-                    mdError("A fix is unable to be instantiated correctly.");
-                }
-            }
-        }
-    }
+    // prepare the fixes that do not require forces to be computed
+    prepareFixes(false);
+    
+    forceInitial(true);
+
+    // prepare the fixes that require forces to be computed on instantiation;
+    // --- we also handle the datacomputers here, now that all information is available
+    //     (e.g., for tempComputers, rigid fix will be able to quantify the reduction in DOF)
+    prepareFixes(true);
+
+    // finally, prepare barostats, thermostats, datacomputers, etc.
+    // now that pair potentials, electrostatics, and constraints are prepared.
+    // -- should we prepare the datacomputers first? possibly..
+    prepareFinal();
+
+    verifyPrepared();
+
     int periodicInterval = state->periodicInterval;
-
 	
     auto start = std::chrono::high_resolution_clock::now();
 
@@ -570,7 +590,6 @@ double IntegratorVerlet::run(int numTurns)
 
         //quits if ctrl+c has been pressed
         checkQuit();
-
 
         // Perform second half of velocity-Verlet step
         postForce();

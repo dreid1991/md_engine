@@ -102,6 +102,12 @@ public:
     virtual bool postNVE_V() {return true; }
     virtual bool postNVE_X() {return true; } //postNVE_V and X are just called in first half step
 
+    //! Prepares a fix for run if it must be prepared after all other fixes have been instantiated
+    /*!
+     * \return False if a problem occurred, else True
+     */
+    virtual bool prepareFinal() {return true; }
+
     //! Perform operations at the end of a simulation step
     /*!
      * \return False if a problem was encountered, else return true
@@ -110,6 +116,13 @@ public:
      */
     virtual bool stepFinal() { return true; }
 
+    //! Counts the reduction in system DOF due to this fix
+    /*!
+     * \return 0 if no constraints, otherwise positive integer quantifying the reduction in DOF
+     *
+     * This function is called by DataComputerTemperature when it is preparing for a run.
+     */
+    virtual int removeNDF() {return 0;}
     //! Apply fix
     /*!
      * \param virialMode Compute virials for this Fix
@@ -251,8 +264,10 @@ public:
     bool requiresCharges; //!< True if Fix needs charges.  Fixes will be stored if any fix has this as true
     //these are 
     bool isThermostat; //!< True if is a thermostat. Used for barostats.
+    bool requiresForces; //!< True if the fix requires forces on instantiation; defaults to false.
     bool requiresPostNVE_V;
 
+    bool prepared; //!< True if the fix has been prepared; false otherwise.
     bool canOffloadChargePairCalc;
     bool canAcceptChargePairCalc;
     

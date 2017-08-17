@@ -121,7 +121,8 @@ bool FixLJCutFS::prepareForRun() {
     prepareParameters("FCutHandle", fillFCut);
     sendAllToDevice();
     setEvalWrapper();
-    return true;
+    prepared = true;
+    return prepared;
 }
 
 void FixLJCutFS::setEvalWrapper() {

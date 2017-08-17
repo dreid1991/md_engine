@@ -11,9 +11,6 @@
 
 using namespace std;
 
-
-
-
 __global__ void zeroVectorPreserveW(float4 *xs, int n) {
     int idx = GETIDX();
     if (idx < n) {
@@ -51,13 +48,6 @@ void Integrator::stepFinal()
         }
     }
 }
-
-
-
-
-
-
-
 
 void Integrator::asyncOperations() {
     int turn = state->turn;
@@ -123,9 +113,55 @@ void Integrator::basicPreRunChecks() {
 
 }
 
+void Integrator::prepareFixes(bool requiresForces_) {
+    for (Fix *f : state->fixes) {
+        // f->requiresForces refers to Fix member in Fix.h, defaults to False
+        if (f->requiresForces == requiresForces_) {
+            f->takeStateNThreadPerBlock(state->nThreadPerBlock);//grid will also have this value
+            f->takeStateNThreadPerAtom(state->nThreadPerAtom);//grid will also have this value
+            f->updateGroupTag();
+            f->prepareForRun();
+            f->setVirialTurnPrepare();
+        }
+    }
 
-std::vector<bool> Integrator::basicPrepare(int numTurns) {
-    std::cout << "Running for " << numTurns << " turns with timestep of " << state->dt << std::endl;
+    
+}
+
+void Integrator::prepareFinal() {
+    // prepare the DataComputers that are present
+    for (boost::shared_ptr<MD_ENGINE::DataSetUser> ds : state->dataManager.dataSets) {
+        ds->prepareForRun(); //will also prepare those data sets' computers
+        if (ds->requiresVirials()) {
+            state->dataManager.addVirialTurn(ds->nextCompute, ds->requiresPerAtomVirials());
+        }
+    }
+
+    // finally, prepare any barostats or thermostats that are present in simulation
+    for (Fix *f : state->fixes) {
+        // final stuff that needs to be prepared; in the cases of barostats & thermostats, all the things.
+        f->prepareFinal();
+
+    }
+    
+    state->handleChargeOffloading();
+    // so, set the eval wrappers..
+    for (Fix *f : state->fixes) {
+        f->setEvalWrapper();
+    }
+}
+
+void Integrator::verifyPrepared() {
+    for (Fix *f : state->fixes) {
+        if (!(f->prepared) ) {
+            std::string thisFix = f->handle;
+            printf("%s was unable to be prepared. Aborting.\n", thisFix.c_str());
+            mdAssert(f->prepared, "A fix was found unprepared.\n");
+        }
+    }
+}
+
+void Integrator::basicPrepare(int numTurns) {
     int nAtoms = state->atoms.size();
     state->runningFor = numTurns;
     state->runInit = state->turn;
@@ -136,6 +172,7 @@ std::vector<bool> Integrator::basicPrepare(int numTurns) {
     for (GPUArray *dat : activeData) {
         dat->dataToDevice();
     }
+    /*
     std::vector<bool> prepared;
     for (Fix *f : state->fixes) {
         f->takeStateNThreadPerBlock(state->nThreadPerBlock);//grid will also have this value
@@ -148,15 +185,16 @@ std::vector<bool> Integrator::basicPrepare(int numTurns) {
     for (Fix *f : state->fixes) {
         f->setEvalWrapper(); //have to do this after prepare b/c pair calcs need evaluators from charge that have been updated with correct alpha or other coefficiants, and change calcs need to know that handoffs happened
     }
-    state->gridGPU.periodicBoundaryConditions(-1, true);
     for (boost::shared_ptr<MD_ENGINE::DataSetUser> ds : state->dataManager.dataSets) {
         ds->prepareForRun(); //will also prepare those data sets' computers
         if (ds->requiresVirials()) {
             state->dataManager.addVirialTurn(ds->nextCompute, ds->requiresPerAtomVirials());
         }
     }
+    */
+    state->gridGPU.periodicBoundaryConditions(-1, true);
 
-    return prepared;
+    return;
 }
 
 
