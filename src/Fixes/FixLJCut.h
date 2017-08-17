@@ -35,7 +35,7 @@ extern const std::string LJCutType;
 class FixLJCut : public FixPair {
     public:
         //! Constructor
-        FixLJCut(SHARED(State), std::string handle);
+        FixLJCut(SHARED(State), std::string handle, std::string mixingRules="geometric");
 
         //! Compute forces
         void compute(int);

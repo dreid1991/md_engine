@@ -19,7 +19,7 @@ void export_FixLJCutFS();
 class FixLJCutFS : public FixPair {
     public:
         //! Constructor
-        FixLJCutFS(SHARED(State), std::string handle);
+        FixLJCutFS(SHARED(State), std::string handle, std::string mixingRules_);
 
         //! Compute forces
         void compute(int);

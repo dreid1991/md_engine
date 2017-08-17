@@ -577,7 +577,7 @@ double IntegratorVerlet::run(int numTurns)
 
         handleBoundsChange();
 
-        if ((state->turn-state->runInit) % tuneEvery == 0) {
+        if ((state->turn-state->runInit) % tuneEvery == 0 and state->turn > state->runInit) {
             //this goes here because forces are zero at this point.  I don't need to save any forces this way
             timeTune += tune();
         } else if (not haveTunedWithData and state->turn-state->runInit < tuneEvery and state->nlistBuildCount > 20) {

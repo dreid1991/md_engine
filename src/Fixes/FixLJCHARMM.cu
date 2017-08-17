@@ -16,8 +16,8 @@ const string LJCHARMMType = "LJCHARMM";
 
 
 
-FixLJCHARMM::FixLJCHARMM(boost::shared_ptr<State> state_, string handle_)
-    : FixPair(state_, handle_, "all", LJCHARMMType, true, false, 1),
+FixLJCHARMM::FixLJCHARMM(boost::shared_ptr<State> state_, string handle_, string mixingRules_)
+    : FixPair(state_, handle_, "all", LJCHARMMType, true, false, 1, mixingRules_),
     epsHandle("eps"), sigHandle("sig"), eps14Handle("eps14"), sig14Handle("sig14"), rCutHandle("rCut")
 {
 
@@ -92,11 +92,11 @@ void FixLJCHARMM::setEvalWrapper() {
 
 bool FixLJCHARMM::prepareForRun() {
     //loop through all params and fill with appropriate lambda function, then send all to device
-    auto fillEps = [] (float a, float b) {
+    auto fillGeo = [] (float a, float b) {
         return sqrt(a*b);
     };
 
-    auto fillSig = [] (float a, float b) {
+    auto fillArith = [] (float a, float b) {
         return (a+b) / 2.0;
     };
     auto fillRCut = [this] (float a, float b) {
@@ -123,9 +123,9 @@ bool FixLJCHARMM::prepareForRun() {
     //copy in non 1-4 parameters for sig, eps
 
     std::vector<float> &epsPreProc = *paramMap["eps"];
-    std::vector<float> &sigPreProc = *paramMap["sig"];
-
     std::vector<float> &eps14PreProc = *paramMap["eps14"];
+
+    std::vector<float> &sigPreProc = *paramMap["sig"];
     std::vector<float> &sig14PreProc = *paramMap["sig14"];
     assert(epsPreProc.size() == sigPreProc.size());
     int numTypes = state->atomParams.numTypes;
@@ -141,10 +141,16 @@ bool FixLJCHARMM::prepareForRun() {
     }
 
 
-    prepareParameters(epsHandle, fillEps, processEps, false);
-    prepareParameters(sigHandle, fillSig, processSig, false);
-    prepareParameters(eps14Handle, fillEps, processEps, false);
-    prepareParameters(sig14Handle, fillSig, processSig, false);
+    prepareParameters(epsHandle, fillGeo, processEps, false);
+    prepareParameters(eps14Handle, fillGeo, processEps, false);
+
+	if (mixingRules=="arithmetic") {
+		prepareParameters(sigHandle, fillArith, processSig, false);
+		prepareParameters(sig14Handle, fillArith, processSig, false);
+	} else {
+		prepareParameters(sigHandle, fillGeo, processSig, false);
+		prepareParameters(sig14Handle, fillGeo, processSig, false);
+	}
     prepareParameters(rCutHandle, fillRCut, processRCut, true, fillRCutDiag);
 
     sendAllToDevice();
@@ -200,7 +206,7 @@ vector<float> FixLJCHARMM::getRCuts() {
 void export_FixLJCHARMM() {
     py::class_<FixLJCHARMM, boost::shared_ptr<FixLJCHARMM>, py::bases<FixPair>, boost::noncopyable > (
         "FixLJCHARMM",
-        py::init<boost::shared_ptr<State>, string> (py::args("state", "handle"))
+        py::init<boost::shared_ptr<State>, string, py::optional<string> > (py::args("state", "handle", "mixingRules"))
     )
       ;
 

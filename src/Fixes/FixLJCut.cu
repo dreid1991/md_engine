@@ -15,8 +15,8 @@ const string LJCutType = "LJCut";
 
 
 
-FixLJCut::FixLJCut(boost::shared_ptr<State> state_, string handle_)
-    : FixPair(state_, handle_, "all", LJCutType, true, false, 1),
+FixLJCut::FixLJCut(boost::shared_ptr<State> state_, string handle_, string mixingRules_)
+    : FixPair(state_, handle_, "all", LJCutType, true, false, 1, mixingRules_),
     epsHandle("eps"), sigHandle("sig"), rCutHandle("rCut")
 {
 
@@ -81,11 +81,11 @@ void FixLJCut::setEvalWrapper() {
 
 bool FixLJCut::prepareForRun() {
     //loop through all params and fill with appropriate lambda function, then send all to device
-    auto fillEps = [] (float a, float b) {
+    auto fillGeo = [] (float a, float b) {
         return sqrt(a*b);
     };
 
-    auto fillSig = [] (float a, float b) {
+    auto fillArith = [] (float a, float b) {
         return (a+b) / 2.0;
     };
     auto fillRCut = [this] (float a, float b) {
@@ -106,8 +106,12 @@ bool FixLJCut::prepareForRun() {
     auto processRCut = [] (float a) {
         return a*a;
     };
-    prepareParameters(epsHandle, fillEps, processEps, false);
-    prepareParameters(sigHandle, fillSig, processSig, false);
+    prepareParameters(epsHandle, fillGeo, processEps, false);
+	if (mixingRules=="arithmetic") {
+		prepareParameters(sigHandle, fillArith, processSig, false);
+	} else {
+		prepareParameters(sigHandle, fillGeo, processSig, false);
+	}
     prepareParameters(rCutHandle, fillRCut, processRCut, true, fillRCutDiag);
 
     sendAllToDevice();
@@ -152,7 +156,7 @@ vector<float> FixLJCut::getRCuts() {
 void export_FixLJCut() {
     py::class_<FixLJCut, boost::shared_ptr<FixLJCut>, py::bases<FixPair>, boost::noncopyable > (
         "FixLJCut",
-        py::init<boost::shared_ptr<State>, string> (py::args("state", "handle"))
+        py::init<boost::shared_ptr<State>, string, py::optional<string> > (py::args("state", "handle", "mixingRules"))
     )
       ;
 

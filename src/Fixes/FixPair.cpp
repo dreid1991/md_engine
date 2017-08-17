@@ -259,6 +259,19 @@ void FixPair::handleBoundsChange() {
         setEvalWrapper();
     }
 }
+
+void FixPair::setMixingRules(std::string input) {
+	if (input == "arithmetic") {
+		mixingRules = input;
+	} else if (input == "geometric") {
+		mixingRules = input;
+	} else {
+		std::cout << "Invalid mixing rules: " << input << ". Use arithmetic or geometric." << std::endl;
+		assert(0);
+	}
+
+}
+
 void export_FixPair() {
     py::class_<FixPair,
     boost::noncopyable,
@@ -277,6 +290,7 @@ void export_FixPair() {
                  py::arg("handleB")
                 )
             )
+		.def("setMixingRules", &FixPair::setMixingRules)
 
         ;
 }
