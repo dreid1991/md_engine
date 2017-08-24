@@ -443,7 +443,7 @@ public:
      *
      */
     bool prepareForRun();
-    void copyAtomDataToGPU();
+    void copyAtomDataToGPU(std::vector<int> &idToIdx);
     //! Prepares GridGPU member of state.  called after fix prepare run, because 
     /*!
      * \return True always

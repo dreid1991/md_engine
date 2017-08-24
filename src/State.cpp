@@ -492,7 +492,54 @@ void State::initializeGrid() {
 
 
 
-void State::copyAtomDataToGPU() {
+void State::copyAtomDataToGPU(std::vector<int> &idToIdx) {
+    std::vector<float4> xs_vec, vs_vec, fs_vec;
+    std::vector<uint> ids;
+    std::vector<float> qs_vec;
+
+    int nAtoms = atoms.size();
+    xs_vec.resize(nAtoms);
+    vs_vec.resize(nAtoms);
+    fs_vec.resize(nAtoms);
+    qs_vec.resize(nAtoms);
+
+    for (const auto &a : atoms) {
+        xs_vec[idToIdx[a.id]] = make_float4(a.pos[0], a.pos[1], a.pos[2],
+                                     *(float *)&a.type);
+        vs_vec[idToIdx[a.id]] = make_float4(a.vel[0], a.vel[1], a.vel[2],
+                                     1/a.mass);
+        fs_vec[idToIdx[a.id]] = make_float4(a.force[0], a.force[1], a.force[2],
+                                     *(float *)&a.groupTag);
+        qs_vec[idToIdx[a.id]] = a.q;
+    }
+    //just setting host-side vectors
+    //transfer happs in integrator->basicPrepare
+    gpd.xs.set(xs_vec);
+    gpd.vs.set(vs_vec);
+    gpd.fs.set(fs_vec);
+    gpd.qs.set(qs_vec);
+
+    gpd.xs.dataToDevice();
+    gpd.vs.dataToDevice();
+    gpd.fs.dataToDevice();
+    gpd.qs.dataToDevice();
+}
+
+bool State::prepareForRun() {
+    // fixes have already prepared by the time the integrator calls this prepare
+
+
+    //requiresCharges = false;
+    //std::vector<bool> requireCharges = LISTMAP(Fix *, bool, fix, fixes, fix->requiresCharges);
+    //if (!requireCharges.empty()) {
+    //    requiresCharges = *std::max_element(requireCharges.begin(), requireCharges.end());
+    //}
+    requiresPostNVE_V = false;
+    std::vector<bool> requirePostNVE_V = LISTMAP(Fix *, bool, fix, fixes, fix->requiresPostNVE_V);
+    if (!requirePostNVE_V.empty()) {
+        requiresPostNVE_V = *std::max_element(requirePostNVE_V.begin(), requirePostNVE_V.end());
+    }
+
     std::vector<float4> xs_vec, vs_vec, fs_vec;
     std::vector<uint> ids;
     std::vector<float> qs;
@@ -521,25 +568,7 @@ void State::copyAtomDataToGPU() {
     gpd.fs.set(fs_vec);
     gpd.ids.set(ids);
     gpd.qs.set(qs);
-}
 
-bool State::prepareForRun() {
-    // fixes have already prepared by the time the integrator calls this prepare
-
-
-    //requiresCharges = false;
-    //std::vector<bool> requireCharges = LISTMAP(Fix *, bool, fix, fixes, fix->requiresCharges);
-    //if (!requireCharges.empty()) {
-    //    requiresCharges = *std::max_element(requireCharges.begin(), requireCharges.end());
-    //}
-    requiresPostNVE_V = false;
-    std::vector<bool> requirePostNVE_V = LISTMAP(Fix *, bool, fix, fixes, fix->requiresPostNVE_V);
-    if (!requirePostNVE_V.empty()) {
-        requiresPostNVE_V = *std::max_element(requirePostNVE_V.begin(), requirePostNVE_V.end());
-    }
-
-    copyAtomDataToGPU();
-    int nAtoms = atoms.size();
 
     std::vector<Virial> virials(atoms.size(), Virial(0, 0, 0, 0, 0, 0));
     gpd.virials = GPUArrayGlobal<Virial>(nAtoms);
@@ -615,6 +644,8 @@ void copySyncWithInstruc(State *state, std::function<void (int64_t )> cb, int64_
     state->gpd.vs.dataToHost();
     state->gpd.fs.dataToHost();
     state->gpd.ids.dataToHost();
+    state->gpd.idToIdxs.dataToHost();
+
     CUCHECK(cudaDeviceSynchronize());
     std::vector<int> idToIdxsOnCopy = state->gpd.idToIdxsOnCopy;
     std::vector<float4> &xs = state->gpd.xsBuffer.h_data;
@@ -632,7 +663,7 @@ void copySyncWithInstruc(State *state, std::function<void (int64_t )> cb, int64_
     }
     cb(turn);
     //now copy back
-    state->copyAtomDataToGPU();
+    state->copyAtomDataToGPU(state->gpd.idToIdxs.h_data);
 }
 
 bool State::runtimeHostOperation(std::function<void (int64_t )> cb, bool async) {

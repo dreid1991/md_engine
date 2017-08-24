@@ -22,9 +22,10 @@ void PythonOperation::operate(int64_t turn) {
 }
 
 void export_PythonOperation() {
-	py::class_<PythonOperation, SHARED(PythonOperation)> ("PythonOperation", py::init<string, int, PyObject*>(py::args("handle", "operateEvery", "operation")) )
+	py::class_<PythonOperation, SHARED(PythonOperation)> ("PythonOperation", py::init<string, int, PyObject*, py::optional<bool> >(py::args("handle", "operateEvery", "operation", "synchronous")) )
         .def_readwrite("operateEvery", &PythonOperation::operateEvery)
         .def_readwrite("operation", &PythonOperation::operation)
         .def_readonly("handle", &PythonOperation::handle)
+        .def_readwrite("synchronous", &PythonOperation::synchronous)
         ;
 }

@@ -86,14 +86,11 @@ void Integrator::asyncOperations() {
             break;
         }
     }
-    if (not needOp) {
-        for (SHARED(PythonOperation) po : state->pythonOperations) {
-            if (not (turn % po->operateEvery)) {
-                needOp = true;
-                if (po->synchronous) {
-                    isAsync = false;
-                }
-                break;
+    for (SHARED(PythonOperation) po : state->pythonOperations) {
+        if (not (turn % po->operateEvery)) {
+            needOp = true;
+            if (po->synchronous) {
+                isAsync = false;
             }
         }
     }
