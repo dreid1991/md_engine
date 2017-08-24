@@ -3,13 +3,14 @@
 using namespace std;
 namespace py = boost::python;
 
-PythonOperation::PythonOperation(string handle_, int operateEvery_, PyObject *operation_) {
+PythonOperation::PythonOperation(string handle_, int operateEvery_, PyObject *operation_, bool synchronous_) {
     orderPreference = 0;//see header for comments
     operation = operation_;
     assert(PyCallable_Check(operation));
     operateEvery = operateEvery_;
     assert(operateEvery > 0);
     handle = handle_;
+    synchronous = synchronous_;
 }
 
 void PythonOperation::operate(int64_t turn) {

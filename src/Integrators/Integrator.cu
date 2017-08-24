@@ -78,23 +78,27 @@ void Integrator::asyncOperations() {
             }
         }
     };
-    bool needAsync = false;
+    bool needOp = false;
+    bool isAsync = true;
     for (SHARED(WriteConfig) wc : state->writeConfigs) {
         if (not (turn % wc->writeEvery)) {
-            needAsync = true;
+            needOp = true;
             break;
         }
     }
-    if (not needAsync) {
+    if (not needOp) {
         for (SHARED(PythonOperation) po : state->pythonOperations) {
             if (not (turn % po->operateEvery)) {
-                needAsync = true;
+                needOp = true;
+                if (po->synchronous) {
+                    isAsync = false;
+                }
                 break;
             }
         }
     }
-    if (needAsync) {
-        state->asyncHostOperation(writeAndPy);
+    if (needOp) {
+        state->runtimeHostOperation(writeAndPy, isAsync);
     }
 }
 
