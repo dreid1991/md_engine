@@ -8,12 +8,12 @@
 cmake_minimum_required (VERSION 2.6)
 project (MDengine)
 
-set(Boost_DEBUG 1)
-find_package(Boost
-	REQUIRED
-    1.62.0
-	COMPONENTS python 
-	)
+#set(Boost_DEBUG 1)
+#find_package(Boost
+#	REQUIRED
+#    1.62.0
+#	COMPONENTS python 
+#	)
 # Set the version number
 set (VERSION_MAJOR 0)
 set (VERSION_MINOR 4)
@@ -55,7 +55,7 @@ include_directories (${PYTHON_INCLUDE_DIR}) #removed an S here
 #get_filename_component (PYTHON_LIBRARY_PATH ${PYTHON_LIBRARIES} DIRECTORY)
 
 # Find boost
-#find_package (Boost 1.62 REQUIRED COMPONENTS python)
+find_package (Boost 1.62 REQUIRED COMPONENTS python)
 
 # Require Boost MPI.
 

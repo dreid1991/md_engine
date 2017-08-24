@@ -11,7 +11,7 @@
 const std::string LJCutType = "LJCutWCA";
 
 FixWCA::FixWCA(SHARED(State) state_, std::string handle_)
-    : FixPair(state_, handle_, "all", LJCutType, true, false, 1),
+    : FixPair(state_, handle_, "all", LJCutType, true, false, 1, ARITHMETICTYPE),
       epsHandle("eps"), sigHandle("sig"), rCutHandle("rCut") {
     initializeParameters(epsHandle, epsilons);
     initializeParameters(sigHandle, sigmas);

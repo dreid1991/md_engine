@@ -7,6 +7,9 @@
 #include "Logging.h"
 namespace py = boost::python;
 
+const std::string ARITHMETICTYPE = "arithmetic";
+const std::string GEOMETRICTYPE = "geometric";
+
 void FixPair::prepareParameters(std::string handle,
                                 std::function<float (float, float)> fillFunction,
                                 std::function<float (float)> processFunction,
@@ -259,6 +262,19 @@ void FixPair::handleBoundsChange() {
         setEvalWrapper();
     }
 }
+
+void FixPair::setMixingRules(std::string input) {
+	if (input == ARITHMETICTYPE) {
+		mixingRules = ARITHMETICTYPE;
+	} else if (input == GEOMETRICTYPE) {
+		mixingRules = GEOMETRICTYPE;
+	} else {
+		std::cout << "Invalid mixing rules: " << input << ". Use arithmatic or geometric." << std::endl;
+		assert(0);
+	}
+
+}
+
 void export_FixPair() {
     py::class_<FixPair,
     boost::noncopyable,
@@ -277,6 +293,7 @@ void export_FixPair() {
                  py::arg("handleB")
                 )
             )
+		.def("setMixingRules", &FixPair::setMixingRules)
 
         ;
 }

@@ -388,6 +388,9 @@ public:
     void normalize(){
         *this /= this->len();
     }
+	VectorGeneric<T> copy() const {
+		return VectorGeneric<T>(vals[0], vals[1], vals[2]);
+	}
 
     /*! \brief Mirror vector along y direction */
     VectorGeneric<T> perp2d() const {
