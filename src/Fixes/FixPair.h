@@ -132,7 +132,7 @@ protected:
     //! Order in which the parameters are processed
     std::vector<std::string> paramOrder;
 
-	//! mixing rules - arithmatic or geometric, defaults to geometric
+	//! mixing rules - arithmetic or geometric, defaults to geometric
 	std::string mixingRules;
 
     //! Make sure that all parameters are in paramOrder

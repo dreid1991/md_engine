@@ -9,6 +9,7 @@
 #include "EvaluatorWrapper.h"
 
 const std::string LJCutType = "LJCutFS";
+namespace py = boost::python;
 
 FixLJCutFS::FixLJCutFS(SHARED(State) state_, std::string handle_, std::string mixingRules_)
     : FixPair(state_, handle_, "all", LJCutType, true, false, 1, mixingRules_),
@@ -171,12 +172,12 @@ std::vector<float> FixLJCutFS::getRCuts() {
 }
 
 void export_FixLJCutFS() {
-    boost::python::class_<FixLJCutFS,
+    py::class_<FixLJCutFS,
                           SHARED(FixLJCutFS),
-                          boost::python::bases<FixPair>, boost::noncopyable > (
+                          py::bases<FixPair>, boost::noncopyable > (
         "FixLJCutFS",
-        boost::python::init<SHARED(State), std::string, boost::python::optional<std::string> > (
-            boost::python::args("state", "handle", "mixingRules"))
+        py::init<SHARED(State), std::string, py::optional<std::string> > (
+            py::args("state", "handle", "mixingRules"))
     );
 
 }
