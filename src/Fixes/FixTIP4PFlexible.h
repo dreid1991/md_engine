@@ -100,4 +100,4 @@ class FixTIP4PFlexible: public Fix {
         void updateForPIMD(int nPerRingPoly);
 };
 
-#endif /* FIXTIP4PFLEXIBLE */
+#endif /* FIXTIP4PFLEXIBLE_H */

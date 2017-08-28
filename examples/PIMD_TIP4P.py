@@ -31,7 +31,7 @@ state.rCut = 12.0
 state.padding = 1.0
 state.periodicInterval = 7
 state.shoutEvery = 1000
-state.dt = 0.05
+state.dt = 1.0
 
 
 ##############################################
@@ -82,11 +82,14 @@ flexibleTIP4P = FixTIP4PFlexible(state,'TIP4PFlexible')
 # Instantiate the quartic bond (intramolecular OH) and
 # the HOH angle potential
 #############################################################
-bondQuart = FixBondQuartic(state,'bondQuart')
-bondQuart.setBondTypeCoefs(type=0,k2=607.19,k3=-1388.65,k4=1852.58,r0=0.9419)
 
-harmonicAngle = FixAngleHarmonic(state,'angleH')
-harmonicAngle.setAngleTypeCoefs(type=0, k=87.85, theta0=( (107.4/180.0) * pi))
+anglePot = FixAngleHarmonic(state, 'angleHarm')
+anglePot.setAngleTypeCoefs(type=0, k=87.85, theta0=(107.4/180.0)*pi)
+
+bondQuart = FixBondQuartic(state, 'bondQuart')
+bondQuart.setBondTypeCoefs(type=0, k2=607.19,k3=-1388.65,k4=1852.58,r0=0.9419)
+
+
 
 # our vector of centers
 positions = []
@@ -122,12 +125,23 @@ for i in range(numMolecules):
     #for atom in ids:
     #    print 'atom ', atom, ' with mass ', state.atoms[atom].mass, ' and force ', state.atoms[atom].force, ' placed at position ', state.atoms[atom].pos,'\n'
 
-    bondQuart.createBond(state.atoms[ids[0]], state.atoms[ids[1]],type=0)
-    bondQuart.createBond(state.atoms[ids[0]], state.atoms[ids[2]],type=0)
+    # add quartic bonds so that the molecules don't collapse
+    # and angle harmonic angle 0 1 2
+    bondQuart.createBond(state.atoms[ids[0]], state.atoms[ids[1]], type=0)
+    bondQuart.createBond(state.atoms[ids[0]], state.atoms[ids[2]], type=0)
+    anglePot.createAngle(state.atoms[ids[1]], state.atoms[ids[0]], state.atoms[ids[2]], type=0)
 
-    harmonicAngle.createAngle(state.atoms[ids[1]], state.atoms[ids[0]], state.atoms[ids[2]],type=0)
 
 
+    # make a harmonic OH1 bond with some high stiffness, and OH2, and H1H2
+    '''
+    harmonicBonds.createBond(state.atoms[ids[0]], state.atoms[ids[1]],
+                             k=200000, r0 = 0.9419)
+    harmonicBonds.createBond(state.atoms[ids[0]], state.atoms[ids[2]],
+                             k=200000, r0 = 0.9419)
+    harmonicAngle.createAngle(state.atoms[ids[1]], state.atoms[ids[0]], state.atoms[ids[2]],
+                              k=200000, theta0=1.8744836)
+    '''
 print 'done adding molecules to simulation'
 #############################################################
 # Initialization of potentials
@@ -140,13 +154,13 @@ print 'done adding molecules to simulation'
 state.activateFix(nonbond)
 state.activateFix(charge)
 
-################################################################
-# Intramolecular interactions:
-# FixTIP4PFlexible, quartic bonds, and harmonic angle potential
-################################################################
+#####################
+# Intramolecular Bonds - Quartic and Angle potentials, flexible tip4p
+#####################
 state.activateFix(bondQuart)
+state.activateFix(anglePot)
 state.activateFix(flexibleTIP4P)
-state.activateFix(harmonicAngle)
+
 
 #############################################
 # initialize at some temperature
@@ -161,15 +175,15 @@ integVerlet = IntegratorVerlet(state)
 ########################################
 # Data recording
 ########################################
-tempData = state.dataManager.recordTemperature('all', interval = 1)
+tempData = state.dataManager.recordTemperature('all','vector', interval = 1)
+enerData = state.dataManager.recordEnergy('all', 'scalar', interval = 1, fixes = [nonbond,charge,anglePot,bondQuart] )
 
 ################################################
 # Thermostatting
 ################################################
 fixNVT = FixNoseHoover(state,'nvt','all')
-fixNVT.setTemperature(300.0, 200*state.dt)
+fixNVT.setTemperature(330.0, 200*state.dt)
 state.activateFix(fixNVT)
-
 
 #################################
 # and some calls to PIMD
@@ -187,4 +201,18 @@ state.activateWriteConfig(writeRestart)
 integVerlet.run(5000)
 
 
+print 'deactivating thermostat\n'
+
+state.deactivateFix(fixNVT)
+
+integVerlet.run(50000)
+
+for index, item in enumerate(enerData.vals):
+    print enerData.vals[index], sum(tempData.vals[index]), enerData.vals[index] + sum(tempData.vals[index])
+
+state.dt = 1.0
+#fid = open('thermo.dat', "w")
+
+#for t, T in zip(tempData.turns, tempData.vals):
+#    fid.write("{:<8}{:>15.5f}\n".format(t,T))
 

@@ -26,7 +26,6 @@ for i in range(len(f)):
 #state.addAtom('spc1', pos = Vector(10.5, 10.5, 10.7))
 InitializeAtoms.initTemp(state, 'all', 1.2)
 
-#fixNVT = FixNVTRescale(state, 'temp', 'all', 1.2)
 fixNPT = FixNoseHoover(state,'npt','all')
 fixNPT.setTemperature(1.2,100.0*state.dt)
 fixNPT.setPressure('ANISO',0.2,1000*state.dt)
@@ -37,7 +36,6 @@ integVerlet = IntegratorVerlet(state)
 tempData = state.dataManager.recordTemperature('all','scalar', 1)
 #tempData = state.dataManager.recordTemperature('all','scalar', 100)
 pressureData = state.dataManager.recordPressure('all','scalar', 1)
-
 integVerlet = IntegratorVerlet(state)
 
 #empData = state.dataManager.recordTemperature('all','scalar', 100)

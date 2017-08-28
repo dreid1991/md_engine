@@ -197,17 +197,17 @@ __global__ void setMSiteFlexible(int4 *waterIds, int *idToIdxs, float4 *xs, floa
          */
 
         // first, get the ids of the atoms composing this molecule
-        int id_O  = waterIds[idx].x;
-        int id_H1 = waterIds[idx].y;
-        int id_H2 = waterIds[idx].z;
-        int id_M  = waterIds[idx].w;
+        int idx_O  = idToIdxs[waterIds[idx].x];
+        int idx_H1 = idToIdxs[waterIds[idx].y];
+        int idx_H2 = idToIdxs[waterIds[idx].z];
+        int idx_M  = idToIdxs[waterIds[idx].w];
 
-        float4 pos_M_whole = xs[idToIdxs[id_M]];
+        float4 pos_M_whole = xs[idx_M];
         // get the positions of said atoms
-        float3 pos_O = make_float3(xs[idToIdxs[id_O]]);
-        float3 pos_H1= make_float3(xs[idToIdxs[id_H1]]);
-        float3 pos_H2= make_float3(xs[idToIdxs[id_H2]]);
-        float3 pos_M = make_float3(xs[idToIdxs[id_M]]);
+        float3 pos_O = make_float3(xs[idx_O]);
+        float3 pos_H1= make_float3(xs[idx_H1]);
+        float3 pos_H2= make_float3(xs[idx_H2]);
+        float3 pos_M = make_float3(xs[idx_M]);
 
         // compute vectors r_ij and r_ik according to minimum image convention
         // where r_ij = r_j - r_i, r_ik = r_k - r_i,
@@ -221,11 +221,18 @@ __global__ void setMSiteFlexible(int4 *waterIds, int *idToIdxs, float4 *xs, floa
         // -- see formula in q-TIP4P/F paper
         float3 r_M  = (gamma * pos_O) + (0.5 * (1.0 - gamma) * (pos_H1 + pos_H2)) ;
 
-        //printf("r_M calculated to be: \n%f %f %f\n",
-        //       r_M.x, r_M.y, r_M.z);
-        //printf("new position of M-site molecule %d r_M: %f %f %f\n      position of oxygen %d: %f %f %f\n", idx, r_M.x, r_M.y, r_M.z, id_O, pos_O.x, pos_O.y, pos_O.z);
         float4 pos_M_new = make_float4(r_M.x, r_M.y, r_M.z, pos_M_whole.w);
-        xs[idToIdxs[id_M]] = pos_M_new;
+        
+        /*
+        printf("Coords O, H, H, M %d %d %d %d:\n%f %f %f\n%f %f %f\n%f %f %f\n%f %f %f\n",
+               waterIds[idx].x, waterIds[idx].y, waterIds[idx].z, waterIds[idx].w,
+               pos_O.x, pos_O.y, pos_O.z,
+               pos_H1.x, pos_H1.y, pos_H1.z,
+               pos_H2.x, pos_H2.y, pos_H2.z,
+               pos_M_new.x, pos_M_new.y, pos_M_new.z);
+        //printf("new position of M-site molecule %d r_M: %f %f %f\n      position of oxygen %d: %f %f %f\n", idx, r_M.x, r_M.y, r_M.z, id_O, pos_O.x, pos_O.y, pos_O.z);
+        */
+        xs[idx_M] = pos_M_new;
     }
 }
 
@@ -332,7 +339,7 @@ void FixTIP4PFlexible::setStyleBondLengths() {
         // other models here; give appropriate keywords
         printf("Using unknown style in FixTIP4PFlexible\n");
         if ( (rOM == 0.0) or (rOH == 0.0) or (rHH == 0.0)) {
-            mdError("Only DEFAULT and TIP4P/2005 keywords currently supported.\nPlease manually set the rOM, rOH, and rHH values if TIP4P/2005 geometry is not desired.\n");
+            mdError("Unrecognized geometry specified.\nPlease manually set the rOM, rOH, and rHH values if qTIP4P/F geometry is not desired.\n");
 
         }
     }
@@ -529,6 +536,8 @@ bool FixTIP4PFlexible::prepareForRun() {
     nMolecules = waterIds.size();
     printf("Found %d molecules in FixTIP4PFlexible::prepareForRun()\n", nMolecules);
     setStyleBondLengths();
+
+    printf("Computed a gamma value of %f\n", gamma);
 
     waterIdsGPU = GPUArrayDeviceGlobal<int4>(nMolecules);
     waterIdsGPU.set(waterIds.data());
