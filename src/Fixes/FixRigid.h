@@ -76,11 +76,12 @@ class FixRigid : public Fix {
         GPUArrayDeviceGlobal<float4> vs_0;
 
 
-        // array holding forces before constraints are applied.. ?
+        GPUArrayDeviceGlobal<float4> dvs_0;
+
+
         GPUArrayDeviceGlobal<float4> fs_0;
 
 
-        // array holding COM before constraints are applied..
         GPUArrayDeviceGlobal<float4> com;
 
         
@@ -169,9 +170,6 @@ class FixRigid : public Fix {
         // default styles are TIP3P and TIP4P/2005
         void setStyle(std::string);
 
-        std::string restartChunk(std::string format);
-
-        bool readFromRestart();
 
         //! Halfstep solution to velocity constraints
         //bool postNVE_V();

@@ -84,18 +84,14 @@ void DataComputerTemperature::computeTensor_GPU(bool transferToCPU, uint32_t gro
 }
 
 void DataComputerTemperature::computeScalar_CPU() {
-    
-    //int n;
+    int n;
     double total = gpuBuffer.h_data[0];
-    /*
     if (lastGroupTag == 1) {
-        n = state->atoms.size();//\* (int *) &gpuBuffer.h_data[1];
+        n = state->atoms.size();//* (int *) &gpuBuffer.h_data[1];
     } else {
         float *asfloat  = gpuBuffer.h_data.data() + 1;
         n = * (int *) asfloat;
     }
-    */ //
-
     /*
     if (state->is2d) {
         //ndf = 2*(n-1); //-1 is analagous to extra_dof in lammps
@@ -158,14 +154,12 @@ void DataComputerTemperature::computeTensorFromScalar() {
 }
 
 void DataComputerTemperature::computeScalarFromTensor() {
-    //int n;
-    /*
+    int n;
     if (lastGroupTag == 1) {
-        n = state->atoms.size();//\* (int *) &gpuBuffer.h_data[1];
+        n = state->atoms.size();//* (int *) &gpuBuffer.h_data[1];
     } else {
         n = * (int *) &gpuBuffer.h_data[1];
     }
-    */ //
     /*
     if (state->is2d) {
         ndf = 2*(n-1); //-1 is analagous to extra_dof in lammps

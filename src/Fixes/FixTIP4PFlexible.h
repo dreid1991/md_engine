@@ -36,6 +36,7 @@ void export_FixTIP4PFlexible();
  * include
  *  - q-TIP4P/F: the default model (see reference Habershon, Markland , and Manolopoulos, J Chem. Phys. 131, 024501 (2009))
  *  - standard TIP4P/2005 geometry
+ *  - ???? (more style arguments TBD)
  */
 class FixTIP4PFlexible: public Fix {
 
@@ -61,7 +62,7 @@ class FixTIP4PFlexible: public Fix {
     public:
         
         // constructor
-        FixTIP4PFlexible(SHARED(State), std::string handle_);
+        FixTIP4PFlexible(SHARED(State), std::string handle_, std::string groupHandle_);
 
         // prepareForRun
         bool prepareForRun();
@@ -72,6 +73,9 @@ class FixTIP4PFlexible: public Fix {
         // handleBoundsChange
         void handleBoundsChange();
     
+        // does exactly what it says
+        void callPrintKernel();
+
         // add a molecule to the fix
         void addMolecule(int, int, int, int);
 
@@ -84,9 +88,6 @@ class FixTIP4PFlexible: public Fix {
         
         std::string style;
 
-        bool readFromRestart();
-
-        std::string restartChunk(std::string format);
         // allows specification of a specific TIP4P flexible model geometry
         void setStyle(std::string);
 

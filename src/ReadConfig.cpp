@@ -249,7 +249,6 @@ bool ReadConfig::read() {
 	loadBounds(*config, state);
     loadGroupInfo(*config, state);
 	for (Atom &a : readAtoms) {
-        
 		state->addAtomDirect(a);
 	}
     loadMolecules(*config, state);

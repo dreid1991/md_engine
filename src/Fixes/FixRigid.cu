@@ -7,7 +7,6 @@
 #include "cutils_func.h"
 #include <math.h>
 #include "globalDefs.h"
-#include "xml_func.h"
 namespace py = boost::python;
 const std::string rigidType = "Rigid";
 
@@ -22,7 +21,6 @@ FixRigid::FixRigid(boost::shared_ptr<State> state_, std::string handle_, std::st
     // this fix requires the forces to have already been computed before we can 
     // call prepareForRun()
     requiresForces = true;
-    readFromRestart();
 }
 
 __device__ inline float3 positionsToCOM(float3 *pos, float *mass, float ims) {
@@ -170,7 +168,7 @@ __global__ void printGPD_Rigid(uint* ids, float4 *xs, float4 *vs, float4 *fs, in
         int type = xs[idx].w;
         float4 vel = vs[idx];
         float4 force = fs[idx];
-        //uint groupTag = force.w;
+        uint groupTag = force.w;
         printf("atom id %d type %d at coords %f %f %f\n", id, type, pos.x, pos.y, pos.z);
         printf("atom id %d mass %f with vel  %f %f %f\n", id, vel.w, vel.x, vel.y, vel.z);
         printf("atom id %d mass %f with force %f %f %f\n", id, vel.w, force.x, force.y, force.z);
@@ -268,8 +266,7 @@ __global__ void distributeMSite(int4 *waterIds, float4 *xs, float4 *vs, float4 *
     }
 }
 
-template <class DATA>
-__global__ void setMSite(int4 *waterIds, int *idToIdxs, float4 *xs, int nMolecules, BoundsGPU bounds, DATA fixRigidData) {
+__global__ void setMSite(int4 *waterIds, int *idToIdxs, float4 *xs, int nMolecules, BoundsGPU bounds) {
 
     int idx = GETIDX();
     if (idx < nMolecules) {
@@ -299,8 +296,9 @@ __global__ void setMSite(int4 *waterIds, int *idToIdxs, float4 *xs, int nMolecul
         float3 r_ij = bounds.minImage( (pos_H1 - pos_O));
         float3 r_ik = bounds.minImage( (pos_H2 - pos_O));
 
-        // fixRigidData.sideLengths.w is the OM vector
-        float3 r_M  = (pos_O) + fixRigidData.sideLengths.w * ( (r_ij + r_ik) / ( (length(r_ij + r_ik))));
+        // 0.1546 is the O-M bond length
+        // TODO: remove the hardcoded r_OM value of 0.1546.. pass in data via template or something
+        float3 r_M  = (pos_O) + 0.1546 * ( (r_ij + r_ik) / ( (length(r_ij + r_ik))));
     
         float4 pos_M_new = make_float4(r_M.x, r_M.y, r_M.z, pos_M_whole.w);
         xs[idToIdxs[id_M]] = pos_M_new;
@@ -370,10 +368,18 @@ __global__ void compute_prev_val(int4 *waterIds, float4 *xs, float4 *xs_0, float
 // ok, just initializes to zero
 // ---- really, do as gromacs does and do a propagation backwards.
 //      then call SETTLE with the 'new' coordinates as the 'unconstrained' initial coords - angles should be ~0
+__global__ void set_init_vel_correction(int4 *waterIds, float4 *dvs_0, int nMolecules) {
+  int idx = GETIDX();
+  if (idx < nMolecules) {
+    for (int i = 0; i < 3; i++) {
+      dvs_0[idx*3 + i] = make_float4(0.0f,0.0f,0.0f,0.0f);
+    }
+  }
+}
 
 template <class DATA, bool HALFSTEP, bool DEBUG_BOOL>
 __global__ void settleVelocities(int4 *waterIds, float4 *xs, float4 *xs_0, 
-                               float4 *vs, float4 *vs_0,
+                               float4 *vs, float4 *vs_0, float4 *dvs_0, 
                                float4 *fs, float4 *fs_0, float4 *comOld, 
                                DATA fixRigidData, int nMolecules, 
                                float dt, float dtf,
@@ -400,6 +406,13 @@ __global__ void settleVelocities(int4 *waterIds, float4 *xs, float4 *xs_0,
 
         if (HALFSTEP) {
             
+            float3 constraints_dvO = make_float3(dvs_0[idx*3]);
+            float3 constraints_dvH1= make_float3(dvs_0[idx*3 + 1]);
+            float3 constraints_dvH2= make_float3(dvs_0[idx*3 + 2]);
+            //= constraints_dvO;
+            //dvs_0[idx*3 + 1] = constraints_dvH1;
+            //dvs_0[idx*3 + 2] = constraints_dvH2;
+
 
         } else {
         // extract the whole positions
@@ -470,11 +483,11 @@ __global__ void settleVelocities(int4 *waterIds, float4 *xs, float4 *xs_0,
             double v0_BC = dot(e_BC, vel0_BC);
             double v0_CA = dot(e_CA, vel0_CA);
 
-            //double4 weights = fixRigidData.weights;
-            //double ma =  weights.z;
-            //double mb =  weights.w;
-            //double mamb = ma + mb;
-            //double mambSqr = mamb * mamb;
+            double4 weights = fixRigidData.weights;
+            double ma =  weights.z;
+            double mb =  weights.w;
+            double mamb = ma + mb;
+            double mambSqr = mamb * mamb;
 
             // exactly as in Miyamoto
             // --- except, since all three are /divided/ by d, and then later multiplied by dt
@@ -524,6 +537,10 @@ __global__ void settleVelocities(int4 *waterIds, float4 *xs, float4 *xs_0,
             double3 constraints_dvH1= 0.5 * (velH1_whole.w)* ( (g_BC) - (g_AB) );
             double3 constraints_dvH2= 0.5 * (velH2_whole.w)* ( (g_CA) - (g_BC) );
         
+            // save our constraint velocity correction
+            dvs_0[idx*3] = make_float4(constraints_dvO.x, constraints_dvO.y, constraints_dvO.z, 0);
+            dvs_0[idx*3 + 1] = make_float4(constraints_dvH1.x, constraints_dvH1.y, constraints_dvH2.z, 0);
+            dvs_0[idx*3 + 2] = make_float4(constraints_dvH2.x, constraints_dvH2.y, constraints_dvH2.z, 0);
 
             velO_whole += constraints_dvO;
             velH1_whole+= constraints_dvH1;
@@ -544,7 +561,7 @@ __global__ void settleVelocities(int4 *waterIds, float4 *xs, float4 *xs_0,
 // implements the SETTLE algorithm for maintaining a rigid water molecule
 template <class DATA, bool DEBUG_BOOL>
 __global__ void settlePositions(int4 *waterIds, float4 *xs, float4 *xs_0, 
-                               float4 *vs, float4 *vs_0, 
+                               float4 *vs, float4 *vs_0, float4 *dvs_0, 
                                float4 *fs, float4 *fs_0, float4 *comOld, 
                                DATA fixRigidData, int nMolecules, 
                                float dt, float dtf,
@@ -984,7 +1001,7 @@ void FixRigid::handleBoundsChange() {
         //    relative to the molecule.  We do not solve the constraints on the rigid body at this time.
         // we need to reset the position of the M-Site prior to calculating the forces
         
-        setMSite<FixRigidData><<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), gpd.idToIdxs.d_data.data(), gpd.xs(activeIdx), nMolecules, bounds, fixRigidData);
+        setMSite<<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), gpd.idToIdxs.d_data.data(), gpd.xs(activeIdx), nMolecules, bounds);
         if (printing) {
             cudaDeviceSynchronize();
 
@@ -1106,7 +1123,7 @@ void FixRigid::setStyleBondLengths() {
         r_OH /= sigma_O;
         r_OM /= sigma_O;
         r_HH /= sigma_O;
-        mdError("Currently, real units must be used for simulations of rigid water models.\n");
+        mdError("It is currently not possible to scale the dielectric constant, and so LJ-units simulations are presently incorrect for water.\n");
     }
 
     fixedSides = make_double4(r_OH, r_OH, r_HH, r_OM);
@@ -1117,84 +1134,6 @@ void FixRigid::setStyleBondLengths() {
 
 }
 
-std::string FixRigid::restartChunk(std::string format) {
-    std::stringstream ss;
-    
-    ss << "<atomsInMolecule n=\"" << waterIds.size() << "\">\n";
-    for (int4 &atomIds : waterIds) {
-        ss << atomIds.x << " " << atomIds.y << " " << atomIds.z << " " << atomIds.w << "\n";
-    }
-    ss << "</atomsInMolecule>\n";
-
-    ss << "<style type=\'" << style << "\'>\n";
-    ss << "</style>\n";
-    if (TIP4P) {
-        ss << "<model fourSite=\'true\'/>\n";
-    } else {
-        ss << "<model fourSite=\'false\'/>\n";
-    }
-
-    return ss.str();
-}
-
-bool FixRigid::readFromRestart() {
-    auto restData = getRestartNode();
-
-    if (restData) {
-
-        auto curr_param = restData.first_child();
-        while (curr_param) {
-            std::string tag = curr_param.name();
-            if (tag == "atomsInMolecule") {
-                int n = boost::lexical_cast<int>(curr_param.attribute("n").value());
-                std::vector<int4> atomsInMolecule(n);
-                // we need to pass this data to atomsInMolecule, which will then be assigned to waterIds;
-                // and while we are here, we may as well make the bonds
-                // -- note: even in a 3-site model (e.g. TIP3P), we use int4's. so, there shouldn't be an issue here, although some xml file size bloat occurs. Something to address later.
-                xml_assignValues<int, 4>(curr_param, [&] (int i, int *vals) {
-                                            //int id = vals[3];
-                                            atomsInMolecule[i] = make_int4(vals[0], vals[1], vals[2], vals[3]);
-                                            });
-
-                // and assign our class member 'waterIds' the data denoted by atomsInMolecule
-                waterIds = atomsInMolecule;
-            } else if (tag == "style") {
-                std::string thisStyle = boost::lexical_cast<std::string>(curr_param.attribute("type").value());
-                style = thisStyle;
-                printf("In FixRigid::readFromRestart(), found style %s\n", style.c_str());
-            } else if (tag == "model") {
-                bool fourSite = boost::lexical_cast<bool>(curr_param.attribute("fourSite").value());
-                // set our class member boolean flags TIP3P & TIP4P
-                TIP4P = fourSite;
-                TIP3P = !fourSite;
-            }
-            curr_param = curr_param.next_sibling();
-        }
-
-    }
-
-    
-    for (int i = 0; i < waterIds.size(); i++) {
-        Bond bondOH1;
-        Bond bondOH2;
-        Bond bondHH;
-        bondOH1.ids = { {waterIds[i].x,waterIds[i].y} };
-        bondOH2.ids = { {waterIds[i].x,waterIds[i].z} };
-        bondHH.ids =  { {waterIds[i].y,waterIds[i].z} };
-
-        bonds.push_back(bondOH1);
-        bonds.push_back(bondOH2);
-        bonds.push_back(bondHH);
-        if (TIP4P) {
-            Bond bondOM;
-            bondOM.ids = { {waterIds[i].x, waterIds[i].w } };
-            bonds.push_back(bondOM);
-        }
-    }
-
-    std::cout << "There are " << waterIds.size() << " molecules read in from the restart file and " << bonds.size() << " bonds were made in FixRigid.\n";
-    return true;
-}
 
 void FixRigid::setStyle(std::string style_) {
     if (style_ == "TIP4P/LONG") {
@@ -1284,6 +1223,10 @@ void FixRigid::compute_gamma() {
 
 }
 
+
+
+
+
 void FixRigid::createRigid(int id_a, int id_b, int id_c, int id_d) {
     TIP4P = true;
     int4 waterMol = make_int4(0,0,0,0);
@@ -1328,17 +1271,13 @@ void FixRigid::createRigid(int id_a, int id_b, int id_c, int id_d) {
     Bond bondOH1;
     Bond bondOH2;
     Bond bondHH;
-    Bond bondOM;
-
     bondOH1.ids = { {waterMol.x,waterMol.y} };
     bondOH2.ids = { {waterMol.x,waterMol.z} };
     bondHH.ids =  { {waterMol.y,waterMol.z} };
-    bondOM.ids =  { {waterMol.x,waterMol.w} };
-
     bonds.push_back(bondOH1);
     bonds.push_back(bondOH2);
     bonds.push_back(bondHH);
-    bonds.push_back(bondOM);
+
 
     // and we need to do something else here as well. what is it tho
 
@@ -1429,6 +1368,7 @@ bool FixRigid::prepareForRun() {
 
     xs_0 = GPUArrayDeviceGlobal<float4>(3*nMolecules);
     vs_0 = GPUArrayDeviceGlobal<float4>(3*nMolecules);
+    dvs_0 = GPUArrayDeviceGlobal<float4>(3*nMolecules);
     fs_0 = GPUArrayDeviceGlobal<float4>(3*nMolecules);
     com = GPUArrayDeviceGlobal<float4>(nMolecules);
     constraints = GPUArrayDeviceGlobal<bool>(nMolecules);
@@ -1462,18 +1402,19 @@ bool FixRigid::prepareForRun() {
     compute_prev_val<<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), xs_0.data(), 
                                                 gpd.vs(activeIdx), vs_0.data(), gpd.fs(activeIdx), 
                                                 fs_0.data(), nMolecules, gpd.idToIdxs.d_data.data());
+    set_init_vel_correction<<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), dvs_0.data(), nMolecules);
 
 
     settlePositions<FixRigidData, true><<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), 
                                                 xs_0.data(), gpd.vs(activeIdx), vs_0.data(), 
-                                                gpd.fs(activeIdx), fs_0.data(), 
+                                                dvs_0.data(), gpd.fs(activeIdx), fs_0.data(), 
                                                 com.data(), fixRigidData, nMolecules, dt, dtf, 
                                                 gpd.idToIdxs.d_data.data(), bounds, (int) state->turn);
    
 
     SAFECALL((settleVelocities<FixRigidData,false, true><<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), 
                                                 xs_0.data(), gpd.vs(activeIdx), vs_0.data(), 
-                                                gpd.fs(activeIdx), fs_0.data(), 
+                                                dvs_0.data(), gpd.fs(activeIdx), fs_0.data(), 
                                                 com.data(), fixRigidData, nMolecules, dt, dtf, 
                                                 gpd.idToIdxs.d_data.data(), bounds, (int) state->turn)));
 
@@ -1608,18 +1549,22 @@ bool FixRigid::stepFinal() {
 
     }
 
+    cudaDeviceSynchronize();
+
     settlePositions<FixRigidData, true><<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), 
                                                 xs_0.data(), gpd.vs(activeIdx), vs_0.data(), 
-                                                gpd.fs(activeIdx), fs_0.data(), 
+                                                dvs_0.data(), gpd.fs(activeIdx), fs_0.data(), 
                                                 com.data(), fixRigidData, nMolecules, dt, dtf, 
                                                 gpd.idToIdxs.d_data.data(), bounds, (int) state->turn);
     
     
     settleVelocities<FixRigidData,false, true><<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), 
                                                 xs_0.data(), gpd.vs(activeIdx), vs_0.data(), 
-                                                gpd.fs(activeIdx), fs_0.data(), 
+                                                dvs_0.data(), gpd.fs(activeIdx), fs_0.data(), 
                                                 com.data(), fixRigidData, nMolecules, dt, dtf, 
                                                 gpd.idToIdxs.d_data.data(), bounds, (int) state->turn);
+    
+    cudaDeviceSynchronize();
     
     if (TIP4P) {
         /*
@@ -1631,7 +1576,7 @@ bool FixRigid::stepFinal() {
             cudaDeviceSynchronize();
         }
         */
-        setMSite<FixRigidData><<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), gpd.idToIdxs.d_data.data(), gpd.xs(activeIdx), nMolecules, bounds,fixRigidData);
+        setMSite<<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), gpd.idToIdxs.d_data.data(), gpd.xs(activeIdx), nMolecules, bounds);
         
         /*
         if (printing) { 
