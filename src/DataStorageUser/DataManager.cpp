@@ -5,6 +5,7 @@
 #include "DataComputerEnergy.h"
 #include "DataComputerPressure.h"
 #include "DataComputerBounds.h"
+#include "DataComputerDipolarCoupling.h"
 #include "DataSetUser.h"
 using namespace MD_ENGINE;
 using std::set;
@@ -92,6 +93,21 @@ boost::shared_ptr<DataSetUser> DataManager::recordBounds(int interval, py::objec
 
 
 }
+
+//computing coupling for A atoms coupling with atoms in group B
+//magnetogyric ratio should be in rad/(sec*tesla)
+boost::shared_ptr<MD_ENGINE::DataSetUser> DataManager::recordDipolarCoupling(std::string groupHandle, std::string groupHandleB, double magnetoA, double magnetoB, std::string computeMode, int interval, boost::python::object collectGenerator) {
+    int dataType = DATATYPE::DIPOLARCOUPLING;
+    boost::shared_ptr<DataComputer> comp = boost::shared_ptr<DataComputer> ( (DataComputer *) new DataComputerDipolarCoupling(state, computeMode, groupHandle, groupHandleB, magnetoA, magnetoB));
+    uint32_t groupTag = state->groupTagFromHandle(groupHandle);
+    
+    boost::shared_ptr<DataSetUser> dataSet = createDataSet(comp, groupTag, interval, collectGenerator);
+    dataSets.push_back(dataSet);
+   
+    return dataSet;
+
+
+}
 void DataManager::addVirialTurn(int64_t t, bool perAtomVirials) {
     if (perAtomVirials) {
         clearVirialTurn(t); //to make sure there aren't two entries and that ones with perAtomVirials==true take priority
@@ -170,6 +186,17 @@ void export_DataManager() {
             (py::arg("interval") = 0,
              py::arg("collectGenerator") = py::object())
         )
+    .def("recordDipolarCoupling", &DataManager::recordDipolarCoupling,
+            (py::arg("handleA"),
+             py::arg("handleB"),
+             py::arg("magnetoA"),
+             py::arg("magnetoB"),
+             py::arg("mode") = "scalar",
+             py::arg("interval") = 0,
+             py::arg("collectGenerator") = py::object())
+        )
+
+//boost::shared_ptr<MD_ENGINE::DataSetUser> DataManager::recordDipolarCoupling(std::string groupHandle, std::string computeMode, std::string groupHandleB, double magnetoA, double magnetoB, int interval, boost::python::object collectGenerator) {
    /* 
     .def("stopRecordBounds", &DataManager::stopRecordBounds)
     */

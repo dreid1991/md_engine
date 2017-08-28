@@ -263,6 +263,9 @@ public:
      */
     bool deleteGroup(std::string);
 
+    int countNumInGroup(std::string);
+    int countNumInGroup(uint32_t);
+
     //! Create a new atom group
     /*!
      * \param handle String specifying the group

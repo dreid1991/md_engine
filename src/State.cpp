@@ -773,6 +773,21 @@ bool State::createGroup(std::string handle, py::list ids) {
     return true;
 }
 
+
+int State::countNumInGroup(std::string handle) {
+    return countNumInGroup(groupTagFromHandle(handle));
+}
+
+int State::countNumInGroup(uint32_t tag) {
+    int count = 0;
+    for (Atom &a : atoms) {
+        if (a.groupTag & tag) {
+            count++;
+        }
+    }
+    return count;
+}
+
 uint State::addGroupTag(std::string handle) {
     uint working = 0;
     assert(groupTags.find(handle) == groupTags.end());
