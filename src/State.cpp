@@ -529,11 +529,11 @@ bool State::prepareForRun() {
     // fixes have already prepared by the time the integrator calls this prepare
 
 
-    //requiresCharges = false;
-    //std::vector<bool> requireCharges = LISTMAP(Fix *, bool, fix, fixes, fix->requiresCharges);
-    //if (!requireCharges.empty()) {
-    //    requiresCharges = *std::max_element(requireCharges.begin(), requireCharges.end());
-    //}
+    requiresCharges = false;
+    std::vector<bool> requireCharges = LISTMAP(Fix *, bool, fix, fixes, fix->requiresCharges);
+    if (!requireCharges.empty()) {
+        requiresCharges = *std::max_element(requireCharges.begin(), requireCharges.end());
+    }
     requiresPostNVE_V = false;
     std::vector<bool> requirePostNVE_V = LISTMAP(Fix *, bool, fix, fixes, fix->requiresPostNVE_V);
     if (!requirePostNVE_V.empty()) {
