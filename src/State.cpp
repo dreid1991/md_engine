@@ -648,12 +648,11 @@ void copySyncWithInstruc(State *state, std::function<void (int64_t )> cb, int64_
 
     CUCHECK(cudaDeviceSynchronize());
     std::vector<int> idToIdxsOnCopy = state->gpd.idToIdxsOnCopy;
-    std::vector<float4> &xs = state->gpd.xsBuffer.h_data;
-    std::vector<float4> &vs = state->gpd.vsBuffer.h_data;
-    std::vector<float4> &fs = state->gpd.fsBuffer.h_data;
-    std::vector<uint> &ids = state->gpd.idsBuffer.h_data;
+    std::vector<float4> &xs = state->gpd.xs.h_data;
+    std::vector<float4> &vs = state->gpd.vs.h_data;
+    std::vector<float4> &fs = state->gpd.fs.h_data;
+    std::vector<uint> &ids = state->gpd.ids.h_data;
     std::vector<Atom> &atoms = state->atoms;
-
     for (int i=0, ii=state->atoms.size(); i<ii; i++) {
         int id = ids[i];
         int idxWriteTo = idToIdxsOnCopy[id];
