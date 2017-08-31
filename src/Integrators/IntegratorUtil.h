@@ -19,8 +19,6 @@ public:
      *
      */
     void force(int virialMode);
-    void forceInitial(int virialMode);
-
     void postNVE_V();
     void postNVE_X();
 

@@ -168,7 +168,6 @@ __global__ void printGPD_Rigid(uint* ids, float4 *xs, float4 *vs, float4 *fs, in
         int type = xs[idx].w;
         float4 vel = vs[idx];
         float4 force = fs[idx];
-        uint groupTag = force.w;
         printf("atom id %d type %d at coords %f %f %f\n", id, type, pos.x, pos.y, pos.z);
         printf("atom id %d mass %f with vel  %f %f %f\n", id, vel.w, vel.x, vel.y, vel.z);
         printf("atom id %d mass %f with force %f %f %f\n", id, vel.w, force.x, force.y, force.z);
@@ -483,11 +482,7 @@ __global__ void settleVelocities(int4 *waterIds, float4 *xs, float4 *xs_0,
             double v0_BC = dot(e_BC, vel0_BC);
             double v0_CA = dot(e_CA, vel0_CA);
 
-            double4 weights = fixRigidData.weights;
-            double ma =  weights.z;
-            double mb =  weights.w;
-            double mamb = ma + mb;
-            double mambSqr = mamb * mamb;
+            //double4 weights = fixRigidData.weights;
 
             // exactly as in Miyamoto
             // --- except, since all three are /divided/ by d, and then later multiplied by dt

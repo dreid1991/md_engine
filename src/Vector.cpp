@@ -26,6 +26,8 @@ void export_Vector() {
         .def("lenSqr", &Vector::lenSqr)
         .def("dot", &Vector::dot<double>)
         .def("normalized", &Vector::normalized)
+        .def("copy", &Vector::copy)
+
         .def(self + self)
         .def(self - self)
         .def(self * self)
@@ -40,6 +42,7 @@ void export_VectorInt() {
         .def("__getitem__", &VectorInt::get)
         .def("__setitem__", &VectorInt::set)
         .def("__str__", &VectorInt::asStr)
+        .def("copy", &VectorInt::copy)
         .def(self + self)
         .def(self - self)
         .def(self * self)

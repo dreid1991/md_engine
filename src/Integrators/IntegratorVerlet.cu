@@ -11,11 +11,7 @@
 #include "Fix.h"
 #include "cutils_func.h"
 #include "globalDefs.h"
-#include "FixTIP4PFlexible.h"
-
 using namespace MD_ENGINE;
-using std::cout;
-using std::endl;
 
 namespace py = boost::python;
 
@@ -26,11 +22,9 @@ __global__ void nve_v_cu(int nAtoms, float4 *vs, float4 *fs, float dtf) {
         float4 vel = vs[idx];
         float invmass = vel.w;
         float4 force = fs[idx];
-        
-        // ghost particles should not have their velocities integrated; causes overflow
         if (invmass > INVMASSBOOL) {
-            vs[idx] = make_float4(0.0f, 0.0f, 0.0f,invmass);
-            fs[idx] = make_float4(0.0f, 0.0f, 0.0f,force.w);
+            fs[idx] = make_float4(0.0f, 0.0f, 0.0f, force.w);
+            vs[idx] = make_float4(0.0f, 0.0f, 0.0f, invmass);
             return;
         }
 
@@ -47,6 +41,7 @@ __global__ void nve_x_cu(int nAtoms, float4 *xs, float4 *vs, float dt) {
         // Update position by a full timestep
         float4 vel = vs[idx];
         float4 pos = xs[idx];
+        
 
         //printf("pos %f %f %f\n", pos.x, pos.y, pos.z);
         //printf("vel %f %f %f\n", vel.x, vel.y, vel.z);
@@ -108,6 +103,12 @@ __global__ void nve_xPIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, float4 
         vn = make_float3(vWhole);
         xW = xWhole.w;
         vW = vWhole.w;
+
+        // if the particle is massless, nothing more to do
+        if (vW > INVMASSBOOL) {
+            vWhole = make_float4(0.0, 0.0, 0.0, vW);
+            return;
+        }
     }
     // k = 0, n = 1,...,P
     tbr[threadIdx.x]  = xn;
@@ -253,11 +254,12 @@ __global__ void preForce_cu(int nAtoms, float4 *xs, float4 *vs, float4 *fs,
         // Update velocity by a half timestep
         float4 vel = vs[idx];
         float invmass = vel.w;
+
         float4 force = fs[idx];
-        
-        if (invmass > INVMASSBOOL) {
-            vs[idx] = make_float4(0.0f, 0.0f, 0.0f,invmass);
+
+        if (invmass > INVMASSBOOL ) {
             fs[idx] = make_float4(0.0f, 0.0f, 0.0f, force.w);
+            vs[idx] = make_float4(0.0f, 0.0f, 0.0f, invmass);
             return;
         }
 
@@ -306,6 +308,12 @@ __global__ void preForcePIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, floa
         float4 vel     = vs[idx];
         float  invmass = vel.w;
         float4 force   = fs[idx];
+        // if its a massless particle, nothing more to be done here.
+        if (invmass > INVMASSBOOL) {
+            vs[idx] = make_float4(0.0, 0.0, 0.0, invmass);
+            fs[idx] = make_float4(0.0, 0.0, 0.0, force.w);
+            return;
+        }
         float3 dv      = dtf * invmass * make_float3(force);
         vel           += dv;
         vs[idx]        = vel;
@@ -504,9 +512,10 @@ __global__ void postForce_cu(int nAtoms, float4 *vs, float4 *fs, float dtf)
         float4 vel = vs[idx];
         float invmass = vel.w;
         if (invmass > INVMASSBOOL) {
-            vs[idx] = make_float4(0.0f, 0.0f, 0.0f,invmass);
+            vs[idx] = make_float4(0.0f, 0.0f, 0.0f, invmass);
             return;
         }
+
         float4 force = fs[idx];
 
         float3 dv = dtf * invmass * make_float3(force);
@@ -520,46 +529,52 @@ IntegratorVerlet::IntegratorVerlet(State *state_)
 {
 
 }
-double IntegratorVerlet::run(int numTurns)
+void IntegratorVerlet::run(int numTurns)
 {
 
     basicPreRunChecks();
+    std::vector<bool> prepared = basicPrepare(numTurns); //nlist built here
+    force(true);
 
-    // basicPrepare now only handles State prepare and sending global State data to device
-    basicPrepare(numTurns);
+    for (Fix *f : state->fixes) {
+        if (!(f->prepared) ) {
+            bool isPrepared = f->prepareForRun();
+            if (!isPrepared) {
+                mdError("A fix is unable to be instantiated correctly.");
+            }
+        }
+    }
 
-    // prepare the fixes that do not require forces to be computed
-    prepareFixes(false);
-    
-    forceInitial(true);
-
-    // prepare the fixes that require forces to be computed on instantiation;
-    // --- we also handle the datacomputers here, now that all information is available
-    //     (e.g., for tempComputers, rigid fix will be able to quantify the reduction in DOF)
-    prepareFixes(true);
-
-    // finally, prepare barostats, thermostats, datacomputers, etc.
-    // now that pair potentials, electrostatics, and constraints are prepared.
-    // -- should we prepare the datacomputers first? possibly..
-    prepareFinal();
-
-    verifyPrepared();
+    /*
+    for (int i = 0; i<prepared.size(); i++) {
+        if (!prepared[i]) {
+            for (Fix *f : state->fixes) {
+                bool isPrepared = f->prepareForRun();
+                if (!isPrepared) {
+                    mdError("A fix is unable to be instantiated correctly.");
+                }
+            }
+        }
+    }
+    */
 
     int periodicInterval = state->periodicInterval;
+
+    // we should prepare for the datacomputers after the fixes
+    prepareDataComputers();
+
+    for (Fix *f : state->fixes) {
+        f->assignLocalTempComputer();
+    }
+
 	
     auto start = std::chrono::high_resolution_clock::now();
-
     DataManager &dataManager = state->dataManager;
     dtf = 0.5f * state->dt * state->units.ftm_to_v;
-    int tuneEvery = state->tuneEvery;
-    bool haveTunedWithData = false;
-    double timeTune = 0;
     for (int i=0; i<numTurns; ++i) {
-
         if (state->turn % periodicInterval == 0) {
             state->gridGPU.periodicBoundaryConditions();
         }
-
         int virialMode = dataManager.getVirialModeForTurn(state->turn);
 
         stepInit(virialMode==1 or virialMode==2);
@@ -576,14 +591,6 @@ double IntegratorVerlet::run(int numTurns)
         //printf("preForce IS COMMENTED OUT\n");
 
         handleBoundsChange();
-
-        if ((state->turn-state->runInit) % tuneEvery == 0) {
-            //this goes here because forces are zero at this point.  I don't need to save any forces this way
-            timeTune += tune();
-        } else if (not haveTunedWithData and state->turn-state->runInit < tuneEvery and state->nlistBuildCount > 20) {
-            timeTune += tune();
-            haveTunedWithData = true;
-        }
 
         // Recalculate forces
         force(virialMode);
@@ -614,12 +621,10 @@ double IntegratorVerlet::run(int numTurns)
     CUT_CHECK_ERROR("after run\n");
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> duration = end - start;
-    double ptsps = state->atoms.size()*numTurns / (duration.count() - timeTune);
     mdMessage("runtime %f\n%e particle timesteps per second\n",
-              duration.count(), ptsps);
+              duration.count(), state->atoms.size()*numTurns / duration.count());
 
     basicFinish();
-    return ptsps;
 }
 
 void IntegratorVerlet::nve_v() {

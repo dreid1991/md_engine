@@ -10,8 +10,8 @@
 
 const std::string TICGType = "TICG";
 
-FixTICG::FixTICG(boost::shared_ptr<State> state_, std::string handle_)
-  : FixPair(state_, handle_, "all", TICGType, true, false, 1),
+FixTICG::FixTICG(boost::shared_ptr<State> state_, std::string handle_, std::string mixingRules_)
+  : FixPair(state_, handle_, "all", TICGType, true, false, 1, mixingRules_),
     CHandle("C"),  rCutHandle("rCut")
 {
     initializeParameters(CHandle, Cs);
@@ -119,8 +119,8 @@ void export_FixTICG() {
                           boost::shared_ptr<FixTICG>,
                           boost::python::bases<FixPair>, boost::noncopyable > (
         "FixTICG",
-        boost::python::init<boost::shared_ptr<State>, std::string> (
-            boost::python::args("state", "handle"))
+        boost::python::init<boost::shared_ptr<State>, std::string, boost::python::optional<std::string> > (
+            boost::python::args("state", "handle", "mixingRules"))
     );
 
 }

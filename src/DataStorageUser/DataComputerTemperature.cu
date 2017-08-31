@@ -33,7 +33,7 @@ void DataComputerTemperature::computeScalar_GPU(bool transferToCPU, uint32_t gro
 void DataComputerTemperature::prepareForRun() {
     DataComputer::prepareForRun();
     if (state->is2d) {
-        ndf =  2 * state->atoms.size();
+        ndf = 2 * state->atoms.size();
     } else {
         ndf = 3 * state->atoms.size();
     }
@@ -46,9 +46,7 @@ void DataComputerTemperature::prepareForRun() {
 
     ndf -= reduction;
 
-    //then my own stuff
 }
-
 
 void DataComputerTemperature::computeVector_GPU(bool transferToCPU, uint32_t groupTag) {
     GPUData &gpd = state->gpd;
@@ -62,7 +60,7 @@ void DataComputerTemperature::computeVector_GPU(bool transferToCPU, uint32_t gro
         gpuBuffer.dataToHost();
         gpd.ids.dataToHost();
     }
-
+    
 }
 
 void DataComputerTemperature::computeTensor_GPU(bool transferToCPU, uint32_t groupTag) {
@@ -84,15 +82,15 @@ void DataComputerTemperature::computeTensor_GPU(bool transferToCPU, uint32_t gro
 }
 
 void DataComputerTemperature::computeScalar_CPU() {
-    int n;
+    //int n;
     double total = gpuBuffer.h_data[0];
+    /*
     if (lastGroupTag == 1) {
-        n = state->atoms.size();//* (int *) &gpuBuffer.h_data[1];
+        n = state->atoms.size();//\* (int *) &gpuBuffer.h_data[1];
     } else {
         float *asfloat  = gpuBuffer.h_data.data() + 1;
         n = * (int *) asfloat;
     }
-    /*
     if (state->is2d) {
         //ndf = 2*(n-1); //-1 is analagous to extra_dof in lammps
         ndf = 2*n; // changed from a above to permit 1 particle thermostatting
@@ -129,13 +127,13 @@ void DataComputerTemperature::computeTensor_CPU() {
     Virial total = *(Virial *) &gpuBuffer.h_data[0];
     total *= (state->units.mvv_to_eng / state->units.boltz);
     /*
-       int n;
-       if (lastGroupTag == 1) {
-       n = state->atoms.size();
-       } else {
-       n = * (int *) &gpuBuffer.h_data[1];
-       }
-     */
+    int n;
+    if (lastGroupTag == 1) {
+        n = state->atoms.size();
+    } else {
+        n = * (int *) &gpuBuffer.h_data[1];
+    }
+    */
     tempTensor = total;
 }
 
@@ -154,13 +152,13 @@ void DataComputerTemperature::computeTensorFromScalar() {
 }
 
 void DataComputerTemperature::computeScalarFromTensor() {
+    /*
     int n;
     if (lastGroupTag == 1) {
-        n = state->atoms.size();//* (int *) &gpuBuffer.h_data[1];
+        n = state->atoms.size();//\* (int *) &gpuBuffer.h_data[1];
     } else {
         n = * (int *) &gpuBuffer.h_data[1];
     }
-    /*
     if (state->is2d) {
         ndf = 2*(n-1); //-1 is analagous to extra_dof in lammps
     } else {

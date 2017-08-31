@@ -45,6 +45,13 @@ FixNVTAndersen::FixNVTAndersen(SHARED(State) state_, string handle_, string grou
     nudt         = state_->dt * nu_; 
 }
 
+void FixNVTAndersen::assignLocalTempComputer() {
+    tempComputer = MD_ENGINE::DataComputerTemperature(state,"scalar");
+    tempComputer.prepareForRun();
+    
+}
+
+
 void __global__ initRand(int nAtoms, curandState_t *states, int seed,int turn) {
     int idx = GETIDX();
     curand_init(seed, idx, turn, states + idx);

@@ -27,7 +27,7 @@ hiVector = Vector(sideLength, sideLength, sideLength)
 state.units.setReal()
 
 state.bounds = Bounds(state, lo = loVector, hi = hiVector)
-state.rCut = 9.0
+state.rCut = 12.0
 state.padding = 1.0
 state.periodicInterval = 7
 state.shoutEvery = 1000
@@ -62,7 +62,6 @@ sigma = 3.1589 # given in Angstroms
 #####################
 charge = FixChargeEwald(state, 'charge', 'all')
 charge.setParameters(128,state.rCut-1, 3)
-state.activateFix(charge)
 
 
 nonbond = FixLJCut(state,'cut')
@@ -76,18 +75,18 @@ nonbond.setParameter('eps',mSiteHandle, mSiteHandle, 0.0)
 ###########################################################
 # Instantiate FixTIP4PFlexible
 ###########################################################
-flexibleTIP4P = FixTIP4PFlexible(state,'TIP4PFlexible', 'all')
+flexibleTIP4P = FixTIP4PFlexible(state,'TIP4PFlexible')
 # and all that remains is to add each molecule to TIP4PFlexible
 
 #############################################################
-# and also, for now an arbitrary harmonic bond potential
-# just so things don't explode.
+# Instantiate the quartic bond (intramolecular OH) and
+# the HOH angle potential
 #############################################################
-harmonicBonds = FixBondHarmonic(state,'harmonic')
-harmonicAngle = FixAngleHarmonic(state,'angleH')
+bondQuart = FixBondQuartic(state,'bondQuart')
+bondQuart.setBondTypeCoefs(type=0,k2=607.19,k3=-1388.65,k4=1852.58,r0=0.9419)
 
-state.activateFix(harmonicBonds)
-state.activateFix(harmonicAngle)
+harmonicAngle = FixAngleHarmonic(state,'angleH')
+harmonicAngle.setAngleTypeCoefs(type=0, k=87.85, theta0=( (107.4/180.0) * pi))
 
 # our vector of centers
 positions = []
@@ -111,7 +110,6 @@ for i in range(numMolecules):
     ## for TIP4P
     molecule = create_TIP4P_Flexible(state,oxygenHandle,hydrogenHandle,mSiteHandle,center,"random")
 
-    #molecule = create_TIP3P(state,oxygenHandle,hydrogenHandle,bondLength=0.9572,center=center,orientation="random")
     ids = []
     for atomId in molecule.ids:
         ids.append(atomId)
@@ -124,30 +122,31 @@ for i in range(numMolecules):
     #for atom in ids:
     #    print 'atom ', atom, ' with mass ', state.atoms[atom].mass, ' and force ', state.atoms[atom].force, ' placed at position ', state.atoms[atom].pos,'\n'
 
-    # make a harmonic OH1 bond with some high stiffness, and OH2, and H1H2
-    harmonicBonds.createBond(state.atoms[ids[0]], state.atoms[ids[1]],
-                             k=200000, r0 = 0.9419)
-    harmonicBonds.createBond(state.atoms[ids[0]], state.atoms[ids[2]],
-                             k=200000, r0 = 0.9419)
-    harmonicAngle.createAngle(state.atoms[ids[1]], state.atoms[ids[0]], state.atoms[ids[2]],
-                              k=200000, theta0=1.8744836)
+    bondQuart.createBond(state.atoms[ids[0]], state.atoms[ids[1]],type=0)
+    bondQuart.createBond(state.atoms[ids[0]], state.atoms[ids[2]],type=0)
+
+    harmonicAngle.createAngle(state.atoms[ids[1]], state.atoms[ids[0]], state.atoms[ids[2]],type=0)
+
 
 print 'done adding molecules to simulation'
 #############################################################
 # Initialization of potentials
 #############################################################
 
-#####################
-# LJ Interactions
-#####################
+############################################
+# Intermolecular interactions: LJ & Charge
+############################################
 # -- we defined the LJ interactions above
 state.activateFix(nonbond)
+state.activateFix(charge)
 
-########################################################################################
-# Flexible TIP4P - note that this /only/ distributes the M-site forces!
-# Other components of the potential must be assembled using the other fixes available.
-########################################################################################
+################################################################
+# Intramolecular interactions:
+# FixTIP4PFlexible, quartic bonds, and harmonic angle potential
+################################################################
+state.activateFix(bondQuart)
 state.activateFix(flexibleTIP4P)
+state.activateFix(harmonicAngle)
 
 #############################################
 # initialize at some temperature
@@ -182,10 +181,10 @@ writer = WriteConfig(state, handle='writer', fn='configPIMD', format='xyz',
                      writeEvery=10)
 state.activateWriteConfig(writer)
 
-integVerlet.run(500000)
+writeRestart = WriteConfig(state, handle = 'restart',fn="tip4p_restart*", format='xml',writeEvery=1000)
+state.activateWriteConfig(writeRestart)
 
-fid = open('thermo.dat', "w")
+integVerlet.run(5000)
 
-for t, T in zip(tempData.turns, tempData.vals):
-    fid.write("{:<8}{:>15.5f}\n".format(t,T))
+
 

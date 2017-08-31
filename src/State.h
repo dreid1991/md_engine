@@ -374,7 +374,7 @@ public:
      *
      * \todo Function does return neither True nor False
      */
-    bool asyncHostOperation(std::function<void (int64_t )> cb);
+    bool runtimeHostOperation(std::function<void (int64_t )> cb, bool async);
 
     boost::shared_ptr<std::thread> asyncData; //!< Shared pointer to a thread
     boost::shared_ptr<ReadConfig> readConfig; //!< Shared pointer to configuration reader
@@ -443,6 +443,7 @@ public:
      *
      */
     bool prepareForRun();
+    void copyAtomDataToGPU(std::vector<int> &idToIdx);
     //! Prepares GridGPU member of state.  called after fix prepare run, because 
     /*!
      * \return True always

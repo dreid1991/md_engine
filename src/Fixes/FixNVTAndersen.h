@@ -36,7 +36,7 @@ private:
     bool prepareForRun();
     void compute(int);
     bool postRun();
-
+    
 public:
     boost::shared_ptr<Bounds> thermoBounds;
     FixNVTAndersen(boost::shared_ptr<State>, std::string handle_, std::string groupHandle_, boost::python::list intervals, boost::python::list temps_, float nu_= 0.01 , int applyEvery = 10);
@@ -44,7 +44,7 @@ public:
     FixNVTAndersen(boost::shared_ptr<State>, std::string handle_, std::string groupHandle_, double temp_, float nu_ = 0.01 , int applyEvery = 10);
     Interpolator *getInterpolator(std::string);
     void setParams(double seed);
-
+    void assignLocalTempComputer();
 };
 
 #endif

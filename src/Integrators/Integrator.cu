@@ -11,6 +11,9 @@
 
 using namespace std;
 
+
+
+
 __global__ void zeroVectorPreserveW(float4 *xs, int n) {
     int idx = GETIDX();
     if (idx < n) {
@@ -18,7 +21,6 @@ __global__ void zeroVectorPreserveW(float4 *xs, int n) {
         xs[idx] = make_float4(0, 0, 0, w);
     }
 }
-
 
 void Integrator::stepInit(bool computeVirials)
 {
@@ -49,6 +51,13 @@ void Integrator::stepFinal()
     }
 }
 
+
+
+
+
+
+
+
 void Integrator::asyncOperations() {
     int turn = state->turn;
 
@@ -68,26 +77,47 @@ void Integrator::asyncOperations() {
             }
         }
     };
-    bool needAsync = false;
+    bool needOp = false;
+    bool isAsync = true;
     for (SHARED(WriteConfig) wc : state->writeConfigs) {
         if (not (turn % wc->writeEvery)) {
-            needAsync = true;
+            needOp = true;
             break;
         }
     }
-    if (not needAsync) {
-        for (SHARED(PythonOperation) po : state->pythonOperations) {
-            if (not (turn % po->operateEvery)) {
-                needAsync = true;
-                break;
+
+    for (SHARED(PythonOperation) po : state->pythonOperations) {
+        if (not (turn % po->operateEvery)) {
+            needOp = true;
+            if (po->synchronous) {
+                isAsync = false;
             }
         }
     }
-    if (needAsync) {
-        state->asyncHostOperation(writeAndPy);
+    if (needOp) {
+        state->runtimeHostOperation(writeAndPy,isAsync);
     }
 }
+/*
+__global__ void printFloats(cudaTextureObject_t xs, int n) {
+    int idx = GETIDX();
+    if (idx < n) {
+        int xIdx = XIDX(idx, sizeof(float4));
+        int yIdx = YIDX(idx, sizeof(float4));
+        float4 x = tex2D<float4>(xs, xIdx, yIdx);
+        printf("idx %d, vals %f %f %f %d\n", idx, x.x, x.y, x.z, *(int *) &x.w);
 
+    }
+}
+__global__ void printFloats(float4 *xs, int n) {
+    int idx = GETIDX();
+    if (idx < n) {
+        float4 x = xs[idx];
+        printf("idx %d, vals %f %f %f %f\n", idx, x.x, x.y, x.z, x.w);
+
+    }
+}
+*/
 
 
 void Integrator::basicPreRunChecks() {
@@ -113,78 +143,42 @@ void Integrator::basicPreRunChecks() {
 
 }
 
-void Integrator::prepareFixes(bool requiresForces_) {
-    for (Fix *f : state->fixes) {
-        // f->requiresForces refers to Fix member in Fix.h, defaults to False
-        if (f->requiresForces == requiresForces_) {
-            f->takeStateNThreadPerBlock(state->nThreadPerBlock);//grid will also have this value
-            f->takeStateNThreadPerAtom(state->nThreadPerAtom);//grid will also have this value
-            f->updateGroupTag();
-            f->prepareForRun();
-            f->setVirialTurnPrepare();
-        }
-    }
-
-    
-}
-
-void Integrator::prepareFinal() {
-    // prepare the DataComputers that are present
+void Integrator::prepareDataComputers() {
     for (boost::shared_ptr<MD_ENGINE::DataSetUser> ds : state->dataManager.dataSets) {
         ds->prepareForRun(); //will also prepare those data sets' computers
         if (ds->requiresVirials()) {
             state->dataManager.addVirialTurn(ds->nextCompute, ds->requiresPerAtomVirials());
         }
     }
-
-    // finally, prepare any barostats or thermostats that are present in simulation
-    for (Fix *f : state->fixes) {
-        // final stuff that needs to be prepared; in the cases of barostats & thermostats, all the things.
-        f->prepareFinal();
-
-    }
-    
-    state->handleChargeOffloading();
-    // so, set the eval wrappers..
-    for (Fix *f : state->fixes) {
-        f->setEvalWrapper();
-    }
 }
 
-void Integrator::verifyPrepared() {
-    for (Fix *f : state->fixes) {
-        if (!(f->prepared) ) {
-            std::string thisFix = f->handle;
-            printf("%s was unable to be prepared. Aborting.\n");
-            mdAssert(f->prepared, "A fix was found unprepared.\n");
-        }
-    }
-}
-
-void Integrator::basicPrepare(int numTurns) {
+std::vector<bool> Integrator::basicPrepare(int numTurns) {
+    std::cout << "Running for " << numTurns << " turns with timestep of " << state->dt << std::endl;
     int nAtoms = state->atoms.size();
     state->runningFor = numTurns;
     state->runInit = state->turn;
-    state->nlistBuildCount = 0;
     state->prepareForRun();
     state->atomParams.guessAtomicNumbers();
     setActiveData();
     for (GPUArray *dat : activeData) {
         dat->dataToDevice();
     }
-    /*
     std::vector<bool> prepared;
     for (Fix *f : state->fixes) {
-        f->takeStateNThreadPerBlock(state->nThreadPerBlock);//grid will also have this value
-        f->takeStateNThreadPerAtom(state->nThreadPerAtom);//grid will also have this value
         f->updateGroupTag();
-        prepared.push_back(f->prepareForRun());
+        if (!(f->requiresForces) ) {
+            prepared.push_back(f->prepareForRun());
+        } else {
+            prepared.push_back(false);
+        }
         f->setVirialTurnPrepare();
     }
     state->handleChargeOffloading();
     for (Fix *f : state->fixes) {
         f->setEvalWrapper(); //have to do this after prepare b/c pair calcs need evaluators from charge that have been updated with correct alpha or other coefficiants, and change calcs need to know that handoffs happened
     }
+    state->gridGPU.periodicBoundaryConditions(-1, true);
+    /*
     for (boost::shared_ptr<MD_ENGINE::DataSetUser> ds : state->dataManager.dataSets) {
         ds->prepareForRun(); //will also prepare those data sets' computers
         if (ds->requiresVirials()) {
@@ -192,9 +186,9 @@ void Integrator::basicPrepare(int numTurns) {
         }
     }
     */
-    state->gridGPU.periodicBoundaryConditions(-1, true);
+    printf("Running for %d turns with timestep of %03f\n", numTurns, state->dt);
 
-    return;
+    return prepared;
 }
 
 
@@ -284,7 +278,7 @@ boost::python::list Integrator::singlePointEngPythonPerParticle() {
     for (int i=0, ii=state->atoms.size(); i<ii; i++) {
         int id = ids[i];
         int idxWriteTo = idToIdxsOnCopy[id];
-        sortedEngs[idxWriteTo] = eng:tas[i];
+        sortedEngs[idxWriteTo] = engs[i];
     }
     boost::python::list asPy(sortedEngs);
     basicFinish();
@@ -295,97 +289,6 @@ boost::python::list Integrator::singlePointEngPythonPerParticle() {
     */
 
 
-double Integrator::tune() {
-    auto startTune = std::chrono::high_resolution_clock::now();
-
-    std::vector<int> threadPerBlocks= {32, 64, 128, 256};
-    std::vector<int> threadPerAtoms = {1, 2, 4, 8, 16, 32};
-    //if we have run for a while, guess the fraction of turns where we build nlists, else guess that we build every other time
-    double nlistBuildFrac = state->turn > state->runInit ? (double) state->nlistBuildCount/(state->turn-state->runInit) : 1/(2.0 * state->periodicInterval);
-    int nForceEvals = 30;
-    //estimating how many times we should build nlists for good estimate
-    int nNlistBuilds = round(nForceEvals * nlistBuildFrac);
-
-    auto setParams = [this] (int ntpb, int ntpa) {
-        state->nThreadPerBlock = ntpb;
-        state->nThreadPerAtom = ntpa;
-        state->gridGPU.nThreadPerBlock(ntpb);
-        state->gridGPU.nThreadPerAtom(ntpa);
-        state->gridGPU.initArraysTune();
-        for (auto fix : state->fixes) {
-            fix->takeStateNThreadPerBlock(ntpb);
-            fix->takeStateNThreadPerAtom(ntpa);
-        }
-    };
-
-	int curNTPB = state->nThreadPerBlock;
-	int curNTPA = state->nThreadPerAtom;
-    vector<vector<double> > times;
-    //REMEMBER TO MAKE COPY OF FORCES AND SET THEM BACK AFTER THIS;
-    for (int i=0; i<threadPerBlocks.size(); i++) {
-        vector<double> timesWithBlock;
-        for (int j=0; j<threadPerAtoms.size(); j++) {
-            int threadPerBlock = threadPerBlocks[i];
-            int threadPerAtom = threadPerAtoms[j];
-
-            int nBlock = NBLOCKTEAM(state->atoms.size(), threadPerBlock, threadPerAtom);
-            if (nBlock < 65536) {
-                setParams(threadPerBlock, threadPerAtom);
-                state->gridGPU.periodicBoundaryConditions(-1, true);
-                state->nlistBuildCount--;
-                cudaDeviceSynchronize();
-                auto start = std::chrono::high_resolution_clock::now();
-                for (int k=0; k<nNlistBuilds; k++) {
-                    state->gridGPU.periodicBoundaryConditions(-1, true);
-                    state->nlistBuildCount--;
-                }
-                for (int k=0; k<nForceEvals; k++) {
-                    force(false);
-                }
-                cudaDeviceSynchronize();
-                auto end = std::chrono::high_resolution_clock::now();
-                std::chrono::duration<double> duration = end - start;
-                timesWithBlock.push_back(duration.count());
-            } else {
-                timesWithBlock.push_back(DBL_MAX);
-            }
-        }
-        times.push_back(timesWithBlock);
-    }
-
-    double bestTime = times[0][0];
-    int bestNTPB, bestNTPA;
-    bestNTPB = 0;
-    bestNTPA = 0;
-    
-    
-    
-    for (int i=0; i<threadPerBlocks.size(); i++) {
-        for (int j=0; j<threadPerAtoms.size(); j++) {
-            if (times[i][j] < bestTime) {
-                bestNTPB=threadPerBlocks[i];
-                bestNTPA=threadPerAtoms[j];
-                bestTime = times[i][j];
-            }
-        }
-    }
-    setParams(bestNTPB, bestNTPA);
-	if (bestNTPB != curNTPB or bestNTPA != curNTPA) {
-		printf("Optimized runtime parameters from (%d, %d) to (%d, %d)\n", curNTPB, curNTPA, bestNTPB, bestNTPA);
-	}
-
-    state->gridGPU.periodicBoundaryConditions(-1, true);
-    state->nlistBuildCount--;
-    //then pick best one
-
-
-    //zero forces that you calculated here
-    zeroVectorPreserveW<<<NBLOCKVAR(state->atoms.size(), state->nThreadPerBlock), state->nThreadPerBlock>>>(state->gpd.fs.getDevData(), state->atoms.size());
-    auto endTune = std::chrono::high_resolution_clock::now();
-
-    std::chrono::duration<double> durationTune = endTune - startTune;
-    return durationTune.count();
-}
 
 void export_Integrator() {
     boost::python::class_<Integrator,

@@ -19,7 +19,7 @@ void export_FixTICG();
 class FixTICG : public FixPair {
     public:
         //! Constructor
-        FixTICG(SHARED(State), std::string handle);
+        FixTICG(SHARED(State), std::string handle, std::string mixingRules="geometric");
 
         //! Compute forces
         void compute(int);

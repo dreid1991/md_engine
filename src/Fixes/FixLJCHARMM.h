@@ -33,7 +33,7 @@ extern const std::string LJCHARMMType;
 class FixLJCHARMM : public FixPair {
     public:
         //! Constructor
-        FixLJCHARMM(SHARED(State), std::string handle);
+        FixLJCHARMM(SHARED(State), std::string handle, std::string mixingRules_="geometric");
 
         //! Compute forces
         void compute(int);

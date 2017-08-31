@@ -16,7 +16,8 @@
 void export_FixPair();
 
 class State;
-
+extern const std::string ARITHMETICTYPE;
+extern const std::string GEOMETRICTYPE;
 class FixPair : public Fix {
 public:
     //! Constructor
@@ -29,9 +30,10 @@ public:
      * \param orderPreference_ Fix pairs have order pref of -1.  They fire first so that we can compute virials for pairs via f dot r and then compute the rest of the fixs' virials
      */
     FixPair(SHARED(State) state_, std::string handle_, std::string groupHandle_,
-            std::string type_, bool forceSingle_, bool requiresCharges_, int applyEvery_)
+            std::string type_, bool forceSingle_, bool requiresCharges_, int applyEvery_, std::string mixingRules_)
         : Fix(state_, handle_, groupHandle_, type_, forceSingle_, false, requiresCharges_, applyEvery_, -1), chargeCalcFix(nullptr)
         {
+			setMixingRules(mixingRules_);
             // Empty constructor
         };
 
@@ -130,6 +132,9 @@ protected:
     //! Order in which the parameters are processed
     std::vector<std::string> paramOrder;
 
+	//! mixing rules - arithmetic or geometric, defaults to geometric
+	std::string mixingRules;
+
     //! Make sure that all parameters are in paramOrder
     /*!
      * This function throws an error if parameters are missing in paramOrder
@@ -179,4 +184,6 @@ public:
      * \param handle String specifying the parameter
      */
     void handleBoundsChange();
+
+	void setMixingRules(std::string);
 };

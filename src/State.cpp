@@ -493,27 +493,61 @@ void State::initializeGrid() {
 
 }
 
-bool State::prepareForRun() {
-    // fixes have already prepared by the time the integrator calls this prepare
+
+
+void State::copyAtomDataToGPU(std::vector<int> &idToIdx) {
     std::vector<float4> xs_vec, vs_vec, fs_vec;
     std::vector<uint> ids;
-    std::vector<float> qs;
+    std::vector<float> qs_vec;
+
+    int nAtoms = atoms.size();
+    xs_vec.resize(nAtoms);
+    vs_vec.resize(nAtoms);
+    fs_vec.resize(nAtoms);
+    qs_vec.resize(nAtoms);
+
+    for (const auto &a : atoms) {
+        xs_vec[idToIdx[a.id]] = make_float4(a.pos[0], a.pos[1], a.pos[2],
+                                     *(float *)&a.type);
+        vs_vec[idToIdx[a.id]] = make_float4(a.vel[0], a.vel[1], a.vel[2],
+                                     1/a.mass);
+        fs_vec[idToIdx[a.id]] = make_float4(a.force[0], a.force[1], a.force[2],
+                                     *(float *)&a.groupTag);
+        qs_vec[idToIdx[a.id]] = a.q;
+    }
+    //just setting host-side vectors
+    //transfer happs in integrator->basicPrepare
+    gpd.xs.set(xs_vec);
+    gpd.vs.set(vs_vec);
+    gpd.fs.set(fs_vec);
+    gpd.qs.set(qs_vec);
+
+    gpd.xs.dataToDevice();
+    gpd.vs.dataToDevice();
+    gpd.fs.dataToDevice();
+    gpd.qs.dataToDevice();
+}
+
+bool State::prepareForRun() {
+    // fixes have already prepared by the time the integrator calls this prepare
+
+
     requiresCharges = false;
     std::vector<bool> requireCharges = LISTMAP(Fix *, bool, fix, fixes, fix->requiresCharges);
     if (!requireCharges.empty()) {
         requiresCharges = *std::max_element(requireCharges.begin(), requireCharges.end());
     }
-    //printf("State::prepareForRun print statement 2\n");
     requiresPostNVE_V = false;
     std::vector<bool> requirePostNVE_V = LISTMAP(Fix *, bool, fix, fixes, fix->requiresPostNVE_V);
     if (!requirePostNVE_V.empty()) {
         requiresPostNVE_V = *std::max_element(requirePostNVE_V.begin(), requirePostNVE_V.end());
     }
 
-    //printf("State::prepareForRun print statement 3\n");
+    std::vector<float4> xs_vec, vs_vec, fs_vec;
+    std::vector<uint> ids;
+    std::vector<float> qs;
 
     int nAtoms = atoms.size();
-
     xs_vec.reserve(nAtoms);
     vs_vec.reserve(nAtoms);
     fs_vec.reserve(nAtoms);
@@ -552,10 +586,9 @@ bool State::prepareForRun() {
     gpd.vs.set(vs_vec);
     gpd.fs.set(fs_vec);
     gpd.ids.set(ids);
-    if (requiresCharges) {
-        gpd.qs.set(qs);
-    }
-    //printf("State::prepareForRun print statement 5\n");
+    gpd.qs.set(qs);
+
+
     std::vector<Virial> virials(atoms.size(), Virial(0, 0, 0, 0, 0, 0));
     gpd.virials = GPUArrayGlobal<Virial>(nAtoms);
     gpd.virials.set(virials);
@@ -630,13 +663,42 @@ void copyAsyncWithInstruc(State *state, std::function<void (int64_t )> cb, int64
     CUCHECK(cudaStreamDestroy(stream));
 }
 
-bool State::asyncHostOperation(std::function<void (int64_t )> cb) {
+void copySyncWithInstruc(State *state, std::function<void (int64_t )> cb, int64_t turn) {
+    state->gpd.xs.dataToHost();
+    state->gpd.vs.dataToHost();
+    state->gpd.fs.dataToHost();
+    state->gpd.ids.dataToHost();
+    state->gpd.idToIdxs.dataToHost();
+
+    CUCHECK(cudaDeviceSynchronize());
+    std::vector<int> idToIdxsOnCopy = state->gpd.idToIdxsOnCopy;
+    std::vector<float4> &xs = state->gpd.xsBuffer.h_data;
+    std::vector<float4> &vs = state->gpd.vsBuffer.h_data;
+    std::vector<float4> &fs = state->gpd.fsBuffer.h_data;
+    std::vector<uint> &ids = state->gpd.idsBuffer.h_data;
+    std::vector<Atom> &atoms = state->atoms;
+
+    for (int i=0, ii=state->atoms.size(); i<ii; i++) {
+        int id = ids[i];
+        int idxWriteTo = idToIdxsOnCopy[id];
+        atoms[idxWriteTo].pos = xs[i];
+        atoms[idxWriteTo].vel = vs[i];
+        atoms[idxWriteTo].force = fs[i];
+    }
+    cb(turn);
+    //now copy back
+    state->copyAtomDataToGPU(state->gpd.idToIdxs.h_data);
+}
+
+bool State::runtimeHostOperation(std::function<void (int64_t )> cb, bool async) {
     // buffers should already be allocated in prepareForRun, and num atoms
     // shouldn't have changed.
-    gpd.xs.copyToDeviceArray((void *) gpd.xsBuffer.getDevData());
-    gpd.vs.copyToDeviceArray((void *) gpd.vsBuffer.getDevData());
-    gpd.fs.copyToDeviceArray((void *) gpd.fsBuffer.getDevData());
-    gpd.ids.copyToDeviceArray((void *) gpd.idsBuffer.getDevData());
+    if (async) {
+        gpd.xs.copyToDeviceArray((void *) gpd.xsBuffer.getDevData());
+        gpd.vs.copyToDeviceArray((void *) gpd.vsBuffer.getDevData());
+        gpd.fs.copyToDeviceArray((void *) gpd.fsBuffer.getDevData());
+        gpd.ids.copyToDeviceArray((void *) gpd.idsBuffer.getDevData());
+    }
     bounds.set(boundsGPU);
     if (asyncData and asyncData->joinable()) {
         asyncData->join();
@@ -644,13 +706,14 @@ bool State::asyncHostOperation(std::function<void (int64_t )> cb) {
     cudaDeviceSynchronize();
     //cout << "ASYNC IS NOT ASYNC" << endl;
     //copyAsyncWithInstruc(this, cb, turn);
-    asyncData = SHARED(std::thread) ( new std::thread(copyAsyncWithInstruc, this, cb, turn));
+    if (async) {
+        asyncData = SHARED(std::thread) ( new std::thread(copyAsyncWithInstruc, this, cb, turn));
+    } else {
+        copySyncWithInstruc(this, cb, turn);
+    }
     // okay, now launch a thread to start async copying, then wait for it to
     // finish, and set the cb on state (and maybe a flag if you can't set the
     // function lambda equal to null
-    //ONE MIGHT ASK WHY I'M NOT JUST DOING THE CALLBACK FROM THE THREAD
-    //THE ANSWER IS BECAUSE I WANT TO USE THIS FOR PYTHON BIZ, AND YOU CAN'T
-    //CALL PYTHON FUNCTIONS FROM A THREAD AS FAR AS I KNOW
     //if thread exists, wait for it to finish
     //okay, now I have all of these buffers filled with data.  now let's just
     //launch a thread which does the writing.  At the end of each just (in main

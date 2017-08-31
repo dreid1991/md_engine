@@ -60,22 +60,9 @@ protected:
      * includes copying all data to the GPU device and calling prepareForRun()
      * on all fixes.
      */
-    void basicPrepare(int numTurns);
+    std::vector<bool> basicPrepare(int numTurns);
 
-    //! Prepare Fixes for running
-    /*!
-     * \param requiresForces denotes whether the fixes being prepared require forces
-     *
-     * Prepare the fixes for run
-     */
-    void prepareFixes(bool);
-
-    //! Final call to prepares
-    /*
-     * Prepares any fixes that need to be instantiated after all other fixes are prepared - 
-     * e.g., barostats & thermostats (esp. FixNoseHoover)
-     */
-    void prepareFinal();
+    void prepareDataComputers();
 
     //! Finish simulation run
     /*!
@@ -87,12 +74,8 @@ protected:
     //! Collect all pointers to the relevant data into activeData
     void setActiveData();
 
-    //set runtime tunable parameters for performance
-    double tune();
 
 
-    // checks that all fixes now register as 'prepared'
-    void verifyPrepared();
 
 public:
     //! Calculate and return single point energy

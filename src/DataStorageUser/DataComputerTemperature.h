@@ -30,11 +30,10 @@ namespace MD_ENGINE {
             void appendScalar(boost::python::list &);
             void appendVector(boost::python::list &);
             void appendTensor(boost::python::list &);
-
+            
+            void prepareForRun();
             double getScalar();
             Virial getTensor();
-
-            void prepareForRun();
 
     };
 };

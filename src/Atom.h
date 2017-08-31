@@ -26,13 +26,17 @@ public:
     uint32_t groupTag;
     bool isChanged;
     std::vector<std::string> *handles;
+    
+    // ndf associated with this atom
+    int ndf;
 
     Atom (std::vector<std::string> *handles_) 
         : mass(0), type(-1), id(-1), handles(handles_)
     {};
+
     Atom(Vector pos_, int type_, int id_, double mass_, double q_, std::vector<std::string> *handles_)
         : pos(pos_), mass(mass_), q(q_), type(type_), id(id_), groupTag(1), handles(handles_)
-    {   }
+    {};
 
     bool operator==(const Atom &other) {
         return id == other.id;

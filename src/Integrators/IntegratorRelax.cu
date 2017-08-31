@@ -2,7 +2,6 @@
 #include "cutils_func.h"
 #include "State.h"
 
-#include "Fix.h"
 using namespace MD_ENGINE;
 
 IntegratorRelax::IntegratorRelax(SHARED(State) state_)
@@ -87,27 +86,8 @@ __global__ void FIRE_preForce_cu(int nAtoms, float4 *xs, float4 *vs, float4 *fs,
 
 double IntegratorRelax::run(int numTurns, double fTol) {
     std::cout << "FIRE relaxation\n";
-    
-    basicPreRunChecks();
-
-    // basicPrepare now only handles State prepare and sending global State data to device
+    basicPreRunChecks();  
     basicPrepare(numTurns);
-
-    // prepare the fixes that do not require forces to be computed
-    prepareFixes(false);
-    
-    force(true);
-
-    // prepare the fixes that require forces to be computed on instantiation;
-    // --- we also handle the datacomputers here, now that all information is available
-    //     (e.g., for tempComputers, rigid fix will be able to quantify the reduction in DOF)
-    prepareFixes(true);
-
-    // finally, prepare barostats, thermostats, datacomputers, etc.
-    // now that pair potentials, electrostatics, and constraints are prepared.
-    // -- should we prepare the datacomputers first? possibly..
-    prepareFinal();
-
 
     CUT_CHECK_ERROR("FIRE relaxation init failed");  // Debug feature, checks error code
 

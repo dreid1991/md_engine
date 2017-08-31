@@ -62,7 +62,7 @@ class FixTIP4PFlexible: public Fix {
     public:
         
         // constructor
-        FixTIP4PFlexible(SHARED(State), std::string handle_, std::string groupHandle_);
+        FixTIP4PFlexible(SHARED(State), std::string handle_);
 
         // prepareForRun
         bool prepareForRun();

@@ -224,6 +224,10 @@ public:
         return std::vector<float>();
     }
 
+    
+    //XXX A temporary fix so that the temperature computer, when consulting fixes for a removal of DOF,
+    // does not end up with a bad value for NDF.  Currently implemented in the Andersen thermostat.
+    virtual void assignLocalTempComputer() {};
     //! Check that all given Atoms are valid
     /*!
      * \param atoms List of Atom pointers

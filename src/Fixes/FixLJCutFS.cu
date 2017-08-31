@@ -9,9 +9,10 @@
 #include "EvaluatorWrapper.h"
 
 const std::string LJCutType = "LJCutFS";
+namespace py = boost::python;
 
-FixLJCutFS::FixLJCutFS(SHARED(State) state_, std::string handle_)
-    : FixPair(state_, handle_, "all", LJCutType, true, false, 1),
+FixLJCutFS::FixLJCutFS(SHARED(State) state_, std::string handle_, std::string mixingRules_)
+    : FixPair(state_, handle_, "all", LJCutType, true, false, 1, mixingRules_),
       epsHandle("eps"), sigHandle("sig"), rCutHandle("rCut") {
     initializeParameters(epsHandle, epsilons);
     initializeParameters(sigHandle, sigmas);
@@ -71,11 +72,11 @@ void FixLJCutFS::singlePointEngGroupGroup(float *perParticleEng, uint32_t tagA, 
 
 bool FixLJCutFS::prepareForRun() {
     //loop through all params and fill with appropriate lambda function, then send all to device
-    auto fillEps = [] (float a, float b) {
+    auto fillGeo = [] (float a, float b) {
         return sqrt(a*b);
     };
 
-    auto fillSig = [] (float a, float b) {
+    auto fillArith = [] (float a, float b) {
         return (a+b) / 2.0;
     };
     auto fillRCut = [this] (float a, float b) {
@@ -84,7 +85,7 @@ bool FixLJCutFS::prepareForRun() {
     auto none = [] (float a){};
 
     auto fillRCutDiag = [this] () {
-        return (float) state->rCut;//WHY??
+        return (float) state->rCut;
     };
 
     auto processEps = [] (float a) {
@@ -110,8 +111,15 @@ bool FixLJCutFS::prepareForRun() {
 
         return forceScalar;
     };
-    prepareParameters(epsHandle, fillEps, processEps, false);
-    prepareParameters(sigHandle, fillSig, processSig, false);
+    prepareParameters(epsHandle, fillGeo, processEps, false);
+	if (mixingRules==ARITHMETICTYPE) {
+		prepareParameters(sigHandle, fillArith, processSig, false);
+	} else {
+		prepareParameters(sigHandle, fillGeo, processSig, false);
+	}
+    prepareParameters(rCutHandle, fillRCut, processRCut, true, fillRCutDiag);
+
+
     prepareParameters(rCutHandle, fillRCut, processRCut, true, fillRCutDiag);
     prepareParameters("FCutHandle", fillFCut);
     sendAllToDevice();
@@ -165,12 +173,12 @@ std::vector<float> FixLJCutFS::getRCuts() {
 }
 
 void export_FixLJCutFS() {
-    boost::python::class_<FixLJCutFS,
+    py::class_<FixLJCutFS,
                           SHARED(FixLJCutFS),
-                          boost::python::bases<FixPair>, boost::noncopyable > (
+                          py::bases<FixPair>, boost::noncopyable > (
         "FixLJCutFS",
-        boost::python::init<SHARED(State), std::string> (
-            boost::python::args("state", "handle"))
+        py::init<SHARED(State), std::string, py::optional<std::string> > (
+            py::args("state", "handle", "mixingRules"))
     );
 
 }

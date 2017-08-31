@@ -9,9 +9,10 @@
 #include "EvaluatorWrapper.h"
 
 const std::string LJCutType = "LJCutWCA";
+namespace py = boost::python;
 
-FixWCA::FixWCA(SHARED(State) state_, std::string handle_)
-    : FixPair(state_, handle_, "all", LJCutType, true, false, 1),
+FixWCA::FixWCA(SHARED(State) state_, std::string handle_, std::string mixingRules_)
+    : FixPair(state_, handle_, "all", LJCutType, true, false, 1, ARITHMETICTYPE),
       epsHandle("eps"), sigHandle("sig"), rCutHandle("rCut") {
     initializeParameters(epsHandle, epsilons);
     initializeParameters(sigHandle, sigmas);
@@ -58,11 +59,11 @@ void FixWCA::singlePointEng(float *perParticleEng) {
 
 bool FixWCA::prepareForRun() {
     //loop through all params and fill with appropriate lambda function, then send all to device
-    auto fillEps = [] (float a, float b) {
+    auto fillGeo = [] (float a, float b) {
         return sqrt(a*b);
     };
 
-    auto fillSig = [] (float a, float b) {
+    auto fillArith = [] (float a, float b) {
         return (a+b) / 2.0;
     };
 //     auto fillRCut = [this] (float a, float b) {
@@ -89,8 +90,12 @@ bool FixWCA::prepareForRun() {
         float sig = squareVectorRef<float>(paramMap[sigHandle]->data(),numTypes,a,b);
         return sig*pow(2.0,1.0/6.0);
     };    
-    prepareParameters(epsHandle, fillEps, processEps, false);
-    prepareParameters(sigHandle, fillSig, processSig, false);
+    prepareParameters(epsHandle, fillGeo, processEps, false);
+	if (mixingRules=="arithmetic") {
+		prepareParameters(sigHandle, fillArith, processSig, false);
+	} else {
+		prepareParameters(sigHandle, fillGeo, processSig, false);
+	}
     prepareParameters_from_other(rCutHandle, fillRCut, processRCut, false);
 
 //     prepareParameters(rCutHandle, fillRCut, processRCut, true, fillRCutDiag);
@@ -153,19 +158,39 @@ bool FixWCA::setParameter(std::string param,
       return FixPair::setParameter(param, handleA,handleB,val);
       
 }
+
 void export_FixWCA() {
-    boost::python::class_<FixWCA,
+    py::class_<FixWCA,
                           SHARED(FixWCA),
-                          boost::python::bases<FixPair>, boost::noncopyable > (
+                          py::bases<FixPair>, boost::noncopyable > (
         "FixWCA",
-        boost::python::init<SHARED(State), std::string> (
-            boost::python::args("state", "handle")))
+        py::init<SHARED(State), std::string, py::optional<std::string> > (
+            py::args("state", "handle", "mixingRules")))
         .def("setParameter", &FixWCA::setParameter,
-                ( boost::python::arg("param"),
-                  boost::python::arg("handleA"),
-                  boost::python::arg("handleB"),
-                  boost::python::arg("val"))
+                ( py::arg("param"),
+                  py::arg("handleA"),
+                  py::arg("handleB"),
+                  py::arg("val"))
             )
         ;
 
 }
+
+/*
+void export_FixWCA() {
+    py::class_<FixWCA,
+                          SHARED(FixWCA),
+                          py::bases<FixPair>, boost::noncopyable > (
+        "FixWCA",
+        py::init<SHARED(State), std::string, py::optional<std::string> > (
+            py::args("state", "handle", "mixingRules")))
+        .def("setParameter", &FixWCA::setParameter,
+                ( py::arg("param"),
+                  py::arg("handleA"),
+                  py::arg("handleB"),
+                  py::arg("val"))
+            )
+        ;
+
+}
+*/

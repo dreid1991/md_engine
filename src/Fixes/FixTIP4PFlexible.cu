@@ -12,7 +12,7 @@ namespace py = boost::python;
 
 const std::string TIP4PFlexibleType = "TIP4PFlexible";
 
-FixTIP4PFlexible::FixTIP4PFlexible(boost::shared_ptr<State> state_, std::string handle_, std::string groupHandle_) : Fix(state_, handle_, groupHandle_, TIP4PFlexibleType, true, true, false, 1) {
+FixTIP4PFlexible::FixTIP4PFlexible(boost::shared_ptr<State> state_, std::string handle_) : Fix(state_, handle_, std::string("None"), TIP4PFlexibleType, true, true, false, 1) {
 
     // set both to false initially; using one of the createRigid functions will flip the pertinent flag to true
     style = "DEFAULT";
@@ -211,8 +211,8 @@ __global__ void setMSiteFlexible(int4 *waterIds, int *idToIdxs, float4 *xs, floa
         float3 r_ij = bounds.minImage( pos_H1 - pos_O );
         float3 r_ik = bounds.minImage( pos_H2 - pos_O );
 
-        float3 pos_H1 = pos_O + r_ij;
-        float3 pos_H2 = pos_O + r_ik;
+        pos_H1 = pos_O + r_ij;
+        pos_H2 = pos_O + r_ik;
 
         // rOM is the O-M bond length
         // -- see formula in q-TIP4P/F paper
@@ -360,17 +360,18 @@ void FixTIP4PFlexible::updateForPIMD(int nPerRingPoly) {
     
     // we have multiplied all instances of a given atom in the simulation by nPerRingPoly,
     // --- so, now there are nPerRingPoly copies of, e.g., oxygen, before we encounter  the hydrogen, etc.
-  
+ 
     // so, make a new vector of int4's, and do the same process, and then reset our data structures.
     std::vector<int4> PIMD_waterIds;
+    std::vector<BondVariant> PIMD_bonds;
 
     // duplicate each molecule by nPerRingPoly, and stride accordingly
     for (int i = 0; i < waterIds.size(); i++) {
         int4 thisMolecule = waterIds[i];
-        int baseIdxO  = thisMolecule.x * nPerRingPoly;
-        int baseIdxH1 = thisMolecule.y * nPerRingPoly;
-        int baseIdxH2 = thisMolecule.z * nPerRingPoly;
-        int baseIdxM  = thisMolecule.w * nPerRingPoly;
+        int baseIdxO  = thisMolecule.x;
+        int baseIdxH1 = thisMolecule.y;
+        int baseIdxH2 = thisMolecule.z;
+        int baseIdxM  = thisMolecule.w;
 
         // make nPerRingPoly replicas of this molecule with atom ids
         for (int j = 0; j < nPerRingPoly; j++) {
@@ -380,13 +381,18 @@ void FixTIP4PFlexible::updateForPIMD(int nPerRingPoly) {
             int idM_PIMD  = baseIdxM  * nPerRingPoly + j;
             int4 newMol = make_int4(idO_PIMD, idH1_PIMD, idH2_PIMD, idM_PIMD);
             PIMD_waterIds.push_back(newMol);
+            Bond bondOM;
+            bondOM.ids = { {idO_PIMD, idM_PIMD } };
+            PIMD_bonds.push_back(bondOM);
+
     
         }
     }
 
     // and now just re-assign waterIds vector; prepareForRun will function as usual
+    // likewise, re-assign bonds vector
     waterIds = PIMD_waterIds;
-
+    bonds = PIMD_bonds;
     return;
 
 }
@@ -503,7 +509,7 @@ bool FixTIP4PFlexible::prepareForRun() {
     
 
     // partition the intitial forces ( no velocity update )
-    initialForcePartitionFlexible<false><<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), 
+    initialForcePartitionFlexible<true><<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), 
                                                             gpd.xs(activeIdx),
                                                             gpd.vs(activeIdx),
                                                             gpd.fs(activeIdx),
@@ -513,7 +519,7 @@ bool FixTIP4PFlexible::prepareForRun() {
     
     setMSiteFlexible<<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), gpd.idToIdxs.d_data.data(), gpd.xs(activeIdx), gamma, nMolecules,  bounds);
 
-    //printf("Finished the initial force partition in FixTIP4PFlexible!\n");
+    printf("Finished the initial force partition in FixTIP4PFlexible!\n");
     //cudaDeviceSynchronize();
     //printGPD_Flexible<<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(),
     //                                                    gpd.idToIdxs.d_data.data(), gpd.xs(activeIdx),
@@ -535,7 +541,7 @@ bool FixTIP4PFlexible::stepFinal() {
     // first, unconstrained velocity update continues: distribute the force from the M-site
     //        and integrate the velocities accordingly.  Update the forces as well.
 
-    bool Virials = false;
+    bool Virials = state->dataManager.getVirialModeForTurn(state->turn);
 
     float dtf = 0.5f * state->dt * state->units.ftm_to_v;
     if (Virials) {
@@ -550,15 +556,16 @@ bool FixTIP4PFlexible::stepFinal() {
                                                      nMolecules, gamma, dtf, gpd.idToIdxs.d_data.data(), bounds);
     }
 
-    //setMSite<<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), gpd.idToIdxs.d_data.data(), gpd.xs(activeIdx), nMolecules, bounds);
-    
-    //cudaDeviceSynchronize();
-    //printGPD_Flexible<<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), 
-    //                                                    gpd.idToIdxs.d_data.data(), gpd.xs(activeIdx),
-    //                                                          gpd.vs(activeIdx),  gpd.fs(activeIdx),
-    //                                                          nMolecules);
-    //cudaDeviceSynchronize();
-    //printf("Finished TIP4PFlexible::stepFinal at turn %d!\n", (int) state->turn);
+    setMSiteFlexible<<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), gpd.idToIdxs.d_data.data(), gpd.xs(activeIdx), gamma, nMolecules,  bounds);
+    /*
+    cudaDeviceSynchronize();
+    printGPD_Flexible<<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), 
+                                                        gpd.idToIdxs.d_data.data(), gpd.xs(activeIdx),
+                                                              gpd.vs(activeIdx),  gpd.fs(activeIdx),
+                                                              nMolecules);
+    cudaDeviceSynchronize();
+    printf("Finished TIP4PFlexible::stepFinal at turn %d!\n", (int) state->turn);
+    */
     return true;
 }
 
@@ -569,8 +576,8 @@ void export_FixTIP4PFlexible()
   py::class_<FixTIP4PFlexible, boost::shared_ptr<FixTIP4PFlexible>, py::bases<Fix> > 
       ( 
 		"FixTIP4PFlexible",
-		py::init<boost::shared_ptr<State>, std::string, std::string>
-	    (py::args("state", "handle", "groupHandle")
+		py::init<boost::shared_ptr<State>, std::string>
+	    (py::args("state", "handle")
          )
         )
     .def("addMolecule", addMolecule_x,
