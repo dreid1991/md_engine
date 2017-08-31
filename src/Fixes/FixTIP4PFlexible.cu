@@ -352,6 +352,53 @@ void FixTIP4PFlexible::handleBoundsChange() {
 
 }
 
+void FixTIP4PFlexible::updateMSitesForPIMD() {
+
+    // so, loop over the water molecules;
+    // note that we have to do this on the CPU, because there is not yet data on the GPU.
+
+    // here, we remove the velocities from the M-sites, and then set them at their defined position.
+    for (int i = 0; i < waterIds.size(); i++) {
+        int4 thisMolecule = waterIds[i];
+        // note that the molecules already contain id's sorted by replica (see updateForPIMD function below); 
+        // so, no further work to be done here.
+        int idO = thisMolecule.x;
+        int idH1= thisMolecule.y;
+        int idH2= thisMolecule.z;
+        int idM = thisMolecule.w;
+
+        // now get the positions of each of the molecules, which was set already by 
+        // state->preparePIMD();
+        Vector posO = state->atoms[idO].pos;
+        Vector posH1= state->atoms[idH1].pos;
+        Vector posH2= state->atoms[idH2].pos;
+        Vector posM = state->atoms[idM].pos;
+
+        // now, compute minimum images, and re-construct the M-site position
+        // --- same thing we do on the GPU
+        Vector r_OH1 = state->bounds.minImage(posH1 - posO);
+        Vector r_OH2 = state->bounds.minImage(posH2 - posO);
+        
+        // define posH1 and posH2 in terms of their minimum images
+        posH1 = posO + r_OH1;
+        posH2 = posO + r_OH2;
+
+        // define posM in terms of posO, posH1, and posH2
+        Vector r_M  = (posO * gamma) + ((posH1 + posH2) * (0.5 * (1.0 - gamma))) ;
+        
+        state->atoms[idM].pos = r_M;
+
+        // and while we're here, set velocity to zero.
+        Vector thisVel;
+        thisVel[0] = thisVel[1] = thisVel[2] = 0.0;
+        state->atoms[idM].setVel(thisVel);
+
+
+    }
+
+}
+
+
 void FixTIP4PFlexible::updateForPIMD(int nPerRingPoly) {
 
     // see State.cpp... 
@@ -389,10 +436,16 @@ void FixTIP4PFlexible::updateForPIMD(int nPerRingPoly) {
         }
     }
 
+    // we need to set our gamma value before we update the M-site positions, which were
+    // distorted from their defined position in preparePIMD();
+
     // and now just re-assign waterIds vector; prepareForRun will function as usual
     // likewise, re-assign bonds vector
     waterIds = PIMD_waterIds;
     bonds = PIMD_bonds;
+    
+    setStyleBondLengths();
+    updateMSitesForPIMD();
     return;
 
 }

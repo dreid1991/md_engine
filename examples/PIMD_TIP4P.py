@@ -18,8 +18,16 @@ state.deviceManager.setDevice(0)
 ##############################
 # Set initial density here
 ##############################
-numMolecules = 512
-sideLength = 27.0
+
+###############################################
+# From q-TIP4P/F paper:
+# "... all liquid simulations performed at a
+#  temperature of 298.15K and density of
+#  0.997 g/cm^-3 with 216 water molecules
+#  in a cubic simulation box
+###############################################
+numMolecules = 1
+sideLength = 18.6460776727
 
 loVector = Vector(0,0,0)
 hiVector = Vector(sideLength, sideLength, sideLength)
@@ -27,18 +35,18 @@ hiVector = Vector(sideLength, sideLength, sideLength)
 state.units.setReal()
 
 state.bounds = Bounds(state, lo = loVector, hi = hiVector)
-state.rCut = 12.0
-state.padding = 1.0
-state.periodicInterval = 7
-state.shoutEvery = 1000
-state.dt = 0.05
+state.rCut = 9.0
+state.padding = 0.5
+state.periodicInterval = 5
+state.shoutEvery = 100
+state.dt = 0.500
 
 
 ##############################################
 # PIMD parameters - as from examples from Mike
 ##############################################
 nBeads = 32;
-the_temp = 300.0;
+the_temp = 1.0;
 the_temp *= nBeads
 
 # handles for our atoms
@@ -61,7 +69,7 @@ sigma = 3.1589 # given in Angstroms
 # Charge interactions
 #####################
 charge = FixChargeEwald(state, 'charge', 'all')
-charge.setParameters(128,state.rCut-1, 3)
+charge.setError(0.01,state.rCut,3)
 
 
 nonbond = FixLJCut(state,'cut')
@@ -137,8 +145,8 @@ print 'done adding molecules to simulation'
 # Intermolecular interactions: LJ & Charge
 ############################################
 # -- we defined the LJ interactions above
-state.activateFix(nonbond)
-state.activateFix(charge)
+#state.activateFix(nonbond)
+#state.activateFix(charge)
 
 ################################################################
 # Intramolecular interactions:
@@ -151,7 +159,7 @@ state.activateFix(harmonicAngle)
 #############################################
 # initialize at some temperature
 #############################################
-InitializeAtoms.initTemp(state, 'all', 350.0)
+InitializeAtoms.initTemp(state, 'all', 1.0)
 
 ########################################
 # our integrator
@@ -166,25 +174,27 @@ tempData = state.dataManager.recordTemperature('all', interval = 1)
 ################################################
 # Thermostatting
 ################################################
-fixNVT = FixNoseHoover(state,'nvt','all')
-fixNVT.setTemperature(300.0, 200*state.dt)
-state.activateFix(fixNVT)
+#fixNVT = FixNVTAndersen(state,'nvt','all',298.15,0.5,5)
+#fixNVT.setTemperature(300.0, 200*state.dt)
+#state.activateFix(fixNVT)
 
+#fixNVT_Iso = FixNVTRescale(state,'nvt_iso','all',298.15,50)
 
 #################################
 # and some calls to PIMD
 #################################
-#state.nPerRingPoly = nBeads
-#state.preparePIMD(the_temp)
+state.nPerRingPoly = nBeads
+state.preparePIMD(the_temp)
 
 writer = WriteConfig(state, handle='writer', fn='configPIMD', format='xyz',
-                     writeEvery=10)
+                     writeEvery=1)
 state.activateWriteConfig(writer)
 
 writeRestart = WriteConfig(state, handle = 'restart',fn="tip4p_restart*", format='xml',writeEvery=1000)
 state.activateWriteConfig(writeRestart)
 
-integVerlet.run(5000)
+writer.write();
 
+integVerlet.run(5000)
 
 

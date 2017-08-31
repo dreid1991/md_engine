@@ -930,7 +930,10 @@ bool State::preparePIMD(double temp) {
             xsNM.push_back(ai.pos* sqrtf( (float) nPerRingPoly));
             for (int k = 1; k < nPerRingPoly; k++) {
                 float omegak = 2.0f * omegaP * sinf( k * twoPiInvP * 0.5);
-                float sigmak = sqrtf((float) 1.0  / betaP / ai.mass / units.mvv_to_eng) / omegak; // sigma = sqrt(1/ beta_P * m *omegak^2)
+                float sigmak = 1.0;
+                if (ai.mass > 0.0) {
+                    sigmak = sqrtf((float) 1.0  / betaP / ai.mass / units.mvv_to_eng) / omegak; // sigma = sqrt(1/ beta_P * m *omegak^2)
+                }
                 std::normal_distribution<float> distNM(0.0,sigmak);
                 float xk, yk, zk;
                 xk = distNM(randomNumberGenerator);
@@ -940,7 +943,13 @@ bool State::preparePIMD(double temp) {
             }
 
             // prepare for velocity initialization
-            std::normal_distribution<float> distVel(0.0,sqrtf( (float) 1.0 / betaP / ai.mass / units.mvv_to_eng));
+            std::normal_distribution<float> distVel;
+            if (ai.mass > 0.0) {
+                distVel = std::normal_distribution<float>(0.0,sqrtf( (float) 1.0 / betaP / ai.mass / units.mvv_to_eng));
+            } else {
+                distVel = std::normal_distribution<float>(0.0,sqrtf( (float) 1.0 / betaP / 1.0 / units.mvv_to_eng));
+            }
+
 
             // fill in atom copies
             for (int k=0; k < nPerRingPoly; k++) {
