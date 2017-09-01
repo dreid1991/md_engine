@@ -3,6 +3,7 @@
 #define INTEGRATORVERLET_H
 
 #include "Integrator.h"
+class Interpolator;
 
 //! Make the Integrator accessible to the Python interface
 void export_IntegratorVerlet();
@@ -52,6 +53,8 @@ private:
     void postForce();
     void nve_v();
     void nve_x();
+    Interpolator *tempInterpolator; //for PIMD
+    void setInterpolator();
 };
 
 #endif

@@ -13,12 +13,18 @@ PythonOperation::PythonOperation(string handle_, int operateEvery_, PyObject *op
     synchronous = synchronous_;
 }
 
-void PythonOperation::operate(int64_t turn) {
+bool PythonOperation::operate(int64_t turn) {
 	try {
-		py::call<void>(operation, turn);
+        py::object res = py::call<py::object>(operation, turn);
+
+        py::extract<bool> resPy(res);
+        if (resPy.check()) {
+            return resPy;
+        }
 	} catch (boost::python::error_already_set &) {
 		PythonHelpers::printErrors();
 	}
+    return false;
 }
 
 void export_PythonOperation() {

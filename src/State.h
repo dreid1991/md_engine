@@ -117,6 +117,7 @@ public:
     int runningFor; //!< How long the simulation is currently running
     int nlistBuildCount; //!< number of times we have build nlists
     int64_t runInit; //!< Timestep at which the current run started
+    int64_t nextForceBuild; //!< Timestep neighborlists will definitely be build.  Fixes might need to request this
     int dangerousRebuilds; //!< Unused
     int periodicInterval; //!< Periodicity to wrap atoms and rebuild neighbor
                           //!< list

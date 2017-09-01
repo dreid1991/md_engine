@@ -62,6 +62,7 @@ State::State() : units(&dt) {
     nThreadPerBlock = 256;
 
     tuneEvery = 1000000;
+    nextForceBuild = 0;
 
 
 }
@@ -1059,6 +1060,7 @@ BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(State_seedRNG_overloads,State::seedRNG,0,
                 .def_readwrite("verbose", &State::verbose)
                 .def_readonly("deviceManager", &State::devManager)
                 .def_readonly("units", &State::units)
+                //.def_readonly("grid", &State::gridGPU)
                 //helper for reader funcs
                 .def("Vector", &generateVector, (py::arg("vals")=py::list()))
 

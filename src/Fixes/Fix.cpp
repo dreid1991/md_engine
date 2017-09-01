@@ -125,6 +125,7 @@ void export_Fix() {
         "Fix",
         boost::python::no_init
     )
+    .def("prepareForRun", &Fix::prepareForRun)
     .def_readonly("handle", &Fix::handle)
     .def_readonly("type", &Fix::type)
     .def_readwrite("applyEvery", &Fix::applyEvery)

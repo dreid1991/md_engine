@@ -10,7 +10,7 @@ void export_PythonOperation();
 
 class PythonOperation {
     public:
-        void operate(int64_t turn);
+        bool operate(int64_t turn);
         int orderPreference; // needed for add generic in state, not actually used
         PyObject *operation;
         int operateEvery; 
