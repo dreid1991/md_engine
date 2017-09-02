@@ -104,11 +104,6 @@ __global__ void nve_xPIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, float4 
         xW = xWhole.w;
         vW = vWhole.w;
 
-        // if the particle is massless, nothing more to do
-        if (vW > INVMASSBOOL) {
-            vWhole = make_float4(0.0, 0.0, 0.0, vW);
-            return;
-        }
     }
     // k = 0, n = 1,...,P
     tbr[threadIdx.x]  = xn;
@@ -240,7 +235,11 @@ __global__ void nve_xPIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, float4 
         xn *= invSqrtP;
         vn *= invSqrtP;
 	    xs[idx]   = make_float4(xn.x,xn.y,xn.z,xW);
-	    vs[idx]   = make_float4(vn.x,vn.y,vn.z,vW);
+        if ( vW > INVMASSBOOL) {
+            vs[idx]   = make_float4(0.0, 0.0, 0.0, vW);
+        } else {
+	        vs[idx]   = make_float4(vn.x,vn.y,vn.z,vW);
+        }
     }
 
 }
@@ -254,16 +253,15 @@ __global__ void preForce_cu(int nAtoms, float4 *xs, float4 *vs, float4 *fs,
         // Update velocity by a half timestep
         float4 vel = vs[idx];
         float invmass = vel.w;
+        
 
         float4 force = fs[idx];
 
-        if (invmass > INVMASSBOOL ) {
-            fs[idx] = make_float4(0.0f, 0.0f, 0.0f, force.w);
-            vs[idx] = make_float4(0.0f, 0.0f, 0.0f, invmass);
-            return;
+        float3 dv = dtf * invmass * make_float3(force);
+        if (invmass > INVMASSBOOL) {
+            dv = make_float3(0.0, 0.0, 0.0);
         }
 
-        float3 dv = dtf * invmass * make_float3(force);
         vel += dv;
         vs[idx] = vel;
 
@@ -308,13 +306,10 @@ __global__ void preForcePIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, floa
         float4 vel     = vs[idx];
         float  invmass = vel.w;
         float4 force   = fs[idx];
-        // if its a massless particle, nothing more to be done here.
-        if (invmass > INVMASSBOOL) {
-            vs[idx] = make_float4(0.0, 0.0, 0.0, invmass);
-            fs[idx] = make_float4(0.0, 0.0, 0.0, force.w);
-            return;
-        }
         float3 dv      = dtf * invmass * make_float3(force);
+        if (invmass > INVMASSBOOL) {
+            dv = make_float3(0.0, 0.0, 0.0);
+        }
         vel           += dv;
         vs[idx]        = vel;
         fs[idx]        = make_float4(0.0f,0.0f,0.0f,force.w); // reset forces to zero before force calculation
@@ -356,6 +351,10 @@ __global__ void preForcePIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, floa
     //STILL NOT SYNCED
     // k = 0, n = 1,...,P
     tbr[threadIdx.x]  = xn;
+    if (needSync)    __syncthreads();
+
+
+
     if (needSync)    __syncthreads();
     reduceByN<float3>(tbr, nPerRingPoly, warpSize);
     if (useThread && amRoot)     {xsNM[threadIdx.x] = tbr[threadIdx.x]*invSqrtP;}
@@ -485,7 +484,11 @@ __global__ void preForcePIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, floa
         xn *= invSqrtP;
         vn *= invSqrtP;
 	    xs[idx]   = make_float4(xn.x,xn.y,xn.z,xW);
-	    vs[idx]   = make_float4(vn.x,vn.y,vn.z,vW);
+        if (vW > INVMASSBOOL) {
+            vs[idx] = make_float4(0, 0, 0, vW);
+        } else {
+            vs[idx]   = make_float4(vn.x,vn.y,vn.z,vW);
+        }
     }
 }
     //if (useThread && amRoot ) {
