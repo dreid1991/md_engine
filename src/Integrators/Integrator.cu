@@ -8,6 +8,7 @@
 #include "GPUArray.h"
 #include "PythonOperation.h"
 #include "WriteConfig.h"
+#include "Interpolator.h"
 
 using namespace std;
 

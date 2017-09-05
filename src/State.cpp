@@ -63,6 +63,7 @@ State::State() : units(&dt) {
     nThreadPerBlock = 256;
 
     tuneEvery = 1000000;
+    nextForceBuild = 0;
 
 }
 
@@ -672,12 +673,11 @@ void copySyncWithInstruc(State *state, std::function<void (int64_t )> cb, int64_
 
     CUCHECK(cudaDeviceSynchronize());
     std::vector<int> idToIdxsOnCopy = state->gpd.idToIdxsOnCopy;
-    std::vector<float4> &xs = state->gpd.xsBuffer.h_data;
-    std::vector<float4> &vs = state->gpd.vsBuffer.h_data;
-    std::vector<float4> &fs = state->gpd.fsBuffer.h_data;
-    std::vector<uint> &ids = state->gpd.idsBuffer.h_data;
+    std::vector<float4> &xs = state->gpd.xs.h_data;
+    std::vector<float4> &vs = state->gpd.vs.h_data;
+    std::vector<float4> &fs = state->gpd.fs.h_data;
+    std::vector<uint> &ids = state->gpd.ids.h_data;
     std::vector<Atom> &atoms = state->atoms;
-
     for (int i=0, ii=state->atoms.size(); i<ii; i++) {
         int id = ids[i];
         int idxWriteTo = idToIdxsOnCopy[id];
@@ -795,6 +795,21 @@ bool State::createGroup(std::string handle, py::list ids) {
         addToGroupPy(handle, ids);
     }
     return true;
+}
+
+
+int State::countNumInGroup(std::string handle) {
+    return countNumInGroup(groupTagFromHandle(handle));
+}
+
+int State::countNumInGroup(uint32_t tag) {
+    int count = 0;
+    for (Atom &a : atoms) {
+        if (a.groupTag & tag) {
+            count++;
+        }
+    }
+    return count;
 }
 
 uint State::addGroupTag(std::string handle) {
@@ -1078,6 +1093,7 @@ BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(State_seedRNG_overloads,State::seedRNG,0,
                 .def_readwrite("verbose", &State::verbose)
                 .def_readonly("deviceManager", &State::devManager)
                 .def_readonly("units", &State::units)
+                //.def_readonly("grid", &State::gridGPU)
                 //helper for reader funcs
                 .def("Vector", &generateVector, (py::arg("vals")=py::list()))
 

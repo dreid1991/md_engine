@@ -45,8 +45,8 @@ state.dt = 0.500
 ##############################################
 # PIMD parameters - as from examples from Mike
 ##############################################
-nBeads = 32;
-the_temp = 1.0;
+nBeads = 32
+the_temp = 298.15
 the_temp *= nBeads
 
 # handles for our atoms
@@ -145,8 +145,8 @@ print 'done adding molecules to simulation'
 # Intermolecular interactions: LJ & Charge
 ############################################
 # -- we defined the LJ interactions above
-#state.activateFix(nonbond)
-#state.activateFix(charge)
+state.activateFix(nonbond)
+state.activateFix(charge)
 
 ################################################################
 # Intramolecular interactions:
@@ -159,7 +159,7 @@ state.activateFix(harmonicAngle)
 #############################################
 # initialize at some temperature
 #############################################
-InitializeAtoms.initTemp(state, 'all', 1.0)
+#InitializeAtoms.initTemp(state, 'all', 1.0)
 
 ########################################
 # our integrator
@@ -174,9 +174,9 @@ tempData = state.dataManager.recordTemperature('all', interval = 1)
 ################################################
 # Thermostatting
 ################################################
-#fixNVT = FixNVTAndersen(state,'nvt','all',298.15,0.5,5)
+fixNVT = FixNVTAndersen(state,'nvt','all',the_temp,0.5,5)
 #fixNVT.setTemperature(300.0, 200*state.dt)
-#state.activateFix(fixNVT)
+state.activateFix(fixNVT)
 
 #fixNVT_Iso = FixNVTRescale(state,'nvt_iso','all',298.15,50)
 
@@ -195,6 +195,6 @@ state.activateWriteConfig(writeRestart)
 
 writer.write();
 
-integVerlet.run(5000)
+integVerlet.run(500)
 
 

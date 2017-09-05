@@ -117,6 +117,7 @@ public:
     int runningFor; //!< How long the simulation is currently running
     int nlistBuildCount; //!< number of times we have build nlists
     int64_t runInit; //!< Timestep at which the current run started
+    int64_t nextForceBuild; //!< Timestep neighborlists will definitely be build.  Fixes might need to request this
     int dangerousRebuilds; //!< Unused
     int periodicInterval; //!< Periodicity to wrap atoms and rebuild neighbor
                           //!< list
@@ -262,6 +263,9 @@ public:
      * "all" may not be removed.
      */
     bool deleteGroup(std::string);
+
+    int countNumInGroup(std::string);
+    int countNumInGroup(uint32_t);
 
     //! Create a new atom group
     /*!

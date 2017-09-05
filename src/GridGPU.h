@@ -26,6 +26,7 @@ class State;
  * This class defines a simulation grid on the GPU. Typically, the GridGPU will
  * be created by AtomGrid::makeGPU().
  */
+//void export_GridGPU();
 class GridGPU : public Tunable {
 
 private:

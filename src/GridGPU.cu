@@ -11,6 +11,7 @@
 
 using std::endl;
 using std::cout;
+namespace py = boost::python;
 /* GridGPU members */
 
 
@@ -1348,3 +1349,20 @@ GridGPU::ExclusionList GridGPU::generateExclusionList(const int16_t maxDepth) {
     return exclude;
 }
 
+
+/*
+void export_GridGPU() {
+    py::class_<GridGPU, boost::noncopyable> (
+        "Grid",
+        py::no_init
+    )
+    //.def("populateOnGrid", &InitializeAtoms::populateOnGrid,
+    //        (py::arg("bounds"),
+    //         py::arg("handle"),
+    //         py::arg("n"))
+    //    )
+    //.staticmethod("populateOnGrid")
+    .def("buildNeighborlists", &GridGPU::periodicBoundaryConditions, (py::arg("neighCut")=-1, py::arg("forceBuild")=true))
+    ;
+}
+*/

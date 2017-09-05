@@ -12,6 +12,7 @@ using namespace boost::python;
 #include <tuple>
 using namespace std;
 #include "State.h"
+#include "GridGPU.h"
 #include "Atom.h"
 #include "Vector.h" 
 #include "InitializeAtoms.h"
@@ -112,6 +113,7 @@ BOOST_PYTHON_MODULE(DASH) {
     export_Units();
 
     export_State(); 	
+    //export_GridGPU(); 	
     export_DeviceManager();
     export_DataSetUser();
 
