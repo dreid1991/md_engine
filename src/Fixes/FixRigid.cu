@@ -52,6 +52,180 @@ __global__ void rigid_remove_COMV(int nAtoms, float4 *vs, float4 *sumData, float
     }
 }
 
+/*
+        rigid_scaleSystem_cu<<<NBLOCK(nMolecules),PERBLOCK>>>(waterIdsGPU.data(),
+                                                              gpd.xs(activeIdx),
+                                                              gpd.idToIdxs.d_data.data(),
+                                                              bounds.lo,
+                                                              bounds.rectComponents,
+                                                              scaleBy,
+                                                              fixRigidData,
+                                                              nMolecules);
+*/
+
+template <class DATA, bool TIP4P>
+__global__ void rigid_scaleSystem_cu(int4* waterIds, float4* xs, int* idToIdxs,
+                                     float3 lo, float3 rectLen, BoundsGPU bounds, float3 scaleBy,
+                                     DATA fixRigidData, int nMolecules) {
+
+    int idx = GETIDX();
+    if (idx < nMolecules) {
+        // compute the COM; 
+        // perform the displacement;
+        // compute the difference in the positions
+        // translate all the individual atoms xs's accordingly, and exit
+        // --- we do not need to check groupTags
+        // --- if (TIP4P) { translate M-site position as well }
+        double4 weights = fixRigidData.weights;
+        double weightO = weights.x;
+        double weightH = weights.y;
+       
+        // get the molecule at this idx
+        int4 atomsFromMolecule = waterIds[idx];
+
+        // get the atom idxs
+        int idxO = idToIdxs[atomsFromMolecule.x];
+        int idxH1= idToIdxs[atomsFromMolecule.y];
+        int idxH2= idToIdxs[atomsFromMolecule.z];
+        
+        // extract the whole positions
+        float4 posO_whole = xs[idxO];
+        float4 posH1_whole= xs[idxH1];
+        float4 posH2_whole= xs[idxH2];
+
+        // and the unconstrained, updated positions
+        double3 posO = make_double3(posO_whole);
+        double3 posH1= make_double3(posH1_whole);
+        double3 posH2= make_double3(posH2_whole);
+    
+        // get the relative vectors for the unconstrained triangle
+        double3 OH1_unconstrained = bounds.minImage(posH1 - posO);
+        double3 OH2_unconstrained = bounds.minImage(posH2 - posO);
+
+        // move the hydrogens to their minimum image distance w.r.t. the oxygen
+        posH1 = posO + OH1_unconstrained;
+        posH2 = posO + OH2_unconstrained;
+
+        // the center of mass 'd1' in the paper
+        double3 COM_d1 = (posO * weightO) + ( ( posH1 + posH2 ) * weightH);
+    
+        // do as Mod::scale on COM_d1
+        double3 center = make_double3(lo) + make_double3(rectLen) * 0.5;
+
+        double3 newRel = (COM_d1 - center) * make_double3(scaleBy);
+
+        // this is the vector which we will add to the positions of our atoms
+        double3 diff = center - COM_d1;
+
+        posO += diff;
+        posH1 += diff;
+        posH2 += diff;
+        if (TIP4P) {
+            int idxM = idToIdxs[atomsFromMolecule.w];
+            float4 posM_whole = xs[idxM];
+            double3 posM = make_double3(posM_whole);
+            posM += diff;
+            float3 newPosM = make_float3(posM);
+            xs[idxM] = make_float4(newPosM, posM_whole.w);
+        }
+
+        float3 newPosO = make_float3(posO);
+        float3 newPosH1= make_float3(posH1);
+        float3 newPosH2= make_float3(posH2);
+
+        xs[idxO] = make_float4(newPosO, posO_whole.w);
+        xs[idxH1]= make_float4(newPosH1,posH1_whole.w);
+        xs[idxH2]= make_float4(newPosH2,posH2_whole.w);
+    }
+}
+
+
+
+template <class DATA, bool TIP4P>
+__global__ void rigid_scaleSystemGroup_cu(int4* waterIds, float4* xs, int* idToIdxs,
+                                          float3 lo, float3 rectLen, BoundsGPU bounds, float3 scaleBy,
+                                          DATA fixRigidData, int nMolecules, uint32_t groupTag,
+                                          float4* fs) {
+
+    int idx = GETIDX();
+    if (idx < nMolecules) {
+        // get the molecule at this idx
+        int4 atomsFromMolecule = waterIds[idx];
+        int idxO = idToIdxs[atomsFromMolecule.x];
+        uint32_t tag = * (uint32_t *) &(fs[idxO].w);
+        if (tag & groupTag) {
+            // compute the COM; 
+            // perform the displacement;
+            // compute the difference in the positions
+            // translate all the individual atoms xs's accordingly, and exit
+            // ---- check the groupTag of just the oxygen; if 
+            //      the oxygen atom is in the group, we will assume that the other atoms are as well
+            //      mostly because if they aren't, then something is being done incorrectly by the user
+            // --- if (TIP4P) { translate M-site position as well }
+            double4 weights = fixRigidData.weights;
+            double weightO = weights.x;
+            double weightH = weights.y;
+           
+
+            // get the atom idxs
+            int idxH1= idToIdxs[atomsFromMolecule.y];
+            int idxH2= idToIdxs[atomsFromMolecule.z];
+            
+            // extract the whole positions
+            float4 posO_whole = xs[idxO];
+            float4 posH1_whole= xs[idxH1];
+            float4 posH2_whole= xs[idxH2];
+
+            // and the unconstrained, updated positions
+            double3 posO = make_double3(posO_whole);
+            double3 posH1= make_double3(posH1_whole);
+            double3 posH2= make_double3(posH2_whole);
+        
+            // get the relative vectors for the unconstrained triangle
+            double3 OH1_unconstrained = bounds.minImage(posH1 - posO);
+            double3 OH2_unconstrained = bounds.minImage(posH2 - posO);
+
+            // move the hydrogens to their minimum image distance w.r.t. the oxygen
+            posH1 = posO + OH1_unconstrained;
+            posH2 = posO + OH2_unconstrained;
+
+            // the center of mass 'd1' in the paper
+            double3 COM_d1 = (posO * weightO) + ( ( posH1 + posH2 ) * weightH);
+        
+            // do as Mod::scale on COM_d1
+            double3 center = make_double3(lo) + make_double3(rectLen) * 0.5;
+
+            double3 newRel = (COM_d1 - center) * make_double3(scaleBy);
+
+            // this is the vector which we will add to the positions of our atoms
+            double3 diff = center - COM_d1;
+
+            posO += diff;
+            posH1 += diff;
+            posH2 += diff;
+            if (TIP4P) {
+                int idxM = idToIdxs[atomsFromMolecule.w];
+                float4 posM_whole = xs[idxM];
+                double3 posM = make_double3(posM_whole);
+                posM += diff;
+                float3 newPosM = make_float3(posM);
+                xs[idxM] = make_float4(newPosM, posM_whole.w);
+            }
+
+            float3 newPosO = make_float3(posO);
+            float3 newPosH1= make_float3(posH1);
+            float3 newPosH2= make_float3(posH2);
+
+            xs[idxO] = make_float4(newPosO, posO_whole.w);
+            xs[idxH1]= make_float4(newPosH1,posH1_whole.w);
+            xs[idxH2]= make_float4(newPosH2,posH2_whole.w);
+
+        }
+
+
+    }
+
+}
 
 // called at the end of stepFinal, this will be silent unless something is amiss (if the constraints are not satisifed for every molecule)
 // i.e., bond lengths should be fixed, and the dot product of the relative velocities along a bond with the 
@@ -1284,6 +1458,110 @@ void FixRigid::compute_gamma() {
 
 }
 
+
+std::vector<int> FixRigid::getRigidAtoms() {
+
+    std::vector<int> atomsToReturn;
+    // by now, this is prepared. so, we know if it is a 3-site or 4-site model.
+    if (TIP3P) {
+        atomsToReturn.reserve(3 * nMolecules);
+    } else {
+        atomsToReturn.reserve(4 * nMolecules);
+    }
+
+    if (TIP3P) {
+        for (int i = 0; i < waterIds.size(); i++ ) {
+            int4 theseAtomIds = waterIds[i];
+            int idO = theseAtomIds.x;
+            int idH1= theseAtomIds.y;
+            int idH2= theseAtomIds.z;
+            atomsToReturn.push_back(idO);
+            atomsToReturn.push_back(idH1);
+            atomsToReturn.push_back(idH2);
+        }
+    } else {
+        for (int i = 0; i < waterIds.size(); i++ ) {
+            int4 theseAtomIds = waterIds[i];
+            int idO = theseAtomIds.x;
+            int idH1= theseAtomIds.y;
+            int idH2= theseAtomIds.z;
+            int idM = theseAtomIds.w;
+            atomsToReturn.push_back(idO);
+            atomsToReturn.push_back(idH1);
+            atomsToReturn.push_back(idH2);
+            atomsToReturn.push_back(idM);
+        }
+    }
+
+    return atomsToReturn;
+}
+
+void FixRigid::scaleRigidBodies(float3 scaleBy, uint32_t groupTag) {
+
+    // so, pass the objects by molecule, displace the COM, and then apply the difference to the individual atoms
+
+    // consider: we might have different groups of water molecules (e.g., simulation of solid-liquid interface).
+    // so, use the groupTags.
+    GPUData &gpd = state->gpd;
+    int activeIdx = gpd.activeIdx();
+    BoundsGPU &bounds = state->boundsGPU;
+    int nAtoms = state->atoms.size();
+    if (groupTag == 1) {
+        if (TIP4P) {
+            rigid_scaleSystem_cu<FixRigidData, true><<<NBLOCK(nMolecules),PERBLOCK>>>(waterIdsGPU.data(),
+                                                                  gpd.xs(activeIdx),
+                                                                  gpd.idToIdxs.d_data.data(),
+                                                                  bounds.lo,
+                                                                  bounds.rectComponents,
+                                                                  bounds,
+                                                                  scaleBy,
+                                                                  fixRigidData,
+                                                                  nMolecules);
+        } else { 
+
+            rigid_scaleSystem_cu<FixRigidData, false><<<NBLOCK(nMolecules),PERBLOCK>>>(waterIdsGPU.data(),
+                                                                  gpd.xs(activeIdx),
+                                                                  gpd.idToIdxs.d_data.data(),
+                                                                  bounds.lo,
+                                                                  bounds.rectComponents,
+                                                                  bounds, 
+                                                                  scaleBy,
+                                                                  fixRigidData,
+                                                                  nMolecules);
+
+        }
+
+    } else {
+        if (TIP4P) {
+            rigid_scaleSystemGroup_cu<FixRigidData,true><<<NBLOCK(nMolecules),PERBLOCK>>>(waterIdsGPU.data(),
+                                                                  gpd.xs(activeIdx),
+                                                                  gpd.idToIdxs.d_data.data(),
+                                                                  bounds.lo,
+                                                                  bounds.rectComponents,
+                                                                  bounds, 
+                                                                  scaleBy,
+                                                                  fixRigidData,
+                                                                  nMolecules, 
+                                                                  groupTag,
+                                                                  gpd.fs(activeIdx)
+                                                                  );
+        } else {
+            rigid_scaleSystemGroup_cu<FixRigidData,false><<<NBLOCK(nMolecules),PERBLOCK>>>(waterIdsGPU.data(),
+                                                                  gpd.xs(activeIdx),
+                                                                  gpd.idToIdxs.d_data.data(),
+                                                                  bounds.lo,
+                                                                  bounds.rectComponents,
+                                                                  bounds, 
+                                                                  scaleBy,
+                                                                  fixRigidData,
+                                                                  nMolecules, 
+                                                                  groupTag,
+                                                                  gpd.fs(activeIdx)
+                                                                  );
+        }
+    }
+}
+
 void FixRigid::createRigid(int id_a, int id_b, int id_c, int id_d) {
     TIP4P = true;
     int4 waterMol = make_int4(0,0,0,0);
@@ -1340,7 +1618,8 @@ void FixRigid::createRigid(int id_a, int id_b, int id_c, int id_d) {
     bonds.push_back(bondHH);
     bonds.push_back(bondOM);
 
-    // and we need to do something else here as well. what is it tho
+    // finally, if the state->rigidBodies flag is not yet tripped, set it to true
+    state->rigidBodies = true;
 
 }
 
@@ -1390,12 +1669,21 @@ void FixRigid::createRigid(int id_a, int id_b, int id_c) {
     bonds.push_back(bondOH1);
     bonds.push_back(bondOH2);
     bonds.push_back(bondHH);
+    
+    state->rigidBodies = true;
 }
 
 
 bool FixRigid::prepareForRun() {
     
     nMolecules = waterIds.size();
+    // consider: in postRun(), we set rigidBodies to false;
+    // if another run command is issued without adding another water molecule, it will remain false, 
+    // and that will cause problems.  So, set it to true here as well.  Is this too late though? 
+    // ---- I think it is not too late to trip this flag here.
+    if (nMolecules > 0) {
+        state->rigidBodies = true;
+    }
     // cannot have more than one water model present
     if (TIP3P && TIP4P) {
         mdError("An attempt was made to use both 3-site and 4-site models in a simulation");
@@ -1424,8 +1712,6 @@ bool FixRigid::prepareForRun() {
     printf("number of molecules in waterIds: %d\n", nMolecules);
     waterIdsGPU = GPUArrayDeviceGlobal<int4>(nMolecules);
     waterIdsGPU.set(waterIds.data());
-
-
 
     xs_0 = GPUArrayDeviceGlobal<float4>(3*nMolecules);
     vs_0 = GPUArrayDeviceGlobal<float4>(3*nMolecules);
@@ -1653,6 +1939,17 @@ bool FixRigid::stepFinal() {
                                                                                    (int) state->turn);
     return true;
 }
+
+
+// postRun is primarily for re-setting local and global flags;
+// in this case, tell state that there are no longer rigid bodies
+bool FixRigid::postRun() {
+    prepared = false;
+    state->rigidBodies = false;
+    return true;
+}
+
+
 
 // export the overloaded function
 void (FixRigid::*createRigid_x1) (int, int, int)      = &FixRigid::createRigid;

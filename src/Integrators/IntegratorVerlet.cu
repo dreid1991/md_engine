@@ -23,9 +23,9 @@ __global__ void nve_v_cu(int nAtoms, float4 *vs, float4 *fs, float dtf) {
     int idx = GETIDX();
     if (idx < nAtoms) {
         // Update velocity by a half timestep
-        float4 vel = vs[idx];
-        float invmass = vel.w;
-        float4 force = fs[idx];
+        double4 vel = make_double4(vs[idx]);
+        double invmass = vel.w;
+        double4 force = make_double4(fs[idx]);
         
         // ghost particles should not have their velocities integrated; causes overflow
         if (invmass > INVMASSBOOL) {
@@ -34,9 +34,9 @@ __global__ void nve_v_cu(int nAtoms, float4 *vs, float4 *fs, float dtf) {
             return;
         }
 
-        float3 dv = dtf * invmass * make_float3(force);
+        double3 dv = dtf * invmass * make_double3(force);
         vel += dv;
-        vs[idx] = vel;
+        vs[idx] = make_float4(vel);
         fs[idx] = make_float4(0.0f, 0.0f, 0.0f, force.w);
     }
 }
@@ -45,14 +45,14 @@ __global__ void nve_x_cu(int nAtoms, float4 *xs, float4 *vs, float dt) {
     int idx = GETIDX();
     if (idx < nAtoms) {
         // Update position by a full timestep
-        float4 vel = vs[idx];
-        float4 pos = xs[idx];
+        double4 vel = make_double4(vs[idx]);
+        double4 pos = make_double4(xs[idx]);
 
         //printf("pos %f %f %f\n", pos.x, pos.y, pos.z);
         //printf("vel %f %f %f\n", vel.x, vel.y, vel.z);
-        float3 dx = dt*make_float3(vel);
+        double3 dx = dt*make_double3(vel);
         pos += dx;
-        xs[idx] = pos;
+        xs[idx] = make_float4(pos);
     }
 }
 
@@ -251,9 +251,9 @@ __global__ void preForce_cu(int nAtoms, float4 *xs, float4 *vs, float4 *fs,
     int idx = GETIDX();
     if (idx < nAtoms) {
         // Update velocity by a half timestep
-        float4 vel = vs[idx];
-        float invmass = vel.w;
-        float4 force = fs[idx];
+        double4 vel = make_double4(vs[idx]);
+        double invmass = vel.w;
+        double4 force = make_double4(fs[idx]);
         
         if (invmass > INVMASSBOOL) {
             vs[idx] = make_float4(0.0f, 0.0f, 0.0f,invmass);
@@ -261,17 +261,17 @@ __global__ void preForce_cu(int nAtoms, float4 *xs, float4 *vs, float4 *fs,
             return;
         }
 
-        float3 dv = dtf * invmass * make_float3(force);
+        double3 dv = dtf * invmass * make_double3(force);
         vel += dv;
-        vs[idx] = vel;
+        vs[idx] = make_float4(vel);
 
         // Update position by a full timestep
-        float4 pos = xs[idx];
+        double4 pos = make_double4(xs[idx]);
 
         //printf("vel %f %f %f\n", vel.x, vel.y, vel.z);
-        float3 dx = dt*make_float3(vel);
+        double3 dx = dt*make_double3(vel);
         pos += dx;
-        xs[idx] = pos;
+        xs[idx] = make_float4(pos);
 
         // Set forces to zero before force calculation
         fs[idx] = make_float4(0.0f, 0.0f, 0.0f, force.w);
@@ -501,17 +501,17 @@ __global__ void postForce_cu(int nAtoms, float4 *vs, float4 *fs, float dtf)
     int idx = GETIDX();
     if (idx < nAtoms) {
         // Update velocities by a halftimestep
-        float4 vel = vs[idx];
-        float invmass = vel.w;
+        double4 vel = make_double4(vs[idx]);
+        double invmass = vel.w;
         if (invmass > INVMASSBOOL) {
             vs[idx] = make_float4(0.0f, 0.0f, 0.0f,invmass);
             return;
         }
-        float4 force = fs[idx];
+        double4 force = make_double4(fs[idx]);
 
-        float3 dv = dtf * invmass * make_float3(force);
+        double3 dv = dtf * invmass * make_double3(force);
         vel += dv;
-        vs[idx] = vel;
+        vs[idx] = make_float4(vel);
     }
 }
 
@@ -544,6 +544,8 @@ double IntegratorVerlet::run(int numTurns)
     prepareFinal();
 
     verifyPrepared();
+
+    // now that everything is prepared, assemble the groups!
 
     int periodicInterval = state->periodicInterval;
 	

@@ -89,7 +89,7 @@ public:
      *
      * \todo Make this function purely virtual
      */
-    virtual bool postRun() { return true; }
+    virtual bool postRun() { prepared=false; return true; }
 
     //! Perform operations at the start of a simulation step
     /*!
@@ -223,6 +223,19 @@ public:
     virtual std::vector<float> getRCuts() {
         return std::vector<float>();
     }
+
+
+    //! Returns the atom ids of atoms belonging to rigid bodies as denoted by this Fix.
+    /*!
+     * \return vector containing atom ids of atoms belonging to rigid bodies, or empty list if not 
+     *         applicable to this fix (non-constraint fix).
+     */
+
+    virtual std::vector<int> getRigidAtoms() {
+        return std::vector<int>();
+    }
+
+    virtual void scaleRigidBodies(float3 scaleBy, uint32_t groupTag) {};
 
     //! Check that all given Atoms are valid
     /*!

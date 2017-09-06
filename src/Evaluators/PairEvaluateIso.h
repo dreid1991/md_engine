@@ -30,16 +30,16 @@ __global__ void compute_force_iso
 {
 
 
-    float multipliers[4] = {1, onetwoStr, onethreeStr, onefourStr};
+    double multipliers[4] = {1, double(onetwoStr), double(onethreeStr), double(onefourStr)};
     //so we load in N_PARAM matrices which are of dimension numType*numTypes.  The matrices are arranged as linear blocks of data
     //paramsAll is the single big shared memory array that holds all of these parameters
     extern __shared__ float paramsAll[];
     int sqrSize = numTypes*numTypes;
     float *params_shr[N_PARAM];
-    float3 *forces_shr;
+    double3 *forces_shr;
     Virial *virials_shr;
     if (MULTITHREADPERATOM) {
-        forces_shr = (float3 *) (paramsAll + sqrSize*N_PARAM);
+        forces_shr = (double3 *) (paramsAll + sqrSize*N_PARAM);
         virials_shr = (Virial *) (forces_shr + blockDim.x);
     }
     //then we take pointers into paramsAll.
@@ -86,17 +86,17 @@ __global__ void compute_force_iso
             baseIdx = baseNeighlistIdxFromRPIndex(cumulSumMaxPerBlock, warpSize, ringPolyIdx);
         }
         //printf("Thread %d atom idx %d  nlist base idx is %d\n", idx, atomIdx, baseIdx);
-        float qi;
+        double qi;
 
         //load charges if necessary
         if (COMP_CHARGES) {
-            qi = qs[atomIdx];
+            qi = double(qs[atomIdx]);
         }
-        float4 posWhole = xs[atomIdx];
+        double4 posWhole = make_double4(xs[atomIdx]);
         int type = __float_as_int(posWhole.w);
-        float3 pos = make_float3(posWhole);
+        double3 pos = make_double3(posWhole);
 
-        float3 forceSum = make_float3(0, 0, 0);
+        double3 forceSum = make_double3(0, 0, 0);
         int myIdxInTeam;
         if (MULTITHREADPERATOM) {
             myIdxInTeam = threadIdx.x % nThreadPerAtom;
@@ -118,7 +118,7 @@ __global__ void compute_force_iso
             uint otherIdxRaw = neighborlist[nlistIdx];
             //The leftmost two bits in the neighbor entry say if it is a 1-2, 1-3, or 1-4 neighbor, or none of these
             uint neighDist = otherIdxRaw >> 30;
-            float multiplier = multipliers[neighDist];
+            double multiplier = double(multipliers[neighDist]);
             //uint otherIdx = otherIdxRaw & EXCL_MASK;
             
             // Extract corresponding index for pair interaction (at same time slice)
@@ -128,29 +128,29 @@ __global__ void compute_force_iso
          //       printf("otherIdx %d natom %d nNeigh %d nthNeigh %d myIdxInTeam %d\n", otherIdx, nAtoms, numNeigh, nthNeigh, myIdxInTeam);
           //      continue;
           //  }
-            float4 otherPosWhole = xs[otherIdx];
+            double4 otherPosWhole = make_double4(xs[otherIdx]);
             //printf("thread %d nlistidx %d other idx %d\n", idx, nlistIdx, otherIdx);
 
             //type is stored in w component of position
             int otherType = __float_as_int(otherPosWhole.w);
-            float3 otherPos = make_float3(otherPosWhole);
+            double3 otherPos = make_double3(otherPosWhole);
 
 
             //based on the two atoms types, which index in each of the square matrices will I need to load from?
             int sqrIdx = squareVectorIndex(numTypes, type, otherType);
-            float3 dr  = bounds.minImage(pos - otherPos);
-            float lenSqr = lengthSqr(dr);
+            double3 dr  = bounds.minImage(pos - otherPos);
+            double lenSqr = lengthSqr(dr);
             //load that pair's parameters into a linear array to be send to the force evaluator
-            float params_pair[N_PARAM];
-            float rCutSqr;
+            double params_pair[N_PARAM];
+            double rCutSqr;
             if (COMP_PAIRS) {
                 for (int pIdx=0; pIdx<N_PARAM; pIdx++) {
-                    params_pair[pIdx] = params_shr[pIdx][sqrIdx];
+                    params_pair[pIdx] = double(params_shr[pIdx][sqrIdx]);
                 }
                 //we enforce that rCut is always the first parameter (for pairs at least, may need to be different for tersoff)
                 rCutSqr = params_pair[0];
             }
-            float3 force = make_float3(0, 0, 0);
+            double3 force = make_double3(0, 0, 0);
             bool computedForce = false;
             if (COMP_PAIRS && lenSqr < rCutSqr) {
                 //add to running total of the atom's forces
@@ -160,14 +160,16 @@ __global__ void compute_force_iso
             }
             if (COMP_CHARGES && lenSqr < qCutoffSqr) {
                 //compute charge pair force if necessary
-                float qj = qs[otherIdx];
+                double qj = double(qs[otherIdx]);
                 force += chargeEval.force(dr, lenSqr, qi, qj, multiplier);
                 computedForce = true;
             }
             if (computedForce) {
                 forceSum += force;
                 if (COMP_VIRIALS) {
-                    computeVirial(virialsSum, force, dr);
+                    float3 thisForce = make_float3(force);
+                    float3 thisDr = make_float3(dr);
+                    computeVirial(virialsSum, thisForce, thisDr);
                 }
             }
 
@@ -175,11 +177,11 @@ __global__ void compute_force_iso
        // printf("force %f %f %f\n", forceSum.x, forceSum.y, forceSum.z);
         if (MULTITHREADPERATOM) {
             forces_shr[threadIdx.x] = forceSum;
-            reduceByN_NOSYNC<float3>(forces_shr, nThreadPerAtom);
+            reduceByN_NOSYNC<double3>(forces_shr, nThreadPerAtom);
             if (myIdxInTeam==0) {
-                float4 forceCur = fs[atomIdx]; 
+                double4 forceCur = make_double4(fs[atomIdx]); 
                 forceCur += forces_shr[threadIdx.x];
-                fs[atomIdx] = forceCur;
+                fs[atomIdx] = make_float4(forceCur);
             }
             if (COMP_VIRIALS) {
                 virials_shr[threadIdx.x] = virialsSum;
@@ -191,9 +193,9 @@ __global__ void compute_force_iso
             }
 
         } else {
-            float4 forceCur = fs[atomIdx]; 
+            double4 forceCur = make_double4(fs[atomIdx]); 
             forceCur += forceSum;
-            fs[atomIdx] = forceCur;
+            fs[atomIdx] = make_float4(forceCur);
             if (COMP_VIRIALS) {
                 virialsSum *= 0.5f;
                 virials[atomIdx] += virialsSum;

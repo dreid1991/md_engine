@@ -47,6 +47,41 @@ public:
 
 
     }
+
+
+    // double precision force routine
+    inline __device__ double3 force(AngleCosineDeltaType angleType, double theta, double s, double c, double distSqrs[2], double3 directors[2], double invDistProd, int myIdxInAngle) {
+        double cot = c / s;
+        double a = -double(angleType.k);
+
+        double a11 = a*c/distSqrs[0];
+        double a12 = -a*invDistProd;
+        double a22 = a*c/distSqrs[1];
+
+        double b11 = -a*c*cot/distSqrs[0];
+        double b12 = a*cot*invDistProd;
+        double b22 = -a*c*cot/distSqrs[1];
+
+        double c0 = cosf(angleType.theta0);
+        double s0 = cosf(angleType.theta0);
+        if (myIdxInAngle==0) {
+            return (directors[0] * a11 + directors[1] * a12) * c0 + (directors[0] * b11 + directors[1] * b12) * s0;
+        } else if (myIdxInAngle==1) {
+            return 
+                (directors[0] * a11 + directors[1] * a12) * -c0 + (directors[0] * b11 + directors[1] * b12) * -s0 
+                +
+                (directors[1] * a22 + directors[0] * a12) * -c0 + (directors[1] * b22 + directors[0] * b12) * -s0
+                ;
+
+        } else {
+            return (directors[1] * a22 + directors[0] * a12) * c0 + (directors[1] * b22 + directors[0] * b12) * s0;
+        }
+
+
+    }
+
+
+
     inline __device__ void forcesAll(AngleCosineDeltaType angleType, float theta, float s, float c, float distSqrs[2], float3 directors[2], float invDistProd, float3 forces[3]) {
         float cot = c / s;
         //float dTheta = theta - angleType.theta0;

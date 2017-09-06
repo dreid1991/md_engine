@@ -173,6 +173,11 @@ class FixRigid : public Fix {
 
         bool readFromRestart();
 
+        
+        std::vector<int> getRigidAtoms();
+
+        void scaleRigidBodies(float3 scaleBy, uint32_t groupTag);
+
         //! Halfstep solution to velocity constraints
         //bool postNVE_V();
 
@@ -194,6 +199,8 @@ class FixRigid : public Fix {
          */
         void createRigid(int, int, int);
 
+
+        bool postRun();
         //! Create a rigid constraint on a TIP4P/2005 water molecule
         /*!
          * \ param id_a The atom id in the simulation state of the Oxygen atom in TIP4P/2005

@@ -28,6 +28,7 @@
 #include "globalDefs.h"
 #include "GPUArrayTex.h"
 #include "GPUArrayGlobal.h"
+#include "GPUArrayDeviceGlobal.h"
 
 #include "AtomParams.h"
 #include "Atom.h"
@@ -37,6 +38,7 @@
 #include "GridGPU.h"
 #include "Bounds.h"
 #include "DataManager.h"
+
 
 #include "boost_for_export.h"
 #include "DeviceManager.h"
@@ -332,6 +334,15 @@ public:
     int shoutEvery; //!< Report state of simulation every this many timesteps
     AtomParams atomParams; //!< Generic properties of the Atoms, e.g. masses,
                            //!< types, handles
+    void findRigidBodies(); //!< Gets all rigid bodies associated with this simulation state
+    bool rigidBodies; //!< Denotes whether rigid bodies are present in the simulation; 
+    std::vector<int> rigidAtoms; //!< Boolean array that informs barostats whether the barostat performs the position rescaling (evaluates to true), else false (constraint algorithm handles the NPT position scaling and translation).
+
+    GPUArrayGlobal<int> rigidBodiesMask;
+    //!< Boolean mask for NPT simulations (otherwise unused) with rigid bodies; GPU side of rigidAtoms array.  False for rigid bodies (Barostat does /not/ handle the position rescaling; rather, the constraint algorithm does), true otherwise.
+    // for now, let's keep this sorted by id?
+
+
 
     //! Return a copy of each Atom in the simulation
     /*!

@@ -1005,6 +1005,9 @@ void FixNoseHoover::rescaleVolume() {
     if (pFlags[2]) {
         volScaleXYZ.z = std::exp(pressVel[2] * dt);
     }
+
+    float3 tmp = volScaleXYZ;
+
     Mod::scaleSystem(state, volScaleXYZ, groupTag);
 
 }

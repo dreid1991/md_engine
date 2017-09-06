@@ -179,6 +179,13 @@ inline __host__ __device__ float3 make_float3(uint3 a)
     return make_float3(float(a.x), float(a.y), float(a.z));
 }
 
+inline __host__ __device__ float3 make_float3(double3 a)
+{
+    return make_float3(float(a.x), float(a.y), float(a.z));
+}
+
+
+
 //TODO: check these! copied float3 and did :%s/float3/double3/gc
 inline __host__ __device__ double3 make_double3(double s)
 {
@@ -287,6 +294,10 @@ inline __host__ __device__ float4 make_float4(uint4 a)
 {
     return make_float4(float(a.x), float(a.y), float(a.z), float(a.w));
 }
+inline __host__ __device__ float4 make_float4(double4 a)
+{
+    return make_float4(float(a.x), float(a.y), float(a.z), float(a.w));
+}
 
 //TODO: double check these! copied make_float4 & :%s/float4/double4/gc
 inline __host__ __device__ double4 make_double4(double s)
@@ -306,6 +317,10 @@ inline __host__ __device__ double4 make_double4(int4 a)
     return make_double4(double(a.x), double(a.y), double(a.z), double(a.w));
 }
 inline __host__ __device__ double4 make_double4(uint4 a)
+{
+    return make_double4(double(a.x), double(a.y), double(a.z), double(a.w));
+}
+inline __host__ __device__ double4 make_double4(float4 a)
 {
     return make_double4(double(a.x), double(a.y), double(a.z), double(a.w));
 }

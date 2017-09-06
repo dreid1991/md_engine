@@ -9,7 +9,6 @@
 #include "DataManager.h"
 #include "DataSetUser.h"
 #include "globalDefs.h"
-
 /* State is where everything is sewn together. We set global options:
  *   - gpu cuda device data and options
  *   - atoms and groups
@@ -657,6 +656,60 @@ bool State::asyncHostOperation(std::function<void (int64_t )> cb) {
     //iteration code, just have a join statement before any of the downloading
     //happens
 }
+
+// this function is called by barostatting methods 
+void State::findRigidBodies() {
+
+    if (this->rigidBodies) {
+
+        std::vector<int> allRigidAtomIds;
+
+        for (Fix *f: this->fixes) {
+            // returns an array of atom ids, or nullptr
+            std::vector<int> rigidAtomIds = f->getRigidAtoms();
+            if (rigidAtomIds.size() > 0) {
+                for (int i = 0; i < rigidAtomIds.size(); i++) {
+                    allRigidAtomIds.push_back(rigidAtomIds[i]);
+                }
+            }
+        }
+
+
+        // initialize the vector mask to true (we assume atoms do not belong to rigid bodies)
+        // ---- as another clarification, rigidAtoms evaluates to true when the barostat (e.g., FixNoseHoover)
+        //      is responsible for scaling and translation of the positions of a given atom.
+        //      if the atom belongs to a rigid body, then the constraint algorithm enforcing the rigidity 
+        //      is responsible for scaling & translation of the rigid body, and this mask evaluates to false 
+        //      for that atom (and the other atoms within the rigid body).
+        rigidAtoms.reserve(this->atoms.size());
+        for (int i = 0; i < rigidAtoms.size(); i++) {
+            rigidAtoms[i] = 1;
+        }
+
+        for (int i = 0; i < allRigidAtomIds.size(); i++) {
+            // so, this contains the ids that we tell the barostat should /not/ have their 
+            // positions modified by the barostat, but rather by their constraint algorithm
+            int thisId = allRigidAtomIds[i];
+            rigidAtoms[thisId] = 0;
+        }
+    
+        // and finally, set the GPUArrayDeviceGlobal to the rigidAtoms array.
+        rigidBodiesMask.set(rigidAtoms);
+        rigidBodiesMask.dataToDevice();
+
+
+    } else {
+        
+        // nominally set the vector and GPUArrayDeviceGlobal array to some 1-value so that we aren't
+        // playing with bad values anywhere
+        rigidAtoms.resize(1,true);
+        rigidBodiesMask = GPUArrayGlobal<int>(1);
+        rigidBodiesMask.dataToDevice();
+        
+    }
+}
+
+
 
 bool State::downloadFromRun() {
     std::vector<float4> &xs = gpd.xs.h_data;
