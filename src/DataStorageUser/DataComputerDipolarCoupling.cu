@@ -34,7 +34,7 @@ using namespace MD_ENGINE;
 using std::cout;
 using std::endl;
 
-__global__ void coalesceInvR6(int nAtoms, float4 *fs, float *uncoalesced, int *counter,  float *res, uint32_t groupTagA) {
+__global__ void coalesceInvR3(int nAtoms, float4 *fs, float *uncoalesced, int *counter,  float *res, uint32_t groupTagA) {
     int idx = GETIDX();
     if (idx < nAtoms) {
         uint32_t groupTag = __float_as_uint(fs[idx].w);
@@ -69,10 +69,9 @@ void DataComputerDipolarCoupling::computeScalar_GPU(bool transferToHost, uint32_
     //hijacking energy group-group calculation to compute sum of 1/r^3, which we'll then multiple by some coefficient
     evalWrap->energyGroupGroup(nAtoms, nPerRingPoly, gpd.xs(activeIdx), gpd.fs(activeIdx), gpuBuffer.getDevData(),neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, rCutSqrArray.getDevData() /*giving junk data to the parameters*/, numTypes, state->boundsGPU, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.qs(activeIdx), 0, groupTagA, groupTagB, state->nThreadPerBlock, state->nThreadPerAtom);
 
-
-    coalesceInvR6<<<NBLOCK(nAtoms), PERBLOCK>>>(nAtoms, gpd.fs(activeIdx), gpuBuffer.getDevData(), (int *) gpuBufferReduce.getDevData(), coalescedInvR6.getDevData(), groupTagA);
+    coalesceInvR3<<<NBLOCK(nAtoms), PERBLOCK>>>(nAtoms, gpd.fs(activeIdx), gpuBuffer.getDevData(), (int *) gpuBufferReduce.getDevData(), coalescedInvR3.getDevData(), groupTagA);
     if (transferToHost) {
-        coalescedInvR6.dataToHost();
+        coalescedInvR3.dataToHost();
     }
     //REMEMBER THE 0.7 FROM RYAN'S EMAIL -- no, take care of this on python side
 }
@@ -86,16 +85,15 @@ void DataComputerDipolarCoupling::computeScalar_CPU() {
     double muo = 4*M_PI*1e-7;
     double hbar = 6.62607004e-34 / (2*M_PI);
 
-    double coef = pow(muo * magnetoA * magnetoB * hbar / (8 * M_PI * M_PI), 2);
-    for (int i=0; i<coalescedInvR6.h_data.size(); i++) {
-        double invr6 = coalescedInvR6.h_data[i]; //this is in 1/ang^3 right now
-        double invr6SI = invr6 * 1e60; //now in 1/m^6 - I hope the numerical precision is good enough
-        couplingsSqr[i] = coef * invr6SI ; //normally /4pi, but I am converting to hz from rad/sec
+    for (int i=0; i<coalescedInvR3.h_data.size(); i++) {
+        double invr3 = coalescedInvR3.h_data[i]; //this is in 1/ang^3 right now
+        double invr3SI = invr3 * 1e30; //now in 1/m^3
+        couplings[i] = muo * magnetoA * magnetoB * hbar * invr3SI / (8 * M_PI * M_PI); //normally /4pi, but I am converting to hz from rad/sec
     }
 }
 
 void DataComputerDipolarCoupling::appendScalar(boost::python::list &vals) {
-    vals.append(couplingsSqr);
+    vals.append(couplings);
 }
 
 void DataComputerDipolarCoupling::prepareForRun() {
@@ -108,8 +106,8 @@ void DataComputerDipolarCoupling::prepareForRun() {
     }
     rCutSqrArray.dataToDevice();
     int nInGroup = state->countNumInGroup(groupTagA);
-    coalescedInvR6 = GPUArrayGlobal<float>(nInGroup);
-    couplingsSqr = std::vector<double>(nInGroup);
+    coalescedInvR3 = GPUArrayGlobal<float>(nInGroup);
+    couplings = std::vector<double>(nInGroup);
     EvaluatorDipolarCoupling eval;
     evalWrap = pickEvaluator<EvaluatorDipolarCoupling, 1, true>(eval, nullptr);
     DataComputer::prepareForRun(); //gpuBuffer member will be of correct size
