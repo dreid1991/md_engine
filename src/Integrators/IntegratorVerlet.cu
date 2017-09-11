@@ -10,8 +10,10 @@
 #include "State.h"
 #include "Fix.h"
 #include "cutils_func.h"
-#include "globalDefs.h"
+
 using namespace MD_ENGINE;
+using std::cout;
+using std::endl;
 
 namespace py = boost::python;
 
@@ -21,12 +23,8 @@ __global__ void nve_v_cu(int nAtoms, float4 *vs, float4 *fs, float dtf) {
         // Update velocity by a half timestep
         float4 vel = vs[idx];
         float invmass = vel.w;
+
         float4 force = fs[idx];
-        if (invmass > INVMASSBOOL) {
-            fs[idx] = make_float4(0.0f, 0.0f, 0.0f, force.w);
-            vs[idx] = make_float4(0.0f, 0.0f, 0.0f, invmass);
-            return;
-        }
 
         float3 dv = dtf * invmass * make_float3(force);
         vel += dv;
@@ -41,7 +39,6 @@ __global__ void nve_x_cu(int nAtoms, float4 *xs, float4 *vs, float dt) {
         // Update position by a full timestep
         float4 vel = vs[idx];
         float4 pos = xs[idx];
-        
 
         //printf("pos %f %f %f\n", pos.x, pos.y, pos.z);
         //printf("vel %f %f %f\n", vel.x, vel.y, vel.z);
@@ -62,7 +59,6 @@ __global__ void nve_xPIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, float4 
     bool useThread = idx < nAtoms;
     float3 xn = make_float3(0, 0, 0);
     float3 vn = make_float3(0, 0, 0);
-    float3 pbcOffset;
     float xW;
     float vW;
 
@@ -104,7 +100,6 @@ __global__ void nve_xPIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, float4 
         vn = make_float3(vWhole);
         xW = xWhole.w;
         vW = vWhole.w;
-
     }
     // k = 0, n = 1,...,P
     tbr[threadIdx.x]  = xn;
@@ -121,15 +116,6 @@ __global__ void nve_xPIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, float4 
     if (needSync)    __syncthreads();
     reduceByN<float3>(tbr, nPerRingPoly, warpSize);
     if (needSync)    __syncthreads();
-    //taking care of PBC
-    float3 origin = tbr[rootIdx];
-    float3 deltaOrig = xn - origin;
-    float3 deltaMin = bounds.minImage(deltaOrig);
-    float3 wrapped = origin + deltaMin;
-    pbcOffset = wrapped - xn; //how much we are offsetting bead by
-    xn = wrapped;
-    tbr[threadIdx.x] = xn;
-    
     reduceByN<float3>(tbr, nPerRingPoly, warpSize);
     if (useThread && amRoot)     {xsNM[threadIdx.x] = tbr[threadIdx.x]*invSqrtP;}
 
@@ -256,13 +242,8 @@ __global__ void nve_xPIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, float4 
 	    // replace evolved back-transformation
         xn *= invSqrtP;
         vn *= invSqrtP;
-        xn -= pbcOffset;
 	    xs[idx]   = make_float4(xn.x,xn.y,xn.z,xW);
-        if ( vW > INVMASSBOOL) {
-            vs[idx]   = make_float4(0.0, 0.0, 0.0, vW);
-        } else {
-	        vs[idx]   = make_float4(vn.x,vn.y,vn.z,vW);
-        }
+	    vs[idx]   = make_float4(vn.x,vn.y,vn.z,vW);
     }
 
 }
@@ -276,15 +257,10 @@ __global__ void preForce_cu(int nAtoms, float4 *xs, float4 *vs, float4 *fs,
         // Update velocity by a half timestep
         float4 vel = vs[idx];
         float invmass = vel.w;
-        
 
         float4 force = fs[idx];
 
         float3 dv = dtf * invmass * make_float3(force);
-        if (invmass > INVMASSBOOL) {
-            dv = make_float3(0.0, 0.0, 0.0);
-        }
-
         vel += dv;
         vs[idx] = vel;
 
@@ -316,7 +292,6 @@ __global__ void preForcePIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, floa
     float3 xn = make_float3(0, 0, 0);
     float3 vn = make_float3(0, 0, 0);
     float xW;
-    float vW;
     // helpful reference indices/identifiers
     bool   needSync= nPerRingPoly>warpSize;
     bool   amRoot  = (threadIdx.x % nPerRingPoly) == 0;
@@ -329,11 +304,7 @@ __global__ void preForcePIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, floa
     if (useThread) {
         vWhole = vs[idx];
         float4 force   = fs[idx];
-        vW = vWhole.w;
-        float3 dv      = dtf * vW * make_float3(force);
-        if (vW > INVMASSBOOL) {
-            dv = make_float3(0.0, 0.0, 0.0);
-        }
+        float3 dv      = dtf * vWhole.w * make_float3(force);
         vWhole        += dv;
         fs[idx]        = make_float4(0.0f,0.0f,0.0f,force.w); // reset forces to zero before force calculation
     }
@@ -382,6 +353,7 @@ __global__ void preForcePIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, floa
     xn = wrapped;
     tbr[threadIdx.x] = xn;
     
+
     if (needSync)    __syncthreads();
     reduceByN<float3>(tbr, nPerRingPoly, warpSize);
     if (useThread && amRoot)     {xsNM[threadIdx.x] = tbr[threadIdx.x]*invSqrtP;}
@@ -511,11 +483,7 @@ __global__ void preForcePIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, floa
         xn *= invSqrtP;
         vn *= invSqrtP;
 	    xs[idx]   = make_float4(xn.x,xn.y,xn.z,xW);
-        if (vW > INVMASSBOOL) {
-            vs[idx] = make_float4(0, 0, 0, vW);
-        } else {
-            vs[idx]   = make_float4(vn.x,vn.y,vn.z,vW);
-        }
+	    vs[idx]   = make_float4(vn.x,vn.y,vn.z,vWhole.w);
     }
 }
     //if (useThread && amRoot ) {
@@ -541,10 +509,6 @@ __global__ void postForce_cu(int nAtoms, float4 *vs, float4 *fs, float dtf)
         // Update velocities by a halftimestep
         float4 vel = vs[idx];
         float invmass = vel.w;
-        if (invmass > INVMASSBOOL) {
-            vs[idx] = make_float4(0.0f, 0.0f, 0.0f, invmass);
-            return;
-        }
 
         float4 force = fs[idx];
 
@@ -572,47 +536,45 @@ void IntegratorVerlet::setInterpolator() {
 }
 
 
-
-
-void IntegratorVerlet::run(int numTurns)
+double IntegratorVerlet::run(int numTurns)
 {
 
     basicPreRunChecks();
-    std::vector<bool> prepared = basicPrepare(numTurns); //nlist built here
+    //basicPrepare(numTurns); //nlist built here
+    //force(false);
+
+    std::vector<bool> prepared = basicPrepare(numTurns);
     force(true);
 
-    for (Fix *f : state->fixes) {
-        if (!(f->prepared) ) {
-            bool isPrepared = f->prepareForRun();
-            if (!isPrepared) {
-                mdError("A fix is unable to be instantiated correctly.");
+    for (int i = 0; i<prepared.size(); i++) {
+        if (!prepared[i]) {
+            for (Fix *f : state->fixes) {
+                bool isPrepared = f->prepareForRun();
+                if (!isPrepared) {
+                    mdError("A fix is unable to be instantiated correctly.");
+                }
             }
         }
     }
-
-
     if (state->nPerRingPoly>1) {
         setInterpolator();
     }
-    
     int periodicInterval = state->periodicInterval;
-
-    // we should prepare for the datacomputers after the fixes
-    prepareDataComputers();
-
-    for (Fix *f : state->fixes) {
-        f->assignLocalTempComputer();
-    }
 
 	
     auto start = std::chrono::high_resolution_clock::now();
+
     DataManager &dataManager = state->dataManager;
     dtf = 0.5f * state->dt * state->units.ftm_to_v;
+    int tuneEvery = state->tuneEvery;
+    bool haveTunedWithData = false;
+    double timeTune = 0;
     for (int i=0; i<numTurns; ++i) {
 
         if (state->turn % periodicInterval == 0 or state->turn == state->nextForceBuild) {
             state->gridGPU.periodicBoundaryConditions();
         }
+
         int virialMode = dataManager.getVirialModeForTurn(state->turn);
 
         stepInit(virialMode==1 or virialMode==2);
@@ -630,11 +592,20 @@ void IntegratorVerlet::run(int numTurns)
 
         handleBoundsChange();
 
+        if ((state->turn-state->runInit) % tuneEvery == 0 and state->turn > state->runInit) {
+            //this goes here because forces are zero at this point.  I don't need to save any forces this way
+            timeTune += tune();
+        } else if (not haveTunedWithData and state->turn-state->runInit < tuneEvery and state->nlistBuildCount > 20) {
+            timeTune += tune();
+            haveTunedWithData = true;
+        }
+
         // Recalculate forces
         force(virialMode);
 
         //quits if ctrl+c has been pressed
         checkQuit();
+
 
         // Perform second half of velocity-Verlet step
         postForce();
@@ -659,10 +630,12 @@ void IntegratorVerlet::run(int numTurns)
     CUT_CHECK_ERROR("after run\n");
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> duration = end - start;
+    double ptsps = state->atoms.size()*numTurns / (duration.count() - timeTune);
     mdMessage("runtime %f\n%e particle timesteps per second\n",
-              duration.count(), state->atoms.size()*numTurns / duration.count());
+              duration.count(), ptsps);
 
     basicFinish();
+    return ptsps;
 }
 
 void IntegratorVerlet::nve_v() {
