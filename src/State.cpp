@@ -1081,6 +1081,7 @@ BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(State_seedRNG_overloads,State::seedRNG,0,
                 .def_readwrite("nPerRingPoly", &State::nPerRingPoly)
                 .def_readwrite("dt", &State::dt)
                 .def_readwrite("padding", &State::padding)
+                .def_readwrite("nextForceBuild", &State::nextForceBuild)
                 .def_readonly("groupTags", &State::groupTags)
                 .def_readonly("dataManager", &State::dataManager)
                 //shared ptrs

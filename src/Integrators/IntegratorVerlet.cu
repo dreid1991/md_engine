@@ -108,6 +108,18 @@ __global__ void nve_xPIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, float4 
     }
     // k = 0, n = 1,...,P
     tbr[threadIdx.x]  = xn;
+    if (needSync)   __syncthreads();
+    //taking care of PBC
+    float3 origin = tbr[rootIdx];
+    float3 deltaOrig = xn - origin;
+    float3 deltaMin = bounds.minImage(deltaOrig);
+    float3 wrapped = origin + deltaMin;
+    xn = wrapped;
+    tbr[threadIdx.x] = xn;
+    
+
+    if (needSync)    __syncthreads();
+    reduceByN<float3>(tbr, nPerRingPoly, warpSize);
     if (needSync)    __syncthreads();
     //taking care of PBC
     float3 origin = tbr[rootIdx];
@@ -303,7 +315,6 @@ __global__ void preForcePIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, floa
     bool useThread = idx < nAtoms;
     float3 xn = make_float3(0, 0, 0);
     float3 vn = make_float3(0, 0, 0);
-    float3 pbcOffset;
     float xW;
     float vW;
     // helpful reference indices/identifiers
@@ -368,7 +379,6 @@ __global__ void preForcePIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, floa
     float3 deltaOrig = xn - origin;
     float3 deltaMin = bounds.minImage(deltaOrig);
     float3 wrapped = origin + deltaMin;
-    pbcOffset = wrapped - xn; //how much we are offsetting bead by
     xn = wrapped;
     tbr[threadIdx.x] = xn;
     
@@ -500,7 +510,6 @@ __global__ void preForcePIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, floa
 	    // replace evolved back-transformation
         xn *= invSqrtP;
         vn *= invSqrtP;
-        xn -= pbcOffset;
 	    xs[idx]   = make_float4(xn.x,xn.y,xn.z,xW);
         if (vW > INVMASSBOOL) {
             vs[idx] = make_float4(0, 0, 0, vW);
