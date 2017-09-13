@@ -51,6 +51,7 @@ __global__ void nve_x_cu(int nAtoms, float4 *xs, float4 *vs, float dt) {
         //printf("pos %f %f %f\n", pos.x, pos.y, pos.z);
         //printf("vel %f %f %f\n", vel.x, vel.y, vel.z);
         double3 dx = dt*make_double3(vel);
+        //printf("dx %f %f %f\n",dx.x, dx.y, dx.z);
         pos += dx;
         xs[idx] = make_float4(pos);
     }

@@ -58,6 +58,7 @@ State::State() : units(&dt) {
     nPerRingPoly  = 1;
     exclusionMode = EXCLUSIONMODE::DISTANCE;
 
+    nlistBuildTurns = std::vector<int> ();
     nThreadPerAtom = 1;
     nThreadPerBlock = 256;
 
@@ -1045,6 +1046,7 @@ BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(State_seedRNG_overloads,State::seedRNG,0,
                 .def_readwrite("periodicInterval", &State::periodicInterval)
                 .def_readwrite("rCut", &State::rCut)
                 .def_readwrite("nPerRingPoly", &State::nPerRingPoly)
+                .def_readwrite("nlistBuildTurns", &State::nlistBuildTurns)
                 .def_readwrite("dt", &State::dt)
                 .def_readwrite("padding", &State::padding)
                 .def_readonly("groupTags", &State::groupTags)

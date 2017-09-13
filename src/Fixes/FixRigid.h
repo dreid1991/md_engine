@@ -14,6 +14,7 @@
 #undef _POSIX_C_SOURCE
 #include <boost/python/list.hpp>
 #include "GPUArrayDeviceGlobal.h"
+#include "../Eigen/Dense"
 
 void export_FixRigid();
 
@@ -24,9 +25,11 @@ class FixRigidData {
     public:
         // bond lengths - as OH1, OH2, HH, OM
         double4 sideLengths;
+        // as 1.0 / sideLengths, element-wise
+        double4 invSideLengths;
 
         // canonical lengths, with center of mass as origin
-        // as (ra, rb, rc, 0.0)
+        // as (ra, rb, rc, inv2Rc)
         double4 canonicalTriangle;
 
         // mass weights - make these double precision!
@@ -38,6 +41,23 @@ class FixRigidData {
         //    weights.w = massH;
         double4 weights;
         
+        // 1.0 / weights, element-wise
+        double4 invMasses;
+
+        // three arrays for constraint coupling matrix, containing mass weights by which we 
+        // multiply to solve the velocity constraints
+        double3 M1;
+        double3 M2;
+        double3 M3;
+
+        double3 M1_inv;
+        double3 M2_inv;
+        double3 M3_inv;
+
+
+        double inv2Rc;
+        
+
         // no point in reducing precision here; invariant parameters of the triangle - 
         // cosines of the apex angles
         double cosA;

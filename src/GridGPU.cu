@@ -795,6 +795,7 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
 
     if (buildFlag.h_data[0] or forceBuild) {
         state->nlistBuildCount++;
+        state->nlistBuildTurns.push_back((int)state->turn);
         float3 ds_orig = ds;
         float3 os_orig = os;
 
