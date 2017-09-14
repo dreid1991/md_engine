@@ -390,15 +390,16 @@ __global__ void validateConstraints(int4* waterIds, int *idToIdxs,
         float tolerance = 0.00001;
         // note that these values should all be zero
         //printf("molecule id %d bond_ij %f bond_ik %f bond_jk %f\n", idx, bond_ij, bond_ik, bond_jk);
+        /*
         if ( ( bond_ij > tolerance) or 
              ( bond_ik > tolerance) or
              ( bond_jk > tolerance) ) {
             constraints[idx] = false;
-            printf("water molecule %d unsatisfied velocity constraints at turn %d,\ndot(r_ij, v_ij) for ij = {01, 02, 12} %f, %f, and %f; tolerance %f\nmagnitudes of relative velocities {ij,ik,jk} %f %f %f\n", idx, (int) turn,
-                    bond_ij, bond_ik, bond_jk, tolerance,
-                    mag_v_ij, mag_v_ik, mag_v_jk);
+            printf("water molecule %d unsatisfied velocity constraints at turn %d,\ndot(r_ij, v_ij) for ij = {01, 02, 12} %f, %f, and %f; tolerance %f\n", idx, (int) turn,
+                    bond_ij, bond_ik, bond_jk, tolerance);
         }
-
+        */
+        
         if ( (fabs(bondLenij) > tolerance) or
              (fabs(bondLenik) > tolerance) or 
              (fabs(bondLenjk) > tolerance)) {
@@ -1324,7 +1325,7 @@ void FixRigid::set_fixed_sides() {
     double rbVal = sqrt(OH * OH - (0.5 * fixRigidData.sideLengths.z * 0.5 * fixRigidData.sideLengths.z)) - raVal;
     double inv2Rc = 1.0 / fixRigidData.sideLengths.z;
 
-    std::cout << "raVal: " << raVal << "; rbVal: " << rbVal << "; rcVal: " << inv2Rc << std::endl;
+    std::cout << "raVal: " << raVal << "; rbVal: " << rbVal << "; inv2Rc: " << inv2Rc << std::endl;
     fixRigidData.canonicalTriangle = make_double4(ra,rb,rc,inv2Rc);
 
 }
@@ -1890,12 +1891,10 @@ bool FixRigid::prepareForRun() {
     //    - we use shared memory to compute center of mass velocity of the group, allowing for one kernel call
     
     // validate that we have good initial conditions
-    /*
     SAFECALL((validateConstraints<FixRigidData> <<<NBLOCK(nMolecules), PERBLOCK>>> (waterIdsGPU.data(), gpd.idToIdxs.d_data.data(), 
                                                            gpd.xs(activeIdx), gpd.vs(activeIdx), 
                                                            nMolecules, bounds, fixRigidData, 
                                                            constraints.data(), state->turn)));
-    */
 
     CUT_CHECK_ERROR("Validation of constraints failed in FixRigid.");
     
@@ -2023,7 +2022,6 @@ bool FixRigid::stepFinal() {
         */
     }
  
-    /*
     validateConstraints<FixRigidData><<<NBLOCK(nMolecules), PERBLOCK>>> (waterIdsGPU.data(), 
                                                                                    gpd.idToIdxs.d_data.data(), 
                                                                                    gpd.xs(activeIdx), 
@@ -2032,7 +2030,6 @@ bool FixRigid::stepFinal() {
                                                                                    fixRigidData, 
                                                                                    constraints.data(), 
                                                                                    (int) state->turn);
-    */
     return true;
 }
 
