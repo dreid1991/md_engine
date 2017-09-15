@@ -707,6 +707,7 @@ bool State::runtimeHostOperation(std::function<void (int64_t )> cb, bool async) 
     //cout << "ASYNC IS NOT ASYNC" << endl;
     //copyAsyncWithInstruc(this, cb, turn);
     if (async) {
+        cout << "ASYNC IS ON" << endl;
         asyncData = SHARED(std::thread) ( new std::thread(copyAsyncWithInstruc, this, cb, turn));
     } else {
         copySyncWithInstruc(this, cb, turn);
