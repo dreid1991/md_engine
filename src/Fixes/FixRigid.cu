@@ -40,7 +40,6 @@ inline __host__ __device__ double3 rotation(double3 vector, double3 X, double3 Y
 // verified to be correct
 inline __host__ __device__ double matrixDet(double3 ROW1, double3 ROW2, double3 ROW3) 
 {
-
     // [a   b    c]
     // [d   e    f]  = A
     // [g   h    i]
@@ -57,8 +56,6 @@ inline __host__ __device__ double matrixDet(double3 ROW1, double3 ROW2, double3 
     //  +      c   * (  d    *   h    -   e    *   g   )
     det += (ROW1.z * (ROW2.x * ROW3.y - ROW2.y * ROW3.x));
     return det;
-
-
 }
 
 
@@ -671,8 +668,8 @@ __global__ void settleVelocities(int4 *waterIds, float4 *xs, float4 *xs_0,
         double inverseROH = fixRigidData.invSideLengths.x;
         double inverseRHH = fixRigidData.invSideLengths.z;
 
-        rOH1 *= inverseROH;
-        rOH2 *= inverseROH;
+        rOH1   *= inverseROH;
+        rOH2   *= inverseROH;
         rH1H2  *= inverseRHH;
 
         double3 relativeVelocity;
@@ -1052,16 +1049,19 @@ void FixRigid::populateRigidData() {
 
     fixRigidData.denominator = d;
 
+    //std::cout << "invmH value: " << fixRigidData.invMasses.w << std::endl;
 
-
+    printf("invmH value: %18.14f\n",fixRigidData.invMasses.w);
     double invMH_normalized = fixRigidData.invMasses.w / fixRigidData.invMasses.z;
 
     double3 M1_tmp = make_double3(0.0, 0.0, 0.0);
 
     double HH = fixRigidData.sideLengths.z;
-    std::cout << "Using HH length of " << HH << std::endl;
+    //std::cout << "Using HH length of " << HH << std::endl;
+    printf("dHH:  %18.14f\n",HH);
     double OH = fixRigidData.sideLengths.x;
     std::cout << "Using OH length of " << OH << std::endl;
+    printf("dOH:  %18.14f",OH);
     // [0,0]
     M1_tmp.x = 1.0 + ( invMH_normalized );
     // [0,1]
@@ -1091,25 +1091,52 @@ void FixRigid::populateRigidData() {
     fixRigidData.M2 = M2_tmp;
     fixRigidData.M3 = M3_tmp;
 
+    //std::cout << "mat[0][0]: " << M1_tmp.x << "\nmat[0][1]: " << M1_tmp.y << "\nmat[0][2]: " << M1_tmp.z << std::endl;
+    //std::cout << "mat[1][0]: " << M2_tmp.x << "\nmat[1][1]: " << M2_tmp.y << "\nmat[1][2]: " << M2_tmp.z << std::endl;
+    //std::cout << "mat[2][0]: " << M3_tmp.x << "\nmat[2][1]: " << M3_tmp.y << "\nmat[2][2]: " << M3_tmp.z << std::endl;
     // we also need the inverse of the matrix
-    
+    printf("mat[0][0]:  %18.14f\nmat[0][1]:  %18.14f\nmat[0][2]: %18.14f\n",
+           M1_tmp.x, M1_tmp.y, M1_tmp.z);
+    printf("mat[1][0]:  %18.14f\nmat[1][1]:  %18.14f\nmat[1][2]: %18.14f\n",
+           M2_tmp.x, M2_tmp.y, M2_tmp.z);
+    printf("mat[2][0]:  %18.14f\nmat[2][1]:  %18.14f\nmat[2][2]: %18.14f\n",
+           M3_tmp.x, M3_tmp.y, M3_tmp.z);
 
     double3 M1_inv, M2_inv, M3_inv;
 
     // computes the inverse matrix of {M1;M2;M3} and stores in M1_inv, M2_inv, M3_inv;
     invertMatrix(M1_tmp,M2_tmp,M3_tmp,M1_inv,M2_inv,M3_inv);
 
+    //std::cout << "invmat[0][0]: " << M1_inv.x << "\ninvmat[0][1]: " << M1_inv.y << "\ninvmat[0][2]: " << M1_inv.z << std::endl;
+    //std::cout << "invmat[1][0]: " << M2_inv.x << "\ninvmat[1][1]: " << M2_inv.y << "\ninvmat[1][2]: " << M2_inv.z << std::endl;
+    //std::cout << "invmat[2][0]: " << M3_inv.x << "\ninvmat[2][1]: " << M3_inv.y << "\ninvmat[2][2]: " << M3_inv.z << std::endl;
+
+    printf("invmat[0][0]:  %18.14f\ninvmat[0][1]:  %18.14f\ninvmat[0][2]: %18.14f\n",
+           M1_inv.x, M1_inv.y, M1_inv.z);
+    printf("invmat[1][0]:  %18.14f\ninvmat[1][1]:  %18.14f\ninvmat[1][2]: %18.14f\n",
+           M2_inv.x, M2_inv.y, M2_inv.z);
+    printf("invmat[2][0]:  %18.14f\ninvmat[2][1]:  %18.14f\ninvmat[2][2]: %18.14f\n",
+           M3_inv.x, M3_inv.y, M3_inv.z);
+
     // check that we have the matrix inverse...
     double3 C1, C2, C3;
     matrixMultiplication(M1_tmp, M2_tmp, M3_tmp,M1_inv, M2_inv, M3_inv,C1,C2,C3);
 
-    std::cout << "Identity matrix, row 1: [" << C1.x << "    " << C1.y << "     " << C1.z << std::endl;
-    std::cout << "Identity matrix, row 2: [" << C2.x << "    " << C2.y << "     " << C2.z << std::endl;
-    std::cout << "Identity matrix, row 3: [" << C3.x << "    " << C3.y << "     " << C3.z << std::endl;
+    //std::cout << "Identity matrix, row 1: [" << C1.x << "    " << C1.y << "     " << C1.z << std::endl;
+    //std::cout << "Identity matrix, row 2: [" << C2.x << "    " << C2.y << "     " << C2.z << std::endl;
+    //std::cout << "Identity matrix, row 3: [" << C3.x << "    " << C3.y << "     " << C3.z << std::endl;
 
     M1_inv *= fixRigidData.weights.z;
     M2_inv *= fixRigidData.weights.z;
     M3_inv *= fixRigidData.weights.z;
+
+    std::cout << "Printing values of invmat after msmul by 1/imO" << std::endl;
+    printf("invmat[0][0]:  %18.14f\ninvmat[0][1]:  %18.14f\ninvmat[0][2]: %18.14f\n",
+           M1_inv.x, M1_inv.y, M1_inv.z);
+    printf("invmat[1][0]:  %18.14f\ninvmat[1][1]:  %18.14f\ninvmat[1][2]: %18.14f\n",
+           M2_inv.x, M2_inv.y, M2_inv.z);
+    printf("invmat[2][0]:  %18.14f\ninvmat[2][1]:  %18.14f\ninvmat[2][2]: %18.14f\n",
+           M3_inv.x, M3_inv.y, M3_inv.z);
 
     double3 TEST1 = make_double3(1.0, 2.0, 3.0);
     double3 TEST2 = make_double3(0.0, 1.0, 4.0);
@@ -1127,23 +1154,29 @@ void FixRigid::populateRigidData() {
 
     double computedDet = matrixDet(TESTDET1, TESTDET2, TESTDET3);
 
-    std::cout << "testDet value: " << testDet << "; computedDet value: " << computedDet << std::endl;
+    //std::cout << "testDet value: " << testDet << "; computedDet value: " << computedDet << std::endl;
 
 
     double3 ANS1, ANS2, ANS3;
     matrixMultiplication(TEST1, TEST2, TEST3, TEST1Inv, TEST2Inv, TEST3Inv,ANS1,ANS2,ANS3);
 
-    std::cout << "~~~~~~~~~~~   VALIDATION OF MMULT ~~~~~~~~~~~~~~~" << std::endl;
-    std::cout << "Identity matrix, row 1: [" << C1.x << "     " << C1.y << "     " << C1.z << std::endl;
-    std::cout << "Identity matrix, row 2: [" << C2.x << "     " << C2.y << "     " << C2.z << std::endl;
-    std::cout << "Identity matrix, row 3: [" << C3.x << "     " << C3.y << "     " << C3.z << std::endl;
-    std::cout << "~~~~~~~~~~~   END VALIDATION      ~~~~~~~~~~~~~~~" << std::endl;
+    //std::cout << "~~~~~~~~~~~   VALIDATION OF MMULT ~~~~~~~~~~~~~~~" << std::endl;
+    //std::cout << "Identity matrix, row 1: [" << C1.x << "     " << C1.y << "     " << C1.z << std::endl;
+    //std::cout << "Identity matrix, row 2: [" << C2.x << "     " << C2.y << "     " << C2.z << std::endl;
+    //std::cout << "Identity matrix, row 3: [" << C3.x << "     " << C3.y << "     " << C3.z << std::endl;
+    //std::cout << "~~~~~~~~~~~   END VALIDATION      ~~~~~~~~~~~~~~~" << std::endl;
     
     fixRigidData.M1_inv = M1_inv;
     fixRigidData.M2_inv = M2_inv;
     fixRigidData.M3_inv = M3_inv;
 
-    
+    double3 fc = make_double3(1.14039,-4.2975,8.37204);
+
+    double3 gmx_mvmul = matrixVectorMultiply(M1_inv, M2_inv, M3_inv,fc);
+    std::cout << "gmx_mvmul: " << gmx_mvmul.x << " " << gmx_mvmul.y << " " << gmx_mvmul.z << std::endl;
+    printf("gmx_mvmul: %18.14f %18.14f %18.14f\n",
+           gmx_mvmul.x, gmx_mvmul.y, gmx_mvmul.z);
+//inline __host__ __device__ double3 matrixVectorMultiply(double3 A1, double3 A2, double3 A3, double3 V)
 
 
 
@@ -1342,7 +1375,7 @@ void FixRigid::setStyleBondLengths() {
             
             sigma_O = 3.15890000;
             r_OH = 0.95720000000;
-            r_HH = 1.51390065208;
+            r_HH = 1.51390000000;
             r_OM = 0.15460000000;
             
         } else {
@@ -1360,7 +1393,7 @@ void FixRigid::setStyleBondLengths() {
 
             sigma_O = 3.15890000;
             r_OH = 0.95720000000;
-            r_HH = 1.51390065208;
+            r_HH = 1.51390000000;
         } else {
 
             mdError("Only TIP3P and TIP4P/2005 are supported in setStyleBondLengths at the moment.\n");
