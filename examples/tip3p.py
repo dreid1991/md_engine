@@ -18,19 +18,19 @@ state.deviceManager.setDevice(0)
 ##############################
 # Set initial density here
 ##############################
-numMolecules = 1028
-density = 1.0
+numMolecules = 1000
+density = 1.002
 # consider dt = 1.0; then, 5 ps rescale
 numTurnsEquil_Rescale = 5000
 # do 195 ps NVT
-numTurnsEquil_NVT = 195000
+numTurnsEquil_NVT = 95000
 # do 800 ps NVE
-numTurnsProd = 800000
+numTurnsProd = 100000
 
 ###############################
 # Calculating box dimensions
 ###############################
-gPerMol = 18.02
+gPerMol = 18.0154
 molPerG = 1.0 / gPerMol
 cmPerAngstrom = 100 * (1.0 * (10 ** (-10.0)))
 avogadro = 6.0221409e23
@@ -54,22 +54,15 @@ print 'rcut found to be ', state.rCut
 
 state.padding = 1.0
 state.periodicInterval = 7
-state.shoutEvery = 5000
+state.shoutEvery = 500
 state.dt = 1.0
 
 print "running for %d equil turns and %d prod turns with a timestep of %f" %(numTurnsEquil_Rescale + numTurnsEquil_NVT, numTurnsProd, state.dt)
 print "there are %d molecules in this simulation" %numMolecules
-##############################################
-# PIMD parameters - as from examples from Mike
-##############################################
-nBeads = 32;
-the_temp = 300.0;
-the_temp *= nBeads
 
 # handles for our atoms
 oxygenHandle = 'OW'
 hydrogenHandle = 'HY'
-mSiteHandle = 'M'
 
 # add our oxygen and hydrogen species to the simulation
 state.atomParams.addSpecies(handle=oxygenHandle, mass=15.9994, atomicNum=8)
@@ -78,8 +71,13 @@ state.atomParams.addSpecies(handle=hydrogenHandle, mass=1.008, atomicNum=1)
 ##############################################################
 # TIP3P parameters
 ##############################################################
-epsilon = 0.1521 # given in kcal/mol
-sigma = 3.5365 # given in Angstroms
+epsilon = 0.15207 # given in kcal/mol
+sigma = 3.15066 # given in Angstroms
+
+
+if (sigma != 3.15066):
+    print "WRONG SIGMA VALUE FOR TIP3P IN SCRIPT."
+    exit(1)
 
 ######################
 # LJ Interactions
@@ -97,12 +95,6 @@ nonbond.setParameter('eps',oxygenHandle, hydrogenHandle, 0.0)
 # and also, for now an arbitrary harmonic bond potential
 # just so things don't explode.
 #############################################################
-#harmonicBonds = FixBondHarmonic(state,'harmonic')
-#harmonicAngle = FixAngleHarmonic(state,'angleH')
-
-#state.activateFix(harmonicBonds)
-#state.activateFix(harmonicAngle)
-
 rigid = FixRigid(state,'rigid','all')
 
 # our vector of centers
@@ -113,9 +105,9 @@ xyzFloat = float(xyzrange)
 for x in xrange(xyzrange):
     for y in xrange(xyzrange):
         for z in xrange(xyzrange):
-            pos = Vector( float(x)/(xyzFloat)*(0.9*sideLength) + 0.05*sideLength,
-                          float(y)/(xyzFloat)*(0.9*sideLength) + 0.05*sideLength,
-                          float(z)/(xyzFloat)*(0.9*sideLength) + 0.05*sideLength)
+            pos = Vector( float(x)/(xyzFloat)*(0.98*sideLength),
+                          float(y)/(xyzFloat)*(0.98*sideLength),
+                          float(z)/(xyzFloat)*(0.98*sideLength))
 
             #print pos
             positions.append(pos)
@@ -125,26 +117,12 @@ for x in xrange(xyzrange):
 for i in range(numMolecules):
     center = positions[i]
 
-    ## for TIP4P
-   # molecule = create_TIP3P(state,oxygenHandle,hydrogenHandle,mSiteHandle,center,"random")
-
-    molecule = create_TIP3P(state,oxygenHandle,hydrogenHandle,bondLength=0.9572,center=center,orientation="random")
+    molecule = create_TIP3P(state,oxygenHandle,hydrogenHandle,
+            bondLength=0.9572,center=center,orientation="random")
     ids = []
     for atomId in molecule.ids:
-        #state.atoms[atomId].vel = velocities
-        #state.atoms[atomId].force= Vector(0,0,0)
         ids.append(atomId)
 
-
-    # make a harmonic OH1 bond with some high stiffness, and OH2, and H1H2
-    '''
-    harmonicBonds.createBond(state.atoms[ids[0]], state.atoms[ids[1]],
-                             k=200, r0 = 0.9572)
-    harmonicBonds.createBond(state.atoms[ids[0]], state.atoms[ids[2]],
-                             k=200, r0 = 0.9572)
-    harmonicAngle.createAngle(state.atoms[ids[1]], state.atoms[ids[0]], state.atoms[ids[2]],
-                              k=200, theta0=1.82421813)
-    '''
     rigid.createRigid(ids[0], ids[1], ids[2])
 
 
@@ -158,7 +136,7 @@ print 'done adding molecules to simulation'
 # Charge interactions
 #####################
 charge = FixChargeEwald(state, 'charge', 'all')
-charge.setParameters(256,state.rCut-1, 3)
+charge.setError(0.01,state.rCut-1, 3)
 state.activateFix(charge)
 
 #####################
@@ -175,17 +153,8 @@ state.activateFix(rigid)
 #############################################
 # initialize at some temperature
 #############################################
-InitializeAtoms.initTemp(state, 'all', 250.0)
+InitializeAtoms.initTemp(state, 'all', 350.0)
 
-#############################################
-# Temperature control
-#############################################
-#fixNVT = FixNoseHoover(state,'nvt','all')
-#fixNVT.setTemperature(300.0, 100*state.dt)
-#state.activateFix(fixNVT)
-
-fixNVT = FixNVTRescale(state,'nvt','all',298.15,100)
-state.activateFix(fixNVT)
 ########################################
 # our integrator
 ########################################
@@ -194,44 +163,46 @@ integVerlet = IntegratorVerlet(state)
 ########################################
 # Data recording
 ########################################
-#tempData = state.dataManager.recordTemperature('all','vector', interval = 1)
-#enerData = state.dataManager.recordEnergy('all', interval = 1)
+# Record the scalar temperature every 10 steps
+# Record the total potential energy every 10 steps
+# Record the center of mass velocity every 10 steps
 
 tempData = state.dataManager.recordTemperature('all','scalar', interval = 10)
 enerData = state.dataManager.recordEnergy('all', 'scalar', interval = 10,fixes=[charge,nonbond])
-comvData = state.dataManager.recordCOMV(interval=1)
-
-#################################
-# and some calls to PIMD
-#################################
-#state.nPerRingPoly = nBeads
-#state.preparePIMD(the_temp)
+comvData = state.dataManager.recordCOMV(interval=10)
 
 # write every 10 fs
 writer = WriteConfig(state, handle='writer', fn='rigid_tip3p', format='xyz',
                      writeEvery=10)
 state.activateWriteConfig(writer)
 
+###########################################################
+# Isokinetic velocity rescaling: initial equilibration
+###########################################################
+fixNVT = FixNVTRescale(state,'nvt','all',298.00,50)
+state.activateFix(fixNVT)
 integVerlet.run(numTurnsEquil_Rescale)
-#print dir(tempData)
-#print sum(tempData.vals[0])
 state.deactivateFix(fixNVT)
 
+###########################################################
+# Nose-Hoover NVT Dynamics: further equilibration
+###########################################################
 NVT = FixNoseHoover(state,'nvt','all')
 NVT.setTemperature(298.15, 100*state.dt)
 state.activateFix(NVT)
-
-# make new data computers
-
-
-
 integVerlet.run(numTurnsEquil_NVT)
-
 state.deactivateFix(NVT)
 
+##########################################################
+# NVE Dynamics
+##########################################################
 print '\nnow doing NVE run!\n'
-
 integVerlet.run(numTurnsProd)
+
+###########################################################
+# Output for analysis
+###########################################################
+
 
 energyFile = open('Energy.dat','w')
 for index, item in enumerate(enerData.vals):

@@ -37,6 +37,7 @@ inline __host__ __device__ float3 rotation(float3 vector, float3 X, float3 Y, fl
 inline __host__ __device__ double3 rotation(double3 vector, double3 X, double3 Y, double3 Z) {
     return make_double3(dot(X,vector), dot(Y,vector), dot(Z, vector));
 }
+
 // verified to be correct
 inline __host__ __device__ double matrixDet(double3 ROW1, double3 ROW2, double3 ROW3) 
 {
@@ -387,7 +388,6 @@ __global__ void validateConstraints(int4* waterIds, int *idToIdxs,
         float tolerance = 0.00001;
         // note that these values should all be zero
         //printf("molecule id %d bond_ij %f bond_ik %f bond_jk %f\n", idx, bond_ij, bond_ik, bond_jk);
-        /*
         if ( ( bond_ij > tolerance) or 
              ( bond_ik > tolerance) or
              ( bond_jk > tolerance) ) {
@@ -395,7 +395,6 @@ __global__ void validateConstraints(int4* waterIds, int *idToIdxs,
             printf("water molecule %d unsatisfied velocity constraints at turn %d,\ndot(r_ij, v_ij) for ij = {01, 02, 12} %f, %f, and %f; tolerance %f\n", idx, (int) turn,
                     bond_ij, bond_ik, bond_jk, tolerance);
         }
-        */
         
         if ( (fabs(bondLenij) > tolerance) or
              (fabs(bondLenik) > tolerance) or 
@@ -618,10 +617,6 @@ __global__ void compute_prev_val(int4 *waterIds, float4 *xs, float4 *xs_0, float
 }
 
 
-// ok, just initializes to zero
-// ---- really, do as gromacs does and do a propagation backwards.
-//      then call SETTLE with the 'new' coordinates as the 'unconstrained' initial coords - angles should be ~0
-
 template <class DATA, bool HALFSTEP, bool DEBUG_BOOL>
 __global__ void settleVelocities(int4 *waterIds, float4 *xs, float4 *xs_0, 
                                float4 *vs, float4 *vs_0,
@@ -640,6 +635,12 @@ __global__ void settleVelocities(int4 *waterIds, float4 *xs, float4 *xs_0,
         int idxH1= idToIdxs[atomsFromMolecule.y];
         int idxH2= idToIdxs[atomsFromMolecule.z];
         
+        // GMX - just getting the idx's, and renaming them..
+        int ow1 = idxO;
+        int hw2 = idxH1;
+        int hw3 = idxH2;
+        // END GMX
+
         // extract the whole velocities
         float4 velO_whole = vs[idxO];
         float4 velH1_whole= vs[idxH1];
@@ -659,33 +660,41 @@ __global__ void settleVelocities(int4 *waterIds, float4 *xs, float4 *xs_0,
         double3 xO = make_double3(posO_whole);
         double3 xH1= make_double3(posH1_whole);
         double3 xH2= make_double3(posH2_whole);
-
+            
         double3 rOH1 = bounds.minImage(xO-xH1);
         double3 rOH2 = bounds.minImage(xO-xH2);
         double3 rH1H2  = bounds.minImage(xH2-xH1);
- 
+
         // inverse bond lengths as stipulated by the fixed geometry
         double inverseROH = fixRigidData.invSideLengths.x;
         double inverseRHH = fixRigidData.invSideLengths.z;
 
+
+        // these are the vectors along which the forces are applied 
+        // --- keep this in mind for the Virials!
         rOH1   *= inverseROH;
         rOH2   *= inverseROH;
         rH1H2  *= inverseRHH;
 
+
+        // OKAY, so, everything up to here is confirmed correct..
         double3 relativeVelocity;
 
         // set the x, y, z components as required.  Keep orientation O<-->H consistent with the force projection 
         // matrix or you will be unhappy (and so will your water molecules!)
-        relativeVelocity.x = dot((velO - velH1),rOH1);
-        relativeVelocity.y = dot((velO - velH2),rOH2);
-        relativeVelocity.z = dot((velH1- velH2),rH1H2);
-
+        double3 relVelOH1 = velO - velH1;
+        double3 relVelOH2 = velO - velH2;
+        double3 relVelH1H2= velH1 - velH2;
+        relativeVelocity.x = dot(relVelOH1,rOH1);
+        relativeVelocity.y = dot(relVelOH2,rOH2);
+        relativeVelocity.z = dot(relVelH1H2,rH1H2);
 
         double3 velCorrection = matrixVectorMultiply(fixRigidData.M1_inv,
-                                          fixRigidData.M2_inv,
-                                          fixRigidData.M3_inv,
-                                          relativeVelocity);
-        
+                                                     fixRigidData.M2_inv,
+                                                     fixRigidData.M3_inv,
+                                                     relativeVelocity);
+       
+
         // velocity corrections to apply to the atoms in the molecule 
         double3 O_corr = (rOH1 * velCorrection.x + velCorrection.y * rOH2) * (-1.0 * fixRigidData.invMasses.z);
         double3 H1_corr= (rOH1 * (-1.0) * velCorrection.x + rH1H2 * velCorrection.z) * (-1.0 * fixRigidData.invMasses.w);
@@ -702,13 +711,6 @@ __global__ void settleVelocities(int4 *waterIds, float4 *xs, float4 *xs_0,
         vs[idxO] = make_float4(velO_tmp.x, velO_tmp.y, velO_tmp.z, velO_whole.w);
         vs[idxH1]= make_float4(velH1_tmp.x,velH1_tmp.y,velH1_tmp.z,velH1_whole.w);
         vs[idxH2]= make_float4(velH2_tmp.x,velH2_tmp.y,velH2_tmp.z,velH2_whole.w);
-
-        
-
-
-
-
-
 
     }
 }
@@ -968,7 +970,7 @@ void FixRigid::populateRigidData() {
     // isosceles triangles
     double cosB = cosC;
    
-    std::cout << "cosC found to be: " << cosC << " and cosB found to be: " << cosB << std::endl;
+    //std::cout << "cosC found to be: " << cosC << " and cosB found to be: " << cosB << std::endl;
     // algebraic rearrangement of Law of Cosines, and solving for cosA:
 
     // a is the HH bond length, b is OH bond length, c is OH bond length (b == c)
@@ -977,7 +979,7 @@ void FixRigid::populateRigidData() {
 
     // b == c..
     double cosA = ((-1.0 * a * a ) + (b*b + b*b) ) / (2.0 * b * b);
-    std::cout << "cosA found to be: " << cosA << std::endl;
+    //std::cout << "cosA found to be: " << cosA << std::endl;
     /*
      * Set the members of fixRigidData to the computed values
      */
@@ -1001,7 +1003,6 @@ void FixRigid::populateRigidData() {
     // --- these are initialized in ::set_fixed_sides()
     double ma = fixRigidData.weights.z;
     double mb = fixRigidData.weights.w;
-    //double mc = mb;
 
     // first, we need to calculate the denominator expression, d
     double d = (1.0 / (2.0 * mb) ) * ( (2.0 * ( (ma+mb) * (ma+mb) ) ) + 
@@ -1010,7 +1011,7 @@ void FixRigid::populateRigidData() {
                                                (ma * (ma + mb) * ( (cosB * cosB) + (cosC * cosC) ) ) ) ;
 
 
-    std::cout << "denominator expression 'd' found to be: " << d << std::endl;
+    //std::cout << "denominator expression 'd' found to be: " << d << std::endl;
     //printf("denominator expression evaluates to: %3.10f\n", d);
 
     // filling in the values for the tau expressions, so that we can do the velocity constraints
@@ -1051,17 +1052,17 @@ void FixRigid::populateRigidData() {
 
     //std::cout << "invmH value: " << fixRigidData.invMasses.w << std::endl;
 
-    printf("invmH value: %18.14f\n",fixRigidData.invMasses.w);
+    //printf("invmH value: %18.14f\n",fixRigidData.invMasses.w);
     double invMH_normalized = fixRigidData.invMasses.w / fixRigidData.invMasses.z;
 
     double3 M1_tmp = make_double3(0.0, 0.0, 0.0);
 
     double HH = fixRigidData.sideLengths.z;
     //std::cout << "Using HH length of " << HH << std::endl;
-    printf("dHH:  %18.14f\n",HH);
+    //printf("dHH:  %18.14f\n",HH);
     double OH = fixRigidData.sideLengths.x;
-    std::cout << "Using OH length of " << OH << std::endl;
-    printf("dOH:  %18.14f",OH);
+    //std::cout << "Using OH length of " << OH << std::endl;
+    //printf("dOH:  %18.14f",OH);
     // [0,0]
     M1_tmp.x = 1.0 + ( invMH_normalized );
     // [0,1]
@@ -1091,140 +1092,31 @@ void FixRigid::populateRigidData() {
     fixRigidData.M2 = M2_tmp;
     fixRigidData.M3 = M3_tmp;
 
-    //std::cout << "mat[0][0]: " << M1_tmp.x << "\nmat[0][1]: " << M1_tmp.y << "\nmat[0][2]: " << M1_tmp.z << std::endl;
-    //std::cout << "mat[1][0]: " << M2_tmp.x << "\nmat[1][1]: " << M2_tmp.y << "\nmat[1][2]: " << M2_tmp.z << std::endl;
-    //std::cout << "mat[2][0]: " << M3_tmp.x << "\nmat[2][1]: " << M3_tmp.y << "\nmat[2][2]: " << M3_tmp.z << std::endl;
-    // we also need the inverse of the matrix
-    printf("mat[0][0]:  %18.14f\nmat[0][1]:  %18.14f\nmat[0][2]: %18.14f\n",
-           M1_tmp.x, M1_tmp.y, M1_tmp.z);
-    printf("mat[1][0]:  %18.14f\nmat[1][1]:  %18.14f\nmat[1][2]: %18.14f\n",
-           M2_tmp.x, M2_tmp.y, M2_tmp.z);
-    printf("mat[2][0]:  %18.14f\nmat[2][1]:  %18.14f\nmat[2][2]: %18.14f\n",
-           M3_tmp.x, M3_tmp.y, M3_tmp.z);
-
     double3 M1_inv, M2_inv, M3_inv;
 
     // computes the inverse matrix of {M1;M2;M3} and stores in M1_inv, M2_inv, M3_inv;
     invertMatrix(M1_tmp,M2_tmp,M3_tmp,M1_inv,M2_inv,M3_inv);
 
-    //std::cout << "invmat[0][0]: " << M1_inv.x << "\ninvmat[0][1]: " << M1_inv.y << "\ninvmat[0][2]: " << M1_inv.z << std::endl;
-    //std::cout << "invmat[1][0]: " << M2_inv.x << "\ninvmat[1][1]: " << M2_inv.y << "\ninvmat[1][2]: " << M2_inv.z << std::endl;
-    //std::cout << "invmat[2][0]: " << M3_inv.x << "\ninvmat[2][1]: " << M3_inv.y << "\ninvmat[2][2]: " << M3_inv.z << std::endl;
-
-    printf("invmat[0][0]:  %18.14f\ninvmat[0][1]:  %18.14f\ninvmat[0][2]: %18.14f\n",
-           M1_inv.x, M1_inv.y, M1_inv.z);
-    printf("invmat[1][0]:  %18.14f\ninvmat[1][1]:  %18.14f\ninvmat[1][2]: %18.14f\n",
-           M2_inv.x, M2_inv.y, M2_inv.z);
-    printf("invmat[2][0]:  %18.14f\ninvmat[2][1]:  %18.14f\ninvmat[2][2]: %18.14f\n",
-           M3_inv.x, M3_inv.y, M3_inv.z);
-
-    // check that we have the matrix inverse...
-    double3 C1, C2, C3;
-    matrixMultiplication(M1_tmp, M2_tmp, M3_tmp,M1_inv, M2_inv, M3_inv,C1,C2,C3);
-
-    //std::cout << "Identity matrix, row 1: [" << C1.x << "    " << C1.y << "     " << C1.z << std::endl;
-    //std::cout << "Identity matrix, row 2: [" << C2.x << "    " << C2.y << "     " << C2.z << std::endl;
-    //std::cout << "Identity matrix, row 3: [" << C3.x << "    " << C3.y << "     " << C3.z << std::endl;
-
     M1_inv *= fixRigidData.weights.z;
     M2_inv *= fixRigidData.weights.z;
     M3_inv *= fixRigidData.weights.z;
 
-    std::cout << "Printing values of invmat after msmul by 1/imO" << std::endl;
-    printf("invmat[0][0]:  %18.14f\ninvmat[0][1]:  %18.14f\ninvmat[0][2]: %18.14f\n",
-           M1_inv.x, M1_inv.y, M1_inv.z);
-    printf("invmat[1][0]:  %18.14f\ninvmat[1][1]:  %18.14f\ninvmat[1][2]: %18.14f\n",
-           M2_inv.x, M2_inv.y, M2_inv.z);
-    printf("invmat[2][0]:  %18.14f\ninvmat[2][1]:  %18.14f\ninvmat[2][2]: %18.14f\n",
-           M3_inv.x, M3_inv.y, M3_inv.z);
-
-    double3 TEST1 = make_double3(1.0, 2.0, 3.0);
-    double3 TEST2 = make_double3(0.0, 1.0, 4.0);
-    double3 TEST3 = make_double3(5.0, 6.0, 0.0);
-
-    double3 TEST1Inv = make_double3(-24.0, 18.0, 5.0);
-    double3 TEST2Inv = make_double3(20.0,  -15.0, -4.0);
-    double3 TEST3Inv = make_double3(-5.0, 4.0, 1.0);
-
-    double testDet = 54;
-
-    double3 TESTDET1 = make_double3(3.0, -5.0, 3.0);
-    double3 TESTDET2 = make_double3(2.0, 1.0 , -1.0);
-    double3 TESTDET3 = make_double3(1.0, 0.0, 4.0);
-
-    double computedDet = matrixDet(TESTDET1, TESTDET2, TESTDET3);
-
-    //std::cout << "testDet value: " << testDet << "; computedDet value: " << computedDet << std::endl;
-
-
-    double3 ANS1, ANS2, ANS3;
-    matrixMultiplication(TEST1, TEST2, TEST3, TEST1Inv, TEST2Inv, TEST3Inv,ANS1,ANS2,ANS3);
-
-    //std::cout << "~~~~~~~~~~~   VALIDATION OF MMULT ~~~~~~~~~~~~~~~" << std::endl;
-    //std::cout << "Identity matrix, row 1: [" << C1.x << "     " << C1.y << "     " << C1.z << std::endl;
-    //std::cout << "Identity matrix, row 2: [" << C2.x << "     " << C2.y << "     " << C2.z << std::endl;
-    //std::cout << "Identity matrix, row 3: [" << C3.x << "     " << C3.y << "     " << C3.z << std::endl;
-    //std::cout << "~~~~~~~~~~~   END VALIDATION      ~~~~~~~~~~~~~~~" << std::endl;
-    
     fixRigidData.M1_inv = M1_inv;
     fixRigidData.M2_inv = M2_inv;
     fixRigidData.M3_inv = M3_inv;
 
-    double3 fc = make_double3(1.14039,-4.2975,8.37204);
-
-    double3 gmx_mvmul = matrixVectorMultiply(M1_inv, M2_inv, M3_inv,fc);
-    std::cout << "gmx_mvmul: " << gmx_mvmul.x << " " << gmx_mvmul.y << " " << gmx_mvmul.z << std::endl;
-    printf("gmx_mvmul: %18.14f %18.14f %18.14f\n",
-           gmx_mvmul.x, gmx_mvmul.y, gmx_mvmul.z);
-//inline __host__ __device__ double3 matrixVectorMultiply(double3 A1, double3 A2, double3 A3, double3 V)
-
-
-
-
-    /*
-    std::cout << "tauAB values {1,2,3} found to be: " << tauAB1 << ", " << tauAB2 << ", " << tauAB3 << std::endl;
-    std::cout << "tauBC values {1,2,3} found to be: " << tauBC1 << ", " << tauBC2 << ", " << tauBC3 << std::endl;
-    std::cout << "tauCA values {1,2,3} found to be: " << tauCA1 << ", " << tauCA2 << ", " << tauCA3 << std::endl;
-
-    std::cout << "FixRigidData.weights values {x,y,z,w} found to be: " << fixRigidData.weights.x << 
-                 "; " << fixRigidData.weights.y << "; " << fixRigidData.weights.z << "; " << fixRigidData.weights.w << std::endl;
-    */
-
-
-    /*
-    printf("values for tau constants: \n%f %f %f\n%f %f %f\n%f %f %f\n",
-           tauAB1, tauAB2, tauAB3,
-           tauBC1, tauBC2, tauBC3, 
-           tauCA1, tauCA2, tauCA3);
-    */
-
+    printf("M1_inv values: %18.14f    %18.14f    %18.14f\n",
+            M1_inv.x, M1_inv.y, M1_inv.z);
+    printf("M2_inv values: %18.14f    %18.14f    %18.14f\n",
+            M2_inv.x, M2_inv.y, M2_inv.z);
+    printf("M3_inv values: %18.14f    %18.14f    %18.14f\n",
+            M3_inv.x, M3_inv.y, M3_inv.z);
+    
+    
     return;
 
 }
 
-/*
-bool FixRigid::postNVE_V() {
-
-    float dt = state->dt;
-    GPUData &gpd = state->gpd;
-    int activeIdx = gpd.activeIdx();
-    BoundsGPU &bounds = state->boundsGPU;
-    int nAtoms = state->atoms.size();
-    // first, unconstrained velocity update continues: distribute the force from the M-site
-    //        and integrate the velocities accordingly.  Update the forces as well.
-    // Next,  do compute_SETTLE as usual on the (as-yet) unconstrained positions & velocities
-
-    // from IntegratorVerlet
-    float dtf = 0.5f * state->dt * state->units.ftm_to_v;
-    // need to fix the velocities before position integration
-    settleVelocities<FixRigidData, true><<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), 
-                                                xs_0.data(), gpd.vs(activeIdx), vs_0.data(), 
-                                                dvs_0.data(), gpd.fs(activeIdx), fs_0.data(), 
-                                                com.data(), fixRigidData, nMolecules, dt, dtf, 
-                                                gpd.idToIdxs.d_data.data(), bounds);
-    return true;
-}
-*/
 void FixRigid::handleBoundsChange() {
 
     float dt = state->dt;
@@ -1425,7 +1317,7 @@ void FixRigid::setStyleBondLengths() {
     if (TIP4P) invOM = 1.0 / r_OM;
 
     double4 invSideLengths = make_double4(1.0/r_OH, 1.0 / r_OH, 1.0 / r_HH, invOM);
-
+    fixRigidData.invSideLengths = invSideLengths;
     return;
 
 }
@@ -1894,6 +1786,10 @@ bool FixRigid::prepareForRun() {
                                                 com.data(), fixRigidData, nMolecules, dt, dtf, 
                                                 gpd.idToIdxs.d_data.data(), bounds, (int) state->turn, invdt);
 
+
+    //cudaDeviceSynchronize();
+    //printf("\n\nCalling settle velocities at turn %d\n\n",(int) state->turn);
+
     settleVelocities<FixRigidData,false, true><<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), 
                                                 xs_0.data(), gpd.vs(activeIdx), vs_0.data(), 
                                                 gpd.fs(activeIdx), fs_0.data(), 
@@ -2027,6 +1923,8 @@ bool FixRigid::stepFinal() {
                                                 com.data(), fixRigidData, nMolecules, dt, dtf, 
                                                 gpd.idToIdxs.d_data.data(), bounds, (int) state->turn, invdt);
     */
+    
+    //printf("\n\nCalling settle velocities at turn %d\n\n",(int) state->turn);
 
     settleVelocities<FixRigidData,false, true><<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), 
                                                 xs_0.data(), gpd.vs(activeIdx), vs_0.data(), 

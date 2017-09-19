@@ -29,7 +29,7 @@ private:
     BoundsGPU boundsGPU;
 
     MD_ENGINE::DataComputerTemperature tempComputer;
-    bool prepareForRun();
+    bool prepareFinal();
     //void compute(int);
     bool postRun();
     bool stepFinal();

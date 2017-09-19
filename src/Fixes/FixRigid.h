@@ -24,12 +24,17 @@ void export_FixRigid();
 class FixRigidData {
     public:
         // bond lengths - as OH1, OH2, HH, OM
+        // SET IN : setStyleBondLengths(), called by prepareForRun()
         double4 sideLengths;
+
+
         // as 1.0 / sideLengths, element-wise
+        // SET IN : setStyleBondLengths(), called by prepareForRun()
         double4 invSideLengths;
 
         // canonical lengths, with center of mass as origin
         // as (ra, rb, rc, inv2Rc)
+        // SET IN:  set_fixed_sides(), in prepareForRun()
         double4 canonicalTriangle;
 
         // mass weights - make these double precision!
@@ -39,17 +44,22 @@ class FixRigidData {
         //    weights.y = massH / massWater;
         //    weights.z = massO;
         //    weights.w = massH;
+        // SET IN : set_fixed_sides(), in prepareForRun();
         double4 weights;
         
         // 1.0 / weights, element-wise
+        // SET IN : set_fixed_sides(), in prepareForRun();
         double4 invMasses;
 
         // three arrays for constraint coupling matrix, containing mass weights by which we 
         // multiply to solve the velocity constraints
+        // and their inverses below
+        // SET IN :  populateRigidData(), called by prepareForRun()
         double3 M1;
         double3 M2;
         double3 M3;
 
+        // SET IN :  populateRigidData(), called by prepareForRun()
         double3 M1_inv;
         double3 M2_inv;
         double3 M3_inv;
@@ -80,6 +90,7 @@ class FixRigidData {
 
         double denominator; // 'd' in expression B2; a constant of the rigid geometry
 
+        // and the constructor
         FixRigidData() {};
 };
 

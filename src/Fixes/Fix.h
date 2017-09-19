@@ -105,6 +105,9 @@ public:
     //! Prepares a fix for run if it must be prepared after all other fixes have been instantiated
     /*!
      * \return False if a problem occurred, else True
+     *
+     * This function is primarily useful for DataComputers and fixes that need to know the current 
+     * state of the simulation in their absence (e.g., barostats, thermostats)
      */
     virtual bool prepareFinal() {return true; }
 

@@ -36,7 +36,6 @@ FixNVTRescale::FixNVTRescale(SHARED(State) state_, string handle_, string groupH
 {
     isThermostat = true;
 
-
 }
 
 FixNVTRescale::FixNVTRescale(SHARED(State) state_, string handle_, string groupHandle_, py::object tempFunc_, int applyEvery_, int orderPreference_)
@@ -60,9 +59,10 @@ FixNVTRescale::FixNVTRescale(SHARED(State) state_, string handle_, string groupH
 
 
 
-bool FixNVTRescale::prepareForRun() {
+bool FixNVTRescale::prepareFinal() {
     turnBeginRun = state->runInit;
     turnFinishRun = state->runInit + state->runningFor;
+    tempComputer = MD_ENGINE::DataComputerTemperature(state,"scalar");
     tempComputer.prepareForRun();
     prepared = true;
     return prepared;
