@@ -18,14 +18,14 @@ state.deviceManager.setDevice(0)
 ##############################
 # Set initial density here
 ##############################
-numMolecules = 1000
+numMolecules = 901
 density = 1.002
 # consider dt = 1.0; then, 5 ps rescale
 numTurnsEquil_Rescale = 5000
 # do 195 ps NVT
 numTurnsEquil_NVT = 95000
 # do 800 ps NVE
-numTurnsProd = 100000
+numTurnsProd = 2000000
 
 ###############################
 # Calculating box dimensions
@@ -37,8 +37,8 @@ avogadro = 6.0221409e23
 numberDensity = density * (cmPerAngstrom ** (3.0)) * molPerG * avogadro
 sideLength = (numMolecules / numberDensity) ** (1.0/3.0)
 
-print 'sideLength calculated to be: ', sideLength
 
+print 'sideLength was assigned a value of {}'.format(sideLength)
 #######################################################
 # setting the box bounds and other attributes of state
 #######################################################
@@ -171,15 +171,11 @@ tempData = state.dataManager.recordTemperature('all','scalar', interval = 10)
 enerData = state.dataManager.recordEnergy('all', 'scalar', interval = 10,fixes=[charge,nonbond])
 comvData = state.dataManager.recordCOMV(interval=10)
 
-# write every 10 fs
-writer = WriteConfig(state, handle='writer', fn='rigid_tip3p', format='xyz',
-                     writeEvery=10)
-state.activateWriteConfig(writer)
 
 ###########################################################
 # Isokinetic velocity rescaling: initial equilibration
 ###########################################################
-fixNVT = FixNVTRescale(state,'nvt','all',298.00,50)
+fixNVT = FixNVTRescale(state,'nvt','all',298.00,10)
 state.activateFix(fixNVT)
 integVerlet.run(numTurnsEquil_Rescale)
 state.deactivateFix(fixNVT)
@@ -188,7 +184,7 @@ state.deactivateFix(fixNVT)
 # Nose-Hoover NVT Dynamics: further equilibration
 ###########################################################
 NVT = FixNoseHoover(state,'nvt','all')
-NVT.setTemperature(298.15, 100*state.dt)
+NVT.setTemperature(298.15, 200*state.dt)
 state.activateFix(NVT)
 integVerlet.run(numTurnsEquil_NVT)
 state.deactivateFix(NVT)
@@ -196,6 +192,11 @@ state.deactivateFix(NVT)
 ##########################################################
 # NVE Dynamics
 ##########################################################
+# write every 10 fs
+writer = WriteConfig(state, handle='writer', fn='rigid_tip3p', format='xyz',
+                     writeEvery=10)
+state.activateWriteConfig(writer)
+
 print '\nnow doing NVE run!\n'
 integVerlet.run(numTurnsProd)
 
@@ -205,12 +206,18 @@ integVerlet.run(numTurnsProd)
 
 
 energyFile = open('Energy.dat','w')
+
+boltz = 0.0019872067
+nAtoms = float(numMolecules) * 3.0
+
+energyFile.write('{:>18s}  {:>18s}  {:>18s}  {:>18s}\n'.format("Temperature (K)","Potential Energy","Kinetic Energy","Hamiltonian"))
 for index, item in enumerate(enerData.vals):
-    pe = str(enerData.vals[index])
-    ke = str(tempData.vals[index])
-    hamiltonian = str(enerData.vals[index] + tempData.vals[index])
+    pe = enerData.vals[index]
+    temp = tempData.vals[index]
+    ke = temp * boltz * nAtoms
+    hamiltonian = pe + ke
     spacing = "    "
-    energyFile.write(pe + spacing + ke + spacing + hamiltonian + "\n")
+    energyFile.write('{:18.14f}  {:18.14f}  {:18.14f}  {:18.14f}\n'.format(temp,pe,ke,hamiltonian))
 
 f = open('COMV.dat','w')
 for index, item in enumerate(comvData.vals):

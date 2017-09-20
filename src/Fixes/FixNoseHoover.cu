@@ -17,6 +17,10 @@ namespace py = boost::python;
 
 std::string NoseHooverType = "NoseHoover";
 
+
+
+#define n_ys_5 {
+
 // CUDA function to calculate the total kinetic energy
 
 // CUDA function to rescale particle velocities

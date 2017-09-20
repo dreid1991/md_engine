@@ -18,6 +18,8 @@ FixRigid::FixRigid(boost::shared_ptr<State> state_, std::string handle_, std::st
     TIP4P = false;
     TIP3P = false;
     printing = false;
+    // set flag 'requiresPostNVE_V' to true
+    requiresPostNVE_V = true;
     //requiresPostNVE_V = true;
     style = "DEFAULT";
     // this fix requires the forces to have already been computed before we can 
@@ -155,7 +157,6 @@ __global__ void rigid_scaleSystem_cu(int4* waterIds, float4* xs, int* idToIdxs,
         // translate all the individual atoms xs's accordingly, and exit
         // --- we do not need to check groupTags
         // --- if (TIP4P) { translate M-site position as well }
-        double weightO = fixRigidData.weights.x;
         double weightH = fixRigidData.weights.y;
        
         // get the molecule at this idx
@@ -619,7 +620,7 @@ __global__ void compute_prev_val(int4 *waterIds, float4 *xs, float4 *xs_0, float
 
 template <class DATA, bool HALFSTEP, bool DEBUG_BOOL>
 __global__ void settleVelocities(int4 *waterIds, float4 *xs, float4 *xs_0, 
-                               float4 *vs, float4 *vs_0,
+                               float4 *vs, double3 *velCorrectionStored,
                                float4 *fs, float4 *fs_0, float4 *comOld, 
                                DATA fixRigidData, int nMolecules, 
                                float dt, float dtf,
@@ -627,6 +628,7 @@ __global__ void settleVelocities(int4 *waterIds, float4 *xs, float4 *xs_0,
     int idx = GETIDX();
     if (idx < nMolecules) {
         
+
         // get the molecule at this idx
         int4 atomsFromMolecule = waterIds[idx];
 
@@ -635,12 +637,6 @@ __global__ void settleVelocities(int4 *waterIds, float4 *xs, float4 *xs_0,
         int idxH1= idToIdxs[atomsFromMolecule.y];
         int idxH2= idToIdxs[atomsFromMolecule.z];
         
-        // GMX - just getting the idx's, and renaming them..
-        int ow1 = idxO;
-        int hw2 = idxH1;
-        int hw3 = idxH2;
-        // END GMX
-
         // extract the whole velocities
         float4 velO_whole = vs[idxO];
         float4 velH1_whole= vs[idxH1];
@@ -651,66 +647,195 @@ __global__ void settleVelocities(int4 *waterIds, float4 *xs, float4 *xs_0,
         double3 velH1= make_double3(velH1_whole);
         double3 velH2= make_double3(velH2_whole);
 
-        // and our positions - get the current sidelengths
-        float4 posO_whole  = xs[idxO];
-        float4 posH1_whole = xs[idxH1];
-        float4 posH2_whole = xs[idxH2];
-        
-        // and cast as double
-        double3 xO = make_double3(posO_whole);
-        double3 xH1= make_double3(posH1_whole);
-        double3 xH2= make_double3(posH2_whole);
+
+        double3 O_corr, H1_corr, H2_corr;
+        float3 velO_tmp, velH1_tmp, velH2_tmp;
+
+
+        if (HALFSTEP) {
             
-        double3 rOH1 = bounds.minImage(xO-xH1);
-        double3 rOH2 = bounds.minImage(xO-xH2);
-        double3 rH1H2  = bounds.minImage(xH2-xH1);
+            O_corr = velCorrectionStored[idx*3];
+            H1_corr= velCorrectionStored[idx*3 + 1];
+            H2_corr= velCorrectionStored[idx*3 + 2];
 
-        // inverse bond lengths as stipulated by the fixed geometry
-        double inverseROH = fixRigidData.invSideLengths.x;
-        double inverseRHH = fixRigidData.invSideLengths.z;
+            velO  += O_corr;
+            velH1 += H1_corr;
+            velH2 += H2_corr;
+
+            velO_tmp = make_float3(velO);
+            velH1_tmp= make_float3(velH1);
+            velH2_tmp= make_float3(velH2);
+            
+            vs[idxO] = make_float4(velO_tmp.x, velO_tmp.y, velO_tmp.z, velO_whole.w);
+            vs[idxH1]= make_float4(velH1_tmp.x,velH1_tmp.y,velH1_tmp.z,velH1_whole.w);
+            vs[idxH2]= make_float4(velH2_tmp.x,velH2_tmp.y,velH2_tmp.z,velH2_whole.w);
+
+        } 
+
+        if (!(HALFSTEP)) {
+            // and our positions - get the current sidelengths
+            float4 posO_whole  = xs[idxO];
+            float4 posH1_whole = xs[idxH1];
+            float4 posH2_whole = xs[idxH2];
+            
+            // and cast as double
+            double3 xO = make_double3(posO_whole);
+            double3 xH1= make_double3(posH1_whole);
+            double3 xH2= make_double3(posH2_whole);
+         
+            double imO = fixRigidData.invMasses.z;
+            double imH = fixRigidData.invMasses.w;
+            double dOH = fixRigidData.sideLengths.x;
+            double dHH = fixRigidData.sideLengths.z;
+            double invdOH = fixRigidData.invSideLengths.x;
+            double invdHH = fixRigidData.invSideLengths.z;
+           
+
+            if (DEBUG_BOOL) {
+
+                xO   = make_double3(17.4575408690381, 28.0674379569203, 19.7605008286979);
+                xH1  = make_double3(18.3859982152049, 28.1295117460303, 19.5361224851473);
+                xH2  = make_double3(17.3030341458184, 27.1311540794149, 19.8859281510936);
+
+                // ow1 x,y,z pos:   1.74575408690381     2.80674379569203     1.97605008286979
+                // hw2 x,y,z pos:   1.83859982152049     2.81295117460303     1.95361224851473
+                // hw3 x,y,z pos:   1.73030341458184     2.71311540794149     1.98859281510936
+
+                velO = make_double3(-0.12463504629767, -0.11015356806752, 0.02384241975976)*0.01;
+                velH1= make_double3(-0.29861852567439, 2.32000214713289, -0.15679017362187)*0.01;
+                velH2= make_double3(2.27687840636365, -0.57159838032778, -0.22164674175936)*0.01;
 
 
-        // these are the vectors along which the forces are applied 
-        // --- keep this in mind for the Virials!
-        rOH1   *= inverseROH;
-        rOH2   *= inverseROH;
-        rH1H2  *= inverseRHH;
+                //ow1 x,y,z der:  -0.12463504629767    -0.11015356806752     0.02384241975976
+                //hw2 x,y,z der:  -0.29861852567439     2.32000214713289    -0.15679017362187
+                //hw3 x,y,z der:   2.27687840636365    -0.57159838032778    -0.22164674175936
+            
+
+                double3 invmat_0 = fixRigidData.M1_inv;
+                double3 invmat_1 = fixRigidData.M2_inv;
+                double3 invmat_2 = fixRigidData.M3_inv;
+                printf("\nIn settleProj routine!\nimO: %18.14f\nimH: %18.14f\ndOH: %18.14f\ndHH: %18.14f\ninvdOH: %18.14f\ninvdHH: %18.14f\n",
+                        imO, imH, dOH, dHH, invdOH, invdHH);
+                printf("invmat[0][0]: %18.14f\ninvmat[0][1]: %18.14f\ninvmat[0][2]: %18.14f\ninvmat[1][0]: %18.14f\ninvmat[1][1]: %18.14f\ninvmat[1][2]: %18.14f\ninvmat[2][0]: %18.14f\ninvmat[2][1]: %18.14f\ninvmat[2][2]: %18.14f\n",
+                       invmat_0.x, invmat_0.y, invmat_0.z,
+                       invmat_1.x, invmat_1.y, invmat_1.z,
+                       invmat_2.x, invmat_2.y, invmat_2.z);
+                
+                printf("ow1 x,y,z, pos: %18.14f  %18.14f   %18.14f\n",
+                       xO.x, xO.y, xO.z);
+                printf("hw2 x,y,z, pos: %18.14f  %18.14f   %18.14f\n",
+                       xH1.x, xH1.y, xH1.z);
+                printf("hw3 x,y,z, pos: %18.14f  %18.14f   %18.14f\n",
+                       xH2.x, xH2.y, xH2.z);
+                
+                printf("ow1 x,y,z der: %18.14f   %18.14f   %18.14f\n",
+                       velO.x, velO.y, velO.z);
+                printf("hw2 x,y,z der: %18.14f   %18.14f   %18.14f\n",
+                       velH1.x, velH1.y, velH1.z);
+                printf("hw3 x,y,z der: %18.14f   %18.14f   %18.14f\n",
+                       velH2.x, velH2.y, velH2.z);
+                printf("derp before modification\n");
+
+                printf("ow1 x,y,z derp: %18.14f   %18.14f   %18.14f\n",
+                       velO.x, velO.y, velO.z);
+                printf("hw2 x,y,z derp: %18.14f   %18.14f   %18.14f\n",
+                       velH1.x, velH1.y, velH1.z);
+                printf("hw3 x,y,z derp: %18.14f   %18.14f   %18.14f\n",
+                       velH2.x, velH2.y, velH2.z);
+
+            }
 
 
-        // OKAY, so, everything up to here is confirmed correct..
-        double3 relativeVelocity;
 
-        // set the x, y, z components as required.  Keep orientation O<-->H consistent with the force projection 
-        // matrix or you will be unhappy (and so will your water molecules!)
-        double3 relVelOH1 = velO - velH1;
-        double3 relVelOH2 = velO - velH2;
-        double3 relVelH1H2= velH1 - velH2;
-        relativeVelocity.x = dot(relVelOH1,rOH1);
-        relativeVelocity.y = dot(relVelOH2,rOH2);
-        relativeVelocity.z = dot(relVelH1H2,rH1H2);
+            double3 rOH1 = bounds.minImage(xO-xH1);
+            double3 rOH2 = bounds.minImage(xO-xH2);
+            double3 rH1H2  = bounds.minImage(xH1-xH2);
 
-        double3 velCorrection = matrixVectorMultiply(fixRigidData.M1_inv,
-                                                     fixRigidData.M2_inv,
-                                                     fixRigidData.M3_inv,
-                                                     relativeVelocity);
-       
+            // inverse bond lengths as stipulated by the fixed geometry
+            double inverseROH = fixRigidData.invSideLengths.x;
+            double inverseRHH = fixRigidData.invSideLengths.z;
 
-        // velocity corrections to apply to the atoms in the molecule 
-        double3 O_corr = (rOH1 * velCorrection.x + velCorrection.y * rOH2) * (-1.0 * fixRigidData.invMasses.z);
-        double3 H1_corr= (rOH1 * (-1.0) * velCorrection.x + rH1H2 * velCorrection.z) * (-1.0 * fixRigidData.invMasses.w);
-        double3 H2_corr= (rOH2 * (-1.0) * velCorrection.y - rH1H2 * velCorrection.z) * (-1.0 * fixRigidData.invMasses.w);
-        
-        velO += O_corr;
-        velH1+= H1_corr;
-        velH2+= H2_corr;
 
-        float3 velO_tmp = make_float3(velO);
-        float3 velH1_tmp= make_float3(velH1);
-        float3 velH2_tmp= make_float3(velH2);
-        
-        vs[idxO] = make_float4(velO_tmp.x, velO_tmp.y, velO_tmp.z, velO_whole.w);
-        vs[idxH1]= make_float4(velH1_tmp.x,velH1_tmp.y,velH1_tmp.z,velH1_whole.w);
-        vs[idxH2]= make_float4(velH2_tmp.x,velH2_tmp.y,velH2_tmp.z,velH2_whole.w);
+            if (DEBUG_BOOL) {
+                printf("rOH1 vals: %18.14f  %18.14f  %18.14f\n",
+                        rOH1.x, rOH1.y, rOH1.z);
+                printf("rOH2 vals: %18.14f  %18.14f  %18.14f\n",
+                        rOH2.x, rOH2.y, rOH2.z);
+                printf("rHH  vals: %18.14f  %18.14f  %18.14f\n",
+                        rH1H2.x, rH1H2.y, rH1H2.z);
+            }
+            // these are the vectors along which the forces are applied 
+            // --- keep this in mind for the Virials!
+            rOH1   *= inverseROH;
+            rOH2   *= inverseROH;
+            rH1H2  *= inverseRHH;
+
+            if (DEBUG_BOOL) {
+                printf("calling svmul on roh2, roh3, rhh..\n");
+                printf("rOH1 vals: %18.14f  %18.14f  %18.14f\n",
+                        rOH1.x, rOH1.y, rOH1.z);
+                printf("rOH2 vals: %18.14f  %18.14f  %18.14f\n",
+                        rOH2.x, rOH2.y, rOH2.z);
+                printf("rHH  vals: %18.14f  %18.14f  %18.14f\n",
+                        rH1H2.x, rH1H2.y, rH1H2.z);
+            }
+            // OKAY, so, everything up to here is confirmed correct..
+            double3 relativeVelocity;
+
+            // set the x, y, z components as required.  Keep orientation O<-->H consistent with the force projection 
+            // matrix or you will be unhappy (and so will your water molecules!)
+            double3 relVelOH1 = velO - velH1;
+            double3 relVelOH2 = velO - velH2;
+            double3 relVelH1H2= velH1 - velH2;
+            relativeVelocity.x = dot(relVelOH1,rOH1);
+            relativeVelocity.y = dot(relVelOH2,rOH2);
+            relativeVelocity.z = dot(relVelH1H2,rH1H2);
+
+
+            if (DEBUG_BOOL) {
+                printf("dc vals: %18.14f  %18.14f  %18.14f\n",
+                       relativeVelocity.x, relativeVelocity.y,relativeVelocity.z);
+            }
+
+            double3 velCorrection = matrixVectorMultiply(fixRigidData.M1_inv,
+                                                         fixRigidData.M2_inv,
+                                                         fixRigidData.M3_inv,
+                                                         relativeVelocity);
+           
+
+            // velocity corrections to apply to the atoms in the molecule 
+            O_corr = (rOH1 * velCorrection.x + velCorrection.y * rOH2) * (-1.0 * fixRigidData.invMasses.z);
+            H1_corr= (rOH1 * (-1.0) * velCorrection.x + rH1H2 * velCorrection.z) * (-1.0 * fixRigidData.invMasses.w);
+            H2_corr= (rOH2 * (-1.0) * velCorrection.y - rH1H2 * velCorrection.z) * (-1.0 * fixRigidData.invMasses.w);
+            
+            velO  += O_corr;
+            velH1 += H1_corr;
+            velH2 += H2_corr;
+
+            velCorrectionStored[idx*3]     = O_corr;
+            velCorrectionStored[idx*3 + 1] = H1_corr;
+            velCorrectionStored[idx*3 + 2] = H2_corr;
+
+            velO_tmp = make_float3(velO);
+            velH1_tmp= make_float3(velH1);
+            velH2_tmp= make_float3(velH2);
+            
+            if (DEBUG_BOOL) {
+                printf("settleProj routine after substracting corrections from derp!\n");
+                printf("ow1 x,y,z derp: %18.14f   %18.14f   %18.14f\n",
+                       velO.x, velO.y, velO.z);
+                printf("hw2 x,y,z derp: %18.14f   %18.14f   %18.14f\n",
+                       velH1.x, velH1.y, velH1.z);
+                printf("hw3 x,y,z derp: %18.14f   %18.14f   %18.14f\n",
+                       velH2.x, velH2.y, velH2.z);
+                printf("\nEND settleProj routine!\n");
+            }
+            vs[idxO] = make_float4(velO_tmp.x, velO_tmp.y, velO_tmp.z, velO_whole.w);
+            vs[idxH1]= make_float4(velH1_tmp.x,velH1_tmp.y,velH1_tmp.z,velH1_whole.w);
+            vs[idxH2]= make_float4(velH2_tmp.x,velH2_tmp.y,velH2_tmp.z,velH2_whole.w);
+
+
+        }
 
     }
 }
@@ -732,12 +857,31 @@ __global__ void settlePositions(int4 *waterIds, float4 *xs, float4 *xs_0,
         double rb = fixRigidData.canonicalTriangle.y;
         double rc = fixRigidData.canonicalTriangle.z;
         double weightH = fixRigidData.weights.y;
-        
+        double mO = fixRigidData.weights.z;
+        double mH = fixRigidData.weights.w;
+        if (DEBUG_BOOL) {
+            printf("wh: %18.14f\nrc: %18.14f\nra: %18.14f\nrb: %18.14f\nirc2: %18.14f\nmO: %18.14f\nmH: %18.14f\n",
+                    weightH, rc, ra, rb, inv2Rc, mO, mH);
+        }
         // so, our initial data from xs_0, accessed via idx;
         // -- this will form the basis of our X'Y'Z' system, the previous solution to the constraints
         double3 posO_initial = make_double3(xs_0[idx*3]);
         double3 posH1_initial= make_double3(xs_0[idx*3 + 1]);
         double3 posH2_initial= make_double3(xs_0[idx*3 + 2]);
+
+        if (DEBUG_BOOL) {
+            posO_initial = make_double3(17.4587872195011, 28.0685394926010, 19.7602624045003);
+            posH1_initial = make_double3(18.3889844004616,  28.1063117245590, 19.5376903868836);
+            posH2_initial = make_double3(17.2802653617548, 27.1368700632182, 19.8881446185112);
+        
+            printf("ow1 x,y,z b4: %18.14f   %18.14f   %18.14f\n",
+                   posO_initial.x, posO_initial.y, posO_initial.z);
+            printf("hw2 x,y,z b4: %18.14f   %18.14f   %18.14f\n",
+                   posH1_initial.x, posH1_initial.y, posH1_initial.z);
+            printf("hw3 x,y,z b4: %18.14f   %18.14f   %18.14f\n",
+                   posH2_initial.x, posH2_initial.y, posH2_initial.z);
+       
+        }
 
         // get the molecule at this idx
         int4 atomsFromMolecule = waterIds[idx];
@@ -759,6 +903,45 @@ __global__ void settlePositions(int4 *waterIds, float4 *xs, float4 *xs_0,
         double3 posO = make_double3(posO_whole);
         double3 posH1= make_double3(posH1_whole);
         double3 posH2= make_double3(posH2_whole);
+        
+        
+        
+        
+        // get the velocities from vs[] array
+        float4 velO_whole = vs[idxO];
+        float4 velH1_whole= vs[idxH1];
+        float4 velH2_whole= vs[idxH2];
+        
+        // cast as double
+        double3 velO = make_double3(velO_whole);
+        double3 velH1= make_double3(velH1_whole);
+        double3 velH2= make_double3(velH2_whole);
+        
+        if (DEBUG_BOOL) {
+
+            posO = make_double3(17.4575271824439, 28.0674544952710, 19.7605025286681);
+            posH1 = make_double3(18.3862875449773, 28.1295399140363, 19.5360517433464);
+            posH2 = make_double3(17.3029620554269, 27.1308634077511, 19.8859719102520);
+
+            velO = make_double3(-0.12600370572210, -0.10849973300457,  0.02401241678280)* 0.01;
+            velH1= make_double3(-0.26968554843436,  2.32281894773213, -0.16386435371728)* 0.01;
+            velH2= make_double3(2.26966936721430,  -0.60066554670720, -0.21727082592036)* 0.01;
+       
+
+            printf("ow1 x,y,z v : %18.14f   %18.14f   %18.14f\n",
+                   velO.x, velO.y, velO.z);
+            printf("hw2 x,y,z v : %18.14f   %18.14f   %18.14f\n",
+                   velH1.x, velH1.y, velH1.z);
+            printf("hw3 x,y,z v : %18.14f   %18.14f   %18.14f\n",
+                   velH2.x, velH2.y, velH2.z);
+
+            printf("ow1 x,y,z after: %18.14f  %18.14f  %18.14f\n",
+                   posO.x, posO.y, posO.z);
+            printf("hw2 x,y,z after: %18.14f  %18.14f  %18.14f\n",
+                   posH1.x, posH1.y, posH1.z);
+            printf("hw3 x,y,z after: %18.14f  %18.14f  %18.14f\n",
+                   posH2.x, posH2.y, posH2.z);
+        }
     
         // get the relative vectors OH1, OH2 for the initial triangle (solution from last step)
         double3 vectorOH1 = bounds.minImage(posH1_initial - posO_initial);
@@ -896,16 +1079,16 @@ __global__ void settlePositions(int4 *waterIds, float4 *xs, float4 *xs_0,
         xs[idxH1]= make_float4(H1PosNew.x,H1PosNew.y,H1PosNew.z,posH1_whole.w);
         xs[idxH2]= make_float4(H2PosNew.x,H2PosNew.y,H2PosNew.z,posH2_whole.w);
 
-        // get the velocities from vs[] array
-        float4 velO_whole = vs[idxO];
-        float4 velH1_whole= vs[idxH1];
-        float4 velH2_whole= vs[idxH2];
+        if (DEBUG_BOOL) {  
+            printf("printing 'after' at end of settle routine\n");
+            printf("ow1 x,y,z after: %18.14f  %18.14f  %18.14f\n",
+                   oPosFinal.x, oPosFinal.y, oPosFinal.z);
+            printf("hw2 x,y,z after: %18.14f  %18.14f  %18.14f\n",
+                   H1PosFinal.x, H1PosFinal.y, H1PosFinal.z);
+            printf("hw3 x,y,z after: %18.14f  %18.14f  %18.14f\n",
+                   H2PosFinal.x, H2PosFinal.y, H2PosFinal.z);
 
-        // cast as double
-        double3 velO = make_double3(velO_whole);
-        double3 velH1= make_double3(velH1_whole);
-        double3 velH2= make_double3(velH2_whole);
-        
+        }
         // add the differential contributions to the velocity from settling the positions
         velO  += (dx_a * invdt);
         velH1 += (dx_b * invdt);
@@ -916,6 +1099,14 @@ __global__ void settlePositions(int4 *waterIds, float4 *xs, float4 *xs_0,
         float3 newVelH1= make_float3(velH1);
         float3 newVelH2= make_float3(velH2);
 
+        if (DEBUG_BOOL) {
+            printf("ow1 x,y,z v : %18.14f   %18.14f   %18.14f\n",
+                   velO.x, velO.y, velO.z);
+            printf("hw2 x,y,z v : %18.14f   %18.14f   %18.14f\n",
+                   velH1.x, velH1.y, velH1.z);
+            printf("hw3 x,y,z v : %18.14f   %18.14f   %18.14f\n",
+                   velH2.x, velH2.y, velH2.z);
+        }
         // set the velocities in global arrays as the new, solved velocities
         vs[idxO] = make_float4(newVelO,velO_whole.w);
         vs[idxH1]= make_float4(newVelH1,velH1_whole.w);
@@ -1117,7 +1308,7 @@ void FixRigid::populateRigidData() {
 
 }
 
-void FixRigid::handleBoundsChange() {
+bool FixRigid::postNVE_X() {
 
     float dt = state->dt;
     GPUData &gpd = state->gpd;
@@ -1132,7 +1323,7 @@ void FixRigid::handleBoundsChange() {
     float dtf = 0.5f * state->dt * state->units.ftm_to_v;
 
     double invdt = (double) 1.0 /  (double(state->dt));
-    settlePositions<FixRigidData, true><<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), 
+    settlePositions<FixRigidData, false><<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), 
                                                 xs_0.data(), gpd.vs(activeIdx), vs_0.data(), 
                                                 gpd.fs(activeIdx), fs_0.data(), 
                                                 com.data(), fixRigidData, nMolecules, dt, dtf, 
@@ -1170,7 +1361,7 @@ void FixRigid::handleBoundsChange() {
         }
     }
 
-    return;
+    return true;
 }
 
 
@@ -1704,6 +1895,29 @@ void FixRigid::createRigid(int id_a, int id_b, int id_c) {
     state->rigidBodies = true;
 }
 
+bool FixRigid::postNVE_V() {
+
+
+
+    float dt = state->dt;
+    GPUData &gpd = state->gpd;
+    int activeIdx = gpd.activeIdx();
+    BoundsGPU &bounds = state->boundsGPU;
+    int nAtoms = state->atoms.size();
+    float dtf = 0.5f * state->dt * state->units.ftm_to_v;
+
+
+
+    /*
+    settleVelocities<FixRigidData,true, true><<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), 
+                                                xs_0.data(), gpd.vs(activeIdx), velCorrectionStored.data(), 
+                                                gpd.fs(activeIdx), fs_0.data(), 
+                                                com.data(), fixRigidData, nMolecules, dt, dtf, 
+                                                gpd.idToIdxs.d_data.data(), bounds, (int) state->turn);
+    */
+        
+    return true;
+}
 
 bool FixRigid::prepareForRun() {
     
@@ -1744,8 +1958,12 @@ bool FixRigid::prepareForRun() {
     waterIdsGPU = GPUArrayDeviceGlobal<int4>(nMolecules);
     waterIdsGPU.set(waterIds.data());
 
+
+    velCorrectionStored = GPUArrayDeviceGlobal<double3>(3*nMolecules);
+    
     xs_0 = GPUArrayDeviceGlobal<float4>(3*nMolecules);
     vs_0 = GPUArrayDeviceGlobal<float4>(3*nMolecules);
+
     fs_0 = GPUArrayDeviceGlobal<float4>(3*nMolecules);
     com = GPUArrayDeviceGlobal<float4>(nMolecules);
     constraints = GPUArrayDeviceGlobal<bool>(nMolecules);
@@ -1780,7 +1998,8 @@ bool FixRigid::prepareForRun() {
                                                 fs_0.data(), nMolecules, gpd.idToIdxs.d_data.data());
 
     double invdt = (double) 1.0 /  (double(state->dt));
-    settlePositions<FixRigidData, true><<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), 
+
+    settlePositions<FixRigidData, false><<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), 
                                                 xs_0.data(), gpd.vs(activeIdx), vs_0.data(), 
                                                 gpd.fs(activeIdx), fs_0.data(), 
                                                 com.data(), fixRigidData, nMolecules, dt, dtf, 
@@ -1790,8 +2009,8 @@ bool FixRigid::prepareForRun() {
     //cudaDeviceSynchronize();
     //printf("\n\nCalling settle velocities at turn %d\n\n",(int) state->turn);
 
-    settleVelocities<FixRigidData,false, true><<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), 
-                                                xs_0.data(), gpd.vs(activeIdx), vs_0.data(), 
+    settleVelocities<FixRigidData,false, false><<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), 
+                                                xs_0.data(), gpd.vs(activeIdx), velCorrectionStored.data(), 
                                                 gpd.fs(activeIdx), fs_0.data(), 
                                                 com.data(), fixRigidData, nMolecules, dt, dtf, 
                                                 gpd.idToIdxs.d_data.data(), bounds, (int) state->turn);
@@ -1812,20 +2031,20 @@ bool FixRigid::prepareForRun() {
              SumVectorXYZOverW()
             );
     rigid_remove_COMV<<<NBLOCK(nAtoms), PERBLOCK>>>(nAtoms, gpd.vs(activeIdx), sumMomentum.data(), dimsFloat3);
-
-    CUT_CHECK_ERROR("Removal of COMV in FixRigid failed.");
+    //CUT_CHECK_ERROR("Removal of COMV in FixRigid failed.");
     
     // adjust the initial velocities to conform to our velocity constraints
     // -- here, we preserve the COMV of the system, while imposing strictly translational motion on the molecules
     //    - we use shared memory to compute center of mass velocity of the group, allowing for one kernel call
     
     // validate that we have good initial conditions
+    /*
     SAFECALL((validateConstraints<FixRigidData> <<<NBLOCK(nMolecules), PERBLOCK>>> (waterIdsGPU.data(), gpd.idToIdxs.d_data.data(), 
                                                            gpd.xs(activeIdx), gpd.vs(activeIdx), 
                                                            nMolecules, bounds, fixRigidData, 
                                                            constraints.data(), state->turn)));
-
-    CUT_CHECK_ERROR("Validation of constraints failed in FixRigid.");
+    */
+    //CUT_CHECK_ERROR("Validation of constraints failed in FixRigid.");
     
     //SAFECALL((printGPD_Rigid<<<NBLOCK(nAtoms), PERBLOCK>>>(gpd.ids(activeIdx),gpd.xs(activeIdx),gpd.vs(activeIdx),gpd.fs(activeIdx),nAtoms)));
 
@@ -1915,7 +2134,7 @@ bool FixRigid::stepFinal() {
 
     }
 
-    double invdt = (double) 1.0 /  (double(state->dt));
+    //double invdt = (double) 1.0 /  (double(state->dt));
     /*
     settlePositions<FixRigidData, true><<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), 
                                                 xs_0.data(), gpd.vs(activeIdx), vs_0.data(), 
@@ -1926,8 +2145,8 @@ bool FixRigid::stepFinal() {
     
     //printf("\n\nCalling settle velocities at turn %d\n\n",(int) state->turn);
 
-    settleVelocities<FixRigidData,false, true><<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), 
-                                                xs_0.data(), gpd.vs(activeIdx), vs_0.data(), 
+    settleVelocities<FixRigidData,false, false><<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), 
+                                                xs_0.data(), gpd.vs(activeIdx), velCorrectionStored.data(), 
                                                 gpd.fs(activeIdx), fs_0.data(), 
                                                 com.data(), fixRigidData, nMolecules, dt, dtf, 
                                                 gpd.idToIdxs.d_data.data(), bounds, (int) state->turn);

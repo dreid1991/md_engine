@@ -103,9 +103,10 @@ class FixRigid : public Fix {
         // array holding positions
         GPUArrayDeviceGlobal<float4> xs_0;
 
-        // array holding velocities before constraints are applied
         GPUArrayDeviceGlobal<float4> vs_0;
 
+
+        GPUArrayDeviceGlobal<double3> velCorrectionStored;
 
         // array holding forces before constraints are applied.. ?
         GPUArrayDeviceGlobal<float4> fs_0;
@@ -185,7 +186,9 @@ class FixRigid : public Fix {
          */
         bool stepFinal();
 
+        bool postNVE_V();
 
+        bool postNVE_X();
         // populate the FixRigidData instance
         void populateRigidData();
 
@@ -217,7 +220,7 @@ class FixRigid : public Fix {
         //     However, the massless site does not evolve with the other atoms of the molecule (if TIP4P);
         //     So, manually re-set it here for accuracy.
         //     Also, check if this is rigorously correct or a valid approximation. \TODO/
-        void handleBoundsChange();
+        // void handleBoundsChange();
 
         //! Removes NDF corresponding to the number of water molecules in the fix
         int removeNDF();
