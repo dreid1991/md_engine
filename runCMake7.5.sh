@@ -10,3 +10,4 @@ export CC=gcc
 export CXX=g++
 $LD_LIBRARY_PATH
 cmake .. 
+make -j 8
