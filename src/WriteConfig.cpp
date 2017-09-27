@@ -324,7 +324,7 @@ void writeXMLfile(State *state, string fnFinal, int64_t turn, bool oneFilePerWri
     sprintf(buffer, "</configuration>\n");
     outFile << buffer;
     if (oneFilePerWrite) {
-        outFile << "/<data>" << endl;
+        outFile << "</data>" << endl;
     }
     outFile.close();
 
