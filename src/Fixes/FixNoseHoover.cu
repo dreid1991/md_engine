@@ -1010,8 +1010,6 @@ void FixNoseHoover::rescaleVolume() {
         volScaleXYZ.z = std::exp(pressVel[2] * dt);
     }
 
-    float3 tmp = volScaleXYZ;
-
     Mod::scaleSystem(state, volScaleXYZ, groupTag);
 
 }

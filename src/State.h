@@ -38,7 +38,7 @@
 #include "GridGPU.h"
 #include "Bounds.h"
 #include "DataManager.h"
-
+#include "Group.h"
 
 #include "boost_for_export.h"
 #include "DeviceManager.h"
@@ -109,6 +109,9 @@ public:
                                                             //!< operations
     std::map<std::string, uint32_t> groupTags; //!< Map of group handles and
                                                //!< bitmasks
+    std::map<uint32_t,Group> groups; //!< Map of group handles to a given group
+    void populateGroupMap(); //!< Populates the data of our Group instances contained in the above map 'groups'
+
     bool is2d; //!< True for 2d simulations, else False
     bool periodic[3]; //!< If True, simulation is periodic in given dimension
     float dt; //!< Timestep

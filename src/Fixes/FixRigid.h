@@ -67,28 +67,11 @@ class FixRigidData {
 
         double inv2Rc;
         
+        // for 4-site models, this defines the length along the bisector of the HOH angle that the M-site is positioned.
+        // we use eq. 2 from Manolopoulos et. al. as the defining quantity
+        // see J. Chem. Phys. 131, 024501 (2009) 
+        double gamma;
 
-        // no point in reducing precision here; invariant parameters of the triangle - 
-        // cosines of the apex angles
-        double cosA;
-        double cosB;
-        double cosC;
-        
-        // so a few things worth calculating beforehand...
-        // --- Miyamoto, equations B2, constants in the tau expressions
-        double tauAB1; // (m_a / d) * ( 2*(m_a + m_b) - m_a cos^2 C )
-        double tauAB2; // (m_a / d) * (m_b cosC cosA - (m_a + m_b) * cosB)
-        double tauAB3; // (m_a / d) * ( m_a cosB cosC - 2 * m_b cosA )
-
-        double tauBC1; // ( (m_a + m_b)^2 - (m_b*m_b*cosA*cosA) ) / d 
-        double tauBC2; // ( m_a * (m_b * cosA * cosB - (m_a + m_b) * cosC) ) / d
-        double tauBC3; // ( m_a * (m_b * cosC * cosA - (M_a + m_b) * cosB) ) / d
-
-        double tauCA1; // ( m_a / d) * ( 2 * (m_a + m_b) - m_a * cosB * cosB)
-        double tauCA2; // ( m_a / d) * ( m_a * cosB * cosC - 2 * m_b * cosA )
-        double tauCA3; // ( m_a / d) * ( m_b * cosA * cosB - (m_a + m_b) * cosC ) 
-
-        double denominator; // 'd' in expression B2; a constant of the rigid geometry
 
         // and the constructor
         FixRigidData() {};
@@ -103,19 +86,11 @@ class FixRigid : public Fix {
         // array holding positions
         GPUArrayDeviceGlobal<float4> xs_0;
 
-        GPUArrayDeviceGlobal<float4> vs_0;
-
-
         GPUArrayDeviceGlobal<double3> velCorrectionStored;
-
-        // array holding forces before constraints are applied.. ?
-        GPUArrayDeviceGlobal<float4> fs_0;
-
 
         // array holding COM before constraints are applied..
         GPUArrayDeviceGlobal<float4> com;
 
-        
         // vector of booleans that will alert us if a molecule has unsatisfied constraints at the end of the turn
         GPUArrayDeviceGlobal<bool> constraints;
 
@@ -135,13 +110,6 @@ class FixRigid : public Fix {
         // boolean defaulting to false in the constructor, denoting whether this is TIP3P
         bool TIP3P;
 
-        // computes the force partition constant for TIP4P for modification of forces on the molecule
-        void compute_gamma();
-
-        // the force partition constant to distribute force from M-site to O, H, H atoms
-        //  See Feenstra, Hess, and Berendsen, J. Computational Chemistry, Vol. 20, No. 8, 786-798 (1999)
-        //  -- specifically, appendix A, expression 6
-        float gamma;
 
         int nMolecules;
 
@@ -151,6 +119,7 @@ class FixRigid : public Fix {
         double r_OH;
         double r_HH;
         double r_OM;
+        double gamma; 
 
         // a float 4 of the above measures r_OH, r_HH, r_OM;
         double4 fixedSides;
@@ -194,10 +163,19 @@ class FixRigid : public Fix {
 
         //! Prepare FixRigid for simulation run
         bool prepareForRun();
-        
+      
+        // reduces the NDF of atoms governed by this constraint
+        void assignNDF();
+
         // the style of a given water model to be used.  Defaults to 'DEFAULT',  
         // either TIP3P or TIP4P/2005 depending on whether the model is 3-site or 4-site
         std::string style;
+
+        // boolean defaulting to true in the constructor;
+        // dictates whether or not we alter the initial configuration and call settlePositions & settleVelocities
+        // --- in general, if the initial configuration is good, then calling settlePositions & settleVelocities 
+        //     will have no effect
+        bool solveInitialConstraints;
 
         // permits variants of a given style (e.g., TIP4P, TIP4P/LONG, TIP4P/2005)
         // default styles are TIP3P and TIP4P/2005

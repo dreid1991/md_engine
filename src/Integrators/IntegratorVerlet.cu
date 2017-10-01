@@ -23,9 +23,10 @@ __global__ void nve_v_cu(int nAtoms, float4 *vs, float4 *fs, float dtf) {
     int idx = GETIDX();
     if (idx < nAtoms) {
         // Update velocity by a half timestep
-        double4 vel = make_double4(vs[idx]);
-        double invmass = vel.w;
-        double4 force = make_double4(fs[idx]);
+        //double4 vel = make_double4(vs[idx]);
+        float4 vel = vs[idx];
+        float invmass = vel.w;
+        float4 force = fs[idx];
         
         // ghost particles should not have their velocities integrated; causes overflow
         if (invmass > INVMASSBOOL) {
@@ -34,9 +35,11 @@ __global__ void nve_v_cu(int nAtoms, float4 *vs, float4 *fs, float dtf) {
             return;
         }
 
-        double3 dv = dtf * invmass * make_double3(force);
+        //double3 dv = dtf * invmass * make_double3(force);
+        float3 dv = dtf * invmass * make_float3(force);
         vel += dv;
-        vs[idx] = make_float4(vel);
+        //vs[idx] = make_float4(vel);
+        vs[idx] = vel;
         fs[idx] = make_float4(0.0f, 0.0f, 0.0f, force.w);
     }
 }
@@ -45,15 +48,19 @@ __global__ void nve_x_cu(int nAtoms, float4 *xs, float4 *vs, float dt) {
     int idx = GETIDX();
     if (idx < nAtoms) {
         // Update position by a full timestep
-        double4 vel = make_double4(vs[idx]);
-        double4 pos = make_double4(xs[idx]);
+        //double4 vel = make_double4(vs[idx]);
+        //double4 pos = make_double4(xs[idx]);
+        float4 vel = vs[idx];
+        float4 pos = xs[idx];
 
         //printf("pos %f %f %f\n", pos.x, pos.y, pos.z);
         //printf("vel %f %f %f\n", vel.x, vel.y, vel.z);
-        double3 dx = dt*make_double3(vel);
+        //double3 dx = dt*make_double3(vel);
+        float3 dx = dt*make_float3(vel);
         //printf("dx %f %f %f\n",dx.x, dx.y, dx.z);
         pos += dx;
-        xs[idx] = make_float4(pos);
+        //xs[idx] = make_float4(pos);
+        xs[idx] = pos;
     }
 }
 
@@ -535,18 +542,15 @@ double IntegratorVerlet::run(int numTurns)
     forceInitial(true);
 
     // prepare the fixes that require forces to be computed on instantiation;
-    // --- we also handle the datacomputers here, now that all information is available
-    //     (e.g., for tempComputers, rigid fix will be able to quantify the reduction in DOF)
     prepareFixes(true);
 
     // finally, prepare barostats, thermostats, datacomputers, etc.
-    // now that pair potentials, electrostatics, and constraints are prepared.
-    // -- should we prepare the datacomputers first? possibly..
+    // datacomputers are prepared first, then the barostats, thermostats, etc.
+    // prior to datacomputers being prepared, we iterate over State, and the groups in simulation 
+    // collect their NDF associated with their group
     prepareFinal();
 
     verifyPrepared();
-
-    // now that everything is prepared, assemble the groups!
 
     int periodicInterval = state->periodicInterval;
 	

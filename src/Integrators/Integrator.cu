@@ -129,6 +129,10 @@ void Integrator::prepareFixes(bool requiresForces_) {
 }
 
 void Integrator::prepareFinal() {
+    // iterate over the groups and collect our NDF for a given group
+    // cost is ~ (nGroups * nAtoms); but, NDF is constant during a given run command
+    state->populateGroupMap();
+
     // prepare the DataComputers that are present
     for (boost::shared_ptr<MD_ENGINE::DataSetUser> ds : state->dataManager.dataSets) {
         ds->prepareForRun(); //will also prepare those data sets' computers

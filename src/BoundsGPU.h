@@ -27,8 +27,11 @@ public:
         //consider calcing invrectcomponents using doubles
         lo = lo_;
         rectComponents = rectComponents_;
+        rectComponentsD = make_double3(rectComponents_);
         invRectComponents = 1.0f / rectComponents;
+        invRectComponentsD = 1.0f / rectComponentsD;
         periodic = periodic_;
+        periodicD = make_double3(periodic_);
     }
 
     /*! \brief Default constructor */
@@ -37,10 +40,13 @@ public:
     float3 rectComponents; //!< 3 sides - xx, yy, zz
     float3 invRectComponents; //!< Inverse of the box expansion in standard
                        //!< coordinates
+    double3 rectComponentsD;
+    double3 invRectComponentsD; //!< Inverse of the box expansion in standard coordinates and double precision
+
     float3 lo; //!< Point of origin
     float3 periodic; //!< Stores whether box is periodic in x-, y-, and
                      //!< z-direction
-
+    double3 periodicD; //!< Stores whether box is periodic in x-, y- and z-direction, double precision
     /*! \brief Return an unskewed copy of this box
      *
      * \return Unskewed copy of this box.
@@ -81,8 +87,8 @@ public:
     }
     
     __host__ __device__ double3 minImage(double3 v) {
-        double3 img = make_double3(rint(v.x * invRectComponents.x), rint(v.y * invRectComponents.y), rint(v.z * invRectComponents.z));
-        v -= make_double3(rectComponents) * img * make_double3(periodic);
+        double3 img = make_double3(rint(v.x * invRectComponentsD.x), rint(v.y * invRectComponentsD.y), rint(v.z * invRectComponentsD.z));
+        v -= make_double3(rectComponents) * img * (periodicD);
         return v;
     }
     
@@ -123,10 +129,10 @@ public:
         float3 diff = center-lo;
         diff *= scaleBy;
         lo = center - diff;
-
-
-        invRectComponents = 1 / rectComponents;
-
+        invRectComponents =  1.0 / rectComponents;
+        
+        rectComponentsD = make_double3(rectComponents);
+        invRectComponentsD = 1.0 / rectComponentsD;
 
     }
     bool operator ==(BoundsGPU &other) {

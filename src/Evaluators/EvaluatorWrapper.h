@@ -67,11 +67,15 @@ public:
                                                                virials, qs, qCutoff*qCutoff, 
                                                                nThreadPerAtom, pairEval, chargeEval);
                 } else {
+
+                    // XXX: to get forces in double (ish) precision, change nThreadPerBlock*(sizeof(float3)...)...
+                    //      to nThreadPerBlock*(sizeof(double3)...) ...
+                    //      --- this is /not/ the only place/file that this needs to be changed to get double precision forces
                     compute_force_iso<PAIR_EVAL, COMP_PAIRS, 
                         N_PARAM, true, 
                         CHARGE_EVAL, COMP_CHARGES, 1> <<<NBLOCKTEAM(nAtoms, nThreadPerBlock, nThreadPerAtom), 
                         nThreadPerBlock, 
-                        N_PARAM*numTypes*numTypes*sizeof(float) + nThreadPerBlock*(sizeof(double3) + sizeof(Virial))>>>(nAtoms,
+                        N_PARAM*numTypes*numTypes*sizeof(float) + nThreadPerBlock*(sizeof(float3) + sizeof(Virial))>>>(nAtoms,
                                             nPerRingPoly, xs, 
                                             fs, neighborCounts, neighborlist, cumulSumMaxPerBlock, 
                                             warpSize, parameters, numTypes, bounds, 
@@ -92,10 +96,12 @@ public:
                                                             virials, qs, qCutoff*qCutoff,
                                                             nThreadPerAtom, pairEval, chargeEval);
                 } else {
+                    // XXX: to get forces in double (ish) precision, change ....  sizeof(float3)>>> to sizeof(double3)
+                    // This is /not/ the only file that needs to be changed.  TODO: macro define to allow this automatically
                     compute_force_iso<PAIR_EVAL, COMP_PAIRS,
                         N_PARAM, false, 
                         CHARGE_EVAL, COMP_CHARGES, 1> <<<NBLOCKTEAM(nAtoms, nThreadPerBlock, nThreadPerAtom), 
-                        nThreadPerBlock, N_PARAM*numTypes*numTypes*sizeof(float) + nThreadPerBlock*sizeof(double3)>>>(nAtoms,nPerRingPoly, xs,
+                        nThreadPerBlock, N_PARAM*numTypes*numTypes*sizeof(float) + nThreadPerBlock*sizeof(float3)>>>(nAtoms,nPerRingPoly, xs,
                                                             fs, neighborCounts, neighborlist, cumulSumMaxPerBlock,
                                                             warpSize, parameters, numTypes, bounds, 
                                                             onetwoStr, onethreeStr, onefourStr,

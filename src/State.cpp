@@ -29,6 +29,7 @@ using namespace MD_ENGINE;
 namespace py = boost::python;
 State::State() : units(&dt) {
     groupTags["all"] = (unsigned int) 1;
+    groups[groupTags["all"]]= Group(this,"all");
     is2d = false;
     rCut = RCUT_INIT;
     padding = PADDING_INIT;
@@ -131,6 +132,13 @@ bool State::addAtomDirect(Atom a) {
             return false;
         }
         a.pos[2] = 0;
+    }
+
+    // constraints will remove any extraneous DOF when they are getting prepared prior to run()
+    if (is2d) {
+        a.ndf = 2;
+    } else {
+        a.ndf = 3;
     }
 
     atoms.push_back(a);
@@ -494,7 +502,6 @@ void State::initializeGrid() {
 }
 
 bool State::prepareForRun() {
-    // fixes have already prepared by the time the integrator calls this prepare
     std::vector<float4> xs_vec, vs_vec, fs_vec;
     std::vector<uint> ids;
     std::vector<float> qs;
@@ -503,14 +510,13 @@ bool State::prepareForRun() {
     if (!requireCharges.empty()) {
         requiresCharges = *std::max_element(requireCharges.begin(), requireCharges.end());
     }
-    //printf("State::prepareForRun print statement 2\n");
+    
     requiresPostNVE_V = false;
     std::vector<bool> requirePostNVE_V = LISTMAP(Fix *, bool, fix, fixes, fix->requiresPostNVE_V);
     if (!requirePostNVE_V.empty()) {
         requiresPostNVE_V = *std::max_element(requirePostNVE_V.begin(), requirePostNVE_V.end());
     }
 
-    //printf("State::prepareForRun print statement 3\n");
 
     int nAtoms = atoms.size();
 
@@ -520,11 +526,6 @@ bool State::prepareForRun() {
     ids.reserve(nAtoms);
     qs.reserve(nAtoms);
    
-    //printf("nAtoms value: %d\n", nAtoms);
-    //printf("added a cudaDeviceSynchronize() call here\n");
-    //cudaDeviceSynchronize();
-    //printf("State::prepareForRun print statement 3.5\n");
-
     for (const auto &a : atoms) {
         xs_vec.push_back(make_float4(a.pos[0], a.pos[1], a.pos[2],
                                      *(float *)&a.type));
@@ -544,18 +545,15 @@ bool State::prepareForRun() {
         ids.push_back(a.id);
         qs.push_back(a.q);
     }
-    //printf("State::prepareForRun print statement 4\n");
     //just setting host-side vectors
     //transfer happs in integrator->basicPrepare
     gpd.xs.set(xs_vec);
-    //printf("State::prepareForRun print statement 4.5\n");
     gpd.vs.set(vs_vec);
     gpd.fs.set(fs_vec);
     gpd.ids.set(ids);
     if (requiresCharges) {
         gpd.qs.set(qs);
     }
-    //printf("State::prepareForRun print statement 5\n");
     std::vector<Virial> virials(atoms.size(), Virial(0, 0, 0, 0, 0, 0));
     gpd.virials = GPUArrayGlobal<Virial>(nAtoms);
     gpd.virials.set(virials);
@@ -565,7 +563,6 @@ bool State::prepareForRun() {
     std::vector<int> idToIdxs_vec;
     int size = *std::max_element(id_vec.begin(), id_vec.end()) + 1;
     idToIdxs_vec.reserve(size);
-    //printf("State::prepareForRun print statement 6\n");
     for (int i=0; i<size; i++) {
         idToIdxs_vec.push_back(-1);
     }
@@ -573,7 +570,6 @@ bool State::prepareForRun() {
         idToIdxs_vec[id_vec[i]] = i;
     }
 
-    //printf("State::prepareForRun print statement 7\n");
     gpd.idToIdxsOnCopy = idToIdxs_vec;
     gpd.idToIdxs.set(idToIdxs_vec);
     bounds.handle2d();
@@ -586,9 +582,6 @@ bool State::prepareForRun() {
     gpd.fsBuffer = GPUArrayGlobal<float4>(nAtoms);
     gpd.idsBuffer = GPUArrayGlobal<uint>(nAtoms);
 
-    //printf("state->prepareForRun, before calling initializeGrid()\n");
-    //initializeGrid();
-    //printf("state->prepareForRun, after calling initializeGrid()\n");
     return true;
 }
 void State::handleChargeOffloading() {
@@ -762,7 +755,14 @@ bool State::addToGroup(std::string handle, std::function<bool (Atom *)> testF) {
 }
 
 
+void State::populateGroupMap() {
+    // iterate over our groups map and call computeNDF();
+    for (auto it = groups.begin(); it != groups.end(); it++) {
+        it->second.computeNDF();
+    }
 
+
+}
 
 
 bool State::deleteGroup(std::string handle) {
@@ -790,14 +790,21 @@ bool State::createGroup(std::string handle, py::list ids) {
 
 uint State::addGroupTag(std::string handle) {
     uint working = 0;
+    // first assert that this handle does not exist within the keys of groupTags map
     assert(groupTags.find(handle) == groupTags.end());
+    // fill the bitmask with current occupied bits
     for (auto it=groupTags.begin(); it!=groupTags.end(); it++) {
         working |= it->second;
     }
+    // shift until we find a bit that is not occupado; then return exactly that bit flipped, all others zero
+    // -- start off shifted once, because groupTag 'all' is always present
+    //    so, as long as we preclude redundancy in the groupTags map, we will 
+    //    avoid that issue with the groups map as well.
     for (int i=0; i<32; i++) {
         uint potentialTag = 1 << i;
         if (! (working & potentialTag)) {
             groupTags[handle] = potentialTag;
+            groups[potentialTag] = Group(this,handle);
             return potentialTag;
         }
     }
@@ -807,7 +814,9 @@ uint State::addGroupTag(std::string handle) {
 bool State::removeGroupTag(std::string handle) {
     auto it = groupTags.find(handle);
     assert(it != groupTags.end());
+    uint32_t tag = it->second;
     groupTags.erase(it);
+    groups.erase(tag);
     return true;
 }
 
