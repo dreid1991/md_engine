@@ -693,20 +693,14 @@ void setPerBlockCounts(std::vector<uint16_t> &neighborCounts, std::vector<uint32
 
 
 __global__ void setBuildFlag(float4 *xsA, float4 *xsB, int nAtoms, BoundsGPU boundsGPU,
-                             float paddingSqr, int *buildFlag, int numChecksSinceBuild, int warpSize) {
+                             float paddingSqr, int *buildFlag, int warpSize) {
 
     int idx = GETIDX();
     extern __shared__ short flags_shr[];
     if (idx < nAtoms) {
         float3 distVector = boundsGPU.minImage(make_float3(xsA[idx] - xsB[idx]));
         float lenSqr = lengthSqr(distVector);
-        float maxMoveRatio = std::fminf(
-                        0.95,
-                        (numChecksSinceBuild+1) / (float)(numChecksSinceBuild+2));
-        float maxMoveSqr = paddingSqr * maxMoveRatio * maxMoveRatio;
-        // printf("moved %f\n", sqrtf(lenSqr));
-        // printf("max move is %f\n", maxMoveSqr);
-        flags_shr[threadIdx.x] = (short) (lenSqr > maxMoveSqr);
+        flags_shr[threadIdx.x] = (short) (lenSqr > (paddingSqr * 0.25f));
     } else {
         flags_shr[threadIdx.x] = 0;
     }
@@ -790,7 +784,7 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
     // NOTE:  nothing to do here, if onlyPositionsFlag is True
     setBuildFlag<<<NBLOCK(nAtoms), PERBLOCK, PERBLOCK * sizeof(short)>>>(
                 gpd->xs(activeIdx), xsLastBuild.data(), nAtoms, bounds,
-		padding * padding, buildFlag.d_data.data(), numChecksSinceLastBuild, warpSize);
+		padding * padding, buildFlag.d_data.data(), warpSize);
     buildFlag.dataToHost();
     cudaDeviceSynchronize();
 
