@@ -11,8 +11,8 @@
 const std::string LJCutType = "LJCutWCA";
 namespace py = boost::python;
 
-FixWCA::FixWCA(SHARED(State) state_, std::string handle_, std::string mixingRules_="geometric")
-    : FixPair(state_, handle_, "all", LJCutType, true, false, 1, mixingRules_),
+FixWCA::FixWCA(SHARED(State) state_, std::string handle_, std::string mixingRules_)
+    : FixPair(state_, handle_, "all", LJCutType, true, false, 1, ARITHMETICTYPE),
       epsHandle("eps"), sigHandle("sig"), rCutHandle("rCut") {
     initializeParameters(epsHandle, epsilons);
     initializeParameters(sigHandle, sigmas);
@@ -158,6 +158,7 @@ bool FixWCA::setParameter(std::string param,
       return FixPair::setParameter(param, handleA,handleB,val);
       
 }
+
 void export_FixWCA() {
     py::class_<FixWCA,
                           SHARED(FixWCA),
@@ -174,3 +175,22 @@ void export_FixWCA() {
         ;
 
 }
+
+/*
+void export_FixWCA() {
+    py::class_<FixWCA,
+                          SHARED(FixWCA),
+                          py::bases<FixPair>, boost::noncopyable > (
+        "FixWCA",
+        py::init<SHARED(State), std::string, py::optional<std::string> > (
+            py::args("state", "handle", "mixingRules")))
+        .def("setParameter", &FixWCA::setParameter,
+                ( py::arg("param"),
+                  py::arg("handleA"),
+                  py::arg("handleB"),
+                  py::arg("val"))
+            )
+        ;
+
+}
+*/

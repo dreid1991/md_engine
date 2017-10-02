@@ -8,12 +8,12 @@
 cmake_minimum_required (VERSION 2.6)
 project (MDengine)
 
-set(Boost_DEBUG 1)
-find_package(Boost
-	REQUIRED
-    1.62.0
-	COMPONENTS python 
-	)
+#set(Boost_DEBUG 1)
+#find_package(Boost
+#	REQUIRED
+#    1.62.0
+#	COMPONENTS python 
+#	)
 # Set the version number
 set (VERSION_MAJOR 0)
 set (VERSION_MINOR 4)
@@ -49,13 +49,16 @@ get_filename_component (CUDA_CUFFT_LIBRARY_PATH ${CUDA_CUFFT_LIBRARIES} DIRECTOR
 #set (PYTHON_LIBRARY "/software/python-2.7-2014q1-el6-x86_64/lib")
 #set (PYTHON_INCLUDE_DIR "/software/python-2.7-2014q1-el6-x86_64/include/python2.7")
 #set (PYTHON_LIBRARIES
-#    "/software/python-2.7-2014q1-el6-x86_64/lib/libpython2.7.so")
+    #    "/software/python-2.7-2014q1-el6-x86_64/lib/libpython2.7.so")
+    #    "/software/python-2.7-2014q1-el6-x86_64/lib/libpython2.7.so")
 find_package (PythonLibs 2.7 REQUIRED)
 include_directories (${PYTHON_INCLUDE_DIR}) #removed an S here
 #get_filename_component (PYTHON_LIBRARY_PATH ${PYTHON_LIBRARIES} DIRECTORY)
 
 # Find boost
-#find_package (Boost 1.62 REQUIRED COMPONENTS python)
+find_package (Boost 
+    #1.62 
+    REQUIRED COMPONENTS python)
 
 # Require Boost MPI.
 

@@ -10,12 +10,13 @@ void export_PythonOperation();
 
 class PythonOperation {
     public:
-        void operate(int64_t turn);
+        bool operate(int64_t turn);
         int orderPreference; // needed for add generic in state, not actually used
         PyObject *operation;
         int operateEvery; 
         std::string handle;
-        PythonOperation(std::string, int, PyObject*);
+        bool synchronous;
+        PythonOperation(std::string, int, PyObject*, bool synchronous_=false);
     //OKAY, so I would like to have it so that you can set the next turn when this is called arbitrarily, but then
     //if you have pyOp return next turn so like user decides when next turn is based on current operation,
     //then it's dangerous, b/c you may have already passed that turn!

@@ -11,7 +11,7 @@
 const std::string LJCutType = "LJCutFS";
 namespace py = boost::python;
 
-FixLJCutFS::FixLJCutFS(SHARED(State) state_, std::string handle_, std::string mixingRules_="geometric")
+FixLJCutFS::FixLJCutFS(SHARED(State) state_, std::string handle_, std::string mixingRules_)
     : FixPair(state_, handle_, "all", LJCutType, true, false, 1, mixingRules_),
       epsHandle("eps"), sigHandle("sig"), rCutHandle("rCut") {
     initializeParameters(epsHandle, epsilons);
@@ -85,7 +85,7 @@ bool FixLJCutFS::prepareForRun() {
     auto none = [] (float a){};
 
     auto fillRCutDiag = [this] () {
-        return (float) state->rCut;//WHY??
+        return (float) state->rCut;
     };
 
     auto processEps = [] (float a) {
@@ -112,11 +112,14 @@ bool FixLJCutFS::prepareForRun() {
         return forceScalar;
     };
     prepareParameters(epsHandle, fillGeo, processEps, false);
-	if (mixingRules=="arithmetic") {
+	if (mixingRules==ARITHMETICTYPE) {
 		prepareParameters(sigHandle, fillArith, processSig, false);
 	} else {
 		prepareParameters(sigHandle, fillGeo, processSig, false);
 	}
+    prepareParameters(rCutHandle, fillRCut, processRCut, true, fillRCutDiag);
+
+
     prepareParameters(rCutHandle, fillRCut, processRCut, true, fillRCutDiag);
     prepareParameters("FCutHandle", fillFCut);
     sendAllToDevice();

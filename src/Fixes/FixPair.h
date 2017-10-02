@@ -16,7 +16,8 @@
 void export_FixPair();
 
 class State;
-
+extern const std::string ARITHMETICTYPE;
+extern const std::string GEOMETRICTYPE;
 class FixPair : public Fix {
 public:
     //! Constructor

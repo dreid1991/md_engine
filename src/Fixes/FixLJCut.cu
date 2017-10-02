@@ -107,7 +107,7 @@ bool FixLJCut::prepareForRun() {
         return a*a;
     };
     prepareParameters(epsHandle, fillGeo, processEps, false);
-	if (mixingRules=="arithmetic") {
+	if (mixingRules==ARITHMETICTYPE) {
 		prepareParameters(sigHandle, fillArith, processSig, false);
 	} else {
 		prepareParameters(sigHandle, fillGeo, processSig, false);

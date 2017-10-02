@@ -64,6 +64,7 @@ State::State() : units(&dt) {
     nThreadPerBlock = 256;
 
     tuneEvery = 1000000;
+    nextForceBuild = 0;
 
 }
 
@@ -501,10 +502,44 @@ void State::initializeGrid() {
 
 }
 
-bool State::prepareForRun() {
+void State::copyAtomDataToGPU(std::vector<int> &idToIdx) {
     std::vector<float4> xs_vec, vs_vec, fs_vec;
     std::vector<uint> ids;
-    std::vector<float> qs;
+    std::vector<float> qs_vec;
+
+    int nAtoms = atoms.size();
+    xs_vec.resize(nAtoms);
+    vs_vec.resize(nAtoms);
+    fs_vec.resize(nAtoms);
+    qs_vec.resize(nAtoms);
+
+    for (const auto &a : atoms) {
+        xs_vec[idToIdx[a.id]] = make_float4(a.pos[0], a.pos[1], a.pos[2],
+                                     *(float *)&a.type);
+        vs_vec[idToIdx[a.id]] = make_float4(a.vel[0], a.vel[1], a.vel[2],
+                                     1/a.mass);
+        fs_vec[idToIdx[a.id]] = make_float4(a.force[0], a.force[1], a.force[2],
+                                     *(float *)&a.groupTag);
+        qs_vec[idToIdx[a.id]] = a.q;
+    }
+    //just setting host-side vectors
+    //transfer happs in integrator->basicPrepare
+    gpd.xs.set(xs_vec);
+    gpd.vs.set(vs_vec);
+    gpd.fs.set(fs_vec);
+    gpd.qs.set(qs_vec);
+
+    gpd.xs.dataToDevice();
+    gpd.vs.dataToDevice();
+    gpd.fs.dataToDevice();
+    gpd.qs.dataToDevice();
+}
+
+bool State::prepareForRun() {
+    // so, Fixes are /not/ prepared at the time that this is called;
+    // but, they /are/ instantiated, and we know which ones are active (our list of fixes is up-to-date)
+    // so, this is ok.
+    
     requiresCharges = false;
     std::vector<bool> requireCharges = LISTMAP(Fix *, bool, fix, fixes, fix->requiresCharges);
     if (!requireCharges.empty()) {
@@ -517,9 +552,11 @@ bool State::prepareForRun() {
         requiresPostNVE_V = *std::max_element(requirePostNVE_V.begin(), requirePostNVE_V.end());
     }
 
+    std::vector<float4> xs_vec, vs_vec, fs_vec;
+    std::vector<uint> ids;
+    std::vector<float> qs;
 
     int nAtoms = atoms.size();
-
     xs_vec.reserve(nAtoms);
     vs_vec.reserve(nAtoms);
     fs_vec.reserve(nAtoms);
@@ -551,9 +588,9 @@ bool State::prepareForRun() {
     gpd.vs.set(vs_vec);
     gpd.fs.set(fs_vec);
     gpd.ids.set(ids);
-    if (requiresCharges) {
-        gpd.qs.set(qs);
-    }
+    gpd.qs.set(qs);
+
+
     std::vector<Virial> virials(atoms.size(), Virial(0, 0, 0, 0, 0, 0));
     gpd.virials = GPUArrayGlobal<Virial>(nAtoms);
     gpd.virials.set(virials);
@@ -623,13 +660,41 @@ void copyAsyncWithInstruc(State *state, std::function<void (int64_t )> cb, int64
     CUCHECK(cudaStreamDestroy(stream));
 }
 
-bool State::asyncHostOperation(std::function<void (int64_t )> cb) {
+void copySyncWithInstruc(State *state, std::function<void (int64_t )> cb, int64_t turn) {
+    state->gpd.xs.dataToHost();
+    state->gpd.vs.dataToHost();
+    state->gpd.fs.dataToHost();
+    state->gpd.ids.dataToHost();
+    state->gpd.idToIdxs.dataToHost();
+
+    CUCHECK(cudaDeviceSynchronize());
+    std::vector<int> idToIdxsOnCopy = state->gpd.idToIdxsOnCopy;
+    std::vector<float4> &xs = state->gpd.xs.h_data;
+    std::vector<float4> &vs = state->gpd.vs.h_data;
+    std::vector<float4> &fs = state->gpd.fs.h_data;
+    std::vector<uint> &ids = state->gpd.ids.h_data;
+    std::vector<Atom> &atoms = state->atoms;
+    for (int i=0, ii=state->atoms.size(); i<ii; i++) {
+        int id = ids[i];
+        int idxWriteTo = idToIdxsOnCopy[id];
+        atoms[idxWriteTo].pos = xs[i];
+        atoms[idxWriteTo].vel = vs[i];
+        atoms[idxWriteTo].force = fs[i];
+    }
+    cb(turn);
+    //now copy back
+    state->copyAtomDataToGPU(state->gpd.idToIdxs.h_data);
+}
+
+bool State::runtimeHostOperation(std::function<void (int64_t )> cb, bool async) {
     // buffers should already be allocated in prepareForRun, and num atoms
     // shouldn't have changed.
-    gpd.xs.copyToDeviceArray((void *) gpd.xsBuffer.getDevData());
-    gpd.vs.copyToDeviceArray((void *) gpd.vsBuffer.getDevData());
-    gpd.fs.copyToDeviceArray((void *) gpd.fsBuffer.getDevData());
-    gpd.ids.copyToDeviceArray((void *) gpd.idsBuffer.getDevData());
+    if (async) {
+        gpd.xs.copyToDeviceArray((void *) gpd.xsBuffer.getDevData());
+        gpd.vs.copyToDeviceArray((void *) gpd.vsBuffer.getDevData());
+        gpd.fs.copyToDeviceArray((void *) gpd.fsBuffer.getDevData());
+        gpd.ids.copyToDeviceArray((void *) gpd.idsBuffer.getDevData());
+    }
     bounds.set(boundsGPU);
     if (asyncData and asyncData->joinable()) {
         asyncData->join();
@@ -637,13 +702,14 @@ bool State::asyncHostOperation(std::function<void (int64_t )> cb) {
     cudaDeviceSynchronize();
     //cout << "ASYNC IS NOT ASYNC" << endl;
     //copyAsyncWithInstruc(this, cb, turn);
-    asyncData = SHARED(std::thread) ( new std::thread(copyAsyncWithInstruc, this, cb, turn));
+    if (async) {
+        asyncData = SHARED(std::thread) ( new std::thread(copyAsyncWithInstruc, this, cb, turn));
+    } else {
+        copySyncWithInstruc(this, cb, turn);
+    }
     // okay, now launch a thread to start async copying, then wait for it to
     // finish, and set the cb on state (and maybe a flag if you can't set the
     // function lambda equal to null
-    //ONE MIGHT ASK WHY I'M NOT JUST DOING THE CALLBACK FROM THE THREAD
-    //THE ANSWER IS BECAUSE I WANT TO USE THIS FOR PYTHON BIZ, AND YOU CAN'T
-    //CALL PYTHON FUNCTIONS FROM A THREAD AS FAR AS I KNOW
     //if thread exists, wait for it to finish
     //okay, now I have all of these buffers filled with data.  now let's just
     //launch a thread which does the writing.  At the end of each just (in main
@@ -786,6 +852,21 @@ bool State::createGroup(std::string handle, py::list ids) {
         addToGroupPy(handle, ids);
     }
     return true;
+}
+
+
+int State::countNumInGroup(std::string handle) {
+    return countNumInGroup(groupTagFromHandle(handle));
+}
+
+int State::countNumInGroup(uint32_t tag) {
+    int count = 0;
+    for (Atom &a : atoms) {
+        if (a.groupTag & tag) {
+            count++;
+        }
+    }
+    return count;
 }
 
 uint State::addGroupTag(std::string handle) {
@@ -1058,6 +1139,7 @@ BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(State_seedRNG_overloads,State::seedRNG,0,
                 .def_readwrite("nlistBuildTurns", &State::nlistBuildTurns)
                 .def_readwrite("dt", &State::dt)
                 .def_readwrite("padding", &State::padding)
+                .def_readwrite("nextForceBuild", &State::nextForceBuild)
                 .def_readonly("groupTags", &State::groupTags)
                 .def_readonly("dataManager", &State::dataManager)
                 //shared ptrs
@@ -1070,6 +1152,7 @@ BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(State_seedRNG_overloads,State::seedRNG,0,
                 .def_readwrite("verbose", &State::verbose)
                 .def_readonly("deviceManager", &State::devManager)
                 .def_readonly("units", &State::units)
+                //.def_readonly("grid", &State::gridGPU)
                 //helper for reader funcs
                 .def("Vector", &generateVector, (py::arg("vals")=py::list()))
 

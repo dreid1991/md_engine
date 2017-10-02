@@ -628,10 +628,12 @@ FixChargeEwald::FixChargeEwald(SHARED(State) state_, string handle_, string grou
 
 FixChargeEwald::~FixChargeEwald(){
     cufftDestroy(plan);
-    cudaFree(FFT_Qs);
-    cudaFree(FFT_Ex);
-    cudaFree(FFT_Ey);
-    cudaFree(FFT_Ez);
+    if (malloced) {
+        cudaFree(FFT_Qs);
+        cudaFree(FFT_Ex);
+        cudaFree(FFT_Ey);
+        cudaFree(FFT_Ez);
+    }
 }
 
 

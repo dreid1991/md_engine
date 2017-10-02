@@ -123,6 +123,7 @@ public:
     int nlistBuildCount; //!< number of times we have build nlists
     std::vector<int> nlistBuildTurns; //!< turns at which we built the neighborlist
     int64_t runInit; //!< Timestep at which the current run started
+    int64_t nextForceBuild; //!< Timestep neighborlists will definitely be build.  Fixes might need to request this
     int dangerousRebuilds; //!< Unused
     int periodicInterval; //!< Periodicity to wrap atoms and rebuild neighbor
                           //!< list
@@ -269,6 +270,9 @@ public:
      */
     bool deleteGroup(std::string);
 
+    int countNumInGroup(std::string);
+    int countNumInGroup(uint32_t);
+
     //! Create a new atom group
     /*!
      * \param handle String specifying the group
@@ -389,7 +393,7 @@ public:
      *
      * \todo Function does return neither True nor False
      */
-    bool asyncHostOperation(std::function<void (int64_t )> cb);
+    bool runtimeHostOperation(std::function<void (int64_t )> cb, bool async);
 
     boost::shared_ptr<std::thread> asyncData; //!< Shared pointer to a thread
     boost::shared_ptr<ReadConfig> readConfig; //!< Shared pointer to configuration reader
@@ -458,6 +462,7 @@ public:
      *
      */
     bool prepareForRun();
+    void copyAtomDataToGPU(std::vector<int> &idToIdx);
     //! Prepares GridGPU member of state.  called after fix prepare run, because 
     /*!
      * \return True always

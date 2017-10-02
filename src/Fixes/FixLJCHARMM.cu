@@ -144,7 +144,7 @@ bool FixLJCHARMM::prepareForRun() {
     prepareParameters(epsHandle, fillGeo, processEps, false);
     prepareParameters(eps14Handle, fillGeo, processEps, false);
 
-	if (mixingRules=="arithmetic") {
+	if (mixingRules==ARITHMETICTYPE) {
 		prepareParameters(sigHandle, fillArith, processSig, false);
 		prepareParameters(sig14Handle, fillArith, processSig, false);
 	} else {

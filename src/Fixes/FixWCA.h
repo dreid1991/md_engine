@@ -22,7 +22,7 @@ void export_FixWCA();
 class FixWCA : public FixPair {
     public:
         //! Constructor
-        FixWCA(SHARED(State), std::string handle, std::string mixingRules_);
+        FixWCA(SHARED(State), std::string handle, std::string mixingRules_="geometric");
 
         //! Compute forces
         void compute(int);

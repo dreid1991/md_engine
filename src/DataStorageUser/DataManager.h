@@ -27,6 +27,7 @@ class DataManager {
         boost::shared_ptr<MD_ENGINE::DataSetUser> recordBounds(int collectEvery, boost::python::object collectGenerator); 
         
         boost::shared_ptr<MD_ENGINE::DataSetUser> recordCOMV(int collectEvery, boost::python::object collectGenerator); 
+        boost::shared_ptr<MD_ENGINE::DataSetUser> recordDipolarCoupling(std::string groupHandle,  std::string groupHandleB, double magnetoA, double magnetaB, std::string computeMode, int interval, boost::python::object collectGenerator); 
 
         void stopRecord(boost::shared_ptr<MD_ENGINE::DataSetUser>);
 

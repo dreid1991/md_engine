@@ -25,7 +25,9 @@ __global__ void nve_v_cu(int nAtoms, float4 *vs, float4 *fs, float dtf) {
         // Update velocity by a half timestep
         //double4 vel = make_double4(vs[idx]);
         float4 vel = vs[idx];
+        //double invmass = vel.w;
         float invmass = vel.w;
+        //double4 force = make_double4(fs[idx]);
         float4 force = fs[idx];
         
         // ghost particles should not have their velocities integrated; causes overflow
@@ -64,7 +66,7 @@ __global__ void nve_x_cu(int nAtoms, float4 *xs, float4 *vs, float dt) {
     }
 }
 
-__global__ void nve_xPIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, float4 *xs, float4 *vs, float dt) {
+__global__ void nve_xPIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, float4 *xs, float4 *vs, BoundsGPU bounds, float dt) {
 
     // Declare relevant variables for NM transformation
     int idx = GETIDX(); 
@@ -119,6 +121,18 @@ __global__ void nve_xPIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, float4 
     }
     // k = 0, n = 1,...,P
     tbr[threadIdx.x]  = xn;
+    if (needSync)   __syncthreads();
+    //taking care of PBC
+    float3 origin = tbr[rootIdx];
+    float3 deltaOrig = xn - origin;
+    float3 deltaMin = bounds.minImage(deltaOrig);
+    float3 wrapped = origin + deltaMin;
+    xn = wrapped;
+    tbr[threadIdx.x] = xn;
+    
+
+    if (needSync)    __syncthreads();
+    reduceByN<float3>(tbr, nPerRingPoly, warpSize);
     if (needSync)    __syncthreads();
     reduceByN<float3>(tbr, nPerRingPoly, warpSize);
     if (useThread && amRoot)     {xsNM[threadIdx.x] = tbr[threadIdx.x]*invSqrtP;}
@@ -288,7 +302,7 @@ __global__ void preForce_cu(int nAtoms, float4 *xs, float4 *vs, float4 *fs,
 
 // alternative version of preForce_cu which allows for normal-mode propagation of RP dynamics
 // need to pass nPerRingPoly and omega_P
-__global__ void preForcePIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, float4 *xs, float4 *vs, float4 *fs,
+__global__ void preForcePIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, float4 *xs, float4 *vs, float4 *fs, BoundsGPU bounds,
                             float dt, float dtf)
 {
     // Declare relevant variables for NM transformation
@@ -301,7 +315,6 @@ __global__ void preForcePIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, floa
     float3 xn = make_float3(0, 0, 0);
     float3 vn = make_float3(0, 0, 0);
     float xW;
-    float vW;
     // helpful reference indices/identifiers
     bool   needSync= nPerRingPoly>warpSize;
     bool   amRoot  = (threadIdx.x % nPerRingPoly) == 0;
@@ -310,13 +323,12 @@ __global__ void preForcePIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, floa
     int    n       = beadIdx + 1;
 
     // Update velocity by a half timestep for all beads in the ring polymer
+    float4 vWhole;
     if (useThread) {
-        float4 vel     = vs[idx];
-        float  invmass = vel.w;
+        vWhole = vs[idx];
         float4 force   = fs[idx];
-        float3 dv      = dtf * invmass * make_float3(force);
-        vel           += dv;
-        vs[idx]        = vel;
+        float3 dv      = dtf * vWhole.w * make_float3(force);
+        vWhole        += dv;
         fs[idx]        = make_float4(0.0f,0.0f,0.0f,force.w); // reset forces to zero before force calculation
     }
     //NOT SYNCED
@@ -347,15 +359,24 @@ __global__ void preForcePIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, floa
     // %%%%%%%%%%% POSITIONS %%%%%%%%%%%
     if (useThread) {
         float4 xWhole = xs[idx];
-        float4 vWhole = vs[idx];
+        //float4 vWhole = vs[idx];
         xn = make_float3(xWhole);
         vn = make_float3(vWhole);
         xW = xWhole.w;
-        vW = vWhole.w;
     }
     //STILL NOT SYNCED
     // k = 0, n = 1,...,P
     tbr[threadIdx.x]  = xn;
+    if (needSync)   __syncthreads();
+    //taking care of PBC
+    float3 origin = tbr[rootIdx];
+    float3 deltaOrig = xn - origin;
+    float3 deltaMin = bounds.minImage(deltaOrig);
+    float3 wrapped = origin + deltaMin;
+    xn = wrapped;
+    tbr[threadIdx.x] = xn;
+    
+
     if (needSync)    __syncthreads();
     reduceByN<float3>(tbr, nPerRingPoly, warpSize);
     if (useThread && amRoot)     {xsNM[threadIdx.x] = tbr[threadIdx.x]*invSqrtP;}
@@ -485,7 +506,7 @@ __global__ void preForcePIMD_cu(int nAtoms, int nPerRingPoly, float omegaP, floa
         xn *= invSqrtP;
         vn *= invSqrtP;
 	    xs[idx]   = make_float4(xn.x,xn.y,xn.z,xW);
-	    vs[idx]   = make_float4(vn.x,vn.y,vn.z,vW);
+	    vs[idx]   = make_float4(vn.x,vn.y,vn.z,vWhole.w);
     }
 }
     //if (useThread && amRoot ) {
@@ -528,6 +549,19 @@ IntegratorVerlet::IntegratorVerlet(State *state_)
 {
 
 }
+
+void IntegratorVerlet::setInterpolator() {
+    for (Fix *f: state->fixes) {
+        if ( f->isThermostat && f->groupHandle == "all" ) {
+            std::string t = "temp";
+            tempInterpolator = f->getInterpolator(t);
+            return;
+        }
+    }
+    mdError("No thermostat found when setting up PIMD");
+}
+
+
 double IntegratorVerlet::run(int numTurns)
 {
 
@@ -537,18 +571,26 @@ double IntegratorVerlet::run(int numTurns)
     basicPrepare(numTurns);
 
     // prepare the fixes that do not require forces to be computed
+    // -- e.g., isotropic pair potentials
     prepareFixes(false);
-    
+   
+    // iterates and computes forces only from fixes that return (prepared==true)
     forceInitial(true);
 
     // prepare the fixes that require forces to be computed on instantiation;
+    // -- e.g., constraints
     prepareFixes(true);
-
+    
     // finally, prepare barostats, thermostats, datacomputers, etc.
     // datacomputers are prepared first, then the barostats, thermostats, etc.
     // prior to datacomputers being prepared, we iterate over State, and the groups in simulation 
     // collect their NDF associated with their group
     prepareFinal();
+   
+    // get our PIMD thermostat
+    if (state->nPerRingPoly>1) {
+        setInterpolator();
+    }
 
     verifyPrepared();
 
@@ -563,7 +605,7 @@ double IntegratorVerlet::run(int numTurns)
     double timeTune = 0;
     for (int i=0; i<numTurns; ++i) {
 
-        if (state->turn % periodicInterval == 0) {
+        if (state->turn % periodicInterval == 0 or state->turn == state->nextForceBuild) {
             state->gridGPU.periodicBoundaryConditions();
         }
 
@@ -603,11 +645,11 @@ double IntegratorVerlet::run(int numTurns)
 
         stepFinal();
 
-        asyncOperations();
         //HEY - MAKE DATA APPENDING HAPPEN WHILE SOMETHING IS GOING ON THE GPU.  
         doDataComputation();
         doDataAppending();
         dataManager.clearVirialTurn(state->turn);
+        asyncOperations();
 
         //! \todo The following parts could also be moved into stepFinal
         state->turn++;
@@ -648,13 +690,7 @@ void IntegratorVerlet::nve_x() {
     	        state->dt); }
     else {
 	    // get target temperature from thermostat fix
-	    double temp;
-	    for (Fix *f: state->fixes) {
-	      if ( f->isThermostat && f->groupHandle == "all" ) {
-	        std::string t = "temp";
-	        temp = f->getInterpolator(t)->getCurrentVal();
-	      }
-	    }
+	    double temp = tempInterpolator->getCurrentVal();
 	    int   nPerRingPoly = state->nPerRingPoly;
         int   nRingPoly = state->atoms.size() / nPerRingPoly;
 	    float omegaP    = (float) state->units.boltz * temp / state->units.hbar  ;
@@ -664,6 +700,7 @@ void IntegratorVerlet::nve_x() {
 		    omegaP,
     	    state->gpd.xs.getDevData(),
     	    state->gpd.vs.getDevData(),
+            state->boundsGPU,
     	    state->dt); 
     }
 }
@@ -682,13 +719,7 @@ void IntegratorVerlet::preForce()
     
 	    // get target temperature from thermostat fix
 	    // XXX: need to think about how to handle if no thermostat
-	    double temp;
-	    for (Fix *f: state->fixes) {
-	        if ( f->isThermostat && f->groupHandle == "all" ) {
-	            std::string t = "temp";
-	            temp = f->getInterpolator(t)->getCurrentVal();
-	        }
-	    }
+	    double temp = tempInterpolator->getCurrentVal();
         
 	    int   nPerRingPoly = state->nPerRingPoly;
         int   nRingPoly    = state->atoms.size() / nPerRingPoly;
@@ -702,6 +733,7 @@ void IntegratorVerlet::preForce()
         	state->gpd.xs.getDevData(),
         	state->gpd.vs.getDevData(),
         	state->gpd.fs.getDevData(),
+            state->boundsGPU,
         	state->dt,
         	dtf ); 
     }
