@@ -17,6 +17,7 @@ using namespace std;
 #include "Vector.h" 
 #include "InitializeAtoms.h"
 #include "Bounds.h"
+#include "Group.h"
 #include "includeFixes.h"
 #include "IntegratorVerlet.h"
 #include "IntegratorRelax.h"
@@ -41,6 +42,7 @@ BOOST_PYTHON_MODULE(DASH) {
     export_Atom();
     export_Molecule();
     export_Bounds();
+    export_Group();
     export_Integrator();
     export_IntegratorVerlet();
     export_IntegratorRelax();
@@ -74,6 +76,8 @@ BOOST_PYTHON_MODULE(DASH) {
     export_Fix2d();
     export_FixLinearMomentum();
     export_FixRigid();
+    export_FixTIP4PFlexible();
+    export_FixE3B3();
     export_FixDeform();
 
     export_FixExternal();
