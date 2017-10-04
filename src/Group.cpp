@@ -31,7 +31,7 @@ void Group::computeNDF() {
             ndf += a.ndf;
         }
     }
-    cout << "Group " << groupHandle << " was found to have " << ndf << " degrees of freedom." << endl;
+//    cout << "Group " << groupHandle << " was found to have " << ndf << " degrees of freedom." << endl;
 }
 
 

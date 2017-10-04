@@ -29,21 +29,21 @@ InitializeAtoms.initTemp(state, 'all', 1.2)
 #fixNVT = FixNVTRescale(state, 'temp', 'all', 1.2)
 fixNPT = FixNoseHoover(state,'npt','all')
 fixNPT.setTemperature(1.2,100.0*state.dt)
-fixNPT.setPressure('ANISO',0.2,1000*state.dt)
+#fixNPT.setPressure('ANISO',0.2,1000*state.dt)
 state.activateFix(fixNPT)
 
 integVerlet = IntegratorVerlet(state)
 
-tempData = state.dataManager.recordTemperature('all','scalar', 1)
+#tempData = state.dataManager.recordTemperature('all','scalar', 1)
 #tempData = state.dataManager.recordTemperature('all','scalar', 100)
-pressureData = state.dataManager.recordPressure('all','scalar', 1)
+#pressureData = state.dataManager.recordPressure('all','scalar', 1)
 
 integVerlet = IntegratorVerlet(state)
 
 #empData = state.dataManager.recordTemperature('all','scalar', 100)
 #pressureData = state.dataManager.recordPressure('all','scalar', 1)
 #engData = state.dataManager.recordEnergy('all', 100)
-boundsData = state.dataManager.recordBounds(100)
+#boundsData = state.dataManager.recordBounds(100)
 
 #pressure = FixPressureBerendsen(state, "constP", .2, 10, 1);
 #state.activateFix(pressure);
@@ -59,8 +59,8 @@ for a in state.atoms:
     sumV += a.vel.lenSqr()
 #print engData.vals
 #print sumV / len(state.atoms)/3.0
-plt.plot(pressureData.turns, pressureData.vals)
-plt.show()
+#plt.plot(pressureData.turns, pressureData.vals)
+#plt.show()
 #plt.show()
 #state.dataManager.stopRecord(tempData)
 #integVerlet.run(10000)
