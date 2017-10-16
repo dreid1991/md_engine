@@ -33,11 +33,11 @@ private:
     BoundsGPU boundsGPU;
 
     MD_ENGINE::DataComputerTemperature tempComputer;
+
+public:
     bool prepareForRun();
     void compute(int);
     bool postRun();
-
-public:
     boost::shared_ptr<Bounds> thermoBounds;
     FixNVTAndersen(boost::shared_ptr<State>, std::string handle_, std::string groupHandle_, boost::python::list intervals, boost::python::list temps_, float nu_= 0.01 , int applyEvery = 10);
     FixNVTAndersen(boost::shared_ptr<State>, std::string handle_, std::string groupHandle_, boost::python::object tempFunc_, float nu_ = 0.01 , int applyEvery = 10);

@@ -172,6 +172,7 @@ void FixNoseHoover::parseKeyword(std::string keyword) {
     } else {
         barostatErrorMessage = "Invalid keyword in FixNoseHoover::setPressure():\n";
         barostatErrorMessage += "Valid options are \"ISO\", \"ANISO\";";
+        //printf(barostatErrorMessage);
         mdError("See above error message");
 
     }
@@ -396,7 +397,8 @@ bool FixNoseHoover::postRun()
     tempInterpolator.finishRun();
     rescale();
 
-    return true;
+    prepared = false;
+    return !prepared;
 }
 
 bool FixNoseHoover::stepInit()

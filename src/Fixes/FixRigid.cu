@@ -146,6 +146,7 @@ __global__ void rigid_scaleSystem_cu(int4* waterIds, float4* xs, int* idToIdxs,
         // translate all the individual atoms xs's accordingly, and exit
         // --- we do not need to check groupTags
         // --- if (TIP4P) { translate M-site position as well }
+
         double weightH = fixRigidData.weights.y;
        
         // get the molecule at this idx
@@ -175,7 +176,7 @@ __global__ void rigid_scaleSystem_cu(int4* waterIds, float4* xs, int* idToIdxs,
         posH2 = posO + OH2_unconstrained;
 
         // the center of mass 'd1' in the paper
-        double3 COM_d1 = (posO ) - ( ( posH1 + posH2 ) * weightH);
+        double3 COM_d1 = (posO ) + ( ( OH1_unconstrained + OH2_unconstrained) * weightH);
     
         // do as Mod::scale on COM_d1
         double3 center = make_double3(lo) + make_double3(rectLen) * 0.5;
@@ -183,7 +184,8 @@ __global__ void rigid_scaleSystem_cu(int4* waterIds, float4* xs, int* idToIdxs,
         double3 newRel = (COM_d1 - center) * make_double3(scaleBy);
 
         // this is the vector which we will add to the positions of our atoms
-        double3 diff = center - COM_d1;
+        //double3 diff = center - COM_d1;
+        double3 diff = (center + newRel) - COM_d1;
 
         posO += diff;
         posH1 += diff;
@@ -194,16 +196,30 @@ __global__ void rigid_scaleSystem_cu(int4* waterIds, float4* xs, int* idToIdxs,
             double3 posM = make_double3(posM_whole);
             posM += diff;
             float3 newPosM = make_float3(posM);
-            xs[idxM] = make_float4(newPosM, posM_whole.w);
+            xs[idxM] = make_float4(newPosM.x, newPosM.y, newPosM.z, posM_whole.w);
         }
 
         float3 newPosO = make_float3(posO);
         float3 newPosH1= make_float3(posH1);
         float3 newPosH2= make_float3(posH2);
 
-        xs[idxO] = make_float4(newPosO, posO_whole.w);
-        xs[idxH1]= make_float4(newPosH1,posH1_whole.w);
-        xs[idxH2]= make_float4(newPosH2,posH2_whole.w);
+        xs[idxO] = make_float4(newPosO.x,  newPosO.y,  newPosO.z,  posO_whole.w);
+        xs[idxH1]= make_float4(newPosH1.x, newPosH1.y, newPosH1.z, posH1_whole.w);
+        xs[idxH2]= make_float4(newPosH2.x, newPosH2.y, newPosH2.z,posH2_whole.w);
+
+        /*
+        if (idx < 5) {
+            printf("WeightH, idxO, idxH1, idxH2: %18.14f  %d %d %d\n",weightH, idxO,idxH1,idxH2);
+            printf("posO.{x,y,z}: %18.14f %18.14f %18.14f\n", posO.x, posO.y, posO.z);
+            printf("posH1.{x,y,z}: %18.14f %18.14f %18.14f\n", posH1.x, posH1.y, posH1.z);
+            printf("posH2.{x,y,z}: %18.14f %18.14f %18.14f\n", posH2.x, posH2.y, posH2.z);
+            printf("COM_d1.{x,y,z}: %18.14f %18.14f %18.14f\n", COM_d1.x, COM_d1.y, COM_d1.z);
+            printf("center: %18.14f %18.14f %18.14f\n",center.x, center.y, center.z);
+            printf("scaleBy: %18.14f %18.14f %18.14f\n",scaleBy.x, scaleBy.y, scaleBy.z);
+            printf("newPosO: %18.14f %18.14f %18.14f\n",newPosO.x, newPosO.y, newPosO.z);
+        }
+        */
+        
     }
 }
 
@@ -230,7 +246,7 @@ __global__ void rigid_scaleSystemGroup_cu(int4* waterIds, float4* xs, int* idToI
             //      the oxygen atom is in the group, we will assume that the other atoms are as well
             //      mostly because if they aren't, then something is being done incorrectly by the user
             // --- if (TIP4P) { translate M-site position as well }
-            double weightO = fixRigidData.weights.x;
+            //double weightO = fixRigidData.weights.x;
             double weightH = fixRigidData.weights.y;
            
 
@@ -257,7 +273,8 @@ __global__ void rigid_scaleSystemGroup_cu(int4* waterIds, float4* xs, int* idToI
             posH2 = posO + OH2_unconstrained;
 
             // the center of mass 'd1' in the paper
-            double3 COM_d1 = (posO * weightO) + ( ( posH1 + posH2 ) * weightH);
+            //double3 COM_d1 = (posO ) - ( ( posH1 + posH2 ) * weightH);
+            double3 COM_d1 = (posO ) + ( ( OH1_unconstrained + OH2_unconstrained) * weightH);
         
             // do as Mod::scale on COM_d1
             double3 center = make_double3(lo) + make_double3(rectLen) * 0.5;
@@ -265,7 +282,8 @@ __global__ void rigid_scaleSystemGroup_cu(int4* waterIds, float4* xs, int* idToI
             double3 newRel = (COM_d1 - center) * make_double3(scaleBy);
 
             // this is the vector which we will add to the positions of our atoms
-            double3 diff = center - COM_d1;
+            //double3 diff = center - COM_d1;
+            double3 diff = (center + newRel) - COM_d1;
 
             posO += diff;
             posH1 += diff;
@@ -276,17 +294,23 @@ __global__ void rigid_scaleSystemGroup_cu(int4* waterIds, float4* xs, int* idToI
                 double3 posM = make_double3(posM_whole);
                 posM += diff;
                 float3 newPosM = make_float3(posM);
-                xs[idxM] = make_float4(newPosM, posM_whole.w);
+                //xs[idxM] = make_float4(newPosM, posM_whole.w);
+                xs[idxM] = make_float4(newPosM.x, newPosM.y, newPosM.z, posM_whole.w);
             }
 
             float3 newPosO = make_float3(posO);
             float3 newPosH1= make_float3(posH1);
             float3 newPosH2= make_float3(posH2);
 
+            xs[idxO] = make_float4(newPosO.x,  newPosO.y,  newPosO.z,  posO_whole.w);
+            xs[idxH1]= make_float4(newPosH1.x, newPosH1.y, newPosH1.z, posH1_whole.w);
+            xs[idxH2]= make_float4(newPosH2.x, newPosH2.y, newPosH2.z,posH2_whole.w);
+        
+            /*
             xs[idxO] = make_float4(newPosO, posO_whole.w);
             xs[idxH1]= make_float4(newPosH1,posH1_whole.w);
             xs[idxH2]= make_float4(newPosH2,posH2_whole.w);
-
+            */
         }
 
 
@@ -796,18 +820,30 @@ __global__ void settleVelocities(int4 *waterIds, float4 *xs, float4 *xs_0,
         vs[idxH1]= make_float4(velH1_tmp.x,velH1_tmp.y,velH1_tmp.z,velH1_whole.w);
         vs[idxH2]= make_float4(velH2_tmp.x,velH2_tmp.y,velH2_tmp.z,velH2_whole.w);
 
-    }
 
+        if (VIRIALS) {
+            Virial O_vir =  Virial(0.0,0.0,0.0,0.0,0.0,0.0);
+            Virial H1_vir = Virial(0.0,0.0,0.0,0.0,0.0,0.0);
+            Virial H2_vir = Virial(0.0,0.0,0.0,0.0,0.0,0.0);
+
+            // so we have a correction velocity dv for each atom.. applied along the bond vector
+            //double3 dv_m_f = O_corr
+            float3  dr_a = make_float3(rOH1);
+
+
+
+        }
+    }
 }
 
 // implements the SETTLE algorithm for maintaining a rigid water molecule
 template <class DATA, bool VIRIALS, bool DEBUG_BOOL>
 __global__ void settlePositions(int4 *waterIds, float4 *xs, float4 *xs_0, 
                                float4 *vs, 
-                               float4 *fs, Virial *virials, float4 *comOld, 
+                               float4 *fs, Virial *virials, Virial *virialsBuffer, float4 *comOld, 
                                DATA fixRigidData, int nMolecules, 
                                float dt, float dtf,
-                               int *idToIdxs, BoundsGPU bounds, int turn, double invdt) {
+                               int *idToIdxs, BoundsGPU bounds, int turn, double invdt, double inv2dtf) {
     int idx = GETIDX();
     if (idx < nMolecules) {
 
@@ -830,8 +866,8 @@ __global__ void settlePositions(int4 *waterIds, float4 *xs, float4 *xs_0,
         double3 posH2_initial= make_double3(xs_0[idx*3 + 2]);
 
         if (DEBUG_BOOL) {
-            posO_initial = make_double3(17.4587872195011, 28.0685394926010, 19.7602624045003);
-            posH1_initial = make_double3(18.3889844004616,  28.1063117245590, 19.5376903868836);
+            posO_initial  = make_double3(17.4587872195011, 28.0685394926010, 19.7602624045003);
+            posH1_initial = make_double3(18.3889844004616, 28.1063117245590, 19.5376903868836);
             posH2_initial = make_double3(17.2802653617548, 27.1368700632182, 19.8881446185112);
         
             printf("ow1 x,y,z b4: %18.14f   %18.14f   %18.14f\n",
@@ -864,9 +900,6 @@ __global__ void settlePositions(int4 *waterIds, float4 *xs, float4 *xs_0,
         double3 posH1= make_double3(posH1_whole);
         double3 posH2= make_double3(posH2_whole);
         
-        
-        
-        
         // get the velocities from vs[] array
         float4 velO_whole = vs[idxO];
         float4 velH1_whole= vs[idxH1];
@@ -879,7 +912,7 @@ __global__ void settlePositions(int4 *waterIds, float4 *xs, float4 *xs_0,
         
         if (DEBUG_BOOL) {
 
-            posO = make_double3(17.4575271824439, 28.0674544952710, 19.7605025286681);
+            posO =  make_double3(17.4575271824439, 28.0674544952710, 19.7605025286681);
             posH1 = make_double3(18.3862875449773, 28.1295399140363, 19.5360517433464);
             posH2 = make_double3(17.3029620554269, 27.1308634077511, 19.8859719102520);
 
@@ -1050,10 +1083,55 @@ __global__ void settlePositions(int4 *waterIds, float4 *xs, float4 *xs_0,
 
         }
         // add the differential contributions to the velocity from settling the positions
+        double3 dv_a = dx_a * invdt;
+        double3 dv_b = dx_b * invdt;
+        double3 dv_c = dx_c * invdt;
+
+        /*
         velO  += (dx_a * invdt);
         velH1 += (dx_b * invdt);
         velH2 += (dx_c * invdt);
+        */
 
+        velO  += dv_a;
+        velH1 += dv_b;
+        velH2 += dv_c;
+
+        if (VIRIALS) {
+            // take dtf as from integratorVerlet, but we are incrementing a full timestep here; so, no multiple of 1/2
+            // (i.e., multiply our usual value of dtf by 2.0)
+            double3 fs_O_d = dv_a * mO * inv2dtf;
+            double3 fs_H1_d= dv_b * mO * inv2dtf;
+            double3 fs_H2_d= dv_c * mO * inv2dtf;
+            // need to cast in float to use computeVirial() function, and b/c Virial class is defined to be array of floats
+            float3 fs_O  = make_float3((fs_O_d));
+            float3 fs_H1 = make_float3((fs_H1_d));
+            float3 fs_H2 = make_float3((fs_H2_d));
+            float3 dr_a  = make_float3(dx_a);
+            float3 dr_b  = make_float3(dx_b);
+            float3 dr_c  = make_float3(dx_c);
+            Virial O_vir = Virial(0.0,0.0,0.0, 0.0,0.0,0.0);
+            Virial H1_vir= Virial(0.0,0.0,0.0, 0.0,0.0,0.0);
+            Virial H2_vir= Virial(0.0,0.0,0.0, 0.0,0.0,0.0);
+            computeVirial(O_vir, fs_O, dr_a);
+            computeVirial(H1_vir,fs_H1,dr_b);
+            computeVirial(H2_vir,fs_H2,dr_c);
+            virialsBuffer[idxO] = O_vir;
+            virialsBuffer[idxH1]= H1_vir;
+            virialsBuffer[idxH2]= H2_vir;
+
+            /*
+            inline __device__ void computeVirial(Virial &v, float3 force, float3 dr) {
+            // this is the direct project of the force along the bond vector
+                v[0] += force.x * dr.x;
+                v[1] += force.y * dr.y;
+                v[2] += force.z * dr.z;
+                v[3] += force.x * dr.y;
+                v[4] += force.x * dr.z;
+                v[5] += force.y * dr.z;
+
+            */
+        }
         // cast as float
         float3 newVelO = make_float3(velO);
         float3 newVelH1= make_float3(velH1);
@@ -1257,13 +1335,14 @@ void FixRigid::populateRigidData() {
     fixRigidData.M2_inv = M2_inv;
     fixRigidData.M3_inv = M3_inv;
 
+    /*
     printf("M1_inv values: %18.14f    %18.14f    %18.14f\n",
             M1_inv.x, M1_inv.y, M1_inv.z);
     printf("M2_inv values: %18.14f    %18.14f    %18.14f\n",
             M2_inv.x, M2_inv.y, M2_inv.z);
     printf("M3_inv values: %18.14f    %18.14f    %18.14f\n",
             M3_inv.x, M3_inv.y, M3_inv.z);
-    
+    */
     
     return;
 
@@ -1287,7 +1366,8 @@ bool FixRigid::postNVE_X() {
 
     int virialMode = state->dataManager.getVirialModeForTurn(state->turn);
     bool virials = ((virialMode == 1) or (virialMode == 2));
-
+    
+    double inv2dtf = 1.0 / (double(state->dt) * (double(state->units.ftm_to_v)));
     // if we are computing virials this turn, do so now
     // TODO: this is being done /before/ forces are computed - so, the virials get wiped!
     // XXX XXX: we'll need a local gpuarray of virials for temporary storage. TBD.
@@ -1296,16 +1376,18 @@ bool FixRigid::postNVE_X() {
                                                     xs_0.data(), gpd.vs(activeIdx), 
                                                     gpd.fs(activeIdx), 
                                                     gpd.virials.d_data.data(),
+                                                    virialsBuffer.data(),
                                                     com.data(), fixRigidData, nMolecules, dt, dtf, 
-                                                    gpd.idToIdxs.d_data.data(), bounds, (int) state->turn, invdt);
+                                                    gpd.idToIdxs.d_data.data(), bounds, (int) state->turn, invdt,inv2dtf);
 
     } else {
         settlePositions<FixRigidData,false,false><<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), 
                                                     xs_0.data(), gpd.vs(activeIdx), 
                                                     gpd.fs(activeIdx), 
                                                     gpd.virials.d_data.data(),
+                                                    virialsBuffer.data(),
                                                     com.data(), fixRigidData, nMolecules, dt, dtf, 
-                                                    gpd.idToIdxs.d_data.data(), bounds, (int) state->turn, invdt);
+                                                    gpd.idToIdxs.d_data.data(), bounds, (int) state->turn, invdt,inv2dtf);
 
     }
 
@@ -1334,13 +1416,13 @@ void FixRigid::set_fixed_sides() {
     int id_H1 = firstMolecule.y;
     //double massO = 15.999400000;
     double massO = state->atoms[id_O1].mass;
-    std::cout << "massO found to be " << massO << std::endl;
+    //std::cout << "massO found to be " << massO << std::endl;
     //double massH = 1.00800000;
     double massH = state->atoms[id_H1].mass;
-    std::cout << "massH1 found to be " << massH << std::endl;
+    //std::cout << "massH1 found to be " << massH << std::endl;
     double massWater = massO + (2.0 * massH);
 
-    std::cout << "massWater found to be " << massWater << std::endl;
+    //std::cout << "massWater found to be " << massWater << std::endl;
 
 
     fixRigidData.weights.x = massO / massWater;
@@ -1388,14 +1470,14 @@ void FixRigid::set_fixed_sides() {
     // finally, subtract ra from raPlusRb to get rb.
     double rb = raPlusRb - ra;
 
-    std::cout << "ra: " << ra << "; rb: " << rb << "; rc: " << rc << std::endl;
+    //std::cout << "ra: " << ra << "; rb: " << rb << "; rc: " << rc << std::endl;
 
 
     double raVal = 2.0 * massH * sqrt(OH * OH - (0.5 * fixRigidData.sideLengths.z * 0.5 * fixRigidData.sideLengths.z) ) / (massWater);
     double rbVal = sqrt(OH * OH - (0.5 * fixRigidData.sideLengths.z * 0.5 * fixRigidData.sideLengths.z)) - raVal;
     double inv2Rc = 1.0 / fixRigidData.sideLengths.z;
 
-    std::cout << "raVal: " << raVal << "; rbVal: " << rbVal << "; inv2Rc: " << inv2Rc << std::endl;
+    //std::cout << "raVal: " << raVal << "; rbVal: " << rbVal << "; inv2Rc: " << inv2Rc << std::endl;
     fixRigidData.canonicalTriangle = make_double4(ra,rb,rc,inv2Rc);
 
 }
@@ -1862,12 +1944,18 @@ bool FixRigid::prepareForRun() {
     populateRigidData();
 
     printf("number of molecules in waterIds: %d\n", nMolecules);
+    // make an array of ids for a molecule, and then the idxs (so, we only consult the idToIdxs map when gridGPU shuffles them)
     waterIdsGPU = GPUArrayDeviceGlobal<int4>(nMolecules);
-    waterIdsGPU.set(waterIds.data());
+    waterIdxsGPU= GPUArrayDeviceGlobal<int4>(nMolecules);
 
+    waterIdsGPU.set(waterIds.data());
+    waterIdxsGPU.set(waterIds.data());
+    // need virials on a per-atom basis; we use these /only/ in the settlePositions routine;
+    // we add them to the global array immediately after forces are calculated, and before barostat/thermostat routines are called
+    virialsBuffer = GPUArrayDeviceGlobal<Virial>(nMolecules*3);
 
     velCorrectionStored = GPUArrayDeviceGlobal<double3>(3*nMolecules);
-    
+   
     xs_0 = GPUArrayDeviceGlobal<float4>(3*nMolecules);
     com = GPUArrayDeviceGlobal<float4>(nMolecules);
     constraints = GPUArrayDeviceGlobal<bool>(nMolecules);
@@ -1882,7 +1970,6 @@ bool FixRigid::prepareForRun() {
     
     int virialMode = state->dataManager.getVirialModeForTurn(state->turn);
     bool virials = ((virialMode == 1) or (virialMode == 2));
-    
     compute_COM<FixRigidData><<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), 
                                                                 gpd.xs(activeIdx), 
                                                                 gpd.vs(activeIdx), 
@@ -1899,6 +1986,8 @@ bool FixRigid::prepareForRun() {
     // iterate over all atoms and reduce their configurational DOF accordingly as the atom struct
     assignNDF();
     // so; solve the positions (if we have good initial conditions, nothing happens here)
+    
+    double inv2dtf = 1.0 / (double(state->dt) * (double(state->units.ftm_to_v)));
 
     if (solveInitialConstraints) {
         if (virials) {
@@ -1906,16 +1995,18 @@ bool FixRigid::prepareForRun() {
                                                         xs_0.data(), gpd.vs(activeIdx),  
                                                         gpd.fs(activeIdx), 
                                                         gpd.virials.d_data.data(),
+                                                        virialsBuffer.data(),
                                                         com.data(), fixRigidData, nMolecules, dt, dtf, 
-                                                        gpd.idToIdxs.d_data.data(), bounds, (int) state->turn, invdt);
+                                                        gpd.idToIdxs.d_data.data(), bounds, (int) state->turn, invdt,inv2dtf);
         } else {
 
             settlePositions<FixRigidData,false, false><<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), 
                                                         xs_0.data(), gpd.vs(activeIdx), 
                                                         gpd.fs(activeIdx), 
                                                         gpd.virials.d_data.data(),
+                                                        virialsBuffer.data(),
                                                         com.data(), fixRigidData, nMolecules, dt, dtf, 
-                                                        gpd.idToIdxs.d_data.data(), bounds, (int) state->turn, invdt);
+                                                        gpd.idToIdxs.d_data.data(), bounds, (int) state->turn, invdt,inv2dtf);
         }
 
         // I hope the M-site was in the proper positions in the initial configuration... otherwise we have bad forces
@@ -2000,6 +2091,7 @@ bool FixRigid::stepInit() {
     return true;
 }
 
+// so, this should occur /before/ barostats have their stepFinal() routine called
 bool FixRigid::stepFinal() {
     float dt = state->dt;
     GPUData &gpd = state->gpd;
@@ -2075,10 +2167,8 @@ bool FixRigid::stepFinal() {
 bool FixRigid::postRun() {
     prepared = false;
     state->rigidBodies = false;
-    return true;
+    return !prepared;
 }
-
-
 
 // export the overloaded function
 void (FixRigid::*createRigid_x1) (int, int, int)      = &FixRigid::createRigid;

@@ -119,15 +119,23 @@ void Integrator::prepareFixes(bool requiresForces_) {
     for (Fix *f : state->fixes) {
         // f->requiresForces refers to Fix member in Fix.h, defaults to False
         if (f->requiresForces == requiresForces_) {
+            cout << "Calling prepareForRun for fix " << f->handle << endl;
             f->takeStateNThreadPerBlock(state->nThreadPerBlock);//grid will also have this value
             f->takeStateNThreadPerAtom(state->nThreadPerAtom);//grid will also have this value
             f->updateGroupTag();
             f->prepareForRun();
             f->setVirialTurnPrepare();
+            CUT_CHECK_ERROR("Failed in prepareFixes!\n");
         }
     }
 
+    state->handleChargeOffloading();
     
+    for (Fix *f : state->fixes) {
+        if (f->requiresForces == requiresForces_ and f->prepared) {
+            f->setEvalWrapper();
+        }
+    }
 }
 
 void Integrator::prepareFinal() {
@@ -149,7 +157,11 @@ void Integrator::prepareFinal() {
         f->prepareFinal();
 
     }
-    
+   
+    // shuffle local data according to PBC, if it did not already occur
+    for (Fix *f : state->fixes) {
+        f->handleLocalData();
+    }
     state->handleChargeOffloading();
     // so, set the eval wrappers..
     for (Fix *f : state->fixes) {
@@ -324,6 +336,12 @@ double Integrator::tune() {
         }
     };
 
+    auto fixesGrids = [this] () { 
+        for (auto fix : state->fixes) {
+            fix->handleLocalData();
+        }
+    };
+
 	int curNTPB = state->nThreadPerBlock;
 	int curNTPA = state->nThreadPerAtom;
     vector<vector<double> > times;
@@ -338,6 +356,7 @@ double Integrator::tune() {
             if (nBlock < 65536) {
                 setParams(threadPerBlock, threadPerAtom);
                 state->gridGPU.periodicBoundaryConditions(-1, true);
+                fixesGrids();
                 state->nlistBuildCount--;
                 cudaDeviceSynchronize();
                 auto start = std::chrono::high_resolution_clock::now();

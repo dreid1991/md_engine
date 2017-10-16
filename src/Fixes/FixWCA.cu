@@ -124,8 +124,8 @@ std::string FixWCA::restartChunk(std::string format) {
 
 
 bool FixWCA::postRun() {
-
-    return true;
+    prepared = false;
+    return !prepared;
 }
 
 void FixWCA::addSpecies(std::string handle) {

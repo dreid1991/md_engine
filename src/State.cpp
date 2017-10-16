@@ -621,11 +621,13 @@ bool State::prepareForRun() {
 
     return true;
 }
+
+// so, this is safe to call twice.  We'll call 
 void State::handleChargeOffloading() {
     for (Fix *f : fixes) {
-        if (f->canOffloadChargePairCalc) {
+        if (f->canOffloadChargePairCalc and f->prepared) {
             for (Fix *g : fixes) {
-                if (g->canAcceptChargePairCalc and not g->hasAcceptedChargePairCalc) {
+                if (g->canAcceptChargePairCalc and not g->hasAcceptedChargePairCalc and g->prepared) {
                     g->acceptChargePairCalc(f); 
                     f->hasOffloadedChargePairCalc = true;
                     g->hasAcceptedChargePairCalc = true;
@@ -720,12 +722,18 @@ bool State::runtimeHostOperation(std::function<void (int64_t )> cb, bool async) 
 // this function is called by barostatting methods 
 void State::findRigidBodies() {
 
-    if (this->rigidBodies) {
 
+    if (this->rigidBodies) {
+        // ensure that our idToIdx on cpu is correct
+        // --- this is here for when we optimize this to be done by idx, not by id.
+        //     Currently, we do it by id, which requires a look up when applying barostat
+        refreshIdToIdx(); 
+
+        // vector of ints
         std::vector<int> allRigidAtomIds;
 
         for (Fix *f: this->fixes) {
-            // returns an array of atom ids, or nullptr
+            // returns an array of atom ids, or empty list 
             std::vector<int> rigidAtomIds = f->getRigidAtoms();
             if (rigidAtomIds.size() > 0) {
                 for (int i = 0; i < rigidAtomIds.size(); i++) {
@@ -750,23 +758,25 @@ void State::findRigidBodies() {
             // so, this contains the ids that we tell the barostat should /not/ have their 
             // positions modified by the barostat, but rather by their constraint algorithm
             int thisId = allRigidAtomIds[i];
+            //cout << "Found rigid atom: " << thisId << endl;
             rigidAtoms[thisId] = 0;
         }
     
         // and finally, set the GPUArrayDeviceGlobal to the rigidAtoms array.
-        rigidBodiesMask.set(rigidAtoms);
-        rigidBodiesMask.dataToDevice();
+        rigidBodiesMask = GPUArrayDeviceGlobal<uint8_t>(this->atoms.size());
+        rigidBodiesMask.set(rigidAtoms.data());
 
 
     } else {
         
         // nominally set the vector and GPUArrayDeviceGlobal array to some 1-value so that we aren't
         // playing with bad values anywhere
-        rigidAtoms.resize(1,true);
-        rigidBodiesMask = GPUArrayGlobal<int>(1);
-        rigidBodiesMask.dataToDevice();
+        rigidAtoms.resize(1,1);
+        rigidBodiesMask = GPUArrayDeviceGlobal<uint8_t>(1);
+        rigidBodiesMask.set(rigidAtoms.data());
         
     }
+    cout << "Finished allocating rigidBodiesMask in findRigidBodies()!\n" << endl;
 }
 
 

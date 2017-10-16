@@ -38,10 +38,13 @@ void FixLJCut::compute(int virialMode) {
     int activeIdx = gpd.activeIdx();
     uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
     float *neighborCoefs = state->specialNeighborCoefs;
-    evalWrap->compute(nAtoms, nPerRingPoly, gpd.xs(activeIdx), gpd.fs(activeIdx),
-                      neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(),
-                      state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU,
-                      neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.virials.d_data.data(), gpd.qs(activeIdx), chargeRCut, virialMode, nThreadPerBlock(), nThreadPerAtom());
+    evalWrap->compute(nAtoms, nPerRingPoly, gpd.xs(activeIdx), 
+                      gpd.fs(activeIdx), neighborCounts, grid.neighborlist.data(), 
+                      grid.perBlockArray.d_data.data(),state->devManager.prop.warpSize, paramsCoalesced.data(), 
+                      numTypes, state->boundsGPU, neighborCoefs[0], 
+                      neighborCoefs[1], neighborCoefs[2], gpd.virials.d_data.data(), 
+                      gpd.qs(activeIdx), chargeRCut, virialMode, 
+                      nThreadPerBlock(), nThreadPerAtom());
 
 }
 
@@ -128,8 +131,8 @@ string FixLJCut::restartChunk(string format) {
 
 
 bool FixLJCut::postRun() {
-
-    return true;
+    prepared = false;
+    return !prepared;
 }
 
 void FixLJCut::addSpecies(string handle) {

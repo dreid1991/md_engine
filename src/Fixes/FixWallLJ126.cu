@@ -50,7 +50,8 @@ bool FixWallLJ126::prepareForRun() {
 };
 
 bool FixWallLJ126::postRun () {
-    return true;
+    prepared = false;
+    return !prepared;
 };
 
 // export function

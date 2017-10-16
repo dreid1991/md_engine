@@ -83,6 +83,9 @@ class FixRigid : public Fix {
         // array holding ids of a given water molecule
         GPUArrayDeviceGlobal<int4> waterIdsGPU;
 
+        // array holding idxs of a given water molecule
+        GPUArrayDeviceGlobal<int4> waterIdxsGPU;
+
         // array holding positions
         GPUArrayDeviceGlobal<float4> xs_0;
 
@@ -93,6 +96,9 @@ class FixRigid : public Fix {
 
         // vector of booleans that will alert us if a molecule has unsatisfied constraints at the end of the turn
         GPUArrayDeviceGlobal<bool> constraints;
+
+        // buffer to store virial contribution from position constraints, which are solved prior to computation of the forces
+        GPUArrayDeviceGlobal<Virial> virialsBuffer;
 
 
         std::vector<int4> waterIds;
@@ -184,7 +190,6 @@ class FixRigid : public Fix {
         std::string restartChunk(std::string format);
 
         bool readFromRestart();
-
         
         std::vector<int> getRigidAtoms();
 

@@ -1,9 +1,14 @@
 #include "FixPressureBerendsen.h"
 #include "State.h"
 #include "Mod.h"
+#include <stdint.h>
+#include <iostream>
+#include "globalDefs.h"
 namespace py = boost::python;
 const std::string BerendsenType = "Langevin";
 using namespace MD_ENGINE;
+using std::cout;
+using std::endl;
 
 FixPressureBerendsen::FixPressureBerendsen(boost::shared_ptr<State> state_, std::string handle_, double pressure_, double period_, int applyEvery_) : Interpolator(pressure_), Fix(state_, handle_, "all", BerendsenType, false, true, false, applyEvery_), pressureComputer(state, "scalar"), period(period_) {
     bulkModulus = 10; //lammps
@@ -20,6 +25,8 @@ bool FixPressureBerendsen::prepareFinal() {
     state->findRigidBodies();
 
     prepared = true;
+    CUT_CHECK_ERROR("FixPressureBerendsen CUT_CHECK_ERROR()\n");
+    //cout << "FixPressureBerendsen successfully prepared!\n" << endl;
     return prepared;
 }
 
@@ -46,7 +53,8 @@ bool FixPressureBerendsen::stepFinal() {
 
 bool FixPressureBerendsen::postRun() {
     finished = true;
-    return true;
+    prepared = false;
+    return !prepared;
 }
 
 void FixPressureBerendsen::setParameters(double maxDilation_) {

@@ -159,6 +159,19 @@ public:
      */
     virtual void addSpecies(std::string handle) {}
 
+
+    //! Re-organize local data according to new GridGPU ordering
+    /*!
+     * 
+     * When GridGPU shuffles idxs so that particles close in space are close in memory,
+     * this function prompts identical shuffling in Fixes that have local data pertaining to atoms 
+     * or groups of atoms that are accessed during force evaluations.
+     *
+     * So, shuffling here allows us to skip the extra lookup(s) until the next shuffling occurs.
+     *
+     */
+    virtual void handleLocalData() {};
+
     //! Recalculate group bitmask from a (possibly changed) handle
     void updateGroupTag();
     bool willFire(int64_t);//<!True if a fix will operate for the turn in the argument.

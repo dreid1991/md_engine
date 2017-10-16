@@ -55,7 +55,8 @@ bool FixWallHarmonic::prepareForRun() {
 };
 
 bool FixWallHarmonic::postRun () {
-    return true;
+    prepared = false;
+    return !prepared;
 };
 
 

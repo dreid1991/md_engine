@@ -18,28 +18,33 @@ namespace py = boost::python;
 void GridGPU::initArrays() {
     //this happens in adjust for new bounds
     //perCellArray = GPUArrayGlobal<uint32_t>(prod(ns) + 1);
+    printf("GridGPU initArrays -02\n");
+    printf("GridGPU initArrays -01: %d %d\n",gpd->xs.size(),nPerRingPoly);
     int nRingPoly = gpd->xs.size() / nPerRingPoly;   // number of ring polymers/atom representations
     if (nPerRingPoly > 1) {
         rpCentroids = GPUArrayDeviceGlobal<float4>(nRingPoly);
     }
+    printf("GridGPU initArrays 01\n");
     perAtomArray = GPUArrayGlobal<uint16_t>(nRingPoly + 1);
     // also cumulative sum, tracking cumul. sum of max per block
 //NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerRP)
     initArraysTune();
-    xsLastBuild = GPUArrayDeviceGlobal<float4>(state->atoms.size());
+    xsLastBuild = GPUArrayDeviceGlobal<float4>(gpd->xs.size());
 
+    printf("GridGPU initArrays 02\n");
     // in prepare for run, you make GPU grid _after_ copying xs to device
     buildFlag = GPUArrayGlobal<int>(1);
     buildFlag.d_data.memset(0);
     copyPositionsAsync();
     
     buildFlag.d_data.memset(0);
+    printf("GridGPU initArrays 03\n");
     // TODO delete cudaDS() call below
     cudaDeviceSynchronize();
 }
 
 void GridGPU::initArraysTune() {
-    int nRingPoly = state->atoms.size() / state->nPerRingPoly;   // number of ring polymers/atom representations
+    int nRingPoly = gpd->xs.size() / state->nPerRingPoly;   // number of ring polymers/atom representations
     perBlockArray = GPUArrayGlobal<uint32_t>(NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerAtom()) + 1);
     // not +1 on this one, isn't cumul sum
     perBlockArray_maxNeighborsInBlock = GPUArrayDeviceGlobal<uint16_t>(NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerAtom()));
@@ -107,10 +112,25 @@ __global__ void printGPD_xsOnly(uint* ids, float4 *xs, int nAtoms) {
 }
 
 
-GridGPU::GridGPU(State *state_, float dx_, float dy_, float dz_, float neighCutoffMax_, int exclusionMode_, double padding_, GPUData *gpd_, int nPerRingPoly_)
+GridGPU::GridGPU(State *state_, float dx_, float dy_, float dz_, float neighCutoffMax_, int exclusionMode_, double padding_, GPUData *gpd_, int nPerRingPoly_,bool globalGrid_)
   : state(state_), nPerRingPoly(nPerRingPoly_) {
-    nThreadPerAtom(state->nThreadPerAtom);
-    nThreadPerBlock(state->nThreadPerBlock);
+
+    
+    globalGrid = globalGrid_;
+
+    if (globalGrid) {
+        nThreadPerAtom(state->nThreadPerAtom);
+        nThreadPerBlock(state->nThreadPerBlock);
+    } else {
+        // see Tunable.h file.  Default values are 256, 1 for NTPB, NTPA, respectively.
+
+        nThreadPerAtom(1);
+        nThreadPerBlock(256);
+
+    }
+
+    printf("::GridGPU 01\n");
+
     neighCutoffMax = neighCutoffMax_;
     gpd = gpd_;
     padding = padding_;
@@ -120,15 +140,20 @@ GridGPU::GridGPU(State *state_, float dx_, float dy_, float dz_, float neighCuto
     minGridDim = make_float3(dx_, dy_, dz_);
     boundsLastBuild = BoundsGPU(make_float3(0, 0, 0), make_float3(0, 0, 0), make_float3(0, 0, 0));
     setBounds(state->boundsGPU);
+    printf("::GridGPU 02\n");
     initArrays();
 
+    printf("::GridGPU 03\n");
     initStream();
     numChecksSinceLastBuild = 0;
     exclusionMode = exclusionMode_;
     
+    printf("::GridGPU 04\n");
     int activeIdx = gpd->activeIdx();
     handleExclusions();
     int nAtoms = gpd->xs.size();
+    printf("::GridGPU 05, nAtoms found to be %d\n",nAtoms);
+
 }
 
 void GridGPU::onlyPositions(bool flag) {
@@ -788,9 +813,18 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
     buildFlag.dataToHost();
     cudaDeviceSynchronize();
 
+    CUT_CHECK_ERROR("GRIDGPU LINE 790\n");
+    // address comparison to check if this gpd is state's gpd
+    //std::cout << "address of current gpd: " << &*gpd << std::endl;
+    //std::cout << "address of local pointer to state gpd: " << & (state->gpd) << std::endl;
+
     if (buildFlag.h_data[0] or forceBuild) {
-        state->nlistBuildCount++;
-        state->nlistBuildTurns.push_back((int)state->turn);
+        // if the address of this instance is identical to the address of state's gridGPU, update state's 
+        // nlistBuildCount.  Else, this is gridGPU for something else (e.g. E3B)
+        if (globalGrid) {
+            state->nlistBuildCount++;
+            state->nlistBuildTurns.push_back((int)state->turn);
+        }
         float3 ds_orig = ds;
         float3 os_orig = os;
 
@@ -808,6 +842,8 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
             //            bounds.sides[0], bounds.sides[1], bounds.lo);
         }
         periodicWrap<<<NBLOCK(nAtoms), PERBLOCK>>>(gpd->xs(activeIdx), nAtoms, boundsUnskewed);
+    
+        CUT_CHECK_ERROR("GRIDGPU LINE 821\n");
         
         // increase number of grid cells if necessary
         int numGridCells = prod(ns);
@@ -826,6 +862,7 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
             centroids = gpd->xs(activeIdx);
         }
 
+        CUT_CHECK_ERROR("GRIDGPU LINE 840\n");
         countNumInGridCells<<<NBLOCK(nRingPoly), PERBLOCK>>>(
                     centroids, nRingPoly,
                     perCellArray.d_data.data(), perAtomArray.d_data.data(),
@@ -868,6 +905,7 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
                     nRingPoly, os, ds, ns, nPerRingPoly
             );
         }
+        CUT_CHECK_ERROR("GRIDGPU LINE 883\n");
         if (onlyPositionsFlag) {
             activeIdx = gpd->switchIdx(onlyPositionsFlag); 
         } else {
@@ -885,6 +923,8 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
 	    }
 
         float3 trace = boundsUnskewed.trace();
+        
+        CUT_CHECK_ERROR("GRIDGPU LINE 902\n");
 
         /* multigpu:
          *  1. transfer atoms (after wrapping, counting, and sorting cells)
@@ -917,6 +957,7 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
                             os, ds, ns, bounds.periodic, trace, neighCut*neighCut, nThreadPerRP); //PER RP CENTROID
         }
 
+        CUT_CHECK_ERROR("GRIDGPU LINE 935\n");
  
         computeMaxMemSizePerWarp<<<NBLOCKVAR(nRingPoly, nThreadPerBlock()), nThreadPerBlock(), nThreadPerBlock()*sizeof(uint16_t)>>>(
                     nRingPoly, perAtomArray.d_data.data(),
@@ -958,18 +999,20 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
         } else if (totalNumNeighbors < neighborlist.size() * 0.5) {
             neighborlist = GPUArrayDeviceGlobal<uint>(totalNumNeighbors*1.5);
         }
+        
+        CUT_CHECK_ERROR("GRIDGPU LINE 978\n");
 
         if (nThreadPerRP==1) {
             if (exclusions) {
                 assignNeighbors<0,true><<<NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerRP), nThreadPerBlock(), (nThreadPerBlock()/nThreadPerRP)*maxExclusionsPerAtom*sizeof(uint32_t)>>>(
-                                centroids, nRingPoly, nPerRingPoly, state->gpd.ids(gridIdx),
+                                centroids, nRingPoly, nPerRingPoly, gpd->ids(gridIdx),
                                 perCellArray.d_data.data(), perBlockArray.d_data.data(), os, ds, ns,
                                 bounds.periodic, trace, neighCut*neighCut, neighborlist.data(), warpSize,
                                 exclusionIndexes.data(), exclusionIds.data(), maxExclusionsPerAtom, nThreadPerRP
                                 ); //PER RP CENTROID
             } else {
                 assignNeighbors<0,false><<<NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerRP), nThreadPerBlock(), (nThreadPerBlock()/nThreadPerRP)*maxExclusionsPerAtom*sizeof(uint32_t)>>>(
-                                centroids, nRingPoly, nPerRingPoly, state->gpd.ids(gridIdx),
+                                centroids, nRingPoly, nPerRingPoly, gpd->ids(gridIdx),
                                 perCellArray.d_data.data(), perBlockArray.d_data.data(), os, ds, ns,
                                 bounds.periodic, trace, neighCut*neighCut, neighborlist.data(), warpSize,
                                 exclusionIndexes.data(), exclusionIds.data(), maxExclusionsPerAtom, nThreadPerRP
@@ -978,20 +1021,22 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
         } else {
             if (exclusions) {
                 assignNeighbors<1,true><<<NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerRP), nThreadPerBlock(), (nThreadPerBlock()/nThreadPerRP)*maxExclusionsPerAtom*sizeof(uint32_t) + nThreadPerBlock()*sizeof(uint32_t)>>>(
-                                centroids, nRingPoly, nPerRingPoly, state->gpd.ids(gridIdx),
+                                centroids, nRingPoly, nPerRingPoly, gpd->ids(gridIdx),
                                 perCellArray.d_data.data(), perBlockArray.d_data.data(), os, ds, ns,
                                 bounds.periodic, trace, neighCut*neighCut, neighborlist.data(), warpSize,
                                 exclusionIndexes.data(), exclusionIds.data(), maxExclusionsPerAtom, nThreadPerRP
                                 ); //PER RP CENTROID
             } else {
                 assignNeighbors<1,false><<<NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerRP), nThreadPerBlock(), (nThreadPerBlock()/nThreadPerRP)*maxExclusionsPerAtom*sizeof(uint32_t) + nThreadPerBlock()*sizeof(uint32_t)>>>(
-                                centroids, nRingPoly, nPerRingPoly, state->gpd.ids(gridIdx),
+                                centroids, nRingPoly, nPerRingPoly, gpd->ids(gridIdx),
                                 perCellArray.d_data.data(), perBlockArray.d_data.data(), os, ds, ns,
                                 bounds.periodic, trace, neighCut*neighCut, neighborlist.data(), warpSize,
                                 exclusionIndexes.data(), exclusionIds.data(), maxExclusionsPerAtom, nThreadPerRP
                                 ); //PER RP CENTROID
             }
         }
+        
+        CUT_CHECK_ERROR("GRIDGPU LINE 1014\n");
 
         /*
         std::vector<int> nlistCPU(neighborlist.size()); 
@@ -1016,6 +1061,15 @@ void GridGPU::periodicBoundaryConditions(float neighCut, bool forceBuild) {
 
         numChecksSinceLastBuild = 0;
         copyPositionsAsync(); 
+
+        // finally, loop over fixes and have them re-shuffle their data according to the new idToIdxs map
+        // --- only do this if this is state's gridgpu! Why? Because we are looping over state's fixes.
+        if (globalGrid) {
+            for (Fix *f : state->fixes) {
+                f->handleLocalData();
+            }
+        }
+
     } else {
         numChecksSinceLastBuild++;
     }
@@ -1191,7 +1245,7 @@ void GridGPU::handleExclusions() {
 void GridGPU::handleExclusionsForcers() {
 
     std::vector<std::vector<BondVariant> *> allBonds;
-       for (Fix *f : state->fixes) {
+    for (Fix *f : state->fixes) {
         std::vector<BondVariant> *fixBonds = f->getBonds();
         if (fixBonds != nullptr) {
             allBonds.push_back(fixBonds);

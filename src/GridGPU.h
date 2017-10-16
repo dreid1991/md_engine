@@ -8,9 +8,6 @@
 #include "GPUArrayGlobal.h"
 #include "GPUArrayDeviceGlobal.h"
 #include "GPUData.h"
-
-#include "Tunable.h"
-
 #include "Tunable.h"
 
 #include "BoundsGPU.h"
@@ -90,6 +87,7 @@ public:
     float neighCutoffMax;   //!< largest cutoff radius of any interacting pair + padding, default value for grid building
     double padding; //!< padding for this grid
 
+    bool globalGrid; //!< Boolean denoting whether this is state's grid or not
     /*! \brief Constructor
      *
      * \param state_ Pointer to the simulation state
@@ -102,7 +100,7 @@ public:
      * resolution will be the next larger value such that the box size is
      * a multiple of the resolution.
      */
-    GridGPU(State *state_, float dx, float dy, float dz, float neighCutoffMax, int exclusionMode_, double padding_, GPUData *gpd_, int nPerRingPoly=1);
+    GridGPU(State *state_, float dx, float dy, float dz, float neighCutoffMax, int exclusionMode_, double padding_, GPUData *gpd_, int nPerRingPoly=1, bool globalGrid=true);
 
     /*! \brief Default constructor
      *

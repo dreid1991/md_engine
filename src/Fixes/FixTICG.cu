@@ -91,7 +91,8 @@ std::string FixTICG::restartChunk(std::string format) {
 }
 
 bool FixTICG::postRun() {
-    return true;
+    prepared = false;
+    return !prepared;
 }
 
 void FixTICG::addSpecies(std::string handle) {

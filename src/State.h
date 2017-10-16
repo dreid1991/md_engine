@@ -344,9 +344,9 @@ public:
                            //!< types, handles
     void findRigidBodies(); //!< Gets all rigid bodies associated with this simulation state
     bool rigidBodies; //!< Denotes whether rigid bodies are present in the simulation; 
-    std::vector<int> rigidAtoms; //!< Boolean array that informs barostats whether the barostat performs the position rescaling (evaluates to true), else false (constraint algorithm handles the NPT position scaling and translation).
+    std::vector<uint8_t> rigidAtoms; //!< Boolean array that informs barostats whether the barostat performs the position rescaling (evaluates to true), else false (constraint algorithm handles the NPT position scaling and translation).
 
-    GPUArrayGlobal<int> rigidBodiesMask;
+    GPUArrayDeviceGlobal<uint8_t> rigidBodiesMask;
     //!< Boolean mask for NPT simulations (otherwise unused) with rigid bodies; GPU side of rigidAtoms array.  False for rigid bodies (Barostat does /not/ handle the position rescaling; rather, the constraint algorithm does), true otherwise.
     // for now, let's keep this sorted by id?
 

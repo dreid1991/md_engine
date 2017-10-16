@@ -82,7 +82,8 @@ bool FixLangevin::prepareForRun() {
 
 bool FixLangevin::postRun() {
     finished = true;
-    return true;
+    prepared = false;
+    return !prepared;
 }
 
 void FixLangevin::setParams(double seed_, double gamma_) {

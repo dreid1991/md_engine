@@ -49,7 +49,8 @@ bool FixExternalQuartic::prepareForRun() {
 };
 
 bool FixExternalQuartic::postRun () {
-    return true;
+    prepared = false;
+    return !prepared;
 };
 
 // export function

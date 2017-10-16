@@ -146,8 +146,8 @@ std::string FixLJCutFS::restartChunk(std::string format) {
 
 
 bool FixLJCutFS::postRun() {
-
-    return true;
+    prepared = false;
+    return !prepared;
 }
 
 void FixLJCutFS::addSpecies(std::string handle) {

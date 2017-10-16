@@ -572,21 +572,28 @@ double IntegratorVerlet::run(int numTurns)
 
     // prepare the fixes that do not require forces to be computed
     // -- e.g., isotropic pair potentials
+    printf("About to prepareFixes(false)!\n");
     prepareFixes(false);
-   
+  
+    printf("Prepared the fixes (prepareFixes(false))\n");
     // iterates and computes forces only from fixes that return (prepared==true)
     forceInitial(true);
 
-    // prepare the fixes that require forces to be computed on instantiation;
+    CUT_CHECK_ERROR("Force Initial!\n");
+    printf("Made it past forceInitial(true)\n"); // prepare the fixes that require forces to be computed on instantiation;
     // -- e.g., constraints
     prepareFixes(true);
-    
+   
+
+    printf("Made it past prepareFixes(true)!\n");
+
     // finally, prepare barostats, thermostats, datacomputers, etc.
     // datacomputers are prepared first, then the barostats, thermostats, etc.
     // prior to datacomputers being prepared, we iterate over State, and the groups in simulation 
     // collect their NDF associated with their group
     prepareFinal();
-   
+
+    printf("Made it past prepareFinal!\n");
     // get our PIMD thermostat
     if (state->nPerRingPoly>1) {
         setInterpolator();
@@ -623,7 +630,6 @@ double IntegratorVerlet::run(int numTurns)
         }
         postNVE_X();
         //printf("preForce IS COMMENTED OUT\n");
-
         handleBoundsChange();
 
         if ((state->turn-state->runInit) % tuneEvery == 0 and state->turn > state->runInit) {
@@ -633,7 +639,6 @@ double IntegratorVerlet::run(int numTurns)
             timeTune += tune();
             haveTunedWithData = true;
         }
-
         // Recalculate forces
         force(virialMode);
 

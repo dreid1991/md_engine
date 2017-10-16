@@ -41,8 +41,11 @@ void IntegratorUtil::forceInitial(int virialMode) {
            //     computedFDotR = true;
            // }
             if (f->prepared) {
+                std::cout << "Calling compute() in forceInitial on fix " << f->handle << std::endl;
                 f->compute(virialMode);
+                cudaDeviceSynchronize();
                 f->setVirialTurn();
+                CUT_CHECK_ERROR("Failed in forceInitial!\n");
             }
         }
     }

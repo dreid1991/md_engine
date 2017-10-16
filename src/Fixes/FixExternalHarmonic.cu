@@ -48,7 +48,8 @@ bool FixExternalHarmonic::prepareForRun() {
 };
 
 bool FixExternalHarmonic::postRun () {
-    return true;
+    prepared = false;
+    return !prepared;
 };
 
 // export function

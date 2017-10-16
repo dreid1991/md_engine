@@ -176,8 +176,8 @@ string FixLJCHARMM::restartChunk(string format) {
 
 
 bool FixLJCHARMM::postRun() {
-
-    return true;
+    prepared = false;
+    return !prepared;
 }
 
 void FixLJCHARMM::addSpecies(string handle) {
