@@ -296,9 +296,12 @@ __global__ void compute_E3B_force
 
 // and same thing for energy kernel computation... 
 
-
+/////////////////////////////////////////////////////////////////////
+// a simple kernel for evaluation of /just/ the threebody energies
+//  ---- another kernel below for twobody energies
+/////////////////////////////////////////////////////////////////////
 template <class EVALUATOR, bool COMP_VIRIALS> 
-__global__ void compute_E3B_energy
+__global__ void compute_E3B_energy_3b
         (int nMolecules, 
          const int *__restrict__ molIdToIdxs,
          const uint *__restrict__ waterMolecIds,
@@ -315,7 +318,221 @@ __global__ void compute_E3B_energy
          EVALUATOR eval)
 
 {
-    //int idx = GETIDX();
-    return;
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    // NOTE: the majority of this kernel is copied from force evaluator above
+    /////////////////////////////////////////////////////////////////////////////////////////////////
+    
+    int idx = GETIDX();
+
+    // might be wise to do NTPA (atom actually being a molecule in this case)
+    // -- if we incorporate dynamical parallelism, would that lead to a poorly distributed workload?
+    if (idx < nMolecules) {
+
+        // these are atom idxs at a given water molecule idx
+        int4 atomsMolecule1 = atomsFromMolecule[idx];
+
+        /* NOTE to others: see the notation used in 
+         * Kumar and Skinner, J. Phys. Chem. B., 2008, 112, 8311-8318
+         * "Water Simulation Model with Explicit 3 Body Interactions"
+         *
+         * we use their notation for decomposing the molecules into constituent atoms a,b,c (oxygen, hydrogen, hydrogen)
+         * and decomposing the given trimer into the set of molecules 1,2,3 (water molecule 1, 2, and 3)
+         */
+       
+        //int4 atomsMolecule1 = make_int4(idToIdx[atomMolecule.x]....)
+        // copy the float4 vectors of the positions
+        int idx_a1 = atomsMolecule1.x;
+        int idx_b1 = atomsMolecule1.y;
+        int idx_c1 = atomsMolecule1.z;
+
+        float4 pos_a1_whole = xs[idx_a1];
+        float4 pos_b1_whole = xs[idx_b1];
+        float4 pos_c1_whole = xs[idx_c1];
+
+        // now, get just positions in float3
+        float3 pos_a1 = make_float3(pos_a1_whole);
+        float3 pos_b1 = make_float3(pos_b1_whole);
+        float3 pos_c1 = make_float3(pos_c1_whole);
+        
+        // create a new energy sum variable for these atoms
+        float e_a1_sum = 0.0;
+        float e_b1_sum = 0.0;
+        float e_c1_sum = 0.0;
+       
+
+        // number of neighbors this molecule has, with which it can form trimers
+        int numNeighMolecules = neighborCounts[idx];
+
+        int baseIdx = baseNeighlistIdx(cumulSumMaxPerBlock, warpSize, idx);
+
+        // iterate over our j neighbors
+        for (int j = 0; j < (numNeighMolecules); j++) {
+            // get idx of this molecule
+            // -- then, the atomIDs that we need are somehow accessible via MoleculeID
+            int nlistIdx = baseIdx + warpSize * j;
+
+            // get the idx of our molecule at nlistIdx on our neighborlist
+            uint jIdx = neighborlist[nlistIdx];
+
+            // get the atom idxs from this molecule idx
+            int4 atomsMolecule2 = atomsFromMolecule[jIdx];
+
+            // get the atom idxs from the atom ids.. since the per-atom arrays are sorted by idx
+            int idx_a2 = atomsMolecule2.x;
+            int idx_b2 = atomsMolecule2.y;
+            int idx_c2 = atomsMolecule2.z;
+
+            float4 pos_a2_whole = xs[idx_a2];
+            float4 pos_b2_whole = xs[idx_b2];
+            float4 pos_c2_whole = xs[idx_c2];
+    
+            // here we should extract the positions for the O, H atoms of this water molecule
+            float3 pos_a2 = make_float3(pos_a2_whole);
+            float3 pos_b2 = make_float3(pos_b2_whole);
+            float3 pos_c2 = make_float3(pos_c2_whole);
+
+            // we have four OH distances to compute here
+            
+            // -- just as the paper does, we compute the vector w.r.t. the hydrogen,
+            //    but on molecule 1.
+            
+            float3 r_b2a1 = bounds.minImage(pos_b2 - pos_a1);
+            float3 r_c2a1 = bounds.minImage(pos_c2 - pos_a1);
+            
+            float3 r_b1a2 = bounds.minImage(pos_b1 - pos_a2);
+            float3 r_c1a2 = bounds.minImage(pos_c1 - pos_a2);
+
+            float r_b2a1_magnitude = length(r_b2a1);
+            float r_c2a1_magnitude = length(r_c2a1);
+            float r_b1a2_magnitude = length(r_b1a2);
+            float r_c1a2_magnitude = length(r_c1a2);
+
+            // compute the number of O-H distances computed so far that are within the range of the three-body cutoff
+            // note: order really doesn't matter here; just checking if (val < 5.2 Angstroms)
+            //
+            int numberOfDistancesWithinCutoff = eval.getNumberWithinCutoff(r_b2a1_magnitude,
+                                                                           r_c2a1_magnitude,
+                                                                           r_b1a2_magnitude,
+                                                                           r_c1a2_magnitude);
+
+            
+            // save this for the k loop
+            int ijNDist = numberOfDistancesWithinCutoff;
+            
+            // from k = j+1, while still less than numNeighMolecules w.r.t. baseMolecule ('i');
+            for (int k = j+1; k < numNeighMolecules; k++) {
+                // reset to initial ij value; we use += below, which would lead to accumulatino within the k-loop
+                numberOfDistancesWithinCutoff = ijNDist;
+
+                // grab warp index corresponding to this 'k'
+                int klistMoleculeIdx = baseIdx + warpSize * k;
+
+                // grab the molecule idx at this index of the neighborlist
+                uint kIdx = neighborlist[klistMoleculeIdx];
+
+                int4 atomsMolecule3 = atomsFromMolecule[kIdx];
+
+                int idx_a3 = atomsMolecule3.x;
+                int idx_b3 = atomsMolecule3.y;
+                int idx_c3 = atomsMolecule3.z;
+
+                // extract positions of O, H atoms of this water molecule
+                float4 pos_a3_whole = xs[idx_a3];
+                float4 pos_b3_whole = xs[idx_b3];
+                float4 pos_c3_whole = xs[idx_c3];
+                
+                // cast as float3
+                float3 pos_a3 = make_float3(pos_a3_whole);
+                float3 pos_b3 = make_float3(pos_b3_whole);
+                float3 pos_c3 = make_float3(pos_c3_whole);
+                
+                // compute the pertinent O-H distances for use in our potential (there are 8 that we have yet to compute)
+                // -- distances vector for b3a1 and c3a1; a1 reference atom
+                float3 r_b3a1 = bounds.minImage(pos_b3 - pos_a1);
+                float3 r_c3a1 = bounds.minImage(pos_c3 - pos_a1);
+               
+                // -- distances vector for b3a2 and c3a2; a2 reference atom
+                float3 r_b3a2 = bounds.minImage(pos_b3 - pos_a2);
+                float3 r_c3a2 = bounds.minImage(pos_c3 - pos_a2);
+
+                // -- distances vector for b1a3 and c1a3; a3 reference atom
+                float3 r_b1a3 = bounds.minImage(pos_b1 - pos_a3);
+                float3 r_c1a3 = bounds.minImage(pos_c1 - pos_a3);
+
+                // -- distance vector for b2a3 and c2a3; a3 reference atom
+                float3 r_b2a3 = bounds.minImage(pos_b2 - pos_a3);
+                float3 r_c2a3 = bounds.minImage(pos_c2 - pos_a3);
+               
+                /*
+                 *  get the magnitude of the new distance vectors, and check if we still need to compute this potential
+                 *  (i.e., see if this is a valid trimer, that there will be some non-zero threebody contribution)
+                 */
+
+                float r_b3a1_magnitude = length(r_b3a1);
+                float r_c3a1_magnitude = length(r_c3a1);
+                
+                float r_b3a2_magnitude = length(r_b3a2);
+                float r_c3a2_magnitude = length(r_c3a2);
+
+                float r_b1a3_magnitude = length(r_b1a3);
+                float r_c1a3_magnitude = length(r_c1a3);
+                float r_b2a3_magnitude = length(r_b2a3);
+                float r_c2a3_magnitude = length(r_c2a3);
+    
+                // compute the number of additional distances within the cutoff;
+                // if the total is >= 2, we need to compute energetic interactions for this trimer.
+                // if the total is 1, at least one product expression of the switching function will 
+                // be zero in all of the 42 terms
+                numberOfDistancesWithinCutoff += eval.getNumberWithinCutoff(r_b3a1_magnitude,
+                                                                            r_c3a1_magnitude,
+                                                                            r_b3a2_magnitude,
+                                                                            r_c3a2_magnitude);
+
+                numberOfDistancesWithinCutoff += eval.getNumberWithinCutoff(r_b1a3_magnitude,
+                                                                            r_c1a3_magnitude,
+                                                                            r_b2a3_magnitude,
+                                                                            r_c2a3_magnitude);
+
+                // if there is only 1 intermolecular O-H distance within the cutoff, all terms will be zero
+                if (numberOfDistancesWithinCutoff > 1) {
+
+                    eval.threeBodyEnergy(e_a1_sum, e_b1_sum, e_c1_sum,
+                                        r_b2a1_magnitude,
+                                        r_c2a1_magnitude,
+                                        r_b3a1_magnitude,
+                                        r_c3a1_magnitude,
+                                        r_b1a2_magnitude,
+                                        r_c1a2_magnitude,
+                                        r_b3a2_magnitude,
+                                        r_c3a2_magnitude,
+                                        r_b1a3_magnitude,
+                                        r_c1a3_magnitude, 
+                                        r_b2a3_magnitude, 
+                                        r_c2a3_magnitude);
+                 
+                } // end if (numberOfDistancesWithinCutoff >= 2)
+            } // end for (int k = j+1; k < numNeighMolecules; k++) 
+        } // end for (int j = 0; j < (numNeighMolecules); j++) 
+        
+
+        // we now have the aggregate force sums for the three atoms a1, b1, c1; add them to the actual atoms data
+        // idx_a1 is idx of oxygen for molecule i
+        // idx_b1 is idx of hydrogen 1 for molecule i
+        // idx_c1 is idx of hydrogen 2 for molecule i
+        /*
+        float fs_a1_whole = fs[idx_a1];
+        float fs_b1_whole = fs[idx_b1];
+        float fs_c1_whole = fs[idx_c1];
+
+        fs_a1_whole += fs_a1_sum;
+        fs_b1_whole += fs_b1_sum;
+        fs_c1_whole += fs_c1_sum;
+
+        fs[idx_a1] = fs_a1_whole;
+        fs[idx_b1] = fs_b1_whole;
+        fs[idx_c1] = fs_c1_whole;
+        */
+
+    } // end if (idx < nMolecules) 
 }
 

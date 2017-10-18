@@ -24,6 +24,7 @@ FixE3B::FixE3B(boost::shared_ptr<State> state_,
     rs = 5.0; // short cutoff for threebody interactions (Angstroms)
     rc = 7.2; // cutoff for our local neighborlist (Angstroms)
     padding = 2.0; // implied since rc - rf = 2.0; pass this to local GridGPU on instantiation
+    style = "E3B3"; // default to E3B3
     // to do: set up the local gridGPU for this set of GPUData; 
     // ---- which means we need to set up the local GPUData;
     // ------- can't do this until we have all the atoms in simulation; so do it in prepareForRun
@@ -298,7 +299,6 @@ void FixE3B::handleLocalData() {
 
 bool FixE3B::stepInit(){
     // we use this as an opportunity to re-create the local neighbor list, if necessary
-    int periodicInterval = state->periodicInterval;
     
     uint activeIdx = gpdLocal.activeIdx();
 
@@ -307,43 +307,38 @@ bool FixE3B::stepInit(){
     GPUData &gpdGlobal = state->gpd;
     BoundsGPU &bounds = state->boundsGPU;
 
-    if (state->turn % periodicInterval == 0) {
-        // do the re-creation of the neighborlist for E3B
-        // -- the xs of the molecules is /not/ updated with the atoms!
-        //    but this is what we form our neighborlist off of (for the molecule-by-molecule neighborlist)
-        //    so, do a kernel call here to update them to the current positions
-        //    of their constituent atoms
+    // do the re-creation of the neighborlist for E3B
+    // -- the xs of the molecules is /not/ updated with the atoms!
+    //    but this is what we form our neighborlist off of (for the molecule-by-molecule neighborlist)
+    //    so, do a kernel call here to update them to the current positions
+    //    of their constituent atoms
 
-        // update the positions of our molecules
-        update_xs<<<NBLOCK(nMolecules), PERBLOCK>>>(nMolecules, 
-                                                    waterIdsGPU.data(), 
-                                                    gpdLocal.xs(activeIdx), 
-                                                    gpdLocal.idToIdxs.d_data.data(),
-                                                    gpdGlobal.xs(globalActiveIdx), 
-                                                    gpdGlobal.vs(globalActiveIdx), 
-                                                    gpdGlobal.idToIdxs.d_data.data(),
-                                                    bounds
-                                                    );
-        // for each thread, we have one molecule
-        // -- get the atoms for this idx, compute COM, set the xs to the new value, and return
-        //    -- need idToIdx for atoms? I think so.  Also, this is easy place to check 
-        //       accessing the data arrays
-    
-        CUT_CHECK_ERROR("FixE3B: Error in update_xs<<<>>>!\n");
-        // our grid now operates on the updated molecule xs to get a molecule by molecule neighborlist    
-        gridGPULocal.periodicBoundaryConditions();
-     
-        CUT_CHECK_ERROR("FixE3B: Error in the gridGPU!\n");
-    
-        updateMoleculeIdxsMap<<<NBLOCK(nMolecules),PERBLOCK>>>(nMolecules,
-                                                               waterIdsGPU.data(),
-                                                               waterIdxsGPU.data(),
-                                                               gpdLocal.idToIdxs.d_data.data(),
-                                                               gpdGlobal.idToIdxs.d_data.data());
-        CUT_CHECK_ERROR("FixE3B: Error in updateMoleculeIdxsMap!\n");
-    }
+    // update the positions of our molecules
+    update_xs<<<NBLOCK(nMolecules), PERBLOCK>>>(nMolecules, 
+                                                waterIdsGPU.data(), 
+                                                gpdLocal.xs(activeIdx), 
+                                                gpdLocal.idToIdxs.d_data.data(),
+                                                gpdGlobal.xs(globalActiveIdx), 
+                                                gpdGlobal.vs(globalActiveIdx), 
+                                                gpdGlobal.idToIdxs.d_data.data(),
+                                                bounds
+                                                );
+    // for each thread, we have one molecule
+    // -- get the atoms for this idx, compute COM, set the xs to the new value, and return
+    //    -- need idToIdx for atoms? I think so.  Also, this is easy place to check 
+    //       accessing the data arrays
+
+    // our grid now operates on the updated molecule xs to get a molecule by molecule neighborlist    
+    gridGPULocal.periodicBoundaryConditions(-1,true);
+ 
+    updateMoleculeIdxsMap<<<NBLOCK(nMolecules),PERBLOCK>>>(nMolecules,
+                                                           waterIdsGPU.data(),
+                                                           waterIdxsGPU.data(),
+                                                           gpdLocal.idToIdxs.d_data.data(),
+                                                           gpdGlobal.idToIdxs.d_data.data());
     return true;
 }
+
 
 /* Single Point Eng
  *
@@ -358,44 +353,85 @@ bool FixE3B::stepInit(){
     //return
 //}
 
+void FixE3B::createEvaluator() {
+    
+    // style defaults to E3B3; otherwise, it can be set to E3B2;
+    // there are no other options.
+    float kjToKcal = 0.23900573614;
+    float rs = 5.0;
+    float rf = 5.2;
+    float k2 = 4.872;
+    float k3 = 1.907;
+    if (style == "E3B3") {
+        // as angstroms
+
+        // E2, Ea, Eb, Ec as kJ/mole -> convert to kcal/mole
+        float E2 = 453000;
+        float Ea = 150.0000;
+        float Eb = -1005.0000;
+        float Ec = 1880.0000;
+
+        // k2, k3 as angstroms
+        
+        E2 *= kjToKcal;
+        Ea *= kjToKcal;
+        Eb *= kjToKcal;
+        Ec *= kjToKcal;
+
+        // 0 = REAL, 1 = LJ (see /src/Units.h)
+        if (state->units.unitType == 1) {
+            mdError("Units for E3B potential are not yet as LJ\n");
+        }
+            // converting to LJ from kcal/mol
+
+        // instantiate the evaluator
+        evaluator = EvaluatorE3B(rs, rf, E2,
+                                  Ea, Eb, Ec,
+                                  k2, k3);
+        
+   
+    } else if (style == "E3B2") {
+    
+        float E2 = 2349000.0; // kj/mol
+        float Ea = 1745.7;
+        float Eb = -4565.0;
+        float Ec = 7606.8;
+
+        E2 *= kjToKcal;
+        Ea *= kjToKcal;
+        Eb *= kjToKcal;
+        Ec *= kjToKcal;
+
+        // 0 = REAL, 1 = LJ (see /src/Units.h)
+        if (state->units.unitType == 1) {
+            mdError("Units for E3B potential are not yet as LJ\n");
+        }
+            // converting to LJ from kcal/mol
+
+        // instantiate the evaluator
+        evaluator = EvaluatorE3B(rs, rf, E2,
+                                  Ea, Eb, Ec,
+                                  k2, k3);
+        
+    }
+};
+
+void FixE3B::setStyle(std::string style_) {
+
+    if (style_ == "E3B3") {
+        style = style_;
+    } else if (style_ == "E3B2") {
+        style = style_;
+    } else {
+        mdError("Unrecognized style in FixE3B; options are E3B2 or E3B3.  Aborting.\n");
+    }
+}
 
 
 /* prepareForRun
 
    */
 bool FixE3B::prepareForRun(){
-   
-    // as angstroms
-    float rs = 5.0;
-    float rf = 5.2;
-
-    // E2, Ea, Eb, Ec as kJ/mole -> convert to kcal/mole
-    float E2 = 453000;
-    float Ea = 150.0000;
-    float Eb = -1005.0000;
-    float Ec = 1880.0000;
-
-    // k2, k3 as angstroms
-    float k2 = 4.872;
-    float k3 = 1.907;
-    
-    float kjToKcal = 0.23900573614;
-    E2 *= kjToKcal;
-    Ea *= kjToKcal;
-    Eb *= kjToKcal;
-    Ec *= kjToKcal;
-
-    // 0 = REAL, 1 = LJ (see /src/Units.h)
-    if (state->units.unitType == 1) {
-        mdError("Units for E3B potential are not yet as LJ\n");
-    }
-        // converting to LJ from kcal/mol
-
-    // instantiate the evaluator
-    evaluator = EvaluatorE3B(rs, rf, E2,
-                              Ea, Eb, Ec,
-                              k2, k3);
-        
    
     // OK, everything up to this point has been checked...
     
@@ -448,6 +484,7 @@ bool FixE3B::prepareForRun(){
     gpdLocal.idsBuffer = GPUArrayGlobal<uint>(nMolecules);
     int activeIdx = gpdLocal.activeIdx();
     
+    double rf = 5.2;
     double maxRCut = rf;// cutoff of our potential (5.2 A)
     double padding = 1.0;
     double gridDims = maxRCut + padding;
@@ -584,5 +621,9 @@ void export_FixE3B() {
           py::arg("id_H2"),
           py::arg("id_M")
          )
-    );
+        )
+    .def("setStyle", &FixE3B::setStyle,
+         py::arg("style")
+        )
+    ;
 }

@@ -95,6 +95,12 @@ class FixE3B: public Fix {
         // calls our map
         void handleLocalData();
 
+        // sets the style
+        void setStyle(std::string);
+
+        std::string style; // either E3B3 or E3B2
+        // creates the evaluator for the corresponding style (E3B3, or E3B2);
+        void createEvaluator();
         //!< List of all water molecules in simulation
         std::vector<Molecule> waterMolecules;
        

@@ -87,7 +87,7 @@ class EvaluatorE3B {
             return 0.0;
         }
         
-        // so, do summatino of two body energies and apply prefactor after summation
+        // so, do summation of two body energies and apply prefactor after summation
         inline __device__ float twoBodyEnergy(float r1) {
             return expf(-k2*r1);
         }
@@ -416,9 +416,7 @@ class EvaluatorE3B {
 
         } // end threeBodyForce(*bigArgsListHere)
  
-        __device__ void threeBodyEnergy(float3 &e_a1_sum, float3 &e_b1_sum, float3 &e_c1_sum,
-                                        float e_b2a1_scalar, float e_c2a1_scalar,
-                                        float e_b1a2_scalar, float e_c1a2_scalar,
+        __device__ void threeBodyEnergySum(float &e_a1_sum, float &e_b1_sum, float &e_c1_sum,
                                         float r_b2a1_scalar,
                                         float r_c2a1_scalar,
                                         float r_b3a1_scalar,
@@ -431,6 +429,8 @@ class EvaluatorE3B {
                                         float r_c1a3_scalar, 
                                         float r_b2a3_scalar, 
                                         float r_c2a3_scalar) {
+
+            // ok, so do all the terms... 
 
 
         
