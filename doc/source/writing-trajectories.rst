@@ -25,7 +25,7 @@ Basic usage
     writeConfig.write() 
 
     #active the writer.  Now turns will be written every 100 turns.
-    state.activateWriteConfig(state)
+    state.activateWriteConfig(writeConfig)
     
     
 Writing one file per config (can be done with any format)
