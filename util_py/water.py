@@ -102,21 +102,37 @@ def create_TIP3P_long(state, oxygenHandle, hydrogenHandle, center=None):
     state.addAtom(handle=hydrogenHandle, pos=h2Pos, q=0.4170)
     return state.createMolecule([state.atoms[-3].id, state.atoms[-2].id, state.atoms[-1].id])
 
-def create_TIP4P(state, oxygenHandle, hydrogenHandle, mSiteHandle, center=None):
+def create_TIP4P(state, oxygenHandle, hydrogenHandle, mSiteHandle, center=None, orientation=None):
+    qH = 0.52
+    qM = -2.0 * qH
     if center==None:
         center = state.Vector(0, 0, 0)
-    state.addAtom(handle=oxygenHandle, pos=center, q=0)
-    offset1 = Vector(0.9572, 0, 0)
-    h1Pos = center + offset1
-    state.addAtom(handle=hydrogenHandle, pos=h1Pos, q=0.52)
-    theta = 1.824218134
-    offset2 = Vector(cos(theta)*0.9572, sin(theta)*0.9572, 0)
-    h2Pos = center + offset2
-    state.addAtom(handle=hydrogenHandle, pos=h2Pos, q=0.52)
-    mSiteOffset = (offset1 + offset2).normalized() * 0.1546
+    if orientation==None:
+        state.addAtom(handle=oxygenHandle, pos=center, q=0.0)
+        offset1 = Vector(0.9572, 0, 0)
+        h1Pos = center + offset1
+        state.addAtom(handle=hydrogenHandle, pos=h1Pos, q=qH)
+        theta = 1.824218134
+        offset2 = Vector(cos(theta)*0.9572, sin(theta)*0.9572, 0)
+        h2Pos = center + offset2
+        state.addAtom(handle=hydrogenHandle, pos=h2Pos, q=qH)
+        mSiteOffset = (offset1 + offset2).normalized() * 0.150
+        state.addAtom(handle=mSiteHandle, pos=center+mSiteOffset, q=qM)
+        return state.createMolecule([state.atoms[-4].id, state.atoms[-3].id, state.atoms[-2].id, state.atoms[-1].id])
 
-    state.addAtom(handle=mSiteHandle, pos=center+mSiteOffset, q=-1.04)
-    return state.createMolecule([state.atoms[-4].id, state.atoms[-3].id, state.atoms[-2].id, state.atoms[-1].id])
+    elif orientation=="random":
+        state.addAtom(handle=oxygenHandle, pos=center, q=0)
+        offset1 = getRandomOrientation() * 0.9572
+        h1Pos = center + offset1
+        state.addAtom(handle=hydrogenHandle, pos=h1Pos, q=qH)
+        theta = 1.824218134
+        h2Pos = rotateBy(center,offset1,theta)
+        offset2 = h2Pos - center
+        state.addAtom(handle=hydrogenHandle, pos=h2Pos, q=qH)
+        mSiteOffset = (offset1 + offset2).normalized() * 0.150
+        state.addAtom(handle=mSiteHandle, pos=center+mSiteOffset, q=qM)
+        return state.createMolecule([state.atoms[-4].id, state.atoms[-3].id, state.atoms[-2].id, state.atoms[-1].id])
+
 
 def create_TIP4P_long(state, oxygenHandle, hydrogenHandle, mSiteHandle, center=None):
     if center==None:
