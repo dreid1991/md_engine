@@ -89,7 +89,7 @@ private:
      * To be called from within prepare for run __after__ fixed have prepared
      * (because that removes any DEFAULT_FILL values)
      */
-    float getMaxRCut();
+    real getMaxRCut();
 
 public:
     std::vector<Atom> atoms; //!< List of all atoms in the simulation
@@ -114,8 +114,8 @@ public:
 
     bool is2d; //!< True for 2d simulations, else False
     bool periodic[3]; //!< If True, simulation is periodic in given dimension
-    float dt; //!< Timestep
-    float specialNeighborCoefs[3]; //!< Coefficients for modified neighbor
+    real dt; //!< Timestep
+    real specialNeighborCoefs[3]; //!< Coefficients for modified neighbor
                                    //!< interactions of bonded atoms (1-2, 1-3,
                                    //!< 1-4 neighbors)
     int64_t turn; //!< Step of the simulation
@@ -161,7 +161,7 @@ public:
      * with one intermediate atom, and 1-4 neighbors are bonded with two
      * intermediate atoms.
      */
-    void setSpecialNeighborCoefs(float onetwo, float onethree, float onefour);
+    void setSpecialNeighborCoefs(real onetwo, real onethree, real onefour);
 
     //! Add a Fix to the simulation
     /*!

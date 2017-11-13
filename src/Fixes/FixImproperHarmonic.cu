@@ -31,7 +31,7 @@ void FixImproperHarmonic::compute(int virialMode) {
         }
     }
 }
-void FixImproperHarmonic::singlePointEng(float *perParticleEng) {
+void FixImproperHarmonic::singlePointEng(real *perParticleEng) {
     int nAtoms = state->atoms.size();
     int activeIdx = state->gpd.activeIdx();
     if (forcersGPU.size()) {

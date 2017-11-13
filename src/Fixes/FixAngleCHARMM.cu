@@ -28,7 +28,7 @@ void FixAngleCHARMM::compute(int virialMode) {
 
 }
 
-void FixAngleCHARMM::singlePointEng(float *perParticleEng) {
+void FixAngleCHARMM::singlePointEng(real *perParticleEng) {
     int nAtoms = state->atoms.size();
     int activeIdx = state->gpd.activeIdx();
     if (forcersGPU.size()) {

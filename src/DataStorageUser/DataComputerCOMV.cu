@@ -7,7 +7,7 @@ using namespace MD_ENGINE;
 
 // scalar, because we just need the one return - not a per-atom thing.
 DataComputerCOMV::DataComputerCOMV(State *state_) : DataComputer(state_, "scalar", false) {
-    sumMomentum = GPUArrayGlobal<float4>(2);
+    sumMomentum = GPUArrayGlobal<real4>(2);
 }
 
 
@@ -17,7 +17,7 @@ void DataComputerCOMV::computeScalar_GPU(bool transferToCPU, uint32_t groupTag) 
     lastGroupTag = groupTag;
     int nAtoms = state->atoms.size();
 
-    accumulate_gpu<float4, float4, SumVectorXYZOverW, N_DATA_PER_THREAD> <<<NBLOCK(nAtoms / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*PERBLOCK*sizeof(float4)>>>
+    accumulate_gpu<real4, real4, SumVectorXYZOverW, N_DATA_PER_THREAD> <<<NBLOCK(nAtoms / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*PERBLOCK*sizeof(real4)>>>
             (
              sumMomentum.getDevData(),
              gpd.vs.getDevData(),

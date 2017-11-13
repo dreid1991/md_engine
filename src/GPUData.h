@@ -13,28 +13,28 @@ class GPUData {
 
 public:
     /* types (ints) are bit cast into the w value of xs.  Cast as int pls */
-    GPUArrayPair<float4> xs;
-    /* mass is stored in w value of vs.  ALWAYS do arithmetic as float3s, or
+    GPUArrayPair<real4> xs;
+    /* mass is stored in w value of vs.  ALWAYS do arithmetic as real3s, or
      * you will mess up id or mass */
-    GPUArrayPair<float4> vs;
+    GPUArrayPair<real4> vs;
     /* groupTags (uints) are bit cast into the w value of fs */
-    GPUArrayPair<float4> fs;
+    GPUArrayPair<real4> fs;
     GPUArrayPair<uint> ids;
-    GPUArrayPair<float> qs;
+    GPUArrayPair<real> qs;
     GPUArrayGlobal<int> idToIdxs;
     GPUArrayGlobal<Virial> virials;
 
-    GPUArrayGlobal<float4> xsBuffer;
-    GPUArrayGlobal<float4> vsBuffer;
-    GPUArrayGlobal<float4> fsBuffer;
+    GPUArrayGlobal<real4> xsBuffer;
+    GPUArrayGlobal<real4> vsBuffer;
+    GPUArrayGlobal<real4> fsBuffer;
     GPUArrayGlobal<uint> idsBuffer;
 
     /* for transfer between GPUs */
-    std::map<int, GPUArrayGlobal<float4>> neighborValBuffers;
+    std::map<int, GPUArrayGlobal<real4>> neighborValBuffers;
     std::map<int, GPUArrayGlobal<uint>> neighborIdsBuffers;
     std::map<int, GPUArrayGlobal<int>> neighborIdxBuffers;
 
-    std::map<int, GPUArrayGlobal<float4>> movedValBuffers;
+    std::map<int, GPUArrayGlobal<real4>> movedValBuffers;
     std::map<int, GPUArrayGlobal<uint>> movedIdsBuffers;
     std::map<int, GPUArrayGlobal<int>> movedIdxBuffers;
 

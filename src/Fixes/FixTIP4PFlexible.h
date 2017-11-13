@@ -46,7 +46,7 @@ class FixTIP4PFlexible: public Fix {
 
         void compute_gamma();
 
-        float gamma;
+        real gamma;
 
         std::vector<int4> waterIds;
 

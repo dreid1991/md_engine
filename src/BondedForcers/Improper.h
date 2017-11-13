@@ -33,8 +33,8 @@ public:
 
 class ImproperHarmonicType {
 public:
-    float thetaEq;
-    float k;
+    real thetaEq;
+    real k;
     ImproperHarmonicType(ImproperHarmonic *);
     ImproperHarmonicType(){}; //for hashing, need default constructor, == operator, and std::hash function
     bool operator==(const ImproperHarmonicType &) const;
@@ -56,7 +56,7 @@ public:
 
 class ImproperCVFFType {
 public:
-    float k;
+    real k;
     int d;
     int n;
     ImproperCVFFType(ImproperCVFF *);

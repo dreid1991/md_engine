@@ -27,18 +27,18 @@ private:
     cufftComplex *FFT_Qs;  // change to GPU arrays?
     cufftComplex *FFT_Ex, *FFT_Ey, *FFT_Ez;
     
-    GPUArrayGlobal<float> Green_function;  // Green function in k space
+    GPUArrayGlobal<real> Green_function;  // Green function in k space
 
 
     int3 sz;
 
-    float alpha;
-    float r_cut;
+    real alpha;
+    real r_cut;
     
     double find_optimal_parameters(bool);
     
-    float total_Q;
-    float total_Q2;
+    real total_Q;
+    real total_Q2;
     void setTotalQ2();
     void calc_Green_function();
     void calc_potential(cufftComplex *phi_buf);
@@ -47,12 +47,12 @@ private:
 //! RMS variables
     double DeltaF_k(double t_alpha);
     double DeltaF_real(double t_alpha);
-    float3 h;
-    float3 L;
+    real3 h;
+    real3 L;
     GPUArrayDeviceGlobal<Virial> virialField;
-    GPUArrayDeviceGlobal<float4> storedForces;
+    GPUArrayDeviceGlobal<real4> storedForces;
     BoundsGPU boundsLastOptimize;
-    float total_Q2LastOptimize;    
+    real total_Q2LastOptimize;    
     void handleBoundsChangeInternal(bool);
     void setGridToErrorTolerance(bool);
     bool modeIsError;
@@ -62,7 +62,7 @@ private:
 
 
 public:
-    GPUArrayDeviceGlobal<float4> rpCentroids;
+    GPUArrayDeviceGlobal<real4> rpCentroids;
     int longRangeInterval;
     int64_t turnInit;
     void handleBoundsChange();
@@ -70,9 +70,9 @@ public:
                    std::string handle_, std::string groupHandle_);
     ~FixChargeEwald();
 
-    void setError(double error, float rcut_, int interpolation_order_);
-    void setParameters(int szx_, int szy_, int szz_, float rcut_, int interpolation_order_);
-    void setParameters(int sz_, float rcut_, int interpolation_order_) {
+    void setError(double error, real rcut_, int interpolation_order_);
+    void setParameters(int szx_, int szy_, int szz_, real rcut_, int interpolation_order_);
+    void setParameters(int sz_, real rcut_, int interpolation_order_) {
         setParameters(sz_, sz_, sz_, rcut_, interpolation_order_);
     }
 
@@ -81,14 +81,14 @@ public:
     int setLongRangeInterval(int interval);
 
     //! Compute single point energy
-    void singlePointEng(float *);
-    //void singlePointEngGroupGroup(float *, uint32_t, uint32_t);
+    void singlePointEng(real *);
+    //void singlePointEngGroupGroup(real *, uint32_t, uint32_t);
 
     bool prepareForRun();
     
     //! Return list of cutoff values.
-    std::vector<float> getRCuts() {
-        std::vector<float> res;
+    std::vector<real> getRCuts() {
+        std::vector<real> res;
         res.push_back(r_cut);
         return res;
     }    

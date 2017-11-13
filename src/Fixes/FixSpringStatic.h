@@ -37,7 +37,7 @@ void export_FixSpringStatic();
 class FixSpringStatic : public Fix {
     // these will be of only those in the group, so no need to (?)
 public:
-    GPUArrayGlobal<float4> tethers;
+    GPUArrayGlobal<real4> tethers;
     double k;
     boost::python::object tetherFunc;
     Vector multiplier;

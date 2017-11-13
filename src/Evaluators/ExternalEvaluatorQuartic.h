@@ -4,15 +4,15 @@
 
 class EvaluatorExternalQuartic {
 	public:
-	float3 k1;
-	float3 k2;
-	float3 k3;
-	float3 k4;
-        float3 r0;
+	real3 k1;
+	real3 k2;
+	real3 k3;
+	real3 k4;
+        real3 r0;
 
         // default constructor
         EvaluatorExternalQuartic () {};
-        EvaluatorExternalQuartic (float3 k1_, float3 k2_, float3 k3_, float3 k4_, float3 r0_ ) {
+        EvaluatorExternalQuartic (real3 k1_, real3 k2_, real3 k3_, real3 k4_, real3 r0_ ) {
             k1 = k1_;
             k2 = k2_;
             k3 = k3_;
@@ -21,19 +21,19 @@ class EvaluatorExternalQuartic {
         };
        
         // force function called by compute_force_external(...) in ExternalEvaluate.h
-	inline __device__ float3 force(float3 pos) {
-                float3 dr  = pos - r0;
-		float3 dr2 = dr * dr;
-		float3 dr3 = dr2* dr; 
+	inline __device__ real3 force(real3 pos) {
+                real3 dr  = pos - r0;
+		real3 dr2 = dr * dr;
+		real3 dr3 = dr2* dr; 
         	return -k1 - 2*k2*dr -3*k3*dr2 - 4*k4*dr3;
         };
 
         // force function called by compute_energy_external(...) in ExternalEvaluate.h
-	inline __device__ float energy(float3 pos) {
-                float3 dr  = pos - r0;
-		float3 dr2 = dr * dr;
-		float3 dr3 = dr2* dr; 
-		float3 dr4 = dr2* dr2; 
+	inline __device__ real energy(real3 pos) {
+                real3 dr  = pos - r0;
+		real3 dr2 = dr * dr;
+		real3 dr3 = dr2* dr; 
+		real3 dr4 = dr2* dr2; 
         	return dot(k1,dr) + dot(k2,dr2) + dot(k3,dr3) + dot(k4,dr4);
         };
 

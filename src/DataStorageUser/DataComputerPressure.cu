@@ -23,10 +23,10 @@ void DataComputerPressure::computeScalar_GPU(bool transferToCPU, uint32_t groupT
     lastGroupTag = groupTag;
     int nAtoms = state->atoms.size();
     if (groupTag == 1) {
-         accumulate_gpu<float, Virial, SumVirialToScalar, N_DATA_PER_THREAD> <<<NBLOCK(nAtoms / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*PERBLOCK*sizeof(float)>>>
+         accumulate_gpu<real, Virial, SumVirialToScalar, N_DATA_PER_THREAD> <<<NBLOCK(nAtoms / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*PERBLOCK*sizeof(real)>>>
             (gpuBuffer.getDevData(), gpd.virials.getDevData(), nAtoms, state->devManager.prop.warpSize, SumVirialToScalar());
     } else {
-        accumulate_gpu_if<float, Virial, SumVirialToScalarIf, N_DATA_PER_THREAD> <<<NBLOCK(nAtoms / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*PERBLOCK*sizeof(float)>>>
+        accumulate_gpu_if<real, Virial, SumVirialToScalarIf, N_DATA_PER_THREAD> <<<NBLOCK(nAtoms / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*PERBLOCK*sizeof(real)>>>
             (gpuBuffer.getDevData(), 
              gpd.virials.getDevData(), 
              nAtoms, 
@@ -72,7 +72,7 @@ void DataComputerPressure::computeTensor_GPU(bool transferToCPU, uint32_t groupT
 
 void DataComputerPressure::computeScalar_CPU() {
     //we are assuming that z component of virial is zero if sim is 2D
-    float boltz = state->units.boltz;
+    real boltz = state->units.boltz;
     double tempScalar_loc, ndf_loc;
     if (usingExternalTemperature) {
         tempScalar_loc = tempScalar;

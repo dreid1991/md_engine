@@ -25,7 +25,7 @@ class FixTICG : public FixPair {
         void compute(int);
 
         //! Compute single point energy
-        void singlePointEng(float *);
+        void singlePointEng(real *);
 
         //! Prepare Fix
         /*!
@@ -59,13 +59,13 @@ class FixTICG : public FixPair {
         void addSpecies(std::string handle);
 
         //! Return list of cutoff values
-        std::vector<float> getRCuts();
+        std::vector<real> getRCuts();
 
     public:
         const std::string CHandle; //!< Handle for parameter C -stregth of potential
         const std::string rCutHandle; //!< Handle for parameter rCut
-        std::vector<float> Cs; //!< vector storing epsilon values
-        std::vector<float> rCuts; //!< vector storing cutoff distance values
+        std::vector<real> Cs; //!< vector storing epsilon values
+        std::vector<real> rCuts; //!< vector storing cutoff distance values
 
         void setEvalWrapper();
 };

@@ -28,8 +28,8 @@ class Bond {
 //
 class BondHarmonicType {
 public:
-    float k;
-    float r0;
+    real k;
+    real r0;
  //   BondHarmonicType(BondHarmonic *);
     BondHarmonicType(){};
     bool operator==(const BondHarmonicType &) const;
@@ -75,10 +75,10 @@ void export_BondHarmonic();
 //
 class BondQuarticType {
 public:
-    float k2;
-    float k3;
-    float k4;
-    float r0;
+    real k2;
+    real k3;
+    real k4;
+    real r0;
     BondQuarticType(){};
     bool operator==(const BondQuarticType &) const;
     std::string getInfoString();
@@ -123,10 +123,10 @@ void export_BondQuartic();
 //
 class BondFENEType {
 public:
-    float k;
-    float r0;
-    float eps;
-    float sig;
+    real k;
+    real r0;
+    real eps;
+    real sig;
     BondFENEType(){};
     bool operator==(const BondFENEType &) const;
     std::string getInfoString();

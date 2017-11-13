@@ -15,8 +15,8 @@ namespace py = boost::python;
 FixExternalQuartic::FixExternalQuartic(SHARED(State) state_, std::string handle_, std::string groupHandle_,
                                  Vector k1_, Vector k2_, Vector k3_, Vector k4_ , Vector r0_)
   : FixExternal(state_, handle_, groupHandle_, ExternalQuarticType, true,  false, 1 ),
-    k1(k1_.asFloat3()), k2(k2_.asFloat3()), k3(k3_.asFloat3()), k4(k4_.asFloat3()),
-    r0(r0_.asFloat3()) { };
+    k1(k1_.asreal3()), k2(k2_.asreal3()), k3(k3_.asreal3()), k4(k4_.asreal3()),
+    r0(r0_.asreal3()) { };
 
 // compute function
 void FixExternalQuartic::compute(int virialMode) {
@@ -32,7 +32,7 @@ void FixExternalQuartic::compute(int virialMode) {
 	}
 };
 
-void FixExternalQuartic::singlePointEng(float *perParticleEng) {
+void FixExternalQuartic::singlePointEng(real *perParticleEng) {
         GPUData &gpd  = state->gpd;
         int activeIdx = gpd.activeIdx();
         int n         = state->atoms.size();

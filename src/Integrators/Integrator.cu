@@ -12,11 +12,11 @@
 
 using namespace std;
 
-__global__ void zeroVectorPreserveW(float4 *xs, int n) {
+__global__ void zeroVectorPreserveW(real4 *xs, int n) {
     int idx = GETIDX();
     if (idx < n) {
-        float w = xs[idx].w;
-        xs[idx] = make_float4(0, 0, 0, w);
+        real w = xs[idx].w;
+        xs[idx] = make_real4(0, 0, 0, w);
     }
 }
 
@@ -256,7 +256,7 @@ void Integrator::writeOutput() {
 
     /*
 double Integrator::singlePointEngPythonAvg(string groupHandle) {
-    GPUArrayGlobal<float> eng(2);
+    GPUArrayGlobal<real> eng(2);
     eng.d_data.memset(0);
     basicPreRunChecks();
     basicPrepare(0);
@@ -266,7 +266,7 @@ double Integrator::singlePointEngPythonAvg(string groupHandle) {
     cudaDeviceSynchronize();
     uint32_t groupTag = state->groupTagFromHandle(groupHandle);
     int warpSize = state->devManager.prop.warpSize;
-    accumulate_gpu_if<float, float, SumSingleIf, N_DATA_PER_THREAD> <<<NBLOCK(state->atoms.size() / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*sizeof(float)*PERBLOCK>>>
+    accumulate_gpu_if<real, real, SumSingleIf, N_DATA_PER_THREAD> <<<NBLOCK(state->atoms.size() / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*sizeof(real)*PERBLOCK>>>
         (
          eng.getDevData(), 
          state->gpd.perParticleEng.getDevData(),
@@ -288,7 +288,7 @@ boost::python::list Integrator::singlePointEngPythonPerParticle() {
     state->gpd.ids.dataToHost();
     cudaDeviceSynchronize();
     CUT_CHECK_ERROR("Calculation of single point per-particle energy failed");
-    vector<float> &engs = state->gpd.perParticleEng.h_data;
+    vector<real> &engs = state->gpd.perParticleEng.h_data;
     vector<uint> &ids = state->gpd.ids.h_data;
     vector<int> &idToIdxsOnCopy = state->gpd.idToIdxsOnCopy;
     vector<double> sortedEngs(ids.size());

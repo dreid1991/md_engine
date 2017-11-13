@@ -13,28 +13,28 @@ using namespace MD_ENGINE;
 
 namespace py = boost::python;
 
-__global__ void step_cu(int nAtoms, float4 *xs, float4 *vs, float4 *fs, float dt, float dtf)
+__global__ void step_cu(int nAtoms, real4 *xs, real4 *vs, real4 *fs, real dt, real dtf)
 {
     int idx = GETIDX();
     if (idx < nAtoms) {
         // Update velocity by a half timestep
-        float4 vel = vs[idx];
-        float invmass = vel.w;
+        real4 vel = vs[idx];
+        real invmass = vel.w;
 
-        float4 force = fs[idx];
+        real4 force = fs[idx];
 
-        float3 v = dtf * invmass * make_float3(force);
+        real3 v = dtf * invmass * make_real3(force);
 
         // Update position by a full timestep
-        float4 pos = xs[idx];
+        real4 pos = xs[idx];
 
         //printf("vel %f %f %f\n", vel.x, vel.y, vel.z);
-        float3 dx = dt*v;
+        real3 dx = dt*v;
         pos += dx;
         xs[idx] = pos;
 
         // Set forces to zero before force calculation
-        fs[idx] = make_float4(0.0f, 0.0f, 0.0f, force.w);
+        fs[idx] = make_real4(0.0f, 0.0f, 0.0f, force.w);
     }
 }
 
@@ -54,11 +54,11 @@ IntegratorGradientDescent::IntegratorGradientDescent(State *state_)
 
 double IntegratorGradientDescent::getSumForceSqr() {
     forceSingle(false);
-    GPUArrayGlobal<float> force(1);
+    GPUArrayGlobal<real> force(1);
     force.memsetByVal(0);
     int nAtoms = state->atoms.size();
     int warpSize = state->devManager.prop.warpSize;
-    accumulate_gpu<float, float4, SumVectorSqr3D, N_DATA_PER_THREAD> <<<NBLOCK(nAtoms/(double)N_DATA_PER_THREAD),PERBLOCK,N_DATA_PER_THREAD*sizeof(float)*PERBLOCK>>> 
+    accumulate_gpu<real, real4, SumVectorSqr3D, N_DATA_PER_THREAD> <<<NBLOCK(nAtoms/(double)N_DATA_PER_THREAD),PERBLOCK,N_DATA_PER_THREAD*sizeof(real)*PERBLOCK>>> 
         (
          force.getDevData(),
          state->gpd.fs.getDevData(),

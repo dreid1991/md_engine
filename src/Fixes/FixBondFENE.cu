@@ -47,7 +47,7 @@ void FixBondFENE::compute(int virialMode) {
     }
 }
 
-void FixBondFENE::singlePointEng(float *perParticleEng) {
+void FixBondFENE::singlePointEng(real *perParticleEng) {
     int nAtoms = state->atoms.size();
     int activeIdx = state->gpd.activeIdx();
     //cout << "Max bonds per block is " << maxBondsPerBlock << endl;

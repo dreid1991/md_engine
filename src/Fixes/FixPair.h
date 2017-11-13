@@ -48,7 +48,7 @@ protected:
      * interaction fix.
      */
     void initializeParameters(std::string paramHandle,
-                              std::vector<float> &params);
+                              std::vector<real> &params);
 
     //! Fill the vector containing the pair interaction parameters
     /*!
@@ -66,19 +66,19 @@ protected:
      * all elements are modified using the processFunction.
      */
     void prepareParameters(std::string handle,
-                           std::function<float (float, float)> fillFunction,
-                           std::function<float (float)> processFunction,
+                           std::function<real (real, real)> fillFunction,
+                           std::function<real (real)> processFunction,
                            bool fillDiag,
-                           std::function<float ()> fillDiagFunction= std::function<float ()> ());
+                           std::function<real ()> fillDiagFunction= std::function<real ()> ());
     void prepareParameters_from_other(std::string handle,
-                           std::function<float (int, int)> fillFunction,
-                           std::function<float (float)> processFunction,
+                           std::function<real (int, int)> fillFunction,
+                           std::function<real (real)> processFunction,
                            bool fillDiag,
                            std::function<int ()> fillDiagFunction= std::function<int  ()> ());    
     void prepareParameters(std::string handle,
-                           std::function<float (int, int)> fillFunction);
+                           std::function<real (int, int)> fillFunction);
     void prepareParameters(std::string handle,
-                           std::function<float (float)> processFunction);    
+                           std::function<real (real)> processFunction);    
     //! Send parameters to all GPU devices
     void sendAllToDevice();
 
@@ -91,7 +91,7 @@ protected:
      * interaction parameters has the right size. If not, the array is
      * automatically resized.
      */
-    void ensureParamSize(std::vector<float> &array);
+    void ensureParamSize(std::vector<real> &array);
 
     //! Read pair parameters from XML node (Not yet implemented)
     /*!
@@ -121,13 +121,13 @@ protected:
 
     //! Map mapping string labels onto the vectors containing the
     //! pair potential parameters
-    std::map<std::string, std::vector<float> *> paramMap;
+    std::map<std::string, std::vector<real> *> paramMap;
 
     //! Parameter map after preparing the parameters
-    std::map<std::string, std::vector<float> > paramMapProcessed;
+    std::map<std::string, std::vector<real> > paramMapProcessed;
 
     //! Parameters to be sent to the GPU
-    GPUArrayDeviceGlobal<float> paramsCoalesced;
+    GPUArrayDeviceGlobal<real> paramsCoalesced;
 
     //! Order in which the parameters are processed
     std::vector<std::string> paramOrder;
@@ -143,7 +143,7 @@ protected:
     Fix *chargeCalcFix;
     BoundsGPU boundsLast;
     void acceptChargePairCalc(Fix *);
-    float chargeRCut;
+    real chargeRCut;
 public:
     //! Set a specific parameter for specific particle types
     /*!

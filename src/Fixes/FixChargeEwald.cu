@@ -22,43 +22,43 @@ const std::string chargeEwaldType = "ChargeEwald";
 
 // MW: Note that this function is a verbatim copy of that which appears in GridGPU.cu
 //     consider combining
-__global__ void computeCentroid(float4 *centroids, float4 *xs, int nAtoms, int nPerRingPoly, BoundsGPU bounds) {
+__global__ void computeCentroid(real4 *centroids, real4 *xs, int nAtoms, int nPerRingPoly, BoundsGPU bounds) {
    int idx = GETIDX();
     int nRingPoly = nAtoms / nPerRingPoly;
     if (idx < nRingPoly) {
         int baseIdx = idx * nPerRingPoly;
-        float3 init = make_float3(xs[baseIdx]);
-        float3 diffSum = make_float3(0, 0, 0);
+        real3 init = make_real3(xs[baseIdx]);
+        real3 diffSum = make_real3(0, 0, 0);
         for (int i=baseIdx+1; i<baseIdx + nPerRingPoly; i++) {
-            float3 next = make_float3(xs[i]);
-            float3 dx = bounds.minImage(next - init);
+            real3 next = make_real3(xs[i]);
+            real3 dx = bounds.minImage(next - init);
             diffSum += dx;
         }
         diffSum /= nPerRingPoly;
-        float3 unwrappedPos = init + diffSum;
-        float3 trace = bounds.trace();
-        float3 diffFromLo = unwrappedPos - bounds.lo;
-        float3 imgs = floorf(diffFromLo / trace); //are unskewed at this point
-        float3 wrappedPos = unwrappedPos - trace * imgs * bounds.periodic;
+        real3 unwrappedPos = init + diffSum;
+        real3 trace = bounds.trace();
+        real3 diffFromLo = unwrappedPos - bounds.lo;
+        real3 imgs = floorf(diffFromLo / trace); //are unskewed at this point
+        real3 wrappedPos = unwrappedPos - trace * imgs * bounds.periodic;
 
-        centroids[idx] = make_float4(wrappedPos);
+        centroids[idx] = make_real4(wrappedPos);
     }
 
 }
 
 // MW: This is a duplicated function from GridGPU.cu
- __global__ void periodicWrapCpy(float4 *xs, int nAtoms, BoundsGPU bounds) {
+ __global__ void periodicWrapCpy(real4 *xs, int nAtoms, BoundsGPU bounds) {
  
      int idx = GETIDX(); 
      if (idx < nAtoms) {
          
-         float4 pos = xs[idx];
+         real4 pos = xs[idx];
          
-         float id = pos.w;
-         float3 trace = bounds.trace();
-         float3 diffFromLo = make_float3(pos) - bounds.lo;
-         float3 imgs = floorf(diffFromLo / trace); //are unskewed at this point
-         pos -= make_float4(trace * imgs * bounds.periodic);
+         real id = pos.w;
+         real3 trace = bounds.trace();
+         real3 diffFromLo = make_real3(pos) - bounds.lo;
+         real3 imgs = floorf(diffFromLo / trace); //are unskewed at this point
+         pos -= make_real4(trace * imgs * bounds.periodic);
          pos.w = id;
          //if (not(pos.x==orig.x and pos.y==orig.y and pos.z==orig.z)) { //sigh
          if (imgs.x != 0 or imgs.y != 0 or imgs.z != 0) {
@@ -70,18 +70,18 @@ __global__ void computeCentroid(float4 *centroids, float4 *xs, int nAtoms, int n
 //different implementation for different interpolation orders
 //TODO template
 //order 1 nearest point
-__global__ void map_charge_to_grid_order_1_cu(int nRingPoly, int nPerRingPoly, float4 *xs,  float *qs,  BoundsGPU bounds,
-                                      int3 sz,float *grid/*convert to float for cufffComplex*/,float  Qunit) {
+__global__ void map_charge_to_grid_order_1_cu(int nRingPoly, int nPerRingPoly, real4 *xs,  real *qs,  BoundsGPU bounds,
+                                      int3 sz,real *grid/*convert to real for cufffComplex*/,real  Qunit) {
 
     int idx = GETIDX();
     if (idx < nRingPoly) {
-        float4 posWhole = xs[idx];
-        float3 pos = make_float3(posWhole)-bounds.lo;
+        real4 posWhole = xs[idx];
+        real3 pos = make_real3(posWhole)-bounds.lo;
 
-        float qi = Qunit*qs[idx * nPerRingPoly];
+        real qi = Qunit*qs[idx * nPerRingPoly];
         
         //find nearest grid point
-        float3 h=bounds.trace()/make_float3(sz);
+        real3 h=bounds.trace()/make_real3(sz);
         int3 nearest_grid_point=make_int3((pos+0.5*h)/h);
         //or
         int3 p=nearest_grid_point;
@@ -95,40 +95,40 @@ __global__ void map_charge_to_grid_order_1_cu(int nRingPoly, int nPerRingPoly, f
     }
 }
 
-inline __host__ __device__ float W_p_3(int i,float x){
+inline __host__ __device__ real W_p_3(int i,real x){
     if (i==-1) return 0.125-0.5*x+0.5*x*x;
     if (i== 0) return 0.75-x*x;
     /*if (i== 1)*/ return 0.125+0.5*x+0.5*x*x;
 }
 
 
-__global__ void map_charge_to_grid_order_3_cu(int nRingPoly, int nPerRingPoly, float4 *xs,  float *qs,  BoundsGPU bounds,
-                                      int3 sz,float *grid/*convert to float for cufffComplex*/,float  Qunit) {
+__global__ void map_charge_to_grid_order_3_cu(int nRingPoly, int nPerRingPoly, real4 *xs,  real *qs,  BoundsGPU bounds,
+                                      int3 sz,real *grid/*convert to real for cufffComplex*/,real  Qunit) {
 
     int idx = GETIDX();
     if (idx < nRingPoly) {
-        float4 posWhole = xs[idx];
-        float3 pos = make_float3(posWhole)-bounds.lo;
+        real4 posWhole = xs[idx];
+        real3 pos = make_real3(posWhole)-bounds.lo;
 
-        float qi = Qunit*qs[idx * nPerRingPoly];
+        real qi = Qunit*qs[idx * nPerRingPoly];
         
         //find nearest grid point
-        float3 h=bounds.trace()/make_float3(sz);
+        real3 h=bounds.trace()/make_real3(sz);
         int3 nearest_grid_point=make_int3((pos+0.5*h)/h);
         
         //distance from nearest_grid_point /h
-        float3 d=pos/h-make_float3(nearest_grid_point);
+        real3 d=pos/h-make_real3(nearest_grid_point);
         
         int3 p=nearest_grid_point;
         for (int ix=-1;ix<=1;ix++){
           p.x=nearest_grid_point.x+ix;
-          float charge_yz_w=qi*W_p_3(ix,d.x);
+          real charge_yz_w=qi*W_p_3(ix,d.x);
           for (int iy=-1;iy<=1;iy++){
             p.y=nearest_grid_point.y+iy;
-            float charge_z_w=charge_yz_w*W_p_3(iy,d.y);
+            real charge_z_w=charge_yz_w*W_p_3(iy,d.y);
             for (int iz=-1;iz<=1;iz++){
                 p.z=nearest_grid_point.z+iz;
-                float charge_w=charge_z_w*W_p_3(iz,d.z);
+                real charge_w=charge_z_w*W_p_3(iz,d.z);
                 if (p.x>0) p.x-=int(p.x/sz.x)*sz.x;
                 if (p.y>0) p.y-=int(p.y/sz.y)*sz.y;
                 if (p.z>0) p.z-=int(p.z/sz.z)*sz.z;
@@ -157,15 +157,15 @@ __global__ void map_charge_set_to_zero_cu(int3 sz,cufftComplex *grid) {
          grid[id.x*sz.y*sz.z+id.y*sz.z+id.z]=make_cuComplex (0.0f, 0.0f);    
 }
 
-__device__ float sinc(float x){
+__device__ real sinc(real x){
   if ((x<0.1)&&(x>-0.1)){
-    float x2=x*x;
+    real x2=x*x;
     return 1.0 - x2*0.16666666667f + x2*x2*0.008333333333333333f - x2*x2*x2*0.00019841269841269841f;    
   }
     else return sin(x)/x;
 }
 
-__global__ void Green_function_cu(BoundsGPU bounds, int3 sz,float *Green_function,float alpha,
+__global__ void Green_function_cu(BoundsGPU bounds, int3 sz,real *Green_function,real alpha,
                                   //now some parameter for Gf calc
                                   int sum_limits, int intrpl_order) {
       int3 id = make_int3( blockIdx.x*blockDim.x + threadIdx.x,
@@ -173,10 +173,10 @@ __global__ void Green_function_cu(BoundsGPU bounds, int3 sz,float *Green_functio
                           blockIdx.z*blockDim.z + threadIdx.z);
 
       if ((id.x<sz.x)&&(id.y<sz.y)&&(id.z<sz.z)){
-          float3 h =bounds.trace()/make_float3(sz);
+          real3 h =bounds.trace()/make_real3(sz);
           
           //         2*PI
-          float3 k= 6.28318530717958647693f*make_float3(id)/bounds.trace();
+          real3 k= 6.28318530717958647693f*make_real3(id)/bounds.trace();
           if (id.x>sz.x/2) k.x= 6.28318530717958647693f*(id.x-sz.x)/bounds.trace().x;
           if (id.y>sz.y/2) k.y= 6.28318530717958647693f*(id.y-sz.y)/bounds.trace().y;
           if (id.z>sz.z/2) k.z= 6.28318530717958647693f*(id.z-sz.z)/bounds.trace().z;
@@ -186,25 +186,25 @@ __global__ void Green_function_cu(BoundsGPU bounds, int3 sz,float *Green_functio
           //                    [SumforM^2(W(K+M)^2)]
              
              
-          float sum1=0.0f;   
-          float sum2=0.0f;   
-          float k2=lengthSqr(k);
-          float Fouralpha2inv=0.25/alpha/alpha;
+          real sum1=0.0f;   
+          real sum2=0.0f;   
+          real k2=lengthSqr(k);
+          real Fouralpha2inv=0.25/alpha/alpha;
           if (k2!=0.0){
               for (int ix=-sum_limits;ix<=sum_limits;ix++){//TODO different limits 
                 for (int iy=-sum_limits;iy<=sum_limits;iy++){
                   for (int iz=-sum_limits;iz<=sum_limits;iz++){
-                      float3 kpM=k+6.28318530717958647693f*make_float3(ix,iy,iz)/h;
+                      real3 kpM=k+6.28318530717958647693f*make_real3(ix,iy,iz)/h;
 //                             kpM.x+=6.28318530717958647693f/h.x*ix;//TODO rewrite
 //                             kpM.y+=6.28318530717958647693f/h.y*iy;
 //                             kpM.z+=6.28318530717958647693f/h.z*iz;
-                            float kpMlen=lengthSqr(kpM);
-                            float W=sinc(kpM.x*h.x*0.5)*sinc(kpM.y*h.y*0.5)*sinc(kpM.z*h.z*0.5);
+                            real kpMlen=lengthSqr(kpM);
+                            real W=sinc(kpM.x*h.x*0.5)*sinc(kpM.y*h.y*0.5)*sinc(kpM.z*h.z*0.5);
 //                             for(int p=1;p<intrpl_order;p++)
 //                                   W*=W;
     //                          W*=h;//not need- cancels out
-//                             float W2=W*W;
-                             float W2=pow(W,intrpl_order*2);
+//                             real W2=W*W;
+                             real W2=pow(W,intrpl_order*2);
                             //4*PI
                             sum1+=12.56637061435917295385*exp(-kpMlen*Fouralpha2inv)*dot(k,kpM)/kpMlen*W2;
                             sum2+=W2;
@@ -219,7 +219,7 @@ __global__ void Green_function_cu(BoundsGPU bounds, int3 sz,float *Green_functio
              
 }
 
-__global__ void potential_cu(int3 sz,float *Green_function,
+__global__ void potential_cu(int3 sz,real *Green_function,
                                     cufftComplex *FFT_qs, cufftComplex *FFT_phi){
       int3 id = make_int3( blockIdx.x*blockDim.x + threadIdx.x,
                           blockIdx.y*blockDim.y + threadIdx.y,
@@ -231,7 +231,7 @@ __global__ void potential_cu(int3 sz,float *Green_function,
       }
 }
 
-__global__ void E_field_cu(BoundsGPU bounds, int3 sz,float *Green_function, cufftComplex *FFT_qs,
+__global__ void E_field_cu(BoundsGPU bounds, int3 sz,real *Green_function, cufftComplex *FFT_qs,
                            cufftComplex *FFT_Ex,cufftComplex *FFT_Ey,cufftComplex *FFT_Ez){
       int3 id = make_int3( blockIdx.x*blockDim.x + threadIdx.x,
                           blockIdx.y*blockDim.y + threadIdx.y,
@@ -239,14 +239,14 @@ __global__ void E_field_cu(BoundsGPU bounds, int3 sz,float *Green_function, cuff
 
       if ((id.x<sz.x)&&(id.y<sz.y)&&(id.z<sz.z)){
           //K vector
-          float3 k= 6.28318530717958647693f*make_float3(id)/bounds.trace();
+          real3 k= 6.28318530717958647693f*make_real3(id)/bounds.trace();
           if (id.x>sz.x/2) k.x= 6.28318530717958647693f*(id.x-sz.x)/bounds.trace().x;
           if (id.y>sz.y/2) k.y= 6.28318530717958647693f*(id.y-sz.y)/bounds.trace().y;
           if (id.z>sz.z/2) k.z= 6.28318530717958647693f*(id.z-sz.z)/bounds.trace().z;        
           
           //ik*q(k)*Gf(k)
           cufftComplex Ex,Ey,Ez;
-          float GF=Green_function[id.x*sz.y*sz.z+id.y*sz.z+id.z];
+          real GF=Green_function[id.x*sz.y*sz.z+id.y*sz.z+id.z];
           cufftComplex q=FFT_qs[id.x*sz.y*sz.z+id.y*sz.z+id.z];
 
           Ex.y= k.x*q.x*GF;
@@ -264,20 +264,20 @@ __global__ void E_field_cu(BoundsGPU bounds, int3 sz,float *Green_function, cuff
 }
 
 
-__global__ void Ewald_long_range_forces_order_1_cu(int nRingPoly, int nPerRingPoly, float4 *xs, float4 *fs, 
-                                                   float *qs, BoundsGPU bounds,
+__global__ void Ewald_long_range_forces_order_1_cu(int nRingPoly, int nPerRingPoly, real4 *xs, real4 *fs, 
+                                                   real *qs, BoundsGPU bounds,
                                                    int3 sz, cufftComplex *FFT_Ex,
-                                                    cufftComplex *FFT_Ey,cufftComplex *FFT_Ez,float  Qunit,
-                                                   bool storeForces, uint *ids, float4 *storedForces) {
+                                                    cufftComplex *FFT_Ey,cufftComplex *FFT_Ez,real  Qunit,
+                                                   bool storeForces, uint *ids, real4 *storedForces) {
     int idx = GETIDX();
     if (idx < nRingPoly) {
-        float4 posWhole= xs[idx];
-        float3 pos     = make_float3(posWhole)-bounds.lo;
+        real4 posWhole= xs[idx];
+        real3 pos     = make_real3(posWhole)-bounds.lo;
         int    baseIdx = idx*nPerRingPoly;
-        float  qi      = qs[baseIdx];
+        real  qi      = qs[baseIdx];
         
         //find nearest grid point
-        float3 h=bounds.trace()/make_float3(sz);
+        real3 h=bounds.trace()/make_real3(sz);
         int3 nearest_grid_point=make_int3((pos+0.5*h)/h);
 
         int3 p=nearest_grid_point;        
@@ -289,48 +289,48 @@ __global__ void Ewald_long_range_forces_order_1_cu(int nRingPoly, int nPerRingPo
         if (p.z<0) p.z-=int((p.z+1)/sz.z-1)*sz.z;
         
         //get E field
-        float3 E;
-        float volume=bounds.trace().x*bounds.trace().y*bounds.trace().z;
+        real3 E;
+        real volume=bounds.trace().x*bounds.trace().y*bounds.trace().z;
         E.x= -FFT_Ex[p.x*sz.y*sz.z+p.y*sz.z+p.z].x/volume;
         E.y= -FFT_Ey[p.x*sz.y*sz.z+p.y*sz.z+p.z].x/volume;
         E.z= -FFT_Ez[p.x*sz.y*sz.z+p.y*sz.z+p.z].x/volume;
         
         // Apply force on centroid to all time slices for given atom
-        float3 force= Qunit*qi*E;
+        real3 force= Qunit*qi*E;
         for (int i = 0; i< nPerRingPoly; i++) {
             fs[baseIdx + i] += force; 
         }
 
         if (storeForces) {
             for (int i = 0; i < nPerRingPoly; i++) {
-                storedForces[ids[baseIdx+i]] = make_float4(force.x, force.y, force.z, 0);
+                storedForces[ids[baseIdx+i]] = make_real4(force.x, force.y, force.z, 0);
             }
         }
     }
 }
 
 
-__global__ void Ewald_long_range_forces_order_3_cu(int nRingPoly, int nPerRingPoly, float4 *xs, float4 *fs, 
-                                                   float *qs, BoundsGPU bounds,
+__global__ void Ewald_long_range_forces_order_3_cu(int nRingPoly, int nPerRingPoly, real4 *xs, real4 *fs, 
+                                                   real *qs, BoundsGPU bounds,
                                                    int3 sz, cufftComplex *FFT_Ex,
-                                                    cufftComplex *FFT_Ey,cufftComplex *FFT_Ez,float  Qunit,
-                                                   bool storeForces, uint *ids, float4 *storedForces) {
+                                                    cufftComplex *FFT_Ey,cufftComplex *FFT_Ez,real  Qunit,
+                                                   bool storeForces, uint *ids, real4 *storedForces) {
     int idx = GETIDX();
     if (idx < nRingPoly) {
-        float4 posWhole= xs[idx];
-        float3 pos     = make_float3(posWhole)-bounds.lo;
+        real4 posWhole= xs[idx];
+        real3 pos     = make_real3(posWhole)-bounds.lo;
         int    baseIdx = idx*nPerRingPoly;
-        float  qi      = qs[baseIdx];
+        real  qi      = qs[baseIdx];
 
         //find nearest grid point
-        float3 h=bounds.trace()/make_float3(sz);
+        real3 h=bounds.trace()/make_real3(sz);
         int3 nearest_grid_point=make_int3((pos+0.5*h)/h);
         
         //distance from nearest_grid_point /h
-        float3 d=pos/h-make_float3(nearest_grid_point);
+        real3 d=pos/h-make_real3(nearest_grid_point);
 
-        float3 E=make_float3(0,0,0);
-        float volume=bounds.trace().x*bounds.trace().y*bounds.trace().z;
+        real3 E=make_real3(0,0,0);
+        real volume=bounds.trace().x*bounds.trace().y*bounds.trace().z;
 
         int3 p=nearest_grid_point;
         for (int ix=-1;ix<=1;ix++){
@@ -345,8 +345,8 @@ __global__ void Ewald_long_range_forces_order_3_cu(int nRingPoly, int nPerRingPo
                 if (p.x<0) p.x-=int((p.x+1)/sz.x-1)*sz.x;
                 if (p.y<0) p.y-=int((p.y+1)/sz.y-1)*sz.y;
                 if (p.z<0) p.z-=int((p.z+1)/sz.z-1)*sz.z;
-                float3 Ep;
-                float W_xyz=W_p_3(ix,d.x)*W_p_3(iy,d.y)*W_p_3(iz,d.z);
+                real3 Ep;
+                real W_xyz=W_p_3(ix,d.x)*W_p_3(iy,d.y)*W_p_3(iz,d.z);
                 
                 Ep.x= -FFT_Ex[p.x*sz.y*sz.z+p.y*sz.z+p.z].x/volume;
                 Ep.y= -FFT_Ey[p.x*sz.y*sz.z+p.y*sz.z+p.z].x/volume;
@@ -356,7 +356,7 @@ __global__ void Ewald_long_range_forces_order_3_cu(int nRingPoly, int nPerRingPo
           }
         }
                
-        float3 force= Qunit*qi*E;
+        real3 force= Qunit*qi*E;
         // Apply force on centroid to all time slices for given atom
         for (int i = 0; i < nPerRingPoly; i++) {
             fs[baseIdx + i] += force;
@@ -364,14 +364,14 @@ __global__ void Ewald_long_range_forces_order_3_cu(int nRingPoly, int nPerRingPo
 
         if (storeForces) {
             for (int i = 0; i < nPerRingPoly; i++) {
-                storedForces[ids[baseIdx+i]] = make_float4(force.x, force.y, force.z, 0);
+                storedForces[ids[baseIdx+i]] = make_real4(force.x, force.y, force.z, 0);
             }
         }
     }
 }
 
 
-__global__ void Energy_cu(int3 sz,float *Green_function,
+__global__ void Energy_cu(int3 sz,real *Green_function,
                                     cufftComplex *FFT_qs, cufftComplex *E_grid){
       int3 id = make_int3( blockIdx.x*blockDim.x + threadIdx.x,
                           blockIdx.y*blockDim.y + threadIdx.y,
@@ -386,21 +386,21 @@ __global__ void Energy_cu(int3 sz,float *Green_function,
 }
 
 
-__global__ void virials_cu(BoundsGPU bounds,int3 sz,Virial *dest,float alpha, float *Green_function,cufftComplex *FFT_qs,int warpSize){
+__global__ void virials_cu(BoundsGPU bounds,int3 sz,Virial *dest,real alpha, real *Green_function,cufftComplex *FFT_qs,int warpSize){
       int3 id = make_int3( blockIdx.x*blockDim.x + threadIdx.x,
                           blockIdx.y*blockDim.y + threadIdx.y,
                           blockIdx.z*blockDim.z + threadIdx.z);
 
       if ((id.x<sz.x)&&(id.y<sz.y)&&(id.z<sz.z)){
-          float3 k= 6.28318530717958647693f*make_float3(id)/bounds.trace();
+          real3 k= 6.28318530717958647693f*make_real3(id)/bounds.trace();
           if (id.x>sz.x/2) k.x= 6.28318530717958647693f*(id.x-sz.x)/bounds.trace().x;
           if (id.y>sz.y/2) k.y= 6.28318530717958647693f*(id.y-sz.y)/bounds.trace().y;
           if (id.z>sz.z/2) k.z= 6.28318530717958647693f*(id.z-sz.z)/bounds.trace().z;        
-          float klen=lengthSqr(k);
+          real klen=lengthSqr(k);
           cufftComplex qi=FFT_qs[id.x*sz.y*sz.z+id.y*sz.z+id.z];
-          float E=(qi.x*qi.x+qi.y*qi.y)*Green_function[id.x*sz.y*sz.z+id.y*sz.z+id.z];
+          real E=(qi.x*qi.x+qi.y*qi.y)*Green_function[id.x*sz.y*sz.z+id.y*sz.z+id.z];
           
-          float differential=-2.0*(1.0/klen+0.25/(alpha*alpha));
+          real differential=-2.0*(1.0/klen+0.25/(alpha*alpha));
           if (klen==0.0) {differential=0.0;E=0.0;}
           
           Virial virialstmp = Virial(0, 0, 0, 0, 0, 0);   
@@ -486,18 +486,18 @@ __global__ void sum_virials_cu(Virial *dest, Virial *src, int n, int warpSize){
 }
 /*
 template < bool COMPUTE_VIRIALS>
-__global__ void compute_short_range_forces_cu(int nAtoms, float4 *xs, float4 *fs, uint16_t *neighborCounts, uint *neighborlist, uint32_t *cumulSumMaxPerBlock, float *qs, float alpha, float rCut, BoundsGPU bounds, int warpSize, float onetwoStr, float onethreeStr, float onefourStr, Virial *__restrict__ virials, Virial *virialField, float volume,float  conversion) {
+__global__ void compute_short_range_forces_cu(int nAtoms, real4 *xs, real4 *fs, uint16_t *neighborCounts, uint *neighborlist, uint32_t *cumulSumMaxPerBlock, real *qs, real alpha, real rCut, BoundsGPU bounds, int warpSize, real onetwoStr, real onethreeStr, real onefourStr, Virial *__restrict__ virials, Virial *virialField, real volume,real  conversion) {
 
-    float multipliers[4] = {1, onetwoStr, onethreeStr, onefourStr};
+    real multipliers[4] = {1, onetwoStr, onethreeStr, onefourStr};
  //   printf("USING SHORT RANGE FORCES IN VIRIAL.  THIS KERNEL IS INCORRECT\n");
     Virial virialsSum = Virial(0, 0, 0, 0, 0, 0);   
     int idx = GETIDX();
     if (idx < nAtoms) {
-        float4 posWhole = xs[idx];
-        float3 pos = make_float3(posWhole);
+        real4 posWhole = xs[idx];
+        real3 pos = make_real3(posWhole);
 
-        float3 forceSum = make_float3(0, 0, 0);
-        float qi = qs[idx];
+        real3 forceSum = make_real3(0, 0, 0);
+        real qi = qs[idx];
 
         int baseIdx = baseNeighlistIdx(cumulSumMaxPerBlock, warpSize);
         int numNeigh = neighborCounts[idx];
@@ -506,23 +506,23 @@ __global__ void compute_short_range_forces_cu(int nAtoms, float4 *xs, float4 *fs
             uint otherIdxRaw = neighborlist[nlistIdx];
             uint neighDist = otherIdxRaw >> 30;
             uint otherIdx = otherIdxRaw & EXCL_MASK;
-            float3 otherPos = make_float3(xs[otherIdx]);
+            real3 otherPos = make_real3(xs[otherIdx]);
             //then wrap and compute forces!
-            float3 dr = bounds.minImage(pos - otherPos);
-            float lenSqr = lengthSqr(dr);
+            real3 dr = bounds.minImage(pos - otherPos);
+            real lenSqr = lengthSqr(dr);
             //   printf("dist is %f %f %f\n", dr.x, dr.y, dr.z);
             if (lenSqr < rCut*rCut) {
-                float multiplier = multipliers[neighDist];
+                real multiplier = multipliers[neighDist];
                 if (multiplier) {
-                    float len=sqrtf(lenSqr);
-                    float qj = qs[otherIdx];
+                    real len=sqrtf(lenSqr);
+                    real qj = qs[otherIdx];
 
-                    float r2inv = 1.0f/lenSqr;
-                    float rinv = 1.0f/len;                                   //1/Sqrt(Pi)
-                    float forceScalar = conversion*qi*qj*(erfcf((alpha*len))*rinv+(2.0*0.5641895835477563*alpha)*exp(-alpha*alpha*lenSqr))*r2inv* multiplier;
+                    real r2inv = 1.0f/lenSqr;
+                    real rinv = 1.0f/len;                                   //1/Sqrt(Pi)
+                    real forceScalar = conversion*qi*qj*(erfcf((alpha*len))*rinv+(2.0*0.5641895835477563*alpha)*exp(-alpha*alpha*lenSqr))*r2inv* multiplier;
 
                     
-                    float3 forceVec = dr * forceScalar;
+                    real3 forceVec = dr * forceScalar;
                     forceSum += forceVec;
 //                     if ((::isnan(forceScalar)) or (abs(forceScalar)>1E6))  printf("short ewald nan %f ,%d ,%d %f \n", forceScalar,idx, otherIdx,pos.x);  
                     if (COMPUTE_VIRIALS) {
@@ -533,7 +533,7 @@ __global__ void compute_short_range_forces_cu(int nAtoms, float4 *xs, float4 *fs
             }
 
         }   
-        fs[idx] += forceSum; //operator for float4 + float3
+        fs[idx] += forceSum; //operator for real4 + real3
         if (COMPUTE_VIRIALS) {
             //printf("vir %f %f %f %f %f %f\n", virialsSum.vals[0], virialsSum.vals[1], virialsSum.vals[2], virial_per_particle.vals[0],virial_per_particle.vals[1],virial_per_particle.vals[2]);
             Virial field = virialField[0];
@@ -546,16 +546,16 @@ __global__ void compute_short_range_forces_cu(int nAtoms, float4 *xs, float4 *fs
 }
 */
 /*
-__global__ void compute_short_range_energies_cu(int nAtoms, float4 *xs, uint16_t *neighborCounts, uint *neighborlist, uint32_t *cumulSumMaxPerBlock, float *qs, float alpha, float rCut, BoundsGPU bounds, int warpSize, float onetwoStr, float onethreeStr, float onefourStr,float *perParticleEng, float field_energy_per_particle,float  conversion) {
+__global__ void compute_short_range_energies_cu(int nAtoms, real4 *xs, uint16_t *neighborCounts, uint *neighborlist, uint32_t *cumulSumMaxPerBlock, real *qs, real alpha, real rCut, BoundsGPU bounds, int warpSize, real onetwoStr, real onethreeStr, real onefourStr,real *perParticleEng, real field_energy_per_particle,real  conversion) {
 
-    float multipliers[4] = {1, onetwoStr, onethreeStr, onefourStr};
+    real multipliers[4] = {1, onetwoStr, onethreeStr, onefourStr};
     int idx = GETIDX();
     if (idx < nAtoms) {
-        float4 posWhole = xs[idx];
-        float3 pos = make_float3(posWhole);
+        real4 posWhole = xs[idx];
+        real3 pos = make_real3(posWhole);
 
-        float EngSum = 0.0f;
-        float qi = qs[idx];
+        real EngSum = 0.0f;
+        real qi = qs[idx];
 
         int baseIdx = baseNeighlistIdx(cumulSumMaxPerBlock, warpSize);
         int numNeigh = neighborCounts[idx];
@@ -564,20 +564,20 @@ __global__ void compute_short_range_energies_cu(int nAtoms, float4 *xs, uint16_t
             uint otherIdxRaw = neighborlist[nlistIdx];
             uint neighDist = otherIdxRaw >> 30;
             uint otherIdx = otherIdxRaw & EXCL_MASK;
-            float3 otherPos = make_float3(xs[otherIdx]);
+            real3 otherPos = make_real3(xs[otherIdx]);
             //then wrap and compute forces!
-            float3 dr = bounds.minImage(pos - otherPos);
-            float lenSqr = lengthSqr(dr);
+            real3 dr = bounds.minImage(pos - otherPos);
+            real lenSqr = lengthSqr(dr);
             //   printf("dist is %f %f %f\n", dr.x, dr.y, dr.z);
             if (lenSqr < rCut*rCut) {
-                float multiplier = multipliers[neighDist];
+                real multiplier = multipliers[neighDist];
                 if (multiplier) {
-                    float len=sqrtf(lenSqr);
-                    float qj = qs[otherIdx];
+                    real len=sqrtf(lenSqr);
+                    real qj = qs[otherIdx];
 
-//                     float r2inv = 1.0f/lenSqr;
-                    float rinv = 1.0f/len;                 
-                    float eng = conversion*0.5*qi*qj*(erfcf((alpha*len))*rinv)*multiplier;
+//                     real r2inv = 1.0f/lenSqr;
+                    real rinv = 1.0f/len;                 
+                    real eng = conversion*0.5*qi*qj*(erfcf((alpha*len))*rinv)*multiplier;
                     
                     EngSum += eng;
    
@@ -592,23 +592,23 @@ __global__ void compute_short_range_energies_cu(int nAtoms, float4 *xs, uint16_t
 }
 */
 __global__ void applyStoredForces(int  nAtoms,
-                float4 *fs,
-                uint *ids, float4 *fsStored) {
+                real4 *fs,
+                uint *ids, real4 *fsStored) {
     int idx = GETIDX();
     if (idx < nAtoms) {
-        float4 cur = fs[idx];
-        float3 stored = make_float3(fsStored[ids[idx]]);
+        real4 cur = fs[idx];
+        real3 stored = make_real3(fsStored[ids[idx]]);
         cur += stored;
         fs[idx] = cur;
     }
 }
-__global__ void mapVirialToSingleAtom(Virial *atomVirials, Virial *fieldVirial, float volume) {
+__global__ void mapVirialToSingleAtom(Virial *atomVirials, Virial *fieldVirial, real volume) {
     //just mapping to one atom for now.  If we're looking at per-atom properties, should change to mapping to all atoms evenly
     atomVirials[0][threadIdx.x] += 0.5 * fieldVirial[0][threadIdx.x] / volume;
 }
 
 
-__global__ void mapEngToParticles(int nAtoms, float eng, float *engs) {
+__global__ void mapEngToParticles(int nAtoms, real eng, real *engs) {
     int idx = GETIDX();
     if (idx < nAtoms) {
         engs[idx] += eng;
@@ -671,12 +671,12 @@ double  FixChargeEwald :: DeltaF_real(double t_alpha){
  
 void FixChargeEwald::setTotalQ2() {
     int nAtoms = state->atoms.size();    
-    GPUArrayGlobal<float>tmp(1);
+    GPUArrayGlobal<real>tmp(1);
     tmp.memsetByVal(0.0);
-    float conversion = state->units.qqr_to_eng;
+    real conversion = state->units.qqr_to_eng;
 
 
-    accumulate_gpu<float,float, SumSqr, N_DATA_PER_THREAD> <<<NBLOCK(nAtoms/(double)N_DATA_PER_THREAD),PERBLOCK,N_DATA_PER_THREAD*sizeof(float)*PERBLOCK>>>
+    accumulate_gpu<real,real, SumSqr, N_DATA_PER_THREAD> <<<NBLOCK(nAtoms/(double)N_DATA_PER_THREAD),PERBLOCK,N_DATA_PER_THREAD*sizeof(real)*PERBLOCK>>>
         (
          tmp.getDevData(),
          state->gpd.qs(state->gpd.activeIdx()),
@@ -688,7 +688,7 @@ void FixChargeEwald::setTotalQ2() {
 
     tmp.memsetByVal(0.0);
 
-    accumulate_gpu<float,float, SumSingle, N_DATA_PER_THREAD> <<<NBLOCK(nAtoms/(double)N_DATA_PER_THREAD),PERBLOCK,N_DATA_PER_THREAD*sizeof(float)*PERBLOCK>>>
+    accumulate_gpu<real,real, SumSingle, N_DATA_PER_THREAD> <<<NBLOCK(nAtoms/(double)N_DATA_PER_THREAD),PERBLOCK,N_DATA_PER_THREAD*sizeof(real)*PERBLOCK>>>
         (
          tmp.getDevData(),
          state->gpd.qs(state->gpd.activeIdx()),
@@ -706,7 +706,7 @@ double FixChargeEwald::find_optimal_parameters(bool printError){
 
     int nAtoms = state->atoms.size();    
     L=state->boundsGPU.trace();
-    h=make_float3(L.x/sz.x,L.y/sz.y,L.z/sz.z);
+    h=make_real3(L.x/sz.x,L.y/sz.y,L.z/sz.z);
 //     cout<<"Lx "<<L.x<<'\n';
 //     cout<<"hx "<<h.x<<'\n';
 //     cout<<"nA "<<nAtoms<<'\n';
@@ -753,7 +753,7 @@ double FixChargeEwald::find_optimal_parameters(bool printError){
     
 }
 
-void FixChargeEwald::setParameters(int szx_,int szy_,int szz_,float rcut_,int interpolation_order_)
+void FixChargeEwald::setParameters(int szx_,int szy_,int szz_,real rcut_,int interpolation_order_)
 {
     //for now support for only 2^N sizes
     //TODO generalize for non cubic boxes
@@ -783,7 +783,7 @@ void FixChargeEwald::setParameters(int szx_,int szy_,int szz_,float rcut_,int in
     cudaMalloc((void**)&FFT_Ey, sizeof(cufftComplex)*sz.x*sz.y*sz.z);
     cudaMalloc((void**)&FFT_Ez, sizeof(cufftComplex)*sz.x*sz.y*sz.z);
     
-    Green_function=GPUArrayGlobal<float>(sz.x*sz.y*sz.z);
+    Green_function=GPUArrayGlobal<real>(sz.x*sz.y*sz.z);
     CUT_CHECK_ERROR("setParameters execution failed");
     
 
@@ -800,7 +800,7 @@ void FixChargeEwald::setGridToErrorTolerance(bool printMsg) {
     double error = find_optimal_parameters(false);
     Vector trace = state->bounds.rectComponents;
     while (nTries < 100 and (error > errorTolerance or error!=error or error < 0)) { //<0 tests for -inf
-        Vector sVec = Vector(make_float3(sz));
+        Vector sVec = Vector(make_real3(sz));
         Vector ratio = sVec / trace;
         double minRatio = ratio[0];
         int minIdx = 0;
@@ -811,8 +811,8 @@ void FixChargeEwald::setGridToErrorTolerance(bool printMsg) {
             }
         }
         sVec[minIdx] *= 2;
-        //sz *= 2;//make_int3(sVec.asFloat3());
-        sz = make_int3(sVec.asFloat3());
+        //sz *= 2;//make_int3(sVec.asreal3());
+        sz = make_int3(sVec.asreal3());
         error = find_optimal_parameters(false);
         nTries++;
     }
@@ -838,13 +838,13 @@ void FixChargeEwald::setGridToErrorTolerance(bool printMsg) {
         cudaMalloc((void**)&FFT_Ey, sizeof(cufftComplex)*sz.x*sz.y*sz.z);
         cudaMalloc((void**)&FFT_Ez, sizeof(cufftComplex)*sz.x*sz.y*sz.z);
 
-        Green_function=GPUArrayGlobal<float>(sz.x*sz.y*sz.z);
+        Green_function=GPUArrayGlobal<real>(sz.x*sz.y*sz.z);
         malloced = true;
     }
 
 
 }
-void FixChargeEwald::setError(double targetError, float rcut_, int interpolation_order_) {
+void FixChargeEwald::setError(double targetError, real rcut_, int interpolation_order_) {
     if (rcut_==-1) {
         rcut_ = state->rCut;
     }
@@ -885,7 +885,7 @@ void FixChargeEwald::calc_Green_function(){
 
 void FixChargeEwald::calc_potential(cufftComplex *phi_buf){
      BoundsGPU b=state->boundsGPU;
-    float volume=b.volume();
+    real volume=b.volume();
     
     dim3 dimBlock(8,8,8);
     dim3 dimGrid((sz.x + dimBlock.x - 1) / dimBlock.x,(sz.y + dimBlock.y - 1) / dimBlock.y,(sz.z + dimBlock.z - 1) / dimBlock.z);    
@@ -898,7 +898,7 @@ void FixChargeEwald::calc_potential(cufftComplex *phi_buf){
     CUT_CHECK_ERROR("cufftExecC2C execution failed");
 
 //     //test area
-//     float *buf=new float[sz.x*sz.y*sz.z*2];
+//     real *buf=new real[sz.x*sz.y*sz.z*2];
 //     cudaMemcpy((void *)buf,phi_buf,sizeof(cufftComplex)*sz.x*sz.y*sz.z,cudaMemcpyDeviceToHost );
 //     ofstream ofs;
 //     ofs.open("test_phi.dat",ios::out );
@@ -924,12 +924,12 @@ bool FixChargeEwald::prepareForRun() {
     handleBoundsChangeInternal(true);
     turnInit = state->turn;
     if (longRangeInterval != 1) {
-        storedForces = GPUArrayDeviceGlobal<float4>(state->maxIdExisting+1);
+        storedForces = GPUArrayDeviceGlobal<real4>(state->maxIdExisting+1);
     } else {
-        storedForces = GPUArrayDeviceGlobal<float4>(1);
+        storedForces = GPUArrayDeviceGlobal<real4>(1);
     }
     if (state->nPerRingPoly > 1) { 
-        rpCentroids = GPUArrayDeviceGlobal<float4>(state->atoms.size() / state->nPerRingPoly);
+        rpCentroids = GPUArrayDeviceGlobal<real4>(state->atoms.size() / state->nPerRingPoly);
     }
     setEvalWrapper();
     prepared = true;
@@ -981,7 +981,7 @@ void FixChargeEwald::compute(int virialMode) {
     uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
     
  
-    float Qconversion = sqrt(state->units.qqr_to_eng);
+    real Qconversion = sqrt(state->units.qqr_to_eng);
 
     //first update grid from atoms positions
     //set qs to 0
@@ -994,7 +994,7 @@ void FixChargeEwald::compute(int virialMode) {
         //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         // Compute centroids of all ring polymers for use on grid
         //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        float4 *centroids;
+        real4 *centroids;
         BoundsGPU bounds         = state->boundsGPU;
         BoundsGPU boundsUnskewed = bounds.unskewed();
         if (nPerRingPoly >1) {
@@ -1010,7 +1010,7 @@ void FixChargeEwald::compute(int virialMode) {
                                gpd.qs(activeIdx),
                                state->boundsGPU,
                                sz,
-                               (float *)FFT_Qs,
+                               (real *)FFT_Qs,
                                Qconversion);
                        break;}
             case 3:{map_charge_to_grid_order_3_cu
@@ -1019,7 +1019,7 @@ void FixChargeEwald::compute(int virialMode) {
                                gpd.qs(activeIdx),
                                state->boundsGPU,
                                sz,
-                               (float *)FFT_Qs,
+                               (real *)FFT_Qs,
                                Qconversion);
                        break;}
         }    
@@ -1031,7 +1031,7 @@ void FixChargeEwald::compute(int virialMode) {
 
 
         //     //test area
-        //     float buf[sz.x*sz.y*sz.z*2];
+        //     real buf[sz.x*sz.y*sz.z*2];
         //     cudaMemcpy(buf,FFT_Qs,sizeof(cufftComplex)*sz.x*sz.y*sz.z,cudaMemcpyDeviceToHost );
         //     ofstream ofs;
         //     ofs.open("test_FFT.dat",ios::out );
@@ -1063,8 +1063,8 @@ void FixChargeEwald::compute(int virialMode) {
 
         /*//test area
           Bounds b=state->bounds;
-          float volume=b.trace[0]*b.trace[1]*b.trace[2];    
-          float *buf=new float[sz.x*sz.y*sz.z*2];
+          real volume=b.trace[0]*b.trace[1]*b.trace[2];    
+          real *buf=new real[sz.x*sz.y*sz.z*2];
           cudaMemcpy((void *)buf,FFT_Ex,sizeof(cufftComplex)*sz.x*sz.y*sz.z,cudaMemcpyDeviceToHost );
           ofstream ofs;
           ofs.open("test_Ex.dat",ios::out );
@@ -1145,7 +1145,7 @@ void FixChargeEwald::compute(int virialMode) {
     if (virialMode) {
         int warpSize = state->devManager.prop.warpSize;
         BoundsGPU &b=state->boundsGPU;
-        float volume=b.volume();          
+        real volume=b.volume();          
         virialField.memset(0); 
         virials_cu<<<dimGrid, dimBlock,sizeof(Virial)*dimBlock.x*dimBlock.y*dimBlock.z>>>(state->boundsGPU,sz,virialField.data(),alpha,Green_function.getDevData(), FFT_Qs, warpSize); 
         CUT_CHECK_ERROR("virials_cu kernel execution failed");    
@@ -1155,7 +1155,7 @@ void FixChargeEwald::compute(int virialMode) {
         mapVirialToSingleAtom<<<1, 6>>>(gpd.virials.d_data.data(), virialField.data(), volume);
     }
 
-    float *neighborCoefs = state->specialNeighborCoefs;
+    real *neighborCoefs = state->specialNeighborCoefs;
     evalWrap->compute(nAtoms,nPerRingPoly,gpd.xs(activeIdx), gpd.fs(activeIdx),
                   neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(),
                   state->devManager.prop.warpSize, nullptr, 0, state->boundsGPU, //PASSING NULLPTR TO GPU MAY CAUSE ISSUES
@@ -1168,7 +1168,7 @@ void FixChargeEwald::compute(int virialMode) {
 }
 
 
-void FixChargeEwald::singlePointEng(float * perParticleEng) {
+void FixChargeEwald::singlePointEng(real * perParticleEng) {
     CUT_CHECK_ERROR("before FixChargeEwald kernel execution failed");
 
     if (state->boundsGPU != boundsLastOptimize) {
@@ -1185,12 +1185,12 @@ void FixChargeEwald::singlePointEng(float * perParticleEng) {
     
     
      
-    float Qconversion = sqrt(state->units.qqr_to_eng);
+    real Qconversion = sqrt(state->units.qqr_to_eng);
 
 
     //first update grid from atoms positions
     //set qs to 0
-    float field_energy_per_particle = 0;
+    real field_energy_per_particle = 0;
     dim3 dimBlock(8,8,8);
     dim3 dimGrid((sz.x + dimBlock.x - 1) / dimBlock.x,(sz.y + dimBlock.y - 1) / dimBlock.y,(sz.z + dimBlock.z - 1) / dimBlock.z);    
     map_charge_set_to_zero_cu<<<dimGrid, dimBlock>>>(sz,FFT_Qs);
@@ -1198,11 +1198,11 @@ void FixChargeEwald::singlePointEng(float * perParticleEng) {
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     // Compute centroids of all ring polymers for use on grid
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    float4 *centroids;
+    real4 *centroids;
     BoundsGPU bounds         = state->boundsGPU;
     BoundsGPU boundsUnskewed = bounds.unskewed();
     if (nPerRingPoly >1) {
-        rpCentroids = GPUArrayDeviceGlobal<float4>(nRingPoly);
+        rpCentroids = GPUArrayDeviceGlobal<real4>(nRingPoly);
         computeCentroid<<<NBLOCK(nRingPoly),PERBLOCK>>>(rpCentroids.data(),gpd.xs(activeIdx),nAtoms,nPerRingPoly,boundsUnskewed);
         centroids = rpCentroids.data();
         periodicWrapCpy<<<NBLOCK(nRingPoly), PERBLOCK>>>(centroids, nRingPoly, boundsUnskewed);
@@ -1217,7 +1217,7 @@ void FixChargeEwald::singlePointEng(float * perParticleEng) {
                                               gpd.qs(activeIdx),
                                               state->boundsGPU,
                                               sz,
-                                              (float *)FFT_Qs,Qconversion);
+                                              (real *)FFT_Qs,Qconversion);
               break;}
       case 3:{map_charge_to_grid_order_3_cu
               <<<NBLOCK(nRingPoly), PERBLOCK>>>(nRingPoly, nPerRingPoly, 
@@ -1225,7 +1225,7 @@ void FixChargeEwald::singlePointEng(float * perParticleEng) {
                                               gpd.qs(activeIdx),
                                               state->boundsGPU,
                                               sz,
-                                              (float *)FFT_Qs,Qconversion);
+                                              (real *)FFT_Qs,Qconversion);
               break;}
     }    
     CUT_CHECK_ERROR("map_charge_to_grid_cu kernel execution failed");
@@ -1238,26 +1238,26 @@ void FixChargeEwald::singlePointEng(float * perParticleEng) {
 
     //calc field energy 
     BoundsGPU &b=state->boundsGPU;
-    float volume=b.volume();
+    real volume=b.volume();
     
     Energy_cu<<<dimGrid, dimBlock>>>(sz,Green_function.getDevData(), FFT_Qs,FFT_Ex);//use Ex as buffer
     CUT_CHECK_ERROR("Energy_cu kernel execution failed");    
   
-    GPUArrayGlobal<float>field_E(1);
+    GPUArrayGlobal<real>field_E(1);
     field_E.memsetByVal(0.0);
     int warpSize = state->devManager.prop.warpSize;
-    accumulate_gpu<float,float, SumSingle, N_DATA_PER_THREAD> <<<NBLOCK(2*sz.x*sz.y*sz.z/(double)N_DATA_PER_THREAD),PERBLOCK,N_DATA_PER_THREAD*sizeof(float)*PERBLOCK>>>
+    accumulate_gpu<real,real, SumSingle, N_DATA_PER_THREAD> <<<NBLOCK(2*sz.x*sz.y*sz.z/(double)N_DATA_PER_THREAD),PERBLOCK,N_DATA_PER_THREAD*sizeof(real)*PERBLOCK>>>
         (
          field_E.getDevData(),
-         (float *)FFT_Ex,
+         (real *)FFT_Ex,
          2*sz.x*sz.y*sz.z,
          warpSize,
          SumSingle()
          );   
 /*
-    sumSingle<float,float, N_DATA_PER_THREAD> <<<NBLOCK(2*sz.x*sz.y*sz.z/(double)N_DATA_PER_THREAD),PERBLOCK,N_DATA_PER_THREAD*sizeof(float)*PERBLOCK>>>(
+    sumSingle<real,real, N_DATA_PER_THREAD> <<<NBLOCK(2*sz.x*sz.y*sz.z/(double)N_DATA_PER_THREAD),PERBLOCK,N_DATA_PER_THREAD*sizeof(real)*PERBLOCK>>>(
                                             field_E.getDevData(),
-                                            (float *)FFT_Ex,
+                                            (real *)FFT_Ex,
                                             2*sz.x*sz.y*sz.z,
                                             warpSize);   
                                             */
@@ -1272,7 +1272,7 @@ void FixChargeEwald::singlePointEng(float * perParticleEng) {
 
 //pair energies
     mapEngToParticles<<<NBLOCK(nAtoms), PERBLOCK>>>(nAtoms, field_energy_per_particle, perParticleEng);
-    float *neighborCoefs = state->specialNeighborCoefs;
+    real *neighborCoefs = state->specialNeighborCoefs;
     evalWrap->energy(nAtoms,nPerRingPoly, gpd.xs(activeIdx), perParticleEng, neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, nullptr, 0, state->boundsGPU, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.qs(activeIdx), r_cut, nThreadPerBlock(), nThreadPerAtom());
 
 
@@ -1294,8 +1294,8 @@ ChargeEvaluatorEwald FixChargeEwald::generateEvaluator() {
     return ChargeEvaluatorEwald(alpha, state->units.qqr_to_eng);
 }
 
-void (FixChargeEwald::*setParameters_xyz)(int ,int ,int ,float ,int) = &FixChargeEwald::setParameters;
-void (FixChargeEwald::*setParameters_xxx)(int ,float ,int) = &FixChargeEwald::setParameters;
+void (FixChargeEwald::*setParameters_xyz)(int ,int ,int ,real ,int) = &FixChargeEwald::setParameters;
+void (FixChargeEwald::*setParameters_xxx)(int ,real ,int) = &FixChargeEwald::setParameters;
 void export_FixChargeEwald() {
     py::class_<FixChargeEwald,
                           SHARED(FixChargeEwald),

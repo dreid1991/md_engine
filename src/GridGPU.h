@@ -55,7 +55,7 @@ private:
      * This function is helpful for debugging purposes, checking that the
      * neighbor listing works as expected.
      */
-    bool verifyNeighborlists(float neighCut);
+    bool verifyNeighborlists(real neighCut);
 
     /*! \brief Verify that sorting atoms into grid works as expected
      *
@@ -76,18 +76,18 @@ public:
     GPUArrayGlobal<uint32_t> perBlockArray;     //!< Number of neighbors in a GPU block
     GPUArrayDeviceGlobal<uint16_t> perBlockArray_maxNeighborsInBlock; //!< array for holding max # neighs of atoms in a GPU block
     GPUArrayGlobal<uint16_t> perAtomArray;      //!< For each atom, store the place in the grid
-    GPUArrayDeviceGlobal<float4> xsLastBuild;   //!< Contains the atom positions at
-    GPUArrayDeviceGlobal<float4> rpCentroids;
+    GPUArrayDeviceGlobal<real4> xsLastBuild;   //!< Contains the atom positions at
+    GPUArrayDeviceGlobal<real4> rpCentroids;
                                                 //!< the time of the last build.
     GPUArrayGlobal<int> buildFlag;  //!< If buildFlag[0] == true, neighbor list
                                     //!< will be rebuilt
-    float3 ds;      //!< Grid spacing in x-, y-, and z-dimension
-    float3 os;      //!< Point of origin (lower value for all bounds)
+    real3 ds;      //!< Grid spacing in x-, y-, and z-dimension
+    real3 os;      //!< Point of origin (lower value for all bounds)
     int3 ns;        //!< Number of grid points in each dimension
     GPUArrayDeviceGlobal<uint> neighborlist;    //!< List of atoms within cutoff radius of atom at GPU idx
     State *state;   //!< Pointer to the simulation state
     GPUData *gpd;   //!< Pointer to the gpu data for this grid
-    float neighCutoffMax;   //!< largest cutoff radius of any interacting pair + padding, default value for grid building
+    real neighCutoffMax;   //!< largest cutoff radius of any interacting pair + padding, default value for grid building
     double padding; //!< padding for this grid
 
     /*! \brief Constructor
@@ -102,7 +102,7 @@ public:
      * resolution will be the next larger value such that the box size is
      * a multiple of the resolution.
      */
-    GridGPU(State *state_, float dx, float dy, float dz, float neighCutoffMax, int exclusionMode_, double padding_, GPUData *gpd_, int nPerRingPoly=1);
+    GridGPU(State *state_, real dx, real dy, real dz, real neighCutoffMax, int exclusionMode_, double padding_, GPUData *gpd_, int nPerRingPoly=1);
 
     /*! \brief Default constructor
      *
@@ -145,7 +145,7 @@ public:
      * This function remaps particles that have moved across a periodic
      * boundary and rebuilds the neighbor list if necessary.
      */
-    void periodicBoundaryConditions(float neighCut = -1,
+    void periodicBoundaryConditions(real neighCut = -1,
                                     bool forceBuild = false);
 
     /*! \typedef ExclusionList
@@ -200,7 +200,7 @@ public:
                                         //!< transfer.
     BoundsGPU boundsLastBuild;
     void setBounds(BoundsGPU &newBounds);
-    float3 minGridDim;
+    real3 minGridDim;
 
     /*! \brief Set flag to true/false
      *

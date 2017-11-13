@@ -5,7 +5,7 @@
 const std::string linearMomentumType = "LinearMomentum";
 
 FixLinearMomentum::FixLinearMomentum(SHARED(State) state_, std::string handle_, std::string groupHandle_, int applyEvery_, Vector dimensions_)
-  : Fix(state_, handle_, groupHandle_, linearMomentumType, false, false, false, applyEvery_), dimensions(dimensions_), sumMomentum(GPUArrayDeviceGlobal<float4>(2))
+  : Fix(state_, handle_, groupHandle_, linearMomentumType, false, false, false, applyEvery_), dimensions(dimensions_), sumMomentum(GPUArrayDeviceGlobal<real4>(2))
 {   }
 
 bool FixLinearMomentum::prepareForRun() {
@@ -14,12 +14,12 @@ bool FixLinearMomentum::prepareForRun() {
 }
 
 
-__global__ void rescale_all(int nAtoms, float4 *vs, float4 *sumData, float3 dims) {
+__global__ void rescale_all(int nAtoms, real4 *vs, real4 *sumData, real3 dims) {
     int idx = GETIDX();
     if (idx < nAtoms) {
-        float4 v = vs[idx];
-        float4 sum = sumData[0];
-        float invMassTotal = 1.0f / sum.w;
+        real4 v = vs[idx];
+        real4 sum = sumData[0];
+        real invMassTotal = 1.0f / sum.w;
         v.x -= sum.x * invMassTotal * dims.x;
         v.y -= sum.y * invMassTotal * dims.y;
         v.z -= sum.z * invMassTotal * dims.z;
@@ -28,14 +28,14 @@ __global__ void rescale_all(int nAtoms, float4 *vs, float4 *sumData, float3 dims
 }
 
 
-__global__ void rescale_group(int nAtoms, float4 *vs, float4 *fs, uint32_t groupTag, float4 *sumData, float3 dims) {
+__global__ void rescale_group(int nAtoms, real4 *vs, real4 *fs, uint32_t groupTag, real4 *sumData, real3 dims) {
     int idx = GETIDX();
     if (idx < nAtoms) {
         uint32_t tag = *(uint32_t *) &(fs[idx].w);
         if (tag & groupTag) {
-            float4 v = vs[idx];
-            float4 sum = sumData[0];
-            float invMassTotal = 1.0f / sum.w;
+            real4 v = vs[idx];
+            real4 sum = sumData[0];
+            real invMassTotal = 1.0f / sum.w;
             v.x -= sum.x * invMassTotal * dims.x;
             v.y -= sum.y * invMassTotal * dims.y;
             v.z -= sum.z * invMassTotal * dims.z;
@@ -45,15 +45,15 @@ __global__ void rescale_group(int nAtoms, float4 *vs, float4 *fs, uint32_t group
 }
 
 void FixLinearMomentum::compute(int virialMode) {
-    float3 dimsFloat3 = dimensions.asFloat3();
+    real3 dimsreal3 = dimensions.asreal3();
     int nAtoms = state->atoms.size();
-    float4 *vs = state->gpd.vs.getDevData();
-    float4 *fs = state->gpd.vs.getDevData();
+    real4 *vs = state->gpd.vs.getDevData();
+    real4 *fs = state->gpd.vs.getDevData();
     int warpSize = state->devManager.prop.warpSize;
 
     sumMomentum.memset(0); 
     if (groupHandle == "all") {
-        accumulate_gpu<float4, float4, SumVectorXYZOverW, N_DATA_PER_THREAD> <<<NBLOCK(nAtoms / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*PERBLOCK*sizeof(float4)>>>
+        accumulate_gpu<real4, real4, SumVectorXYZOverW, N_DATA_PER_THREAD> <<<NBLOCK(nAtoms / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*PERBLOCK*sizeof(real4)>>>
             (
              sumMomentum.data(),
              vs,
@@ -61,11 +61,11 @@ void FixLinearMomentum::compute(int virialMode) {
              warpSize,
              SumVectorXYZOverW()
             );
-        rescale_all<<<NBLOCK(nAtoms), PERBLOCK>>>(nAtoms, vs, sumMomentum.data(), dimsFloat3);
+        rescale_all<<<NBLOCK(nAtoms), PERBLOCK>>>(nAtoms, vs, sumMomentum.data(), dimsreal3);
 
 
     } else {
-        accumulate_gpu_if<float4, float4, SumVectorXYZOverWIf, N_DATA_PER_THREAD> <<<NBLOCK(nAtoms / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*PERBLOCK*sizeof(float4)>>>
+        accumulate_gpu_if<real4, real4, SumVectorXYZOverWIf, N_DATA_PER_THREAD> <<<NBLOCK(nAtoms / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*PERBLOCK*sizeof(real4)>>>
             (
              sumMomentum.data(),
              vs,
@@ -73,7 +73,7 @@ void FixLinearMomentum::compute(int virialMode) {
              warpSize,
              SumVectorXYZOverWIf(fs, groupTag)
             );
-        rescale_group<<<NBLOCK(nAtoms), PERBLOCK>>>(nAtoms, vs, fs, groupTag, sumMomentum.data(), dimsFloat3);
+        rescale_group<<<NBLOCK(nAtoms), PERBLOCK>>>(nAtoms, vs, fs, groupTag, sumMomentum.data(), dimsreal3);
     }
 }
 

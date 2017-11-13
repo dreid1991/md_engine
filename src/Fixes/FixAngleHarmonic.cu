@@ -28,7 +28,7 @@ void FixAngleHarmonic::compute(int virialMode) {
 
 }
 
-void FixAngleHarmonic::singlePointEng(float *perParticleEng) {
+void FixAngleHarmonic::singlePointEng(real *perParticleEng) {
     int nAtoms = state->atoms.size();
     int activeIdx = state->gpd.activeIdx();
     if (forcersGPU.size()) {

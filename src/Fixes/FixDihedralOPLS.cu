@@ -30,7 +30,7 @@ void FixDihedralOPLS::compute(int virialMode) {
 
 }
 
-void FixDihedralOPLS::singlePointEng(float *perParticleEng) {
+void FixDihedralOPLS::singlePointEng(real *perParticleEng) {
     int nAtoms = state->atoms.size();
     int activeIdx = state->gpd.activeIdx();
 

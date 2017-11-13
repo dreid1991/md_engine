@@ -36,17 +36,17 @@ namespace Mod {
     */
 
     // HEY JUST COPY FROM MAIN FOLDER
-    __global__ void unskewAtoms(float4 *xs, int nAtoms, float3 xOrig, float3 yOrig, float3 lo);
-    __global__ void skewAtomsFromZero(float4 *xs, int nAtoms, float3 xFinal, float3 yFinal, float3 lo);
+    __global__ void unskewAtoms(real4 *xs, int nAtoms, real3 xOrig, real3 yOrig, real3 lo);
+    __global__ void skewAtomsFromZero(real4 *xs, int nAtoms, real3 xFinal, real3 yFinal, real3 lo);
 
     template<bool>
-    __global__ void scaleSystem_cu(float4 *xs, int nAtoms, float3 lo, float3 rectLen, float3 scaleBy,int *idToIdxs, 
+    __global__ void scaleSystem_cu(real4 *xs, int nAtoms, real3 lo, real3 rectLen, real3 scaleBy,int *idToIdxs, 
                                          int *notRigidBody);
     template<bool>
-    __global__ void scaleSystemGroup_cu(float4 *xs, int nAtoms, float3 lo, float3 rectLen, float3 scaleBy, uint32_t groupTag, float4 *fs, int *idToIdxs, int *notRigidBody);
-    void scaleSystem(State *, float3 scaleBy, uint32_t groupTag=1);
-    //__global__ void skewAtomsFromZero(cudaSurfaceObject_t xs, float4 xFinal, float4 yFinal);
-    //__global__ void skewAtoms(cudaSurfaceObject_t xs, float4 xOrig, float4 xFinal, float4 yOrig, float4 yFinal);
+    __global__ void scaleSystemGroup_cu(real4 *xs, int nAtoms, real3 lo, real3 rectLen, real3 scaleBy, uint32_t groupTag, real4 *fs, int *idToIdxs, int *notRigidBody);
+    void scaleSystem(State *, real3 scaleBy, uint32_t groupTag=1);
+    //__global__ void skewAtomsFromZero(cudaSurfaceObject_t xs, real4 xFinal, real4 yFinal);
+    //__global__ void skewAtoms(cudaSurfaceObject_t xs, real4 xOrig, real4 xFinal, real4 yOrig, real4 yFinal);
     //__global__ void skew(SHARED(State), Vector);
 
     // CPU versions

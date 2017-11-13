@@ -39,7 +39,7 @@ bool FixPressureBerendsen::stepFinal() {
         dilation = dilationUpper;
     }
 
-    Mod::scaleSystem(state, make_float3(dilation, dilation, dilation));
+    Mod::scaleSystem(state, make_real3(dilation, dilation, dilation));
 
     return true;
 }

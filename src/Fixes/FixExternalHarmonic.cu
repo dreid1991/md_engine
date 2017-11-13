@@ -15,7 +15,7 @@ namespace py = boost::python;
 FixExternalHarmonic::FixExternalHarmonic(SHARED(State) state_, std::string handle_, std::string groupHandle_,
                                  Vector k_, Vector r0_)
   : FixExternal(state_, handle_, groupHandle_, ExternalHarmonicType, true,  false, 1 ),
-    k(k_.asFloat3()), r0(r0_.asFloat3()) { };
+    k(k_.asreal3()), r0(r0_.asreal3()) { };
 
 // compute function
 void FixExternalHarmonic::compute(int virialMode) {
@@ -31,7 +31,7 @@ void FixExternalHarmonic::compute(int virialMode) {
 	}
 };
 
-void FixExternalHarmonic::singlePointEng(float *perParticleEng) {
+void FixExternalHarmonic::singlePointEng(real *perParticleEng) {
         GPUData &gpd  = state->gpd;
         int activeIdx = gpd.activeIdx();
         int n         = state->atoms.size();

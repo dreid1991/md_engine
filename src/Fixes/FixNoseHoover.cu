@@ -24,13 +24,13 @@ std::string NoseHooverType = "NoseHoover";
 // CUDA function to calculate the total kinetic energy
 
 // CUDA function to rescale particle velocities
-__global__ void rescale_cu(int nAtoms, uint groupTag, float4 *vs, float4 *fs, float3 scale)
+__global__ void rescale_cu(int nAtoms, uint groupTag, real4 *vs, real4 *fs, real3 scale)
 {
     int idx = GETIDX();
     if (idx < nAtoms) {
         uint groupTagAtom = ((uint *) (fs+idx))[3];
         if (groupTag & groupTagAtom) {
-            float4 vel = vs[idx];
+            real4 vel = vs[idx];
             vel.x *= scale.x;
             vel.y *= scale.y;
             vel.z *= scale.z;
@@ -39,11 +39,11 @@ __global__ void rescale_cu(int nAtoms, uint groupTag, float4 *vs, float4 *fs, fl
     }
 }
 
-__global__ void rescale_no_tags_cu(int nAtoms, float4 *vs, float3 scale)
+__global__ void rescale_no_tags_cu(int nAtoms, real4 *vs, real3 scale)
 {
     int idx = GETIDX();
     if (idx < nAtoms) {
-        float4 vel = vs[idx];
+        real4 vel = vs[idx];
         vel.x *= scale.x;
         vel.y *= scale.y;
         vel.z *= scale.z;
@@ -52,52 +52,52 @@ __global__ void rescale_no_tags_cu(int nAtoms, float4 *vs, float3 scale)
 }
 
 
-__global__ void barostat_vel_cu(int nAtoms,uint groupTag, float4 *vs,
-                                        float4 *fs, float3 addScale,
-                                        float3 multScale, float dtf) {
+__global__ void barostat_vel_cu(int nAtoms,uint groupTag, real4 *vs,
+                                        real4 *fs, real3 addScale,
+                                        real3 multScale, real dtf) {
 
     int idx = GETIDX();
     if (idx < nAtoms) {
         uint groupTagAtom = ((uint *) (fs+idx))[3];
         if (groupTag & groupTagAtom) {
-            float4 vel = vs[idx];
-            float invmass = vel.w;
-            float4 force = fs[idx];
-            float3 v = make_float3(vel);
+            real4 vel = vs[idx];
+            real invmass = vel.w;
+            real4 force = fs[idx];
+            real3 v = make_real3(vel);
             v *= multScale;
             // apply the additive scaling (additive w.r.t. vel)
-            float3 dv = dtf * invmass * make_float3(force) * addScale;
+            real3 dv = dtf * invmass * make_real3(force) * addScale;
             v += dv;
 
             // apply the multiplicative scaling to the aggregated quantity
             v *= multScale;
             
-            float4 newV = make_float4(v.x, v.y, v.z, invmass);
+            real4 newV = make_real4(v.x, v.y, v.z, invmass);
             vs[idx] = newV;
         }
     }
 }
 
-__global__ void barostat_vel_no_tags_cu(int nAtoms, float4 *vs, 
-                                float4 *fs, float3 addScale, float3 multScale, float dtf) {
+__global__ void barostat_vel_no_tags_cu(int nAtoms, real4 *vs, 
+                                real4 *fs, real3 addScale, real3 multScale, real dtf) {
 
     int idx = GETIDX();
     if (idx < nAtoms) {
-        float4 vel = vs[idx];
-        float invmass = vel.w;
-        float4 force = fs[idx];
-        float3 v = make_float3(vel);
+        real4 vel = vs[idx];
+        real invmass = vel.w;
+        real4 force = fs[idx];
+        real3 v = make_real3(vel);
 
         v *= multScale;
 
         // apply the additive scaling (additive w.r.t. vel)
-        float3 dv = dtf * invmass * make_float3(force) * addScale;
+        real3 dv = dtf * invmass * make_real3(force) * addScale;
         v += dv;
 
         // apply the multiplicative scaling to the aggregated quantity
         v *= multScale;
         
-        float4 newV = make_float4(v.x, v.y, v.z, invmass);
+        real4 newV = make_real4(v.x, v.y, v.z, invmass);
         vs[idx] = newV;
     }
 }
@@ -116,7 +116,7 @@ FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state_, std::string handle
               1,                 // applyEvery
               50                // orderPreference
              ), 
-                kineticEnergy(GPUArrayGlobal<float>(2)),
+                kineticEnergy(GPUArrayGlobal<real>(2)),
                 ke_current(0.0), ndf(0),
                 chainLength(20), nTimesteps(1), n_ys(1),
                 pchainLength(20),
@@ -126,7 +126,7 @@ FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state_, std::string handle
                 thermVel(std::vector<double>(chainLength,0.0)),
                 thermForce(std::vector<double>(chainLength,0.0)),
                 thermMass(std::vector<double>(chainLength,0.0)),
-                scale(make_float3(1.0f, 1.0f, 1.0f)),
+                scale(make_real3(1.0f, 1.0f, 1.0f)),
                 pressFreq(6, 0),
                 pFlags(6, false),
                 tempComputer(state, "scalar"), 
@@ -929,30 +929,30 @@ void FixNoseHoover::scaleVelocitiesBarostat(bool preNVE_X) {
     // bool input denotes whether we are pre or post integration of positions in the 
     // velocity-verlet step
     // --- does anything change pre- versus post- NVE_X ?
-    float d = 3.0;
+    real d = 3.0;
     if (state->is2d) d = 2.0;
 
-    float alphaAddition = 0.0;
+    real alphaAddition = 0.0;
     for (int i = 0; i < 3; i++) {
         alphaAddition += pressVel[i];
     }
     alphaAddition /= (d * nAtoms);
     // at this point, velocities of the barostat variables are up-to-date
-    float3 velScaleAdditive = make_float3(0.0, 0.0, 0.0);
+    real3 velScaleAdditive = make_real3(0.0, 0.0, 0.0);
 
-    float timestep4 = state->dt * 0.25f;
+    real timestep4 = state->dt * 0.25f;
 
     // compute the additive velocity scale... sinh(x) / x power series
-    float3 v_eps = make_float3(pressVel[0] + alphaAddition, 
+    real3 v_eps = make_real3(pressVel[0] + alphaAddition, 
                                pressVel[1] + alphaAddition, 
                                pressVel[2] + alphaAddition);
-    float3 x = 1.0 * v_eps * timestep4;
+    real3 x = 1.0 * v_eps * timestep4;
 
     // get our terms
-    float3 x2 = x*x ;
-    float3 x4 = x2*x2;
-    float3 x6 = x4*x2;
-    float3 x8 = x4*x4;
+    real3 x2 = x*x ;
+    real3 x4 = x2*x2;
+    real3 x6 = x4*x2;
+    real3 x8 = x4*x4;
 
     // 6.0, 120.0, 5040.0, 362880.0, are 3!, 5!, 7!, and 9!, respectively, (!) being the factorial operator
     // -- this is a simple power series expansion of sinh(x)/x, where 
@@ -971,12 +971,12 @@ void FixNoseHoover::scaleVelocitiesBarostat(bool preNVE_X) {
     // we write it here in terms of our variable 'x' define above
     // -- for the multiplicative velocity scaling, we have -dt/2 factor rather than dt/4
     //    so just multiply by -2.0
-    float3 velScaleMultiplicative = make_float3(std::exp(-1.0*x.x),
+    real3 velScaleMultiplicative = make_real3(std::exp(-1.0*x.x),
                                                 std::exp(-1.0*x.y),
                                                 std::exp(-1.0*x.z));
 
     // and now send the atoms velocities and forces to a kernel and do the computations
-    float dtf = 0.5f * state->dt * state->units.ftm_to_v;
+    real dtf = 0.5f * state->dt * state->units.ftm_to_v;
     if (groupTag == 1) {
         barostat_vel_no_tags_cu<<<NBLOCK(nAtoms), PERBLOCK>>>(
                                                  nAtoms,
@@ -999,8 +999,8 @@ void FixNoseHoover::scaleVelocitiesBarostat(bool preNVE_X) {
 
 void FixNoseHoover::rescaleVolume() {
 
-    float3 volScaleXYZ = make_float3(1.0, 1.0, 1.0);
-    float dt = state->dt;
+    real3 volScaleXYZ = make_real3(1.0, 1.0, 1.0);
+    real dt = state->dt;
 
     // set the x, y scale factors; if this is a 3d simulation, pFlags[2] will evaluate to true
     volScaleXYZ.x = std::exp(pressVel[0] * dt);
@@ -1058,7 +1058,7 @@ void FixNoseHoover::calculateKineticEnergy()
 
 void FixNoseHoover::rescale()
 {
-    if (scale == make_float3(1.0f, 1.0f, 1.0f)) {
+    if (scale == make_real3(1.0f, 1.0f, 1.0f)) {
         return;
     }
 
@@ -1075,7 +1075,7 @@ void FixNoseHoover::rescale()
                                                  scale);
     }
 
-    scale = make_float3(1.0f, 1.0f, 1.0f);
+    scale = make_real3(1.0f, 1.0f, 1.0f);
 }
 
 Interpolator *FixNoseHoover::getInterpolator(std::string type) {

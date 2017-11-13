@@ -15,7 +15,7 @@ FixBondHarmonic::FixBondHarmonic(SHARED(State) state_, string handle)
     }
 
 //template <class BONDTYPE, class EVALUATOR, bool COMPUTEVIRIALS>
-__global__ void dummy(){};//int nAtoms, float4 *xs, float4 *forces){}//, int *idToIdxs, BondGPU *bonds, int *startstops, BONDTYPE *parameters_arg, int nParameters, BoundsGPU bounds, Virial *__restrict__ virials, bool usingSharedMemForParams, EVALUATOR T) {}
+__global__ void dummy(){};//int nAtoms, real4 *xs, real4 *forces){}//, int *idToIdxs, BondGPU *bonds, int *startstops, BONDTYPE *parameters_arg, int nParameters, BoundsGPU bounds, Virial *__restrict__ virials, bool usingSharedMemForParams, EVALUATOR T) {}
 
 void FixBondHarmonic::createBond(Atom *a, Atom *b, double k, double r0, int type) {
     vector<Atom *> atoms = {a, b};
@@ -48,7 +48,7 @@ void FixBondHarmonic::compute(int virialMode) {
     }
 }
 
-void FixBondHarmonic::singlePointEng(float *perParticleEng) {
+void FixBondHarmonic::singlePointEng(real *perParticleEng) {
     int nAtoms = state->atoms.size();
     int activeIdx = state->gpd.activeIdx();
     //cout << "Max bonds per block is " << maxBondsPerBlock << endl;

@@ -13,7 +13,7 @@ namespace py = boost::python;
 
 // the constructor for FixWallLJ126
 FixWallLJ126::FixWallLJ126(SHARED(State) state_, std::string handle_, std::string groupHandle_,
-                                 Vector origin_, Vector forceDir_, float dist_, float sigma_, float epsilon_)
+                                 Vector origin_, Vector forceDir_, real dist_, real sigma_, real epsilon_)
   : FixWall(state_, handle_, groupHandle_, wallLJ126Type, true,  false, 1, origin_, forceDir_.normalized()),
     dist(dist_), sigma(sigma_), epsilon(epsilon_)
 {
@@ -29,14 +29,14 @@ void FixWallLJ126::compute(int virialMode) {
 	int n = state->atoms.size();
 	if (virialMode) {
 		compute_wall_iso<EvaluatorWallLJ126, true> <<<NBLOCK(n), PERBLOCK>>>(n,  gpd.xs(activeIdx),
-                    gpd.fs(activeIdx), origin.asFloat3(), forceDir.asFloat3(),  groupTag, evaluator);
+                    gpd.fs(activeIdx), origin.asreal3(), forceDir.asreal3(),  groupTag, evaluator);
 	} else {
 		compute_wall_iso<EvaluatorWallLJ126, false> <<<NBLOCK(n), PERBLOCK>>>(n, gpd.xs(activeIdx),
-                    gpd.fs(activeIdx), origin.asFloat3(), forceDir.asFloat3(),  groupTag, evaluator);
+                    gpd.fs(activeIdx), origin.asreal3(), forceDir.asreal3(),  groupTag, evaluator);
 	}
 };
 
-void FixWallLJ126::singlePointEng(float *perParticleEng) {
+void FixWallLJ126::singlePointEng(real *perParticleEng) {
 
 };
 
@@ -57,7 +57,7 @@ bool FixWallLJ126::postRun () {
 void export_FixWallLJ126() {
 	py::class_<FixWallLJ126, SHARED(FixWallLJ126), py::bases<FixWall>, boost::noncopyable > (
 		"FixWallLJ126",
-		py::init<SHARED(State), string, string, Vector, Vector, float, float, float> (
+		py::init<SHARED(State), string, string, Vector, Vector, real, real, real> (
 			py::args("state", "handle", "groupHandle", "origin", "forceDir", "dist", "sigma", "epsilon")
 		)
 	)

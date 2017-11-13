@@ -1,5 +1,25 @@
 #pragma once
 
+// here is where to define real types... either float or double
+#ifdef DASH_DOUBLE
+#ifndef HAVE_DASH_REAL_
+typedef double        real;
+typedef double2      real2;
+typedef double3      real3;
+typedef double4      real4;
+#define HAVE_DASH_REAL
+#endif /* HAVE_DASH_REAL */
+#else
+// else we place real as float
+#ifndef HAVE_DASH_REAL
+typedef float         real;
+typedef float2       real2;
+typedef float3       real3;
+typedef float4       real4;
+#define HAVE_DASH_REAL
+#endif /* HAVE_DASH_REAL */
+#endif /* DASH_DOUBLE */
+
 #define DEFAULT_FILL -1000
 #include <boost/shared_ptr.hpp>
 
@@ -14,7 +34,7 @@
 #define INVMASSBOOL 1.0e18f
 
 #define EXCL_MASK (~(3<<30));
-#define GPUMEMBER __host__ __device__
+//#define GPUMEMBER __host__ __device__
 #define SHARED(X) boost::shared_ptr<X>
 
 template <typename T>

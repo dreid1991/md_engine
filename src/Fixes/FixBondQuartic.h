@@ -19,7 +19,7 @@ public:
     ~FixBondQuartic(){};
 
     void compute(int);
-    void singlePointEng(float *);
+    void singlePointEng(real *);
     std::string restartChunk(std::string format);
     bool readFromRestart();
     BondEvaluatorQuartic evaluator;

@@ -23,7 +23,7 @@ public:
      * \param periodic_ Stores whether the box is periodic in x-, y-, and
      *                  z-direction
      */
-    BoundsGPU(float3 lo_, float3 rectComponents_, float3 periodic_) {
+    BoundsGPU(real3 lo_, real3 rectComponents_, real3 periodic_) {
         //consider calcing invrectcomponents using doubles
         lo = lo_;
         rectComponents = rectComponents_;
@@ -37,14 +37,14 @@ public:
     /*! \brief Default constructor */
     BoundsGPU() {};
 
-    float3 rectComponents; //!< 3 sides - xx, yy, zz
-    float3 invRectComponents; //!< Inverse of the box expansion in standard
+    real3 rectComponents; //!< 3 sides - xx, yy, zz
+    real3 invRectComponents; //!< Inverse of the box expansion in standard
                        //!< coordinates
     double3 rectComponentsD;
     double3 invRectComponentsD; //!< Inverse of the box expansion in standard coordinates and double precision
 
-    float3 lo; //!< Point of origin
-    float3 periodic; //!< Stores whether box is periodic in x-, y-, and
+    real3 lo; //!< Point of origin
+    real3 periodic; //!< Stores whether box is periodic in x-, y-, and
                      //!< z-direction
     double3 periodicD; //!< Stores whether box is periodic in x-, y- and z-direction, double precision
     /*! \brief Return an unskewed copy of this box
@@ -69,7 +69,7 @@ public:
      *
      * Will be updated to handle box shearing
      */
-    __host__ __device__ float3 trace() {
+    __host__ __device__ real3 trace() {
         return rectComponents;
         //return make_float3(sides[0].x, sides[1].y, sides[2].z);
     }
@@ -79,8 +79,8 @@ public:
      * \param v %Vector to be wrapped
      * \return Copy of the vector, wrapped into main simulation box
      */
-    __host__ __device__ float3 minImage(float3 v) {
-        float3 img = make_float3(rintf(v.x * invRectComponents.x), rintf(v.y * invRectComponents.y), rintf(v.z * invRectComponents.z));
+    __host__ __device__ real3 minImage(real3 v) {
+        real3 img = make_real3(rintf(v.x * invRectComponents.x), rintf(v.y * invRectComponents.y), rintf(v.z * invRectComponents.z));
 
         v -= rectComponents * img * periodic;
         return v;
@@ -92,7 +92,7 @@ public:
         return v;
     }
     
-    __host__ __device__ float volume() {
+    __host__ __device__ real volume() {
         return rectComponents.x * rectComponents.y * rectComponents.z;
     }
 
@@ -101,8 +101,8 @@ public:
      * \param v Point to test
      * \return True if inside simulation box
      */
-    __host__ __device__ bool inBounds(float3 v) {
-        float3 diff = v - lo;
+    __host__ __device__ bool inBounds(real3 v) {
+        real3 diff = v - lo;
         return diff.x < rectComponents.x and diff.y < rectComponents.y and diff.z < rectComponents.z and diff.x >= 0 and diff.y >= 0 and diff.z >= 0;
     }
     bool isSkewed() {
@@ -110,23 +110,23 @@ public:
         return false;
     }
 
-    __host__ __device__ float4 wrapCoords(float4 v) {
+    __host__ __device__ real4 wrapCoords(real4 v) {
         // do something here? its a periodic wrap
-        float4 newPos = v;
-        float id = v.w;
-        float3 trace = rectComponents;
-        float3 diffFromLo = make_float3(newPos) - lo;
-        float3 imgs = floorf(diffFromLo / trace); //are unskewed at this point
-        newPos -= make_float4(trace * imgs * periodic);
+        real4 newPos = v;
+        real id = v.w;
+        real3 trace = rectComponents;
+        real3 diffFromLo = make_real3(newPos) - lo;
+        real3 imgs = floorf(diffFromLo / trace); //are unskewed at this point
+        newPos -= make_real4(trace * imgs * periodic);
         newPos.w = id;
 
         return newPos;
     }
     //around center
-    __host__ void scale(float3 scaleBy) {
-        float3 center = lo + rectComponents * 0.5;
+    __host__ void scale(real3 scaleBy) {
+        real3 center = lo + rectComponents * 0.5;
         rectComponents *= scaleBy;
-        float3 diff = center-lo;
+        real3 diff = center-lo;
         diff *= scaleBy;
         lo = center - diff;
         invRectComponents =  1.0 / rectComponents;

@@ -193,11 +193,11 @@ private:
     void rescale();
     void setPressure(double pressure);
 
-    float frequency; //!< Frequency of the Nose-Hoover thermostats
+    real frequency; //!< Frequency of the Nose-Hoover thermostats
     double pFrequency;
-    GPUArrayGlobal<float> kineticEnergy; //!< Stores kinetic energy and
+    GPUArrayGlobal<real> kineticEnergy; //!< Stores kinetic energy and
                                          //!< number of atoms in Fix group
-    float ke_current; //!< Current kinetic energy
+    real ke_current; //!< Current kinetic energy
     size_t ndf; //!< Number of degrees of freedom
 
     double hydrostaticPressure;
@@ -224,7 +224,7 @@ private:
     std::vector<double> thermForce; //!< Force on the Nose-Hoover thermostats
     std::vector<double> thermMass; //!< Masses of the Nose-Hoover thermostats
 
-    // note to others: we use Virial class for convenience for any vector of floats 
+    // note to others: we use Virial class for convenience for any vector of reals 
     // that is required to have 6 and only 6 values
     // -- allows for convenient mathematical operations via class-defined operators
     std::vector<double> pressMass; //!< Masses of the Nose-Hoover barostats
@@ -235,7 +235,7 @@ private:
     std::vector<double> pressThermForce; //!< Force on the Nose-Hoover barostats' thermostats
 
     double boltz; //!< Local copy of our boltzmann constant with proper units
-    float3 epsilon; //!< Epsilon, ratio of V/V0; alternatively, our volume scaling parameter
+    real3 epsilon; //!< Epsilon, ratio of V/V0; alternatively, our volume scaling parameter
     int nAtoms; //!< Number of atoms, N, in the system
 
     Virial identity; //!< identity tensor made using our Virial class (6-value vector)
@@ -254,7 +254,7 @@ private:
     Interpolator pressInterpolator;
     std::string barostatErrorMessage;
 
-    float3 scale; //!< Factor by which the velocities are rescaled
+    real3 scale; //!< Factor by which the velocities are rescaled
     MD_ENGINE::DataComputerTemperature tempComputer;
     MD_ENGINE::DataComputerPressure pressComputer;
     bool thermostatting;

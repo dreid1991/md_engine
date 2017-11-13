@@ -70,7 +70,7 @@ void IntegratorUtil::postNVE_X() {
 
 /*
 void IntegratorUtil::singlePointEng() {
-    GPUArrayGlobal<float> &perParticleEng = state->gpd.perParticleEng;
+    GPUArrayGlobal<real> &perParticleEng = state->gpd.perParticleEng;
     perParticleEng.d_data.memset(0);
     for (Fix *f : state->fixes) {
         f->singlePointEng(perParticleEng.getDevData());

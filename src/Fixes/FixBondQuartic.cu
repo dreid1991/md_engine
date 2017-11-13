@@ -15,7 +15,7 @@ FixBondQuartic::FixBondQuartic(SHARED(State) state_, string handle)
     }
 
 //template <class BONDTYPE, class EVALUATOR, bool COMPUTEVIRIALS>
-//__global__ void dummy(){};//int nAtoms, float4 *xs, float4 *forces){}//, int *idToIdxs, BondGPU *bonds, int *startstops, BONDTYPE *parameters_arg, int nParameters, BoundsGPU bounds, Virial *__restrict__ virials, bool usingSharedMemForParams, EVALUATOR T) {}
+//__global__ void dummy(){};//int nAtoms, real4 *xs, real4 *forces){}//, int *idToIdxs, BondGPU *bonds, int *startstops, BONDTYPE *parameters_arg, int nParameters, BoundsGPU bounds, Virial *__restrict__ virials, bool usingSharedMemForParams, EVALUATOR T) {}
 
 void FixBondQuartic::createBond(Atom *a, Atom *b, double k2, double k3, double k4, double r0, int type) {
     vector<Atom *> atoms = {a, b};
@@ -51,7 +51,7 @@ void FixBondQuartic::compute(int virialMode) {
     }
 }
 
-void FixBondQuartic::singlePointEng(float *perParticleEng) {
+void FixBondQuartic::singlePointEng(real *perParticleEng) {
     int nAtoms = state->atoms.size();
     int activeIdx = state->gpd.activeIdx();
     //cout << "Max bonds per block is " << maxBondsPerBlock << endl;

@@ -84,12 +84,12 @@ class FixRigid : public Fix {
         GPUArrayDeviceGlobal<int4> waterIdsGPU;
 
         // array holding positions
-        GPUArrayDeviceGlobal<float4> xs_0;
+        GPUArrayDeviceGlobal<real4> xs_0;
 
         GPUArrayDeviceGlobal<double3> velCorrectionStored;
 
         // array holding COM before constraints are applied..
-        GPUArrayDeviceGlobal<float4> com;
+        GPUArrayDeviceGlobal<real4> com;
 
         // vector of booleans that will alert us if a molecule has unsatisfied constraints at the end of the turn
         GPUArrayDeviceGlobal<bool> constraints;
@@ -101,7 +101,7 @@ class FixRigid : public Fix {
         std::vector<BondVariant> bonds;
 
 
-        std::vector<float4> invMassSums;
+        std::vector<real4> invMassSums;
 
 
         // boolean defaulting to false in the constructor, denoting whether this is TIP4P/2005
@@ -121,7 +121,7 @@ class FixRigid : public Fix {
         double r_OM;
         double gamma; 
 
-        // a float 4 of the above measures r_OH, r_HH, r_OM;
+        // a real 4 of the above measures r_OH, r_HH, r_OM;
         double4 fixedSides;
 
         // data about this water model
@@ -188,7 +188,7 @@ class FixRigid : public Fix {
         
         std::vector<int> getRigidAtoms();
 
-        void scaleRigidBodies(float3 scaleBy, uint32_t groupTag);
+        void scaleRigidBodies(real3 scaleBy, uint32_t groupTag);
 
         //! Halfstep solution to velocity constraints
         //bool postNVE_V();

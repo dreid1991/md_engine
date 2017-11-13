@@ -44,10 +44,10 @@ int Atom::getNDF() {
 }
 
 void Atom::setBeadPos(int n, int nPerRingPoly, std::vector<Vector> &xsNM) {
-    float sqrt2           = sqrt(2.0);
-    float invP            = 1.0 / (float) nPerRingPoly;
-    float twoPiInvP       = 2.0f * M_PI * invP;
-    float invSqrtP        = sqrtf(invP);
+    real sqrt2           = sqrt(2.0);
+    real invP            = 1.0 / (real) nPerRingPoly;
+    real twoPiInvP       = 2.0f * M_PI * invP;
+    real invSqrtP        = sqrtf(invP);
     int halfP = nPerRingPoly/2;
 
     // k = 0
@@ -62,13 +62,13 @@ void Atom::setBeadPos(int n, int nPerRingPoly, std::vector<Vector> &xsNM) {
     
     // k = 1,...,P/2-1; n = 1,...,P
     for (int k = 1; k < halfP; k++) {
-      float  cosval = cos(twoPiInvP * k * n); // cos(2*pi*k*n/P)
+      real  cosval = cos(twoPiInvP * k * n); // cos(2*pi*k*n/P)
       xn += xsNM[k] * sqrt2 * cosval;
     }
     
     // k = P/2+1,...,P-1; n = 1,...,P
     for (int k = halfP+1; k < nPerRingPoly; k++) {
-      float  sinval = sin(twoPiInvP * k * n); // cos(2*pi*k*n/P)
+      real  sinval = sin(twoPiInvP * k * n); // cos(2*pi*k*n/P)
       xn += xsNM[k] * sqrt2 * sinval;
     }
     
@@ -76,7 +76,7 @@ void Atom::setBeadPos(int n, int nPerRingPoly, std::vector<Vector> &xsNM) {
     pos = xn*invSqrtP;
 }
 
-//void Atom::setBeadVel(int nPerRingPoly, float betaP) {
+//void Atom::setBeadVel(int nPerRingPoly, real betaP) {
 //    Vector vn;
 //}
 

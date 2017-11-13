@@ -34,8 +34,8 @@ class AngleGPU {
 //angle harmonic
 class AngleHarmonicType {
 public:
-    float k;
-    float theta0;
+    real k;
+    real theta0;
     AngleHarmonicType(AngleHarmonic *);
     AngleHarmonicType(){};
     bool operator==(const AngleHarmonicType &) const;
@@ -66,10 +66,10 @@ namespace std {
 //angle CHARMM
 class AngleCHARMMType {
 public:
-    float k;
-    float theta0;
-    float kub;
-    float rub;
+    real k;
+    real theta0;
+    real kub;
+    real rub;
     AngleCHARMMType(AngleCHARMM *);
     AngleCHARMMType(){};
     bool operator==(const AngleCHARMMType &) const;
@@ -102,8 +102,8 @@ namespace std {
 //angle cosine delta
 class AngleCosineDeltaType {
 public:
-    float k;
-    float theta0;
+    real k;
+    real theta0;
     AngleCosineDeltaType(AngleCosineDelta *);
     AngleCosineDeltaType(){};
     bool operator==(const AngleCosineDeltaType &) const;

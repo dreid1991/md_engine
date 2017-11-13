@@ -10,30 +10,30 @@ using namespace std;
 
 
 	
-__global__ void Mod::unskewAtoms(float4 *xs, int nAtoms, float3 xOrig, float3 yOrig, float3 lo) {
+__global__ void Mod::unskewAtoms(real4 *xs, int nAtoms, real3 xOrig, real3 yOrig, real3 lo) {
 
     int idx = GETIDX();
     if (idx < nAtoms) {
-        float lxo = length(xOrig);
-        float lyo = length(yOrig);
-        float lxf = xOrig.x;
-        float lyf = yOrig.y;
+        real lxo = length(xOrig);
+        real lyo = length(yOrig);
+        real lxf = xOrig.x;
+        real lyf = yOrig.y;
        
-        float a = atan2(xOrig.y, xOrig.x);
-        float b = atan2(yOrig.x, yOrig.y);
+        real a = atan2(xOrig.y, xOrig.x);
+        real b = atan2(yOrig.x, yOrig.y);
 
-        float invDenom = 1.0f / (lxo*lyo*cos(a)*cos(b) - lxo*lyo*sin(a)*sin(b));
+        real invDenom = 1.0f / (lxo*lyo*cos(a)*cos(b) - lxo*lyo*sin(a)*sin(b));
 
-        float c1 = lyo*cos(b) * invDenom;
-        float c2 = -lyo*sin(b) * invDenom;
-        float c3 = -lxo*sin(a) * invDenom;
-        float c4 = lxo*cos(a) * invDenom;
+        real c1 = lyo*cos(b) * invDenom;
+        real c2 = -lyo*sin(b) * invDenom;
+        real c3 = -lxo*sin(a) * invDenom;
+        real c4 = lxo*cos(a) * invDenom;
         
 
 
-        float4 pos = xs[idx];
-        float xo = pos.x - lo.x;
-        float yo = pos.y - lo.y;
+        real4 pos = xs[idx];
+        real xo = pos.x - lo.x;
+        real yo = pos.y - lo.y;
         pos.x = lxf * (xo*c1 + yo*c2) + lo.x;
         pos.y = lyf * (xo*c3 + yo*c4) + lo.y;
         xs[idx] = pos;
@@ -41,7 +41,7 @@ __global__ void Mod::unskewAtoms(float4 *xs, int nAtoms, float3 xOrig, float3 yO
 }
 
 
-__global__ void Mod::skewAtomsFromZero(float4 *xs, int nAtoms, float3 xFinal, float3 yFinal, float3 lo) {
+__global__ void Mod::skewAtomsFromZero(real4 *xs, int nAtoms, real3 xFinal, real3 yFinal, real3 lo) {
     int idx = GETIDX();
     if (idx < nAtoms) {
         const double a = atan2(xFinal.y, xFinal.x);
@@ -59,10 +59,10 @@ __global__ void Mod::skewAtomsFromZero(float4 *xs, int nAtoms, float3 xFinal, fl
         const double c4 = lyf*cos(b);
 
 
-        float4 pos = xs[idx];
+        real4 pos = xs[idx];
 
-        float xo = pos.x - lo.x;
-        float yo = pos.y - lo.y;
+        real xo = pos.x - lo.x;
+        real yo = pos.y - lo.y;
 
         const double fx = xo / lxo;
         const double fy = yo / lyo;
@@ -73,12 +73,12 @@ __global__ void Mod::skewAtomsFromZero(float4 *xs, int nAtoms, float3 xFinal, fl
     }
 }
 
-__global__ void FDotR_cu(int nAtoms, float4 *xs, float4 *fs, Virial *virials) {
+__global__ void FDotR_cu(int nAtoms, real4 *xs, real4 *fs, Virial *virials) {
     int idx = GETIDX();
     if (idx < nAtoms) {
-        float3 x = make_float3(xs[idx]);
+        real3 x = make_real3(xs[idx]);
         //f only has pair-wise forces right now
-        float3 f = make_float3(fs[idx]);
+        real3 f = make_real3(fs[idx]);
         //virial is zero at this point.  Only time f dot r in valid
         Virial v(0, 0, 0, 0, 0, 0);
         computeVirial(v, f, x);
@@ -88,17 +88,17 @@ __global__ void FDotR_cu(int nAtoms, float4 *xs, float4 *fs, Virial *virials) {
 }
 
 template <bool RIGIDBODIES>
-__global__ void Mod::scaleSystem_cu(float4 *xs, int nAtoms, float3 lo, float3 rectLen, float3 scaleBy,
+__global__ void Mod::scaleSystem_cu(real4 *xs, int nAtoms, real3 lo, real3 rectLen, real3 scaleBy,
                                     int* idToIdxs, int* notRigidBody) {
     int idx = GETIDX();
     if (idx < nAtoms) {
         if (RIGIDBODIES) {
             if (notRigidBody[idx]) {
                 int thisIdx = idToIdxs[idx];
-                float4 posWhole = xs[thisIdx];
-                float3 pos = make_float3(posWhole);
-                float3 center = lo + rectLen * 0.5f;
-                float3 newRel = (pos - center) * scaleBy;
+                real4 posWhole = xs[thisIdx];
+                real3 pos = make_real3(posWhole);
+                real3 center = lo + rectLen * 0.5f;
+                real3 newRel = (pos - center) * scaleBy;
                 pos = center + newRel;
                 posWhole.x = pos.x;
                 posWhole.y = pos.y;
@@ -108,10 +108,10 @@ __global__ void Mod::scaleSystem_cu(float4 *xs, int nAtoms, float3 lo, float3 re
 
         } else {
 
-            float4 posWhole = xs[idx];
-            float3 pos = make_float3(posWhole);
-            float3 center = lo + rectLen * 0.5f;
-            float3 newRel = (pos - center) * scaleBy;
+            real4 posWhole = xs[idx];
+            real3 pos = make_real3(posWhole);
+            real3 center = lo + rectLen * 0.5f;
+            real3 newRel = (pos - center) * scaleBy;
             pos = center + newRel;
             posWhole.x = pos.x;
             posWhole.y = pos.y;
@@ -125,7 +125,7 @@ __global__ void Mod::scaleSystem_cu(float4 *xs, int nAtoms, float3 lo, float3 re
 // whichever is most convenient; since this doesnt change during a given run, it doesnt matter that we 
 // have two conventions by which this can proceed.
 template <bool RIGIDBODIES>
-__global__ void Mod::scaleSystemGroup_cu(float4 *xs, int nAtoms, float3 lo, float3 rectLen, float3 scaleBy, uint32_t groupTag, float4 *fs, int* idToIdxs, int* notRigidBody) {
+__global__ void Mod::scaleSystemGroup_cu(real4 *xs, int nAtoms, real3 lo, real3 rectLen, real3 scaleBy, uint32_t groupTag, real4 *fs, int* idToIdxs, int* notRigidBody) {
     int idx = GETIDX();
     if (idx < nAtoms) {
         if (RIGIDBODIES) {
@@ -136,10 +136,10 @@ __global__ void Mod::scaleSystemGroup_cu(float4 *xs, int nAtoms, float3 lo, floa
                 // idx --> id; newIdx --> idx
                 if (notRigidBody[idx]) {
             
-                    float4 posWhole = xs[newIdx];
-                    float3 pos = make_float3(posWhole);
-                    float3 center = lo + rectLen * 0.5f;
-                    float3 newRel = (pos - center) * scaleBy;
+                    real4 posWhole = xs[newIdx];
+                    real3 pos = make_real3(posWhole);
+                    real3 center = lo + rectLen * 0.5f;
+                    real3 newRel = (pos - center) * scaleBy;
                     pos = center + newRel;
                     posWhole.x = pos.x;
                     posWhole.y = pos.y;
@@ -151,10 +151,10 @@ __global__ void Mod::scaleSystemGroup_cu(float4 *xs, int nAtoms, float3 lo, floa
             // keep it aligned by idx, and check the tag
             uint32_t tag = * (uint32_t *) &(fs[idx].w);
             if (tag & groupTag) {
-                float4 posWhole = xs[idx];
-                float3 pos = make_float3(posWhole);
-                float3 center = lo + rectLen * 0.5f;
-                float3 newRel = (pos - center) * scaleBy;
+                real4 posWhole = xs[idx];
+                real3 pos = make_real3(posWhole);
+                real3 center = lo + rectLen * 0.5f;
+                real3 newRel = (pos - center) * scaleBy;
                 pos = center + newRel;
                 posWhole.x = pos.x;
                 posWhole.y = pos.y;
@@ -167,7 +167,7 @@ __global__ void Mod::scaleSystemGroup_cu(float4 *xs, int nAtoms, float3 lo, floa
     }
 }
 
-void Mod::scaleSystem(State *state, float3 scaleBy, uint32_t groupTag) {
+void Mod::scaleSystem(State *state, real3 scaleBy, uint32_t groupTag) {
     auto &gpd = state->gpd;
     state->boundsGPU.scale(scaleBy);
     if (groupTag==1) {

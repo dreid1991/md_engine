@@ -30,7 +30,7 @@ void FixDihedralCHARMM::compute(int virialMode) {
 
 }
 
-void FixDihedralCHARMM::singlePointEng(float *perParticleEng) {
+void FixDihedralCHARMM::singlePointEng(real *perParticleEng) {
     int nAtoms = state->atoms.size();
     int activeIdx = state->gpd.activeIdx();
 

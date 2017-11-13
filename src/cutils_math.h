@@ -1843,4 +1843,56 @@ inline __host__ __device__ bool operator == (int3 a, int3 b) {
 inline __host__ __device__ bool operator != (int3 a, int3 b) { 
     return a.x!=b.x || a.y!=b.y || a.z!=b.z;
 }
+
+
+
+// define a macro that routes make_realX(...) to the proper macro with the right number of arguments
+#define GET_PREC_MACRO(_1,_2,_3,_4,NAME,...) NAME
+
+// ok, so need to overload the respective make_real2, make_real3, make_real4 macros..
+#define make_real2(...) GET_PREC_MACRO(__VA_ARGS__,make_real21,make_real22,make_real23,make_real24)(__VA_ARGS__)
+#define make_real3(...) GET_PREC_MACRO(__VA_ARGS__,make_real31,make_real32,make_real33,make_real34)(__VA_ARGS__)
+#define make_real4(...) GET_PREC_MACRO(__VA_ARGS__,make_real41,make_real42,make_real43,make_real44)(__VA_ARGS__)
+
+// now, route them to the correct precision functions based on variable number of arguments and the compile option 
+// denoting the precision chosen by the user
+
+#ifdef DASH_DOUBLE
+// if DASH_DOUBLE is defined, route to make_double...() functions
+// make_real2 from 1 or 2 arguments
+#define make_real21(X) make_double2(X)
+#define make_real22(X,Y) make_double2(X,Y)
+
+// make_real3 from 1,2, or 3 arguments
+#define make_real31(X) make_double3(X)
+#define make_real32(X,Y) make_double3(X,Y)
+#define make_real33(X,Y,Z) make_double3(X,Y,Z)
+
+// make_real4 from 1,2,3, or 4 arguments
+#define make_real41(X) make_double4(X)
+#define make_real42(X,Y) make_double4(X,Y)
+#define make_real43(X,Y,Z) make_double4(X,Y,Z)
+#define make_real44(X,Y,Z,W) make_double4(X,Y,Z,W)
+
+#else /* DASH_DOUBLE */
+
+// same thing as above, but now we cast as float2, float3, float4...
+// make_real2 from 1 or 2 arguments
+#define make_real21(X) make_float2(X)
+#define make_real22(X,Y) make_float2(X,Y)
+
+// make_real3 from 1,2, or 3 arguments
+#define make_real31(X) make_float3(X)
+#define make_real32(X,Y) make_float3(X,Y)
+#define make_real33(X,Y,Z) make_float3(X,Y,Z)
+
+// make_real4 from 1,2,3, or 4 arguments
+#define make_real41(X) make_float4(X)
+#define make_real42(X,Y) make_float4(X,Y)
+#define make_real43(X,Y,Z) make_float4(X,Y,Z)
+#define make_real44(X,Y,Z,W) make_float4(X,Y,Z,W)
+
+#endif /* DASH_DOUBLE */
+
+
 #endif

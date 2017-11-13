@@ -12,12 +12,12 @@ class FixWallLJ126 : public FixWall {
     public: 
         
 		FixWallLJ126(SHARED(State), std::string handle_, std::string groupHandle_,
-							Vector origin_, Vector forceDir_, float dist_, float sigma_, float epsilon_);
-		float dist;
+							Vector origin_, Vector forceDir_, real dist_, real sigma_, real epsilon_);
+		real dist;
 
-		float sigma;
+		real sigma;
 		
-        float epsilon;
+        real epsilon;
 
         void compute(int);
 
@@ -25,7 +25,7 @@ class FixWallLJ126 : public FixWall {
 		
         bool postRun();
 
-        void singlePointEng(float *);
+        void singlePointEng(real *);
 		
         EvaluatorWallLJ126 evaluator; // evaluator for LJ 12-6 wall interactions
 };

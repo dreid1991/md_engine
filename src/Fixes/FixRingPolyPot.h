@@ -17,7 +17,7 @@ class FixRingPolyPot : public Fix {
 	public:
 		FixRingPolyPot(SHARED(State), std::string handle_, std::string groupHandle_);
         bool prepareForRun();		
-        void singlePointEng(float *);
+        void singlePointEng(real *);
 };
 
 #endif

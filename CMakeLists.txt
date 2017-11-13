@@ -27,6 +27,13 @@ if (DEBUG)
     set (CUDA_NVCC_DEBUG_FLAGS -Xcompiler -Wall;)
 endif (DEBUG)
 
+# double precision for 'real' type - default to false;
+set(DASH_DOUBLE_DEFAULT OFF)
+option(DASH_DOUBLE "Double precision may be required for some use cases" ${DASH_DOUBLE_DEFAULT})
+
+if(DASH_DOUBLE)
+    add_defintions(-DDASH_DOUBLE)
+endif()
 
 if (CMAKE_BUILD_TYPE MATCHES "RELEASE")
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
@@ -55,7 +62,7 @@ include_directories (${PYTHON_INCLUDE_DIR}) #removed an S here
 
 # Find boost
 find_package (Boost 
-    1.62 
+    #1.62 
     REQUIRED COMPONENTS python)
 
 # Require Boost MPI.

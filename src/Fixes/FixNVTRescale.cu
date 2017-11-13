@@ -6,18 +6,18 @@
 
 class SumVectorSqr3DOverWIf_Bounds {
 public:
-    float4 *fs;
+    real4 *fs;
     uint32_t groupTag;
     BoundsGPU bounds;
-    SumVectorSqr3DOverWIf_Bounds(float4 *fs_, uint32_t groupTag_, BoundsGPU &bounds_) : fs(fs_), groupTag(groupTag_), bounds(bounds_) {}
-    inline __host__ __device__ float process (float4 &velocity ) {
+    SumVectorSqr3DOverWIf_Bounds(real4 *fs_, uint32_t groupTag_, BoundsGPU &bounds_) : fs(fs_), groupTag(groupTag_), bounds(bounds_) {}
+    inline __host__ __device__ real process (real4 &velocity ) {
         return lengthSqrOverW(velocity);
     }
-    inline __host__ __device__ float zero() {
+    inline __host__ __device__ real zero() {
         return 0;
     }
-    inline __host__ __device__ bool willProcess(float4 *src, int idx) {
-        float3 pos = make_float3(src[idx]);
+    inline __host__ __device__ bool willProcess(real4 *src, int idx) {
+        real3 pos = make_real3(src[idx]);
         uint32_t atomGroupTag = * (uint32_t *) &(fs[idx].w);
         return (atomGroupTag & groupTag) && bounds.inBounds(pos);
     }
@@ -68,13 +68,13 @@ bool FixNVTRescale::prepareFinal() {
     return prepared;
 }
 
-void __global__ rescale(int nAtoms, uint groupTag, float4 *vs, float4 *fs, float tempSet, float tempCur) {
+void __global__ rescale(int nAtoms, uint groupTag, real4 *vs, real4 *fs, real tempSet, real tempCur) {
     int idx = GETIDX();
     if (tempSet > 0 and idx < nAtoms) {
         uint groupTagAtom = ((uint *) (fs+idx))[3];
         if (groupTag & groupTagAtom) {
-            float4 vel = vs[idx];
-            float w = vel.w;
+            real4 vel = vs[idx];
+            real w = vel.w;
             vel *= sqrtf(tempSet / tempCur);
             vel.w = w;
             vs[idx] = vel;

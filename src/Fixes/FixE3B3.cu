@@ -33,28 +33,28 @@ FixE3B3::FixE3B3(boost::shared_ptr<State> state_,
 // the current atom positions
 
 // from FixRigid.cu
-__device__ inline float3 positionsToCOM_E3B3(float3 *pos, float *mass, float ims) {
+__device__ inline real3 positionsToCOM_E3B3(real3 *pos, real *mass, real ims) {
   return (pos[0]*mass[0] + pos[1]*mass[1] + pos[2]*mass[2] + pos[3]*mass[3])*ims;
 }
 
 // useful for debugging
-__global__ void printGPD_E3B3(uint* ids, float4 *xs, int nMolecules) {
+__global__ void printGPD_E3B3(uint* ids, real4 *xs, int nMolecules) {
     int idx = GETIDX();
     if (idx < nMolecules) {
         uint id = ids[idx];
-        float4 pos = xs[idx];
+        real4 pos = xs[idx];
         printf("molecule id %d at coords %f %f %f\n", id, pos.x, pos.y, pos.z);
     }
 }
 
 // prints the global gpd data
-__global__ void printGPD_Global(uint* ids, float4 *xs, float4* vs, float4* fs, int nAtoms) {
+__global__ void printGPD_Global(uint* ids, real4 *xs, real4* vs, real4* fs, int nAtoms) {
     int idx = GETIDX();
     if (idx < nAtoms) {
         uint id = ids[idx];
-        float4 pos = xs[idx];
-        float4 vel = vs[idx];
-        float4 force = fs[idx];
+        real4 pos = xs[idx];
+        real4 vel = vs[idx];
+        real4 force = fs[idx];
         printf("atom id %d at coords %f %f %f with vel %f %f %f and force %f %f %f\n", id, pos.x, pos.y, pos.z, vel.x, vel.y, vel.z, force.x, force.y, force.z);
     }
 }
@@ -69,8 +69,8 @@ __global__ void printNlist_E3B3(int* molIdToIdxs,
                                 uint32_t* cumulSumMaxPerBlock,
                                 int warpSize,
                                 int* idToIdxs,
-                                float4* xs,
-                                float4* fs, 
+                                real4* xs,
+                                real4* fs, 
                                 BoundsGPU bounds,
                                 int nMolecules) {
     int idx = GETIDX();
@@ -101,14 +101,14 @@ __global__ void printNlist_E3B3(int* molIdToIdxs,
         int idx_b1 = idToIdxs[atomsMolecule1.y];
         int idx_c1 = idToIdxs[atomsMolecule1.z];
 
-        float4 pos_a1_whole = xs[idx_a1];
-        float4 pos_b1_whole = xs[idx_b1];
-        float4 pos_c1_whole = xs[idx_c1];
+        real4 pos_a1_whole = xs[idx_a1];
+        real4 pos_b1_whole = xs[idx_b1];
+        real4 pos_c1_whole = xs[idx_c1];
 
-        // now, get just positions in float3
-        float3 pos_a1 = make_float3(pos_a1_whole);
-        float3 pos_b1 = make_float3(pos_b1_whole);
-        float3 pos_c1 = make_float3(pos_c1_whole);
+        // now, get just positions in real3
+        real3 pos_a1 = make_real3(pos_a1_whole);
+        real3 pos_b1 = make_real3(pos_b1_whole);
+        real3 pos_c1 = make_real3(pos_c1_whole);
 
         //int numNeigh = neighborCounts[idx];
         int numNeigh = neighborCounts[thisIdx];
@@ -130,30 +130,30 @@ __global__ void printNlist_E3B3(int* molIdToIdxs,
             int idx_b2 = idToIdxs[atomsMolecule2.y];
             int idx_c2 = idToIdxs[atomsMolecule2.z];
 
-            float4 pos_a2_whole = xs[idx_a2];
-            float4 pos_b2_whole = xs[idx_b2];
-            float4 pos_c2_whole = xs[idx_c2];
+            real4 pos_a2_whole = xs[idx_a2];
+            real4 pos_b2_whole = xs[idx_b2];
+            real4 pos_c2_whole = xs[idx_c2];
     
             // here we should extract the positions for the O, H atoms of this water molecule
-            float3 pos_a2 = make_float3(pos_a2_whole);
-            float3 pos_b2 = make_float3(pos_b2_whole);
-            float3 pos_c2 = make_float3(pos_c2_whole);
+            real3 pos_a2 = make_real3(pos_a2_whole);
+            real3 pos_b2 = make_real3(pos_b2_whole);
+            real3 pos_c2 = make_real3(pos_c2_whole);
             
-            float3 r_b2a1 = bounds.minImage(pos_b2 - pos_a1);
-            float3 r_c2a1 = bounds.minImage(pos_c2 - pos_a1);
+            real3 r_b2a1 = bounds.minImage(pos_b2 - pos_a1);
+            real3 r_c2a1 = bounds.minImage(pos_c2 - pos_a1);
             
-            float3 r_b1a2 = bounds.minImage(pos_b1 - pos_a2);
-            float3 r_c1a2 = bounds.minImage(pos_c1 - pos_a2);
+            real3 r_b1a2 = bounds.minImage(pos_b1 - pos_a2);
+            real3 r_c1a2 = bounds.minImage(pos_c1 - pos_a2);
 
-            float r_b2a1_magnitude = length(r_b2a1);
-            float r_c2a1_magnitude = length(r_c2a1);
-            float r_b1a2_magnitude = length(r_b1a2);
-            float r_c1a2_magnitude = length(r_c1a2);
+            real r_b2a1_magnitude = length(r_b2a1);
+            real r_c2a1_magnitude = length(r_c2a1);
+            real r_b1a2_magnitude = length(r_b1a2);
+            real r_c1a2_magnitude = length(r_c1a2);
 
             // we now have our molecule 'j'
             // compute the two-body correction term w.r.t the oxygens
-            float3 r_a1a2 = bounds.minImage(pos_a1 - pos_a2);
-            float r_a1a2_magnitude = length(r_a1a2);
+            real3 r_a1a2 = bounds.minImage(pos_a1 - pos_a2);
+            real r_a1a2_magnitude = length(r_a1a2);
             counter += 1;
             printf("O atom id %d neighbor ids %d %d %d a1-{a2,b2,c2} distances %f %f %f\n", id_O1, id_O2, id_B2, id_C2, r_a1a2_magnitude, r_b2a1_magnitude, r_c2a1_magnitude);
 
@@ -165,8 +165,8 @@ __global__ void printNlist_E3B3(int* molIdToIdxs,
 
 // see FixRigid.cu! does the same thing. but now, we store it in their own gpdLocal..
 // -- nothing fancy, dont need the neighborlist here.
-__global__ void update_xs(int nMolecules, int4 *waterIds, float4 *mol_xs, int* mol_idToIdxs,
-                           float4 *xs, float4 *vs, int *idToIdxs, BoundsGPU bounds) {
+__global__ void update_xs(int nMolecules, int4 *waterIds, real4 *mol_xs, int* mol_idToIdxs,
+                           real4 *xs, real4 *vs, int *idToIdxs, BoundsGPU bounds) {
 
      // now do pretty much the same as FixRigid computeCOM()
      // --- remember to account for the M-site, in the event that it has mass
@@ -180,8 +180,8 @@ __global__ void update_xs(int nMolecules, int4 *waterIds, float4 *mol_xs, int* m
         int molId = idx;
 
         int theseIds[4]; 
-        float3 pos[4];
-        float mass[4];
+        real3 pos[4];
+        real mass[4];
 
         // get the atom /ids/ for molecule id 'idx'
         theseIds[0] = waterIds[molId].x;
@@ -189,12 +189,12 @@ __global__ void update_xs(int nMolecules, int4 *waterIds, float4 *mol_xs, int* m
         theseIds[2] = waterIds[molId].z;
         theseIds[3] = waterIds[molId].w;
 
-        float ims = 0.0f;
+        real ims = 0.0f;
         // for each data (pos, vel, force), we need to get the position of atom id at position idToIdx in the global arrays
         for (int i = 0; i < 4; i++) {
             int thisId = theseIds[i];
             int thisIdx = idToIdxs[thisId];
-            float3 p = make_float3(xs[thisIdx]);
+            real3 p = make_real3(xs[thisIdx]);
             pos[i] = p;
             mass[i] = 1.0f / vs[thisIdx].w;
             ims += mass[i];
@@ -202,13 +202,13 @@ __global__ void update_xs(int nMolecules, int4 *waterIds, float4 *mol_xs, int* m
 
         ims = 1.0f / ims;
         for (int i = 1; i < 4; i++) {
-            float3 delta = pos[i] - pos[0];
+            real3 delta = pos[i] - pos[0];
             delta = bounds.minImage(delta);
             pos[i] = pos[0] + delta;
         }
 
         // and here is the COM of our water molecule
-        mol_xs[mol_idToIdxs[molId]]  = make_float4(positionsToCOM_E3B3(pos, mass,ims));
+        mol_xs[mol_idToIdxs[molId]]  = make_real4(positionsToCOM_E3B3(pos, mass,ims));
         // and corresponding inverse mass
         mol_xs[mol_idToIdxs[molId]].w = ims;
 
@@ -344,7 +344,7 @@ bool FixE3B3::stepInit(){
  *
  *
  */
-//void FixE3B3::singlePointEng(float *perParticleEng) {
+//void FixE3B3::singlePointEng(real *perParticleEng) {
     // and, the three body contribution
     // -- we still pass everything molecule by molecule... but add it to their particle arrays
 
@@ -360,20 +360,20 @@ bool FixE3B3::stepInit(){
 bool FixE3B3::prepareForRun(){
    
     // as angstroms
-    float rs = 5.0;
-    float rf = 5.2;
+    real rs = 5.0;
+    real rf = 5.2;
 
     // E2, Ea, Eb, Ec as kJ/mole -> convert to kcal/mole
-    float E2 = 453000;
-    float Ea = 150.0000;
-    float Eb = -1005.0000;
-    float Ec = 1880.0000;
+    real E2 = 453000;
+    real Ea = 150.0000;
+    real Eb = -1005.0000;
+    real Ec = 1880.0000;
 
     // k2, k3 as angstroms
-    float k2 = 4.872;
-    float k3 = 1.907;
+    real k2 = 4.872;
+    real k3 = 1.907;
     
-    float kjToKcal = 0.23900573614;
+    real kjToKcal = 0.23900573614;
     E2 *= kjToKcal;
     Ea *= kjToKcal;
     Eb *= kjToKcal;
@@ -394,7 +394,7 @@ bool FixE3B3::prepareForRun(){
     waterIdsGPU = GPUArrayDeviceGlobal<int4>(nMolecules);
     waterIdsGPU.set(waterIds.data()); // waterIds vector populated as molecs added
     
-    std::vector<float4> xs_vec;
+    std::vector<real4> xs_vec;
     std::vector<uint> ids;
 
     xs_vec.reserve(nMolecules);
@@ -405,7 +405,7 @@ bool FixE3B3::prepareForRun(){
     for (auto &molecule: waterMolecules)  {
         molecule.id = workingId;
         Vector this_xs = molecule.COM();
-        float4 new_xs = make_float4(this_xs[0], this_xs[1], this_xs[2], 0);
+        real4 new_xs = make_real4(this_xs[0], this_xs[1], this_xs[2], 0);
         xs_vec.push_back(new_xs);
 
         ids.push_back(molecule.id);
@@ -452,7 +452,7 @@ bool FixE3B3::prepareForRun(){
     gridGPULocal.doExclusions(false);
 
     // so, the only buffers that we need are the xs and ids!
-    gpdLocal.xsBuffer = GPUArrayGlobal<float4>(nMolecules);
+    gpdLocal.xsBuffer = GPUArrayGlobal<real4>(nMolecules);
     gpdLocal.idsBuffer = GPUArrayGlobal<uint>(nMolecules);
     
     gridGPULocal.periodicBoundaryConditions(-1, true);

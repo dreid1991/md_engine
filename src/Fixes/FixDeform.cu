@@ -55,9 +55,9 @@ bool FixDeform::prepareForRun() {
 bool FixDeform::stepFinal() {
     deformRateInterpolator.computeCurrentVal(state->turn);
     double rate = deformRateInterpolator.getCurrentVal();
-    float3 deltaBounds = (multiplier * rate * state->dt).asFloat3();
-    float3 newTrace = state->boundsGPU.rectComponents + deltaBounds;
-    float3 scaleBy = newTrace / state->boundsGPU.rectComponents;
+    real3 deltaBounds = (multiplier * rate * state->dt).asreal3();
+    real3 newTrace = state->boundsGPU.rectComponents + deltaBounds;
+    real3 scaleBy = newTrace / state->boundsGPU.rectComponents;
     Mod::scaleSystem(state, scaleBy, groupTag);
     return true;
 
