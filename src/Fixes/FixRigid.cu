@@ -1499,9 +1499,14 @@ void FixRigid::setStyleBondLengths() {
             // see q-TIP4P/f paper by Manolopoulos et. al., eq. 2; this quantity can be computed from an arbitrary
             // TIP4P/2005 molecule fairly easily and is consistent with the above r_OH, r_HH, r_OM values
             gamma = 0.73612446364836; 
-        } else {
-            
-            mdError("Only TIP3P and TIP4P/2005 are supported in setStyleBondLengths at the moment.\n");
+        } else if (style == "TIP4P") {
+            sigma_O = 3.154;
+            r_OH = 0.95720000000;
+            r_HH = 1.51390000000;
+            r_OM = 0.15460000000;
+	    gamma = 0.0;
+	} else { 
+            mdError("Only TIP3P, TIP4P, and  TIP4P/2005 are supported in setStyleBondLengths at the moment.\n");
 
         }
 

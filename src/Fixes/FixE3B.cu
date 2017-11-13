@@ -439,6 +439,8 @@ bool FixE3B::prepareForRun(){
     waterIdsGPU = GPUArrayDeviceGlobal<int4>(nMolecules);
     waterIdsGPU.set(waterIds.data()); // waterIds vector populated as molecs added
     
+    createEvaluator();
+
     std::vector<float4> xs_vec;
     std::vector<uint> ids;
 
