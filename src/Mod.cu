@@ -6,8 +6,11 @@
 #include "Vector.h"
 #include "helpers.h"
 #include "Fix.h"
-using namespace std;
 
+/* On adding 'real' types...
+ You're going to have a bad time if you decide to 
+ use namespace std;
+*/
 
 	
 __global__ void Mod::unskewAtoms(real4 *xs, int nAtoms, real3 xOrig, real3 yOrig, real3 lo) {

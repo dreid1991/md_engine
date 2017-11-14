@@ -4,12 +4,11 @@
 #include "cutils_func.h"
 #include "DihedralEvaluate.h"
 namespace py = boost::python;
-using namespace std;
 
 const std::string dihedralOPLSType = "DihedralOPLS";
 
 
-FixDihedralOPLS::FixDihedralOPLS(SHARED(State) state_, string handle) : FixPotentialMultiAtom (state_, handle, dihedralOPLSType, true){
+FixDihedralOPLS::FixDihedralOPLS(SHARED(State) state_, std::string handle) : FixPotentialMultiAtom (state_, handle, dihedralOPLSType, true){
     readFromRestart();
 }
 
@@ -89,21 +88,21 @@ bool FixDihedralOPLS::readFromRestart() {
     if (restData) {
         auto curr_node = restData.first_child();
         while (curr_node) {
-            string tag = curr_node.name();
+            std::string tag = curr_node.name();
             if (tag == "types") {
                 for (auto type_node = curr_node.first_child(); type_node; type_node = type_node.next_sibling()) {
                     int type;
                     double coefs[4];
                     std::string type_ = type_node.attribute("id").value();
-                    type = atoi(type_.c_str());
+                    type = std::atoi(type_.c_str());
                     std::string coef_a = type_node.attribute("coef_a").value();
                     std::string coef_b = type_node.attribute("coef_b").value();
                     std::string coef_c = type_node.attribute("coef_c").value();
                     std::string coef_d = type_node.attribute("coef_d").value();
-                    coefs[0] = atof(coef_a.c_str());
-                    coefs[1] = atof(coef_b.c_str());
-                    coefs[2] = atof(coef_c.c_str());
-                    coefs[3] = atof(coef_d.c_str());
+                    coefs[0] = std::atof(coef_a.c_str());
+                    coefs[1] = std::atof(coef_b.c_str());
+                    coefs[2] = std::atof(coef_c.c_str());
+                    coefs[3] = std::atof(coef_d.c_str());
                     DihedralOPLS dummy(coefs, type);
                     setForcerType(type, dummy);
                 }
@@ -121,23 +120,23 @@ bool FixDihedralOPLS::readFromRestart() {
                     std::string coef_b = member_node.attribute("coef_b").value();
                     std::string coef_c = member_node.attribute("coef_c").value();
                     std::string coef_d = member_node.attribute("coef_d").value();
-                    type = atoi(type_.c_str());
-                    ids[0] = atoi(atom_a.c_str());
-                    ids[1] = atoi(atom_b.c_str());
-                    ids[2] = atoi(atom_c.c_str());
-                    ids[3] = atoi(atom_d.c_str());
-                    coefs[0] = atof(coef_a.c_str());
-                    coefs[1] = atof(coef_b.c_str());
-                    coefs[2] = atof(coef_c.c_str());
-                    coefs[3] = atof(coef_d.c_str());
+                    type = std::atoi(type_.c_str());
+                    ids[0] = std::atoi(atom_a.c_str());
+                    ids[1] = std::atoi(atom_b.c_str());
+                    ids[2] = std::atoi(atom_c.c_str());
+                    ids[3] = std::atoi(atom_d.c_str());
+                    coefs[0] = std::atof(coef_a.c_str());
+                    coefs[1] = std::atof(coef_b.c_str());
+                    coefs[2] = std::atof(coef_c.c_str());
+                    coefs[3] = std::atof(coef_d.c_str());
                     Atom * a = &state->idToAtom(ids[0]);
                     Atom * b = &state->idToAtom(ids[1]);
                     Atom * c = &state->idToAtom(ids[2]);
                     Atom * d = &state->idToAtom(ids[3]);
-                    if (a == NULL) {cout << "The first atom does not exist" <<endl; return false;};
-                    if (b == NULL) {cout << "The second atom does not exist" <<endl; return false;};
-                    if (c == NULL) {cout << "The third atom does not exist" <<endl; return false;};
-                    if (d == NULL) {cout << "The fourth atom does not exist" <<endl; return false;};
+                    if (a == NULL) {std::cout << "The first atom does not exist" <<std::endl; return false;};
+                    if (b == NULL) {std::cout << "The second atom does not exist" <<std::endl; return false;};
+                    if (c == NULL) {std::cout << "The third atom does not exist" <<std::endl; return false;};
+                    if (d == NULL) {std::cout << "The fourth atom does not exist" <<std::endl; return false;};
                     createDihedral(a, b, c, d, coefs[0], coefs[1], coefs[2], coefs[3], type);
                 }
             }
@@ -153,7 +152,7 @@ void export_FixDihedralOPLS() {
                           SHARED(FixDihedralOPLS),
                           py::bases<Fix, TypedItemHolder> > (
         "FixDihedralOPLS",
-        py::init<SHARED(State), string> (
+        py::init<SHARED(State), std::string> (
             py::args("state", "handle")
         )
     )

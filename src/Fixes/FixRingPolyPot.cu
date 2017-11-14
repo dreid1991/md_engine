@@ -7,7 +7,6 @@
 #include "cutils_math.h"
 
 const std::string RingPolyPotType = "RingPolyPot";
-using namespace std;
 namespace py = boost::python;
 
 // the constructor for FixRingPolyPot
@@ -63,7 +62,7 @@ void FixRingPolyPot::singlePointEng(real *perParticleEng) {
 void export_FixRingPolyPot() {
 	py::class_<FixRingPolyPot, SHARED(FixRingPolyPot), py::bases<Fix>, boost::noncopyable > (
 		"FixRingPolyPot",
-		py::init<SHARED(State), string, string> (
+		py::init<SHARED(State), std::string, std::string> (
 			py::args("state", "handle", "groupHandle")
 		)
 	)

@@ -8,7 +8,6 @@
 #include "WallEvaluate.h"
 
 const std::string wallHarmonicType = "WallHarmonic";
-using namespace std;
 namespace py = boost::python;
 
 // the constructor for FixWallHarmonic
@@ -63,7 +62,7 @@ bool FixWallHarmonic::postRun () {
 void export_FixWallHarmonic() {
 	py::class_<FixWallHarmonic, SHARED(FixWallHarmonic), py::bases<FixWall>, boost::noncopyable > (
 		"FixWallHarmonic",
-		py::init<SHARED(State), string, string, Vector, Vector, real, real> (
+		py::init<SHARED(State), std::string, std::string, Vector, Vector, real, real> (
 			py::args("state", "handle", "groupHandle", "origin", "forceDir", "dist", "k")
 		)
 	)

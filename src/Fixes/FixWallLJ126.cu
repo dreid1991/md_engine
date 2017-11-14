@@ -8,7 +8,6 @@
 #include "WallEvaluate.h"
 
 const std::string wallLJ126Type = "WallLJ126";
-using namespace std;
 namespace py = boost::python;
 
 // the constructor for FixWallLJ126
@@ -57,7 +56,7 @@ bool FixWallLJ126::postRun () {
 void export_FixWallLJ126() {
 	py::class_<FixWallLJ126, SHARED(FixWallLJ126), py::bases<FixWall>, boost::noncopyable > (
 		"FixWallLJ126",
-		py::init<SHARED(State), string, string, Vector, Vector, real, real, real> (
+		py::init<SHARED(State), std::string, std::string, Vector, Vector, real, real, real> (
 			py::args("state", "handle", "groupHandle", "origin", "forceDir", "dist", "sigma", "epsilon")
 		)
 	)

@@ -10,13 +10,12 @@
 #include "PairEvaluatorCHARMM.h"
 #include "EvaluatorWrapper.h"
 //#include "ChargeEvaluatorEwald.h"
-using namespace std;
 namespace py = boost::python;
-const string LJCHARMMType = "LJCHARMM";
+const std::string LJCHARMMType = "LJCHARMM";
 
 
 
-FixLJCHARMM::FixLJCHARMM(boost::shared_ptr<State> state_, string handle_, string mixingRules_)
+FixLJCHARMM::FixLJCHARMM(boost::shared_ptr<State> state_, std::string handle_, std::string mixingRules_)
     : FixPair(state_, handle_, "all", LJCHARMMType, true, false, 1, mixingRules_),
     epsHandle("eps"), sigHandle("sig"), eps14Handle("eps14"), sig14Handle("sig14"), rCutHandle("rCut")
 {
@@ -168,7 +167,7 @@ bool FixLJCHARMM::prepareForRun() {
     return prepared;
 }
 
-string FixLJCHARMM::restartChunk(string format) {
+std::string FixLJCHARMM::restartChunk(std::string format) {
     stringstream ss;
     ss << restartChunkPairParams(format);
     return ss.str();
@@ -180,7 +179,7 @@ bool FixLJCHARMM::postRun() {
     return true;
 }
 
-void FixLJCHARMM::addSpecies(string handle) {
+void FixLJCHARMM::addSpecies(std::string handle) {
     initializeParameters(epsHandle, epsilons);
     initializeParameters(sigHandle, sigmas);
     initializeParameters(eps14Handle, epsilons14);
@@ -189,9 +188,9 @@ void FixLJCHARMM::addSpecies(string handle) {
 
 }
 
-vector<real> FixLJCHARMM::getRCuts() { 
-    vector<real> res;
-    vector<real> &src = *(paramMap[rCutHandle]);
+std::vector<real> FixLJCHARMM::getRCuts() { 
+    std::vector<real> res;
+    std::vector<real> &src = *(paramMap[rCutHandle]);
     for (real x : src) {
         if (x == DEFAULT_FILL) {
             res.push_back(-1);
@@ -206,7 +205,7 @@ vector<real> FixLJCHARMM::getRCuts() {
 void export_FixLJCHARMM() {
     py::class_<FixLJCHARMM, boost::shared_ptr<FixLJCHARMM>, py::bases<FixPair>, boost::noncopyable > (
         "FixLJCHARMM",
-        py::init<boost::shared_ptr<State>, string, py::optional<string> > (py::args("state", "handle", "mixingRules"))
+        py::init<boost::shared_ptr<State>, std::string, py::optional<std::string> > (py::args("state", "handle", "mixingRules"))
     )
       ;
 

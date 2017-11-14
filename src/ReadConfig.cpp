@@ -4,12 +4,11 @@
 #include "includeFixes.h"
 #include <boost/lexical_cast.hpp> //for case string to int64 (turn)
 #include "Logging.h"
-using namespace std;
 
-vector<vector<double> > mapTo2d(vector<double> &xs, const int dim) {
-	vector<vector<double> > mapped;
+std::vector<std::vector<double> > mapTo2d(std::vector<double> &xs, const int dim) {
+    std::vector<std::vector<double> > mapped;
 	for (int i=0; i<dim; i++) {
-		vector<double> bit;
+        std::vector<double> bit;
 		bit.reserve(dim);
 		for (int j=i*dim; j<(i+1)*dim; j++) {
 			bit.push_back(xs[j]);
@@ -24,16 +23,16 @@ void loadAtomParams(pugi::xml_node &config, State *state) {
 	AtomParams &params = state->atomParams;
 	auto params_xml = config.child("atomParams");
 
-	int numTypes = atoi(params_xml.attribute("numTypes").value());
-	string forceType = string(params_xml.attribute("forceType").value());
+	int numTypes = std::atoi(params_xml.attribute("numTypes").value());
+    std::string forceType = std::string(params_xml.attribute("forceType").value());
 
 	params.numTypes = numTypes;
 //	params->forceType = forceType;
-	vector<double> mass = xml_readNums<double>(params_xml, "mass");
+    std::vector<double> mass = xml_readNums<double>(params_xml, "mass");
 	assert((int) mass.size() == numTypes);
 	params.masses = mass;
 
-	vector<string> handle = xml_readStrings(params_xml, "handle");
+    std::vector<std::string> handle = xml_readStrings(params_xml, "handle");
 	assert((int) handle.size() == numTypes);
 	params.handles = handle;
     params.atomicNums = std::vector<int>(numTypes, -1);//add this at some point
@@ -64,12 +63,12 @@ void loadBounds(pugi::xml_node &config, State *state) {
 
         auto processRaw = [&] (const char *value) { //could do multiple lambdas for each case, but whatever. logic so small
             if (base64) {
-                string toDecode = string(value);
-                string decoded = base64_decode(toDecode);
+                std::string toDecode = std::string(value);
+                std::string decoded = base64_decode(toDecode);
                 double res = * (double *) decoded.data();
                 return res;
             }
-            return atof(value);
+            return std::atof(value);
         };
         if (strcmp(base64Str, "1") == 0) {
             base64 = true;
@@ -108,7 +107,7 @@ void loadBounds(pugi::xml_node &config, State *state) {
 
 
 	} else {
-		cout << "Failed to load bounds from file" << endl;
+        std::cout << "Failed to load bounds from file" << std::endl;
 	}
 
 }
@@ -134,7 +133,7 @@ void loadGroupInfo(pugi::xml_node &config, State *state) {
             state->groupTags[handles[i]] = bits[i];
         }
     } else {
-        cout << "Failed to load groups from file " << endl;
+        std::cout << "Failed to load groups from file " << std::endl;
     }
 }
 
@@ -145,9 +144,9 @@ void loadMolecules(pugi::xml_node &config, State *state) {
         while (mol_xml) {
             std::istringstream ss(mol_xml.first_child().value());
             std::string s;
-            vector<int> ids;
+            std::vector<int> ids;
             while (ss >> s) {
-                ids.push_back(atoi(s.c_str()));
+                ids.push_back(std::atoi(s.c_str()));
             }
             state->createMolecule(ids);
             mol_xml = mol_xml.next_sibling();
@@ -156,12 +155,12 @@ void loadMolecules(pugi::xml_node &config, State *state) {
     }
 }
 
-pugi::xml_node ReadConfig::readFix(string type, string handle) {
+pugi::xml_node ReadConfig::readFix(std::string type, std::string handle) {
     if (config) {
         auto node = config->child("fixes").first_child();
         while (node) {
-            string t = node.attribute("type").value();
-            string h = node.attribute("handle").value();
+            std::string t = node.attribute("type").value();
+            std::string h = node.attribute("handle").value();
             if (t == type && h == handle) {
                 std::cout << "Reading restart data from fix " << h << " of type " << t << std::endl;
                 return node;
@@ -175,16 +174,16 @@ pugi::xml_node ReadConfig::readFix(string type, string handle) {
 
 
 bool ReadConfig::read() {
-    cout << "Reading a configuration" << endl;
+    std::cout << "Reading a configuration" << std::endl;
 	//state->deleteBonds();
 	state->deleteAtoms();
-	vector<Atom> readAtoms;
+    std::vector<Atom> readAtoms;
 	int64_t readTurn = boost::lexical_cast<int64_t>(config->attribute("turn").value());
 	int numAtoms = boost::lexical_cast<int>(config->attribute("numAtoms").value());
     double rCut = boost::lexical_cast<double>(config->attribute("rCut").value());
     double padding = boost::lexical_cast<double>(config->attribute("padding").value());
     double dt = boost::lexical_cast<double>(config->attribute("dt").value());
-	bool readIs2d = !strcmp(config->attribute("dimension").value(), "2");
+	bool readIs2d = !(std::strcmp(config->attribute("dimension").value(), "2"));
 	const char *periodic = config->attribute("periodic").value();
 	for (int i=0; i<3; i++) {
 		char bit[1];
@@ -317,7 +316,7 @@ bool ReadConfig::moveBy(int by) {
 
 ReadConfig::ReadConfig(State *state_) : state(state_) {};
 
-void ReadConfig::loadFile(string fn_) {
+void ReadConfig::loadFile(std::string fn_) {
     doc = SHARED(pugi::xml_document) (new pugi::xml_document());
 	config = SHARED(pugi::xml_node) (new pugi::xml_node());
 	fn = fn_;
@@ -332,7 +331,7 @@ void ReadConfig::loadFile(string fn_) {
 }
 
 
-pugi::xml_node ReadConfig::readNode(string nodeTag) {
+pugi::xml_node ReadConfig::readNode(std::string nodeTag) {
     if (config) {
         auto node = config->child(nodeTag.c_str());
         return node;

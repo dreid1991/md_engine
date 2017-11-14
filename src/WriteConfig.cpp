@@ -2,14 +2,13 @@
 #include <inttypes.h>
 #include "WriteConfig.h"
 #include "includeFixes.h"
-
+#include <stdio.h>
 #define BUFFERLEN 700
 
-using namespace std;
 namespace py = boost::python;
 
 template <typename T>
-void writeXMLChunk(ofstream &outFile, vector<T> &vals, string tag, std::function<void (T &, char [BUFFERLEN])> getLine) {
+void writeXMLChunk(std::ofstream &outFile, std::vector<T> &vals, std::string tag, std::function<void (T &, char [BUFFERLEN])> getLine) {
 
     char buffer[BUFFERLEN];
     outFile << "<" << tag << ">\n";
@@ -21,25 +20,25 @@ void writeXMLChunk(ofstream &outFile, vector<T> &vals, string tag, std::function
 }
 
 template <typename T, typename K>
-void writeXMLChunkBase64(ofstream &outFile, vector<T> &vals, string tag, std::function<K (T &)> getItem) {
-    vector<K> slicedVals;
+void writeXMLChunkBase64(std::ofstream &outFile, std::vector<T> &vals, std::string tag, std::function<K (T &)> getItem) {
+    std::vector<K> slicedVals;
     slicedVals.reserve(vals.size());
     for (T &v : vals) {
         slicedVals.push_back(getItem(v));
     }
-    vector<unsigned char> copied = vector<unsigned char>((unsigned char *) slicedVals.data(), (unsigned char *) slicedVals.data() + (int) (sizeof(K)/sizeof(unsigned char) * slicedVals.size()));
-    string base64 = base64_encode(copied.data(), copied.size());  
+    std::vector<unsigned char> copied = std::vector<unsigned char>((unsigned char *) slicedVals.data(), (unsigned char *) slicedVals.data() + (int) (sizeof(K)/sizeof(unsigned char) * slicedVals.size()));
+    std::string base64 = base64_encode(copied.data(), copied.size());  
     outFile << "<" << tag << " base64=\"1\">\n";
     outFile << base64.c_str();
     outFile << "</" << tag << ">\n";
 }
 
 
-void writeAtomParams(ofstream &outFile, AtomParams &params) {
+void writeAtomParams(std::ofstream &outFile, AtomParams &params) {
     
     outFile << "<atomParams numTypes=\"" << params.numTypes << "\">\n";
     outFile << "<handle>\n";
-    for (string handle : params.handles) {
+    for (std::string handle : params.handles) {
         outFile << handle << "\n";
     }
     outFile << "</handle>\n";
@@ -55,7 +54,7 @@ void writeAtomParams(ofstream &outFile, AtomParams &params) {
 
 }
 
-void outputGroups(ofstream &outFile, State *state) {
+void outputGroups(std::ofstream &outFile, State *state) {
     outFile << "<groupInfo>\n";
     outFile << "<groupHandles>\n";
     for (auto it = state->groupTags.begin(); it != state->groupTags.end(); it++) {
@@ -70,7 +69,7 @@ void outputGroups(ofstream &outFile, State *state) {
     outFile << "</groupInfo>\n";
 }
 
-void outputMolecules(ofstream &outFile, State *state) {
+void outputMolecules(std::ofstream &outFile, State *state) {
     outFile << "<molecules>\n";
     int len = py::len(state->molecules);
     for (int i=0; i<len; i++) {
@@ -89,15 +88,15 @@ void outputMolecules(ofstream &outFile, State *state) {
 
 }
 
-void writeXMLfileBase64(State *state, string fnFinal, int64_t turn, bool oneFilePerWrite, uint groupBit) {
-    vector<Atom> &atoms = state->atoms;
-    ofstream outFile;
+void writeXMLfileBase64(State *state, std::string fnFinal, int64_t turn, bool oneFilePerWrite, uint groupBit) {
+    std::vector<Atom> &atoms = state->atoms;
+    std::ofstream outFile;
     Bounds b = state->bounds;
     if (oneFilePerWrite) {
-        outFile.open(fnFinal.c_str(), ofstream::out);
+        outFile.open(fnFinal.c_str(), std::ofstream::out);
         outFile << "<data>" << endl;
     } else {
-        outFile.open(fnFinal.c_str(), ofstream::app);
+        outFile.open(fnFinal.c_str(), std::ofstream::app);
     }
     char buffer[BUFFERLEN];
     int ndims = state->is2d ? 2 : 3;    
@@ -109,7 +108,7 @@ void writeXMLfileBase64(State *state, string fnFinal, int64_t turn, bool oneFile
     //    * (((Vector *)dims)+i) = b.sides[i-1];
     //}
     
-    string b64[6];
+    std::string b64[6];
     for (int i=0; i<6; i++) {
         b64[i] = base64_encode((const unsigned char *) (dims + i), 8);
     }
@@ -163,16 +162,16 @@ void writeXMLfileBase64(State *state, string fnFinal, int64_t turn, bool oneFile
 }
 
 
-void writeLAMMPSTRJFile(State *state, string fn, int64_t turn, bool oneFilePerWrite, uint groupBit) {
-    vector<Atom> &atoms = state->atoms;
+void writeLAMMPSTRJFile(State *state, std::string fn, int64_t turn, bool oneFilePerWrite, uint groupBit) {
+    std::vector<Atom> &atoms = state->atoms;
     AtomParams &params = state->atomParams;
     int count = 0;
     
-    ofstream outFile;
+    std::ofstream outFile;
     if (oneFilePerWrite) {
-        outFile.open(fn.c_str(), ofstream::out);
+        outFile.open(fn.c_str(), std::ofstream::out);
     } else {
-        outFile.open(fn.c_str(), ofstream::app);
+        outFile.open(fn.c_str(), std::ofstream::app);
     }
 	if (groupBit == 1) {
         count = atoms.size();
@@ -203,8 +202,8 @@ void writeLAMMPSTRJFile(State *state, string fn, int64_t turn, bool oneFilePerWr
     outFile.close();
 }
 
-void writeXYZFile(State *state, string fn, int64_t turn, bool oneFilePerWrite, uint groupBit) {
-    vector<Atom> &atoms = state->atoms;
+void writeXYZFile(State *state, std::string fn, int64_t turn, bool oneFilePerWrite, uint groupBit) {
+    std::vector<Atom> &atoms = state->atoms;
     AtomParams &params = state->atomParams;
     bool useAtomicNums = true;
     for (int atomicNum : params.atomicNums) {
@@ -212,14 +211,14 @@ void writeXYZFile(State *state, string fn, int64_t turn, bool oneFilePerWrite, u
             useAtomicNums = false;
         }
     }
-    ofstream outFile;
+    std::ofstream outFile;
     if (oneFilePerWrite) {
         outFile.open(fn.c_str(), ofstream::out);
     } else {
         outFile.open(fn.c_str(), ofstream::app);
     }
 	if (groupBit == 1) {
-		outFile << atoms.size() <<  endl << "bounds lo " << state->bounds.lo << " hi " << (state->bounds.lo + state->bounds.rectComponents);
+		outFile << atoms.size() <<  std::endl << "bounds lo " << state->bounds.lo << " hi " << (state->bounds.lo + state->bounds.rectComponents);
 	} else {
 		int count = 0;
 		for (Atom &a : atoms) {
@@ -227,7 +226,7 @@ void writeXYZFile(State *state, string fn, int64_t turn, bool oneFilePerWrite, u
 				count ++;
 			}
 		}
-		outFile << count <<  endl << "bounds lo " << state->bounds.lo << " hi " << (state->bounds.lo + state->bounds.rectComponents);
+		outFile << count <<  std::endl << "bounds lo " << state->bounds.lo << " hi " << (state->bounds.lo + state->bounds.rectComponents);
 	}
     for (Atom &a : atoms) {
 		if (a.groupTag & groupBit) {
@@ -237,22 +236,22 @@ void writeXYZFile(State *state, string fn, int64_t turn, bool oneFilePerWrite, u
 			} else {
 				atomicNum = a.type;
 			}
-			outFile << endl << atomicNum << " " << a.pos[0] << " " << a.pos[1] << " " << a.pos[2];
+			outFile << std::endl << atomicNum << " " << a.pos[0] << " " << a.pos[1] << " " << a.pos[2];
 		}
     }
-    outFile << endl;
+    outFile << std::endl;
     outFile.close();
 }
 
-void writeXMLfile(State *state, string fnFinal, int64_t turn, bool oneFilePerWrite, uint groupBit) {
-    vector<Atom> &atoms = state->atoms;
-    ofstream outFile;
+void writeXMLfile(State *state, std::string fnFinal, int64_t turn, bool oneFilePerWrite, uint groupBit) {
+    std::vector<Atom> &atoms = state->atoms;
+    std::ofstream outFile;
     Bounds b = state->bounds;
     if (oneFilePerWrite) {
-        outFile.open(fnFinal.c_str(), ofstream::out);
+        outFile.open(fnFinal.c_str(), std::ofstream::out);
         outFile << "<data>" << endl;
     } else {
-        outFile.open(fnFinal.c_str(), ofstream::app);
+        outFile.open(fnFinal.c_str(), std::ofstream::app);
     }
     char buffer[BUFFERLEN];
     int ndims = state->is2d ? 2 : 3;    
@@ -324,7 +323,7 @@ void writeXMLfile(State *state, string fnFinal, int64_t turn, bool oneFilePerWri
     sprintf(buffer, "</configuration>\n");
     outFile << buffer;
     if (oneFilePerWrite) {
-        outFile << "</data>" << endl;
+        outFile << "</data>" << std::endl;
     }
     outFile.close();
 
@@ -351,7 +350,7 @@ void writeXMLfile(State *state, string fnFinal, int64_t turn, bool oneFilePerWri
 
 
 
-string WriteConfig::getCurrentFn(int64_t turn) {
+std::string WriteConfig::getCurrentFn(int64_t turn) {
     char buffer[200];
     if (format == "base64") {
         sprintf(buffer, "%s.xml", fn.c_str());
@@ -364,20 +363,20 @@ string WriteConfig::getCurrentFn(int64_t turn) {
     }
 
     if (oneFilePerWrite) {
-        string asStr = string(buffer);
-        string turnStr = to_string(turn);
+        std::string asStr = std::string(buffer);
+        std::string turnStr = std::to_string(turn);
         size_t pos = asStr.find("*");
-        assert(pos != string::npos);
-        string finalFn = asStr.substr(0, pos) + turnStr + asStr.substr(pos+1, asStr.size());
+        assert(pos != std::string::npos);
+        std::string finalFn = asStr.substr(0, pos) + turnStr + asStr.substr(pos+1, asStr.size());
         return finalFn;
 
 
 
     }
-    return string(buffer);
+    return std::string(buffer);
 }
 
-WriteConfig::WriteConfig(SHARED(State) state_, string fn_, string handle_, string format_, int writeEvery_, string groupHandle_, bool unwrapMolecules_) : state(state_.get()), fn(fn_), handle(handle_), format(format_), writeEvery(writeEvery_), groupHandle(groupHandle_), unwrapMolecules(unwrapMolecules_) {
+WriteConfig::WriteConfig(SHARED(State) state_, std::string fn_, std::string handle_, std::string format_, int writeEvery_, std::string groupHandle_, bool unwrapMolecules_) : state(state_.get()), fn(fn_), handle(handle_), format(format_), writeEvery(writeEvery_), groupHandle(groupHandle_), unwrapMolecules(unwrapMolecules_) {
 	groupBit = state->groupTagFromHandle(groupHandle);
     if (format == "base64") {
         writeFormat = &writeXMLfileBase64;
@@ -392,15 +391,15 @@ WriteConfig::WriteConfig(SHARED(State) state_, string fn_, string handle_, strin
         writeFormat = &writeXMLfile;
         isXML = true;
     }
-    if (fn.find("*") != string::npos) {
+    if (fn.find("*") != std::string::npos) {
         oneFilePerWrite = true;
     } else {
         oneFilePerWrite = false;
-        string fn = getCurrentFn(0);
+        std::string fn = getCurrentFn(0);
         unlink(fn.c_str());
         if (isXML) {
-            ofstream outFile;
-            outFile.open(fn.c_str(), ofstream::app);
+            std::ofstream outFile;
+            outFile.open(fn.c_str(), std::ofstream::app);
             outFile << "<data>\n";
         }
     }
@@ -408,8 +407,8 @@ WriteConfig::WriteConfig(SHARED(State) state_, string fn_, string handle_, strin
 
 void WriteConfig::finish() {
     if (isXML and not oneFilePerWrite) {
-        ofstream outFile;
-        outFile.open(getCurrentFn(0), ofstream::app);
+        std::ofstream outFile;
+        outFile.open(getCurrentFn(0), std::ofstream::app);
         outFile << "</data>";
     }
 }
@@ -432,7 +431,7 @@ void WriteConfig::writePy() {
 
 void export_WriteConfig() {
     py::class_<WriteConfig,
-                          SHARED(WriteConfig) >("WriteConfig", py::init<SHARED(State), string, string, string, int, py::optional<string, bool> >(py::args("fn", "handle", "format", "writeEvery", "groupHandle", "unwrapMolecules"))
+                          SHARED(WriteConfig) >("WriteConfig", py::init<SHARED(State), std::string, std::string, std::string, int, py::optional<std::string, bool> >(py::args("fn", "handle", "format", "writeEvery", "groupHandle", "unwrapMolecules"))
     )
     .def_readwrite("writeEvery", &WriteConfig::writeEvery)
     .def_readwrite("unwrapMolecules", &WriteConfig::unwrapMolecules)

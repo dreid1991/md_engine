@@ -8,7 +8,6 @@
 #include "ExternalEvaluate.h"
 
 const std::string ExternalHarmonicType = "ExternalHarmonic";
-using namespace std;
 namespace py = boost::python;
 
 // the constructor for FixExternalHarmonic
@@ -55,7 +54,7 @@ bool FixExternalHarmonic::postRun () {
 void export_FixExternalHarmonic() {
 	py::class_<FixExternalHarmonic, SHARED(FixExternalHarmonic), py::bases<FixExternal>, boost::noncopyable > (
 		"FixExternalHarmonic",
-		py::init<SHARED(State), string, string, Vector, Vector> (
+		py::init<SHARED(State), std::string, std::string, Vector, Vector> (
 			py::args("state", "handle", "groupHandle", "k", "r0")
 		)
 	)

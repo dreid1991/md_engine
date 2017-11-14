@@ -25,12 +25,11 @@ public:
 
 namespace py=boost::python;
 
-using namespace std;
 
 const std::string NVTRescaleType = "NVTRescale";
 
 
-FixNVTRescale::FixNVTRescale(SHARED(State) state_, string handle_, string groupHandle_, py::list intervals_, py::list temps_, int applyEvery_, int orderPreference_)
+FixNVTRescale::FixNVTRescale(SHARED(State) state_, std::string handle_, std::string groupHandle_, py::list intervals_, py::list temps_, int applyEvery_, int orderPreference_)
     : Interpolator(intervals_, temps_), Fix(state_, handle_, groupHandle_, NVTRescaleType, false, false, false, applyEvery_, orderPreference_),
       curIdx(0), tempComputer(state, "scalar")
 {
@@ -38,7 +37,7 @@ FixNVTRescale::FixNVTRescale(SHARED(State) state_, string handle_, string groupH
 
 }
 
-FixNVTRescale::FixNVTRescale(SHARED(State) state_, string handle_, string groupHandle_, py::object tempFunc_, int applyEvery_, int orderPreference_)
+FixNVTRescale::FixNVTRescale(SHARED(State) state_, std::string handle_, std::string groupHandle_, py::object tempFunc_, int applyEvery_, int orderPreference_)
     : Interpolator(tempFunc_), Fix(state_, handle_, groupHandle_, NVTRescaleType, false, false, false, applyEvery_, orderPreference_),
       curIdx(0), tempComputer(state, "scalar")
 {
@@ -47,7 +46,7 @@ FixNVTRescale::FixNVTRescale(SHARED(State) state_, string handle_, string groupH
 
 }
 
-FixNVTRescale::FixNVTRescale(SHARED(State) state_, string handle_, string groupHandle_, double constTemp_, int applyEvery_, int orderPreference_)
+FixNVTRescale::FixNVTRescale(SHARED(State) state_, std::string handle_, std::string groupHandle_, double constTemp_, int applyEvery_, int orderPreference_)
     : Interpolator(constTemp_), Fix(state_, handle_, groupHandle_, NVTRescaleType, false, false, false, applyEvery_, orderPreference_),
       curIdx(0), tempComputer(state, "scalar")
 {
@@ -122,19 +121,19 @@ Interpolator *FixNVTRescale::getInterpolator(std::string type) {
 void export_FixNVTRescale() {
     py::class_<FixNVTRescale, SHARED(FixNVTRescale), py::bases<Fix>, boost::noncopyable > (
         "FixNVTRescale", 
-        py::init<boost::shared_ptr<State>, string, string, py::list, py::list, py::optional<int > >(
+        py::init<boost::shared_ptr<State>, std::string, std::string, py::list, py::list, py::optional<int > >(
             py::args("state", "handle", "groupHandle", "intervals", "temps", "applyEvery")
             )
 
         
     )
    //HEY - ORDER IS IMPORTANT HERE.  LAST CONS ADDED IS CHECKED FIRST. A DOUBLE _CAN_ BE CAST AS A py::object, SO IF YOU PUT THE TEMPFUNC CONS LAST, CALLING WITH DOUBLE AS ARG WILL GO THERE, NOT TO CONST TEMP CONSTRUCTOR 
-    .def(py::init<boost::shared_ptr<State>, string, string, py::object, py::optional<int > >(
+    .def(py::init<boost::shared_ptr<State>, std::string, std::string, py::object, py::optional<int > >(
                 
             py::args("state", "handle", "groupHandle", "tempFunc", "applyEvery")
                 )
             )
-    .def(py::init<boost::shared_ptr<State>, string, string, double, py::optional<int> >(
+    .def(py::init<boost::shared_ptr<State>, std::string, std::string, double, py::optional<int> >(
             py::args("state", "handle", "groupHandle", "temp", "applyEvery")
                 )
             )

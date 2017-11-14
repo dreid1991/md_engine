@@ -198,42 +198,13 @@ struct SharedMemory <float4>
 };
 
 template <>
-struct SharedMemory <real>
+struct SharedMemory <double4>
 {
-    __device__ real *getPointer()
+    __device__ double4 *getPointer()
     {
-        extern __shared__ real s_real[];
-        return s_real;
+        extern __shared__ double4 s_double4[];
+        return s_double4;
     }
 };
 
-template <>
-struct SharedMemory <real2>
-{
-    __device__ real2 *getPointer()
-    {
-        extern __shared__ real2 s_real2[];
-        return s_real2;
-    }
-};
-
-template <>
-struct SharedMemory <real3>
-{
-    __device__ real3 *getPointer()
-    {
-        extern __shared__ real3 s_real3[];
-        return s_real3;
-    }
-};
-
-template <>
-struct SharedMemory <real4>
-{
-    __device__ real4 *getPointer()
-    {
-        extern __shared__ real4 s_real4[];
-        return s_real4;
-    }
-};
 #endif //_SHAREDMEM_H_

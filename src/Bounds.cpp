@@ -6,7 +6,6 @@
 #include "State.h"
 #include "AtomParams.h"
 
-using namespace std;
 #define DEFAULT_VAL -1
 Bounds::Bounds() {
     state = nullptr;

@@ -4,7 +4,6 @@
 //#include "array_ref.hpp"
 
 namespace py = boost::python;
-using namespace std;
 
 void export_stls() {
     py::class_<std::map<std::string, int> >("stringInt")

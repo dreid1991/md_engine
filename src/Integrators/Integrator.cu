@@ -10,7 +10,6 @@
 #include "WriteConfig.h"
 #include "Interpolator.h"
 
-using namespace std;
 
 __global__ void zeroVectorPreserveW(real4 *xs, int n) {
     int idx = GETIDX();
@@ -94,21 +93,21 @@ void Integrator::asyncOperations() {
 
 void Integrator::basicPreRunChecks() {
     if (state->devManager.prop.major < 3) {
-        cout << "Device compute capability must be >= 3.0. Quitting" << endl;
+        std::cout << "Device compute capability must be >= 3.0. Quitting" << std::endl;
         assert(state->devManager.prop.major >= 3);
     }
     if (state->rCut == RCUT_INIT) {
-        cout << "rcut is not set" << endl;
+        std::cout << "rcut is not set" << std::endl;
         assert(state->rCut != RCUT_INIT);
     }
     if (state->is2d and state->periodic[2]) {
-        cout << "2d system cannot be periodic is z dimension" << endl;
+        std::cout << "2d system cannot be periodic is z dimension" << std::endl;
         assert(not (state->is2d and state->periodic[2]));
     }
     mdAssert(state->bounds.isInitialized(), "Bounds must be initialized");
     /*
     if (not state->bounds.isInitialized()) {
-        cout << "Bounds not initialized" << endl;
+        std::cout << "Bounds not initialized" << std::endl;
         assert(state->bounds.isInitialized());
     }
     */
@@ -229,7 +228,7 @@ void Integrator::basicFinish() {
 
 
 void Integrator::setActiveData() {
-    activeData = vector<GPUArray *>();
+    activeData = std::vector<GPUArray *>();
     activeData.push_back((GPUArray *) &state->gpd.ids);
     activeData.push_back((GPUArray *) &state->gpd.xs);
     activeData.push_back((GPUArray *) &state->gpd.vs);
@@ -288,10 +287,10 @@ boost::python::list Integrator::singlePointEngPythonPerParticle() {
     state->gpd.ids.dataToHost();
     cudaDeviceSynchronize();
     CUT_CHECK_ERROR("Calculation of single point per-particle energy failed");
-    vector<real> &engs = state->gpd.perParticleEng.h_data;
-    vector<uint> &ids = state->gpd.ids.h_data;
-    vector<int> &idToIdxsOnCopy = state->gpd.idToIdxsOnCopy;
-    vector<double> sortedEngs(ids.size());
+    std::vector<real> &engs = state->gpd.perParticleEng.h_data;
+    std::vector<uint> &ids = state->gpd.ids.h_data;
+    std::vector<int> &idToIdxsOnCopy = state->gpd.idToIdxsOnCopy;
+    std::vector<double> sortedEngs(ids.size());
 
     for (int i=0, ii=state->atoms.size(); i<ii; i++) {
         int id = ids[i];
@@ -332,10 +331,10 @@ double Integrator::tune() {
 
 	int curNTPB = state->nThreadPerBlock;
 	int curNTPA = state->nThreadPerAtom;
-    vector<vector<double> > times;
+    std::vector<std::vector<double> > times;
     //REMEMBER TO MAKE COPY OF FORCES AND SET THEM BACK AFTER THIS;
     for (int i=0; i<threadPerBlocks.size(); i++) {
-        vector<double> timesWithBlock;
+        std::vector<double> timesWithBlock;
         for (int j=0; j<threadPerAtoms.size(); j++) {
             int threadPerBlock = threadPerBlocks[i];
             int threadPerAtom = threadPerAtoms[j];

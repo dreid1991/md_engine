@@ -9,13 +9,12 @@
 #include "PairEvaluatorLJ.h"
 #include "EvaluatorWrapper.h"
 //#include "ChargeEvaluatorEwald.h"
-using namespace std;
 namespace py = boost::python;
-const string LJCutType = "LJCut";
+const std::string LJCutType = "LJCut";
 
 
 
-FixLJCut::FixLJCut(boost::shared_ptr<State> state_, string handle_, string mixingRules_)
+FixLJCut::FixLJCut(boost::shared_ptr<State> state_, std::string handle_, std::string mixingRules_)
     : FixPair(state_, handle_, "all", LJCutType, true, false, 1, mixingRules_),
     epsHandle("eps"), sigHandle("sig"), rCutHandle("rCut")
 {
@@ -120,7 +119,7 @@ bool FixLJCut::prepareForRun() {
     return prepared;
 }
 
-string FixLJCut::restartChunk(string format) {
+std::string FixLJCut::restartChunk(std::string format) {
     stringstream ss;
     ss << restartChunkPairParams(format);
     return ss.str();
@@ -132,16 +131,16 @@ bool FixLJCut::postRun() {
     return true;
 }
 
-void FixLJCut::addSpecies(string handle) {
+void FixLJCut::addSpecies(std::string handle) {
     initializeParameters(epsHandle, epsilons);
     initializeParameters(sigHandle, sigmas);
     initializeParameters(rCutHandle, rCuts);
 
 }
 
-vector<real> FixLJCut::getRCuts() { 
-    vector<real> res;
-    vector<real> &src = *(paramMap[rCutHandle]);
+std::vector<real> FixLJCut::getRCuts() { 
+    std::vector<real> res;
+    std::vector<real> &src = *(paramMap[rCutHandle]);
     for (real x : src) {
         if (x == DEFAULT_FILL) {
             res.push_back(-1);
@@ -156,7 +155,7 @@ vector<real> FixLJCut::getRCuts() {
 void export_FixLJCut() {
     py::class_<FixLJCut, boost::shared_ptr<FixLJCut>, py::bases<FixPair>, boost::noncopyable > (
         "FixLJCut",
-        py::init<boost::shared_ptr<State>, string, py::optional<string> > (py::args("state", "handle", "mixingRules"))
+        py::init<boost::shared_ptr<State>, std::string, py::optional<std::string> > (py::args("state", "handle", "mixingRules"))
     )
       ;
 

@@ -8,7 +8,6 @@
 #define ARG_DEFAULT -1
 
 namespace py=boost::python;
-using namespace std;
 
 
 
@@ -38,7 +37,7 @@ void AtomParams::clear() {
 }
 
 int AtomParams::typeFromHandle(const std::string &handle) const {
-    auto it = find(handles.begin(), handles.end(), handle);
+    auto it = std::find(handles.begin(), handles.end(), handle);
     if (it != handles.end()) {
         return it - handles.begin();
     }
@@ -46,7 +45,7 @@ int AtomParams::typeFromHandle(const std::string &handle) const {
 }
 
 
-void AtomParams::setValues(string handle, double mass, double atomicNum) {
+void AtomParams::setValues(std::string handle, double mass, double atomicNum) {
     int idx = typeFromHandle(handle);
     if (mass != ARG_DEFAULT) {
         masses[idx] = mass;

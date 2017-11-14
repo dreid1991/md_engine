@@ -7,7 +7,6 @@
 
 namespace py=boost::python;
 
-using namespace std;
 
 void FixNVTAndersen::setDefaults() {
     seed=0;
@@ -15,7 +14,7 @@ void FixNVTAndersen::setDefaults() {
 
 const std::string NVTAndersenType = "NVTAndersen";
 
-FixNVTAndersen::FixNVTAndersen(SHARED(State) state_, string handle_, string groupHandle_, py::list intervals_, py::list temps_, real nu_, int applyEvery_)
+FixNVTAndersen::FixNVTAndersen(SHARED(State) state_, std::string handle_, std::string groupHandle_, py::list intervals_, py::list temps_, real nu_, int applyEvery_)
     : Fix(state_, handle_, groupHandle_, NVTAndersenType, false, false, false, applyEvery_),
       Interpolator(intervals_, temps_), 
       tempComputer(state, "scalar")
@@ -25,7 +24,7 @@ FixNVTAndersen::FixNVTAndersen(SHARED(State) state_, string handle_, string grou
     nudt         = state_->dt * nu_; 
 }
 
-FixNVTAndersen::FixNVTAndersen(SHARED(State) state_, string handle_, string groupHandle_, py::object tempFunc_, real nu_, int applyEvery_)
+FixNVTAndersen::FixNVTAndersen(SHARED(State) state_, std::string handle_, std::string groupHandle_, py::object tempFunc_, real nu_, int applyEvery_)
     : Fix(state_, handle_, groupHandle_, NVTAndersenType, false, false, false, applyEvery_),
       Interpolator(tempFunc_), 
       tempComputer(state, "scalar")
@@ -35,7 +34,7 @@ FixNVTAndersen::FixNVTAndersen(SHARED(State) state_, string handle_, string grou
     nudt         = state_->dt * nu_; 
 }
 
-FixNVTAndersen::FixNVTAndersen(SHARED(State) state_, string handle_, string groupHandle_, double constTemp_, real nu_, int applyEvery_)
+FixNVTAndersen::FixNVTAndersen(SHARED(State) state_, std::string handle_, std::string groupHandle_, double constTemp_, real nu_, int applyEvery_)
     : Fix(state_, handle_, groupHandle_, NVTAndersenType, false, false, false, applyEvery_),
       Interpolator(constTemp_), 
       tempComputer(state, "scalar")
@@ -154,19 +153,19 @@ Interpolator *FixNVTAndersen::getInterpolator(std::string type) {
 void export_FixNVTAndersen() {
     py::class_<FixNVTAndersen, SHARED(FixNVTAndersen), py::bases<Fix>, boost::noncopyable > (
         "FixNVTAndersen", 
-        py::init<boost::shared_ptr<State>, string, string, py::list, py::list, py::optional<real,int> >(
+        py::init<boost::shared_ptr<State>, std::string, std::string, py::list, py::list, py::optional<real,int> >(
             py::args("state", "handle", "groupHandle", "intervals", "temps","nu", "applyEvery")
             )
 
         
     )
    
-    .def(py::init<boost::shared_ptr<State>, string, string, py::object, py::optional<real,int> >(
+    .def(py::init<boost::shared_ptr<State>, std::string, std::string, py::object, py::optional<real,int> >(
                 
             py::args("state", "handle", "groupHandle", "tempFunc","nu","applyEvery")
                 )
             )
-    .def(py::init<boost::shared_ptr<State>, string, string, double, py::optional<real,int> >(
+    .def(py::init<boost::shared_ptr<State>, std::string, std::string, double, py::optional<real,int> >(
             py::args("state", "handle", "groupHandle", "temp","nu", "applyEvery")
                 )
             )

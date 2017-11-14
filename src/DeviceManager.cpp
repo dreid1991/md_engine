@@ -2,7 +2,6 @@
 #include "boost_for_export.h"
 
 #include <iostream>
-using namespace std;
 using namespace boost::python;
 DeviceManager::DeviceManager() {
     cudaGetDeviceCount(&nDevices);
@@ -16,7 +15,7 @@ bool DeviceManager::setDevice(int i, bool output) {
         cudaGetDeviceProperties(&prop, i);
         currentDevice = i;
         if (output) {
-            cout << "Selecting device " << i<<" " << prop.name << endl;
+            std::cout << "Selecting device " << i<<" " << prop.name << std::endl;
         }
         return true;
     }

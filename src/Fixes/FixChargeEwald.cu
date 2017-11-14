@@ -14,7 +14,6 @@
 #include "PairEvaluatorNone.h"
 #include "EvaluatorWrapper.h"
 // #include <cmath>
-using namespace std;
 namespace py = boost::python;
 const std::string chargeEwaldType = "ChargeEwald";
 
@@ -615,7 +614,7 @@ __global__ void mapEngToParticles(int nAtoms, real eng, real *engs) {
     }
 }
 
-FixChargeEwald::FixChargeEwald(SHARED(State) state_, string handle_, string groupHandle_): FixCharge(state_, handle_, groupHandle_, chargeEwaldType, true){
+FixChargeEwald::FixChargeEwald(SHARED(State) state_, std::string handle_, std::string groupHandle_): FixCharge(state_, handle_, groupHandle_, chargeEwaldType, true){
     cufftCreate(&plan);
     canOffloadChargePairCalc = true;
     modeIsError = false;
@@ -1301,7 +1300,7 @@ void export_FixChargeEwald() {
                           SHARED(FixChargeEwald),
                           py::bases<FixCharge> > (
          "FixChargeEwald", 
-         py::init<SHARED(State), string, string> (
+         py::init<SHARED(State), std::string, std::string> (
               py::args("state", "handle", "groupHandle"))
         )
         .def("setParameters", setParameters_xyz,

@@ -4,12 +4,11 @@
 #include "cutils_func.h"
 #include "DihedralEvaluate.h"
 namespace py = boost::python;
-using namespace std;
 
 const std::string dihedralCHARMMType = "DihedralCHARMM";
 
 
-FixDihedralCHARMM::FixDihedralCHARMM(SHARED(State) state_, string handle) : FixPotentialMultiAtom (state_, handle, dihedralCHARMMType, true){
+FixDihedralCHARMM::FixDihedralCHARMM(SHARED(State) state_, std::string handle) : FixPotentialMultiAtom (state_, handle, dihedralCHARMMType, true){
     readFromRestart();
 }
 
@@ -132,7 +131,7 @@ void export_FixDihedralCHARMM() {
                           SHARED(FixDihedralCHARMM),
                           py::bases<Fix, TypedItemHolder> > (
         "FixDihedralCHARMM",
-        py::init<SHARED(State), string> (
+        py::init<SHARED(State), std::string> (
             py::args("state", "handle")
         )
     )

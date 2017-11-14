@@ -26,7 +26,6 @@
 #include "WriteConfig.h"
 #include "ReadConfig.h"
 
-using namespace std;
 
 int main() {
 	return 0;

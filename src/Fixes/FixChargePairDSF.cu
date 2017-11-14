@@ -11,7 +11,6 @@
 // #include <cmath>
 
 namespace py=boost::python;
-using namespace std;
 
 const std::string chargePairDSFType = "ChargePairDSF";
 
@@ -30,7 +29,7 @@ const std::string chargePairDSFType = "ChargePairDSF";
 //    compute_cu<<<NBLOCK(nAtoms), PERBLOCK>>>(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx), neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), gpd.qs(activeIdx), alpha, r_cut, A, shift, state->boundsGPU, state->devManager.prop.warpSize, 0.5);// state->devManager.prop.warpSize, sigmas.getDevData(), epsilons.getDevData(), numTypes, state->rCut, state->boundsGPU, oneFourStrength);
 
 
-FixChargePairDSF::FixChargePairDSF(SHARED(State) state_, string handle_, string groupHandle_) : FixCharge(state_, handle_, groupHandle_, chargePairDSFType, true) {
+FixChargePairDSF::FixChargePairDSF(SHARED(State) state_, std::string handle_, std::string groupHandle_) : FixCharge(state_, handle_, groupHandle_, chargePairDSFType, true) {
    setParameters(0.25,9.0);
    canOffloadChargePairCalc = true;
    setEvalWrapper();
@@ -123,7 +122,7 @@ ChargeEvaluatorDSF FixChargePairDSF::generateEvaluator() {
 void export_FixChargePairDSF() {
     py::class_<FixChargePairDSF, SHARED(FixChargePairDSF), boost::python::bases<FixCharge> > (
         "FixChargePairDSF",
-        py::init<SHARED(State), string, string> (
+        py::init<SHARED(State), std::string, std::string> (
             py::args("state", "handle", "groupHandle"))
     )
     .def("setParameters", &FixChargePairDSF::setParameters,

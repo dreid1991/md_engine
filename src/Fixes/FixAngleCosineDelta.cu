@@ -4,9 +4,8 @@
 #include "FixAngleCosineDelta.h"
 #include "cutils_func.h"
 #include "AngleEvaluate.h"
-using namespace std;
-const string angleCosineDeltaType = "AngleCosineDelta";
-FixAngleCosineDelta::FixAngleCosineDelta(boost::shared_ptr<State> state_, string handle)
+const std::string angleCosineDeltaType = "AngleCosineDelta";
+FixAngleCosineDelta::FixAngleCosineDelta(boost::shared_ptr<State> state_, std::string handle)
   : FixPotentialMultiAtom(state_, handle, angleCosineDeltaType, true)
 {
     readFromRestart();
@@ -42,7 +41,7 @@ void FixAngleCosineDelta::singlePointEng(real *perParticleEng) {
 // items) are on the gpu and we know how many bonds are in bondiest block
 
 void FixAngleCosineDelta::createAngle(Atom *a, Atom *b, Atom *c, double k, double theta0, int type) {
-    vector<Atom *> atoms = {a, b, c};
+    std::vector<Atom *> atoms = {a, b, c};
     validAtoms(atoms);
     if (type == -1) {
         assert(k!=COEF_DEFAULT and theta0!=COEF_DEFAULT);
@@ -71,11 +70,11 @@ bool FixAngleCosineDelta::readFromRestart() {
                     double k;
                     double theta0;
                     std::string type_ = type_node.attribute("id").value();
-                    type = atoi(type_.c_str());
+                    type = std::atoi(type_.c_str());
                     std::string k_ = type_node.attribute("k").value();
                     std::string theta0_ = type_node.attribute("theta0").value();
-                    k = atof(k_.c_str());
-                    theta0 = atof(theta0_.c_str());
+                    k = std::atof(k_.c_str());
+                    theta0 = std::atof(theta0_.c_str());
 
                     setAngleTypeCoefs(type, k, theta0);
                 }
@@ -91,15 +90,15 @@ bool FixAngleCosineDelta::readFromRestart() {
                     std::string atom_c = member_node.attribute("atomID_c").value();
                     std::string k_ = member_node.attribute("k").value();
                     std::string theta0_ = member_node.attribute("theta0").value();
-                    type = atoi(type_.c_str());
-                    ids[0] = atoi(atom_a.c_str());
-                    ids[1] = atoi(atom_b.c_str());
-                    ids[2] = atoi(atom_c.c_str());
+                    type = std::atoi(type_.c_str());
+                    ids[0] = std::atoi(atom_a.c_str());
+                    ids[1] = std::atoi(atom_b.c_str());
+                    ids[2] = std::atoi(atom_c.c_str());
                     Atom * a = &state->idToAtom(ids[0]);
                     Atom * b = &state->idToAtom(ids[1]);
                     Atom * c = &state->idToAtom(ids[2]);
-                    k = atof(k_.c_str());
-                    theta0 = atof(theta0_.c_str());
+                    k = std::atof(k_.c_str());
+                    theta0 = std::atof(theta0_.c_str());
 
                     createAngle(a, b, c, k, theta0, type);
                 }
@@ -115,7 +114,7 @@ void export_FixAngleCosineDelta() {
                           boost::shared_ptr<FixAngleCosineDelta>,
                           boost::python::bases<Fix, TypedItemHolder> >(
         "FixAngleCosineDelta",
-        boost::python::init<boost::shared_ptr<State>, string>(
+        boost::python::init<boost::shared_ptr<State>, std::string>(
                                 boost::python::args("state", "handle"))
     )
     .def("createAngle", &FixAngleCosineDelta::createAngle,

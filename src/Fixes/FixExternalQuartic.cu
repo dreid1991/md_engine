@@ -8,7 +8,6 @@
 #include "ExternalEvaluate.h"
 
 const std::string ExternalQuarticType = "ExternalQuartic";
-using namespace std;
 namespace py = boost::python;
 
 // the constructor for FixExternalQuartic
@@ -56,7 +55,7 @@ bool FixExternalQuartic::postRun () {
 void export_FixExternalQuartic() {
 	py::class_<FixExternalQuartic, SHARED(FixExternalQuartic), py::bases<FixExternal>, boost::noncopyable > (
 		"FixExternalQuartic",
-		py::init<SHARED(State), string, string, Vector, Vector, Vector, Vector, Vector> (
+		py::init<SHARED(State), std::string, std::string, Vector, Vector, Vector, Vector, Vector> (
 			py::args("state", "handle", "groupHandle", "k1","k2","k3","k4", "r0")
 		)
 	)
