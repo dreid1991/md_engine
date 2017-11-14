@@ -168,7 +168,7 @@ bool FixLJCHARMM::prepareForRun() {
 }
 
 std::string FixLJCHARMM::restartChunk(std::string format) {
-    stringstream ss;
+    std::stringstream ss;
     ss << restartChunkPairParams(format);
     return ss.str();
 }

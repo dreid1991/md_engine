@@ -120,7 +120,7 @@ bool FixLJCut::prepareForRun() {
 }
 
 std::string FixLJCut::restartChunk(std::string format) {
-    stringstream ss;
+    std::stringstream ss;
     ss << restartChunkPairParams(format);
     return ss.str();
 }

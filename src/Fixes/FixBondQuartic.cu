@@ -60,7 +60,7 @@ void FixBondQuartic::singlePointEng(real *perParticleEng) {
 }
 
 std::string FixBondQuartic::restartChunk(std::string format) {
-    stringstream ss;
+    std::stringstream ss;
     ss << "<types>\n";
     for (auto it = bondTypes.begin(); it != bondTypes.end(); it++) {
         ss << "<" << "type id='" << it->first << "'";
