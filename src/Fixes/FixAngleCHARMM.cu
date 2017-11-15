@@ -4,9 +4,8 @@
 #include "FixAngleCHARMM.h"
 #include "cutils_func.h"
 #include "AngleEvaluate.h"
-using namespace std;
-const string angleCHARMMType = "AngleCHARMM";
-FixAngleCHARMM::FixAngleCHARMM(boost::shared_ptr<State> state_, string handle)
+const std::string angleCHARMMType = "AngleCHARMM";
+FixAngleCHARMM::FixAngleCHARMM(boost::shared_ptr<State> state_, std::string handle)
   : FixPotentialMultiAtom(state_, handle, angleCHARMMType, true)
 {
     readFromRestart(); 
@@ -28,7 +27,7 @@ void FixAngleCHARMM::compute(int virialMode) {
 
 }
 
-void FixAngleCHARMM::singlePointEng(float *perParticleEng) {
+void FixAngleCHARMM::singlePointEng(real *perParticleEng) {
     int nAtoms = state->atoms.size();
     int activeIdx = state->gpd.activeIdx();
     if (forcersGPU.size()) {
@@ -37,7 +36,7 @@ void FixAngleCHARMM::singlePointEng(float *perParticleEng) {
 }
 
 void FixAngleCHARMM::createAngle(Atom *a, Atom *b, Atom *c, double k, double theta0, double kub, double rub,int type) {
-    vector<Atom *> atoms = {a, b, c};
+    std::vector<Atom *> atoms = {a, b, c};
     validAtoms(atoms);
     if (type == -1) {
         assert(k!=COEF_DEFAULT and theta0!=COEF_DEFAULT);
@@ -69,15 +68,15 @@ bool FixAngleCHARMM::readFromRestart() {
                     double kub;
                     double rub;
                     std::string type_ = type_node.attribute("id").value();
-                    type = atoi(type_.c_str());
+                    type = std::atoi(type_.c_str());
                     std::string k_ = type_node.attribute("k").value();
                     std::string theta0_ = type_node.attribute("theta0").value();
                     std::string kub_ = type_node.attribute("kub").value();
                     std::string rub_ = type_node.attribute("rub").value();
-                    k = atof(k_.c_str());
-                    theta0 = atof(theta0_.c_str());
-                    kub = atof(kub_.c_str());
-                    rub = atof(rub_.c_str());
+                    k = std::atof(k_.c_str());
+                    theta0 = std::atof(theta0_.c_str());
+                    kub = std::atof(kub_.c_str());
+                    rub = std::atof(rub_.c_str());
 
                     setAngleTypeCoefs(k, theta0,kub,rub, type);
                 }
@@ -97,17 +96,17 @@ bool FixAngleCHARMM::readFromRestart() {
                     std::string theta0_ = member_node.attribute("theta0").value();
                     std::string kub_    = member_node.attribute("kub").value();
                     std::string rub_    = member_node.attribute("rub").value();
-                    type = atoi(type_.c_str());
-                    ids[0] = atoi(atom_a.c_str());
-                    ids[1] = atoi(atom_b.c_str());
-                    ids[2] = atoi(atom_c.c_str());
+                    type = std::atoi(type_.c_str());
+                    ids[0] = std::atoi(atom_a.c_str());
+                    ids[1] = std::atoi(atom_b.c_str());
+                    ids[2] = std::atoi(atom_c.c_str());
                     Atom * a = &state->idToAtom(ids[0]);
                     Atom * b = &state->idToAtom(ids[1]);
                     Atom * c = &state->idToAtom(ids[2]);
-                    k      = atof(k_.c_str());
-                    theta0 = atof(theta0_.c_str());
-                    kub    = atof(kub_.c_str());
-                    rub    = atof(rub_.c_str());
+                    k      = std::atof(k_.c_str());
+                    theta0 = std::atof(theta0_.c_str());
+                    kub    = std::atof(kub_.c_str());
+                    rub    = std::atof(rub_.c_str());
 
                     createAngle(a, b, c, k, theta0, kub, rub, type);
                 }
@@ -123,7 +122,7 @@ void export_FixAngleCHARMM() {
                           boost::shared_ptr<FixAngleCHARMM>,
                           boost::python::bases<Fix, TypedItemHolder> >(
         "FixAngleCHARMM",
-        boost::python::init<boost::shared_ptr<State>, string>(
+        boost::python::init<boost::shared_ptr<State>, std::string>(
                                 boost::python::args("state", "handle"))
     )
     .def("createAngle", &FixAngleCHARMM::createAngle,

@@ -19,7 +19,7 @@ public:
     FixAngleCHARMM(boost::shared_ptr<State> state_, std::string handle);
 
     void compute(int);
-    void singlePointEng(float *);
+    void singlePointEng(real *);
 
     void createAngle(Atom *, Atom *, Atom *, double, double, double, double, int type_);
     void setAngleTypeCoefs(double, double, double, double, int);

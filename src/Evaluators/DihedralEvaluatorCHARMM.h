@@ -8,17 +8,12 @@ class DihedralEvaluatorCHARMM {
     public:
         //dihedralType, phi, c, scValues, invLenSqrs, c12Mags, c0,
 
-                //float3 myForce = evaluator.force(dihedralType, phi, c, scValues, invLenSqrs, c12Mags, c0, c, invMagProds, c12Mags, invLens, directors, myIdxInDihedral);
-        inline __device__ float dPotential(DihedralCHARMMType dihedralType, float phi) {
+                //real3 myForce = evaluator.force(dihedralType, phi, c, scValues, invLenSqrs, c12Mags, c0, c, invMagProds, c12Mags, invLens, directors, myIdxInDihedral);
+        inline __device__ real dPotential(DihedralCHARMMType dihedralType, real phi) {
             return dihedralType.k * dihedralType.n * sinf(dihedralType.d - dihedralType.n*phi);
         }
 
-        inline __device__ double dPotential(DihedralCHARMMType dihedralType, double phi) {
-            return double(dihedralType.k) * double(dihedralType.n) * sin(double(dihedralType.d) - double(dihedralType.n)*phi);
-        }
-
-
-        inline __device__ float potential(DihedralCHARMMType dihedralType, float phi) {
+        inline __device__ real potential(DihedralCHARMMType dihedralType, real phi) {
             return dihedralType.k * (1 + cosf(dihedralType.n*phi - dihedralType.d));
 
         }

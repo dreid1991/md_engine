@@ -12,7 +12,7 @@ namespace MD_ENGINE {
             void computeTensor_CPU(){};
 
             DataComputeDipolarCoupling(State *, std::string computeMode_);
-            GPUArrayGlobal<float> sumInvRCubed; //DON'T FORGET THIS MYSTERIOUS K TERM
+            GPUArrayGlobal<real> sumInvRCubed; //DON'T FORGET THIS MYSTERIOUS K TERM
             uint32_t groupTagB;
             //so these are just length 2 arrays.  First value is used for the result of the sum.  Second value is bit-cast to an int and used to cound how many values are present.
 
@@ -34,10 +34,10 @@ using namespace MD_ENGINE;
 using std::cout;
 using std::endl;
 
-__global__ void coalesceInvR6(int nAtoms, float4 *fs, float *uncoalesced, int *counter,  float *res, uint32_t groupTagA) {
+__global__ void coalesceInvR6(int nAtoms, real4 *fs, real *uncoalesced, int *counter,  real *res, uint32_t groupTagA) {
     int idx = GETIDX();
     if (idx < nAtoms) {
-        uint32_t groupTag = __float_as_uint(fs[idx].w);
+        uint32_t groupTag = __real_as_uint(fs[idx].w);
         if (groupTag & groupTagA) {
             int writeIdx = atomicAdd(counter, 1);
             res[writeIdx] = uncoalesced[idx];
@@ -65,7 +65,7 @@ void DataComputerDipolarCoupling::computeScalar_GPU(bool transferToHost, uint32_
     GridGPU &grid = state->gridGPU;
     int activeIdx = gpd.activeIdx();
     uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
-    float *neighborCoefs = state->specialNeighborCoefs;
+    real *neighborCoefs = state->specialNeighborCoefs;
     //hijacking energy group-group calculation to compute sum of 1/r^3, which we'll then multiple by some coefficient
     evalWrap->energyGroupGroup(nAtoms, nPerRingPoly, gpd.xs(activeIdx), gpd.fs(activeIdx), gpuBuffer.getDevData(),neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, rCutSqrArray.getDevData() /*giving junk data to the parameters*/, numTypes, state->boundsGPU, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.qs(activeIdx), 0, groupTagA, groupTagB, state->nThreadPerBlock, state->nThreadPerAtom);
 
@@ -102,13 +102,13 @@ void DataComputerDipolarCoupling::prepareForRun() {
 
     int nTypes = state->atomParams.numTypes;
     double rCutSqr = state->rCut*state->rCut;
-    rCutSqrArray = GPUArrayGlobal<float>(nTypes*nTypes);
+    rCutSqrArray = GPUArrayGlobal<real>(nTypes*nTypes);
     for (int i=0; i<nTypes*nTypes; i++) {
         rCutSqrArray.h_data[i] = rCutSqr;
     }
     rCutSqrArray.dataToDevice();
     int nInGroup = state->countNumInGroup(groupTagA);
-    coalescedInvR6 = GPUArrayGlobal<float>(nInGroup);
+    coalescedInvR6 = GPUArrayGlobal<real>(nInGroup);
     couplingsSqr = std::vector<double>(nInGroup);
     EvaluatorDipolarCoupling eval;
     evalWrap = pickEvaluator<EvaluatorDipolarCoupling, 1, true>(eval, nullptr);

@@ -3,8 +3,9 @@
 namespace py = boost::python;
 
 #include "State.h"
-#include "../Eigen/Dense"
+//#include "../Eigen/Dense"
 
+#include "EigenInterface.h"
 Molecule::Molecule(State *state_, std::vector<int> &ids_) {
     state = state_;
     ids = ids_;
@@ -17,11 +18,29 @@ void Molecule::translate(Vector &v) {
     }
 }
 void Molecule::rotate(Vector axis, double theta) {
+    /*
+    std::vector<double> valsAsFlat;
+    Vector com = COM();
+    for (int id : ids) {
+        Atom &a = state->idToAtom(id);
+        Vector posRel = a.pos - com;
+        valsAsFlat.push_back(posRel[0]);
+        valsAsFlat.push_back(posRel[1]);
+        valsAsFlat.push_back(posRel[2]);
+        
+        //Eigen::Vector3d relEig = posEig-comEig;
+
+    }
+    double axis_list[3];
+    for (int i=0; i<3; i++) {
+        axis_list[i] = axis[i];
+    }
+    E
+
     Eigen::Vector3d axisEig = {axis[0], axis[1], axis[2]};
     Eigen::AngleAxisd ax(theta, axisEig);
     Eigen::Matrix3d rot;
     rot = ax;
-    Vector com = COM();
     Eigen::Vector3d comEig= {com[0], com[1], com[2]};
     for (int id : ids) {
         Atom &a = state->idToAtom(id);
@@ -30,7 +49,9 @@ void Molecule::rotate(Vector axis, double theta) {
         relEig = rot * relEig;
         a.pos = Vector(relEig[0], relEig[1], relEig[2]) + com;
     }
+    */
 }
+
 
 void Molecule::rotateRandom() {
     std::uniform_real_distribution<double> dist(0, 1);

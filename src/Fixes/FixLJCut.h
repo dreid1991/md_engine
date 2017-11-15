@@ -41,8 +41,8 @@ class FixLJCut : public FixPair {
         void compute(int);
 
         //! Compute single point energy
-        void singlePointEng(float *);
-        void singlePointEngGroupGroup(float *, uint32_t, uint32_t);
+        void singlePointEng(real *);
+        void singlePointEngGroupGroup(real *, uint32_t, uint32_t);
 
         //! Prepare Fix
         /*!
@@ -76,16 +76,16 @@ class FixLJCut : public FixPair {
         void addSpecies(std::string handle);
 
         //! Return list of cutoff values
-        std::vector<float> getRCuts();
+        std::vector<real> getRCuts();
     public:
         void setEvalWrapper();
 
         const std::string epsHandle; //!< Handle for parameter epsilon
         const std::string sigHandle; //!< Handle for parameter sigma
         const std::string rCutHandle; //!< Handle for parameter rCut
-        std::vector<float> epsilons; //!< vector storing epsilon values
-        std::vector<float> sigmas; //!< vector storing sigma values
-        std::vector<float> rCuts; //!< vector storing cutoff distance values
+        std::vector<real> epsilons; //!< vector storing epsilon values
+        std::vector<real> sigmas; //!< vector storing sigma values
+        std::vector<real> rCuts; //!< vector storing cutoff distance values
 
         //EvaluatorLJ evaluator; //!< Evaluator for generic pair interactions
 

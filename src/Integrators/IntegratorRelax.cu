@@ -19,12 +19,12 @@ IntegratorRelax::IntegratorRelax(SHARED(State) state_)
 
 //kernels for FIRE relax
 //VDotF by hand
-__global__ void vdotF_cu(float *dest, float4 *vs,float4 *fs, int n) {
-    extern __shared__ float tmp[];  // should have length of # threads in a block (PERBLOCK)
+__global__ void vdotF_cu(real *dest, real4 *vs,real4 *fs, int n) {
+    extern __shared__ real tmp[];  // should have length of # threads in a block (PERBLOCK)
     int potentialIdx = blockDim.x*blockIdx.x + threadIdx.x;
     if (potentialIdx < n) {
-        tmp[threadIdx.x] = dot(make_float3(vs[blockDim.x*blockIdx.x + threadIdx.x]),
-                               make_float3(fs[blockDim.x*blockIdx.x + threadIdx.x]));
+        tmp[threadIdx.x] = dot(make_real3(vs[blockDim.x*blockIdx.x + threadIdx.x]),
+                               make_real3(fs[blockDim.x*blockIdx.x + threadIdx.x]));
     } else {
         tmp[threadIdx.x] = 0;
     }
@@ -43,42 +43,42 @@ __global__ void vdotF_cu(float *dest, float4 *vs,float4 *fs, int n) {
 }
 
 //update velocities
-__global__ void FIRE_new_vel_cu(int nAtoms, float4 *vs, float4 *fs, float scale1, float scale2) {
+__global__ void FIRE_new_vel_cu(int nAtoms, real4 *vs, real4 *fs, real scale1, real scale2) {
     int idx = GETIDX();
     if (idx < nAtoms) {
-        float4 vel = vs[idx];
-        float4 force = fs[idx];
-        float invmass = vel.w;
-        float4 newVel = vel*scale1 + force*scale2;
+        real4 vel = vs[idx];
+        real4 force = fs[idx];
+        real invmass = vel.w;
+        real4 newVel = vel*scale1 + force*scale2;
         newVel.w = invmass;
         vs[idx] = newVel;
     }
 }
 
 //zero velocities
-__global__ void zero_vel_cu(int nAtoms, float4 *vs) {
+__global__ void zero_vel_cu(int nAtoms, real4 *vs) {
     int idx = GETIDX();
     if (idx < nAtoms) {
-        float4 vel = vs[idx];
-        vs[idx] = make_float4(0.0f,0.0f,0.0f,vel.w);
+        real4 vel = vs[idx];
+        vs[idx] = make_real4(0.0f,0.0f,0.0f,vel.w);
     }
 }
 
 //MD step
-__global__ void FIRE_preForce_cu(int nAtoms, float4 *xs, float4 *vs, float4 *fs, float dt, float dtf) {
+__global__ void FIRE_preForce_cu(int nAtoms, real4 *xs, real4 *vs, real4 *fs, real dt, real dtf) {
     int idx = GETIDX();
     if (idx < nAtoms) {
 
 
-        float4 vel = vs[idx];
-        float4 force = fs[idx];
+        real4 vel = vs[idx];
+        real4 force = fs[idx];
 
-        float invmass = vel.w;
-        float groupTag = force.w;
-        xs[idx] = xs[idx] + make_float3(vel) * dt;
-        float3 newVel = make_float3(force) * dtf * invmass;
+        real invmass = vel.w;
+        real groupTag = force.w;
+        xs[idx] = xs[idx] + make_real3(vel) * dt;
+        real3 newVel = make_real3(force) * dtf * invmass;
         vs[idx] = vel + newVel;
-        fs[idx] = make_float4(0, 0, 0, groupTag);
+        fs[idx] = make_real4(0, 0, 0, groupTag);
     }
 }
 
@@ -127,15 +127,15 @@ double IntegratorRelax::run(int numTurns, double fTol) {
     int turnInit = state->turn; 
 
     //set velocity to 0
-    // 	state->gpd.vs.memsetByVal(make_float3(0.0f,0.0f,0.0f);
+    // 	state->gpd.vs.memsetByVal(make_real3(0.0f,0.0f,0.0f);
     zero_vel_cu<<<nblock, PERBLOCK>>>(atomssize,state->gpd.vs.getDevData());
     CUT_CHECK_ERROR("zero_vel_cu kernel execution failed");
 
     //vars to store kernels outputs
-    GPUArrayGlobal<float>VDotV(1);
-    GPUArrayGlobal<float>VDotF(1);
-    GPUArrayGlobal<float>FDotF(1);
-    GPUArrayGlobal<float>force(1);
+    GPUArrayGlobal<real>VDotV(1);
+    GPUArrayGlobal<real>VDotF(1);
+    GPUArrayGlobal<real>FDotF(1);
+    GPUArrayGlobal<real>force(1);
 
     //neighborlist build
     state->gridGPU.periodicBoundaryConditions(-1, true);
@@ -154,7 +154,7 @@ double IntegratorRelax::run(int numTurns, double fTol) {
         }
         asyncOperations();
 
-        vdotF_cu <<<nblock,PERBLOCK,sizeof(float)*PERBLOCK>>>(
+        vdotF_cu <<<nblock,PERBLOCK,sizeof(real)*PERBLOCK>>>(
                     VDotF.getDevData(),
                     state->gpd.vs.getDevData(),
                     state->gpd.fs.getDevData(),
@@ -164,7 +164,7 @@ double IntegratorRelax::run(int numTurns, double fTol) {
 
         if (VDotF.h_data[0] > 0) {
             //VdotV calc
-            accumulate_gpu<float, float4, SumVectorSqr3D, N_DATA_PER_THREAD> <<<NBLOCK(atomssize / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*sizeof(float)*PERBLOCK>>> 
+            accumulate_gpu<real, real4, SumVectorSqr3D, N_DATA_PER_THREAD> <<<NBLOCK(atomssize / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*sizeof(real)*PERBLOCK>>> 
                 (
                  VDotV.getDevData(),
                  state->gpd.vs.getDevData(),
@@ -175,7 +175,7 @@ double IntegratorRelax::run(int numTurns, double fTol) {
 
 
             /*
-            sumVectorSqr3D<float,float4, N_DATA_PER_THREAD> <<<NBLOCK(atomssize/(double)N_DATA_PER_THREAD),PERBLOCK,N_DATA_PER_THREAD*sizeof(float)*PERBLOCK>>>(
+            sumVectorSqr3D<real,real4, N_DATA_PER_THREAD> <<<NBLOCK(atomssize/(double)N_DATA_PER_THREAD),PERBLOCK,N_DATA_PER_THREAD*sizeof(real)*PERBLOCK>>>(
                                             VDotV.getDevData(),
                                             state->gpd.vs.getDevData(),
                                             atomssize,
@@ -185,7 +185,7 @@ double IntegratorRelax::run(int numTurns, double fTol) {
             VDotV.dataToHost();
 
             //FdotF
-            accumulate_gpu<float, float4, SumVectorSqr3D, N_DATA_PER_THREAD> <<<NBLOCK(atomssize / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*sizeof(float)*PERBLOCK>>> 
+            accumulate_gpu<real, real4, SumVectorSqr3D, N_DATA_PER_THREAD> <<<NBLOCK(atomssize / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*sizeof(real)*PERBLOCK>>> 
                 (
                  FDotF.getDevData(),
                  state->gpd.fs.getDevData(),
@@ -195,7 +195,7 @@ double IntegratorRelax::run(int numTurns, double fTol) {
                 );
 
             /*
-            sumVectorSqr3D<float,float4, N_DATA_PER_THREAD> <<<NBLOCK(atomssize/(double)N_DATA_PER_THREAD),PERBLOCK,N_DATA_PER_THREAD*sizeof(float)*PERBLOCK>>>(
+            sumVectorSqr3D<real,real4, N_DATA_PER_THREAD> <<<NBLOCK(atomssize/(double)N_DATA_PER_THREAD),PERBLOCK,N_DATA_PER_THREAD*sizeof(real)*PERBLOCK>>>(
                                             FDotF.getDevData(),
                                             state->gpd.fs.getDevData(),
                                             atomssize,
@@ -204,8 +204,8 @@ double IntegratorRelax::run(int numTurns, double fTol) {
             CUT_CHECK_ERROR("fdotF_cu kernel execution failed");
             FDotF.dataToHost();
 
-            float scale1 = 1 - alpha;
-            float scale2 = 0;
+            real scale1 = 1 - alpha;
+            real scale2 = 0;
             cudaDeviceSynchronize();
             if (FDotF.h_data[0] != 0) {
                 scale2 = alpha * sqrt(VDotV.h_data[0] / FDotF.h_data[0]);
@@ -228,7 +228,7 @@ double IntegratorRelax::run(int numTurns, double fTol) {
             dt *= dtShrink;
             alpha = alphaInit;
             //set velocity to 0
-            //state->gpd.vs.memsetByVal(make_float3(0.0f,0.0f,0.0f);
+            //state->gpd.vs.memsetByVal(make_real3(0.0f,0.0f,0.0f);
             zero_vel_cu <<<nblock, PERBLOCK>>>(atomssize, state->gpd.vs.getDevData());
             CUT_CHECK_ERROR("zero_vel_cu kernel execution failed");
 
@@ -247,7 +247,7 @@ double IntegratorRelax::run(int numTurns, double fTol) {
         if (fTol > 0 and i > delay and not (i%delay)) { //only check every so often
             //total force calc
             force.memsetByVal(0.0);
-            accumulate_gpu<float, float4, SumVectorSqr3D, N_DATA_PER_THREAD> <<<NBLOCK(atomssize/(double)N_DATA_PER_THREAD),PERBLOCK,N_DATA_PER_THREAD*sizeof(float)*PERBLOCK>>> 
+            accumulate_gpu<real, real4, SumVectorSqr3D, N_DATA_PER_THREAD> <<<NBLOCK(atomssize/(double)N_DATA_PER_THREAD),PERBLOCK,N_DATA_PER_THREAD*sizeof(real)*PERBLOCK>>> 
                 (
                  force.getDevData(),
                  state->gpd.fs.getDevData(),
@@ -256,7 +256,7 @@ double IntegratorRelax::run(int numTurns, double fTol) {
                  SumVectorSqr3D()
                 );
             /*
-            sumVectorSqr3D<float,float4, N_DATA_PER_THREAD> <<<NBLOCK(atomssize/(double)N_DATA_PER_THREAD),PERBLOCK,N_DATA_PER_THREAD*sizeof(float)*PERBLOCK>>>(
+            sumVectorSqr3D<real,real4, N_DATA_PER_THREAD> <<<NBLOCK(atomssize/(double)N_DATA_PER_THREAD),PERBLOCK,N_DATA_PER_THREAD*sizeof(real)*PERBLOCK>>>(
                                         force.getDevData(),
                                         state->gpd.fs.getDevData(),
                                         atomssize,
@@ -270,7 +270,7 @@ double IntegratorRelax::run(int numTurns, double fTol) {
 
             if (force.h_data[0] < fTol*fTol) {//tolerance achived, exting
                 basicFinish();
-                float finalForce = sqrt(force.h_data[0]);
+                real finalForce = sqrt(force.h_data[0]);
                 std::cout<<"FIRE relax done: force="<< finalForce <<"; turns="<<i+1<<'\n';
                 return finalForce;
             }
@@ -288,7 +288,7 @@ double IntegratorRelax::run(int numTurns, double fTol) {
     }
     //total force calculation
     force.memsetByVal(0.0);
-    accumulate_gpu<float, float4, SumVectorSqr3D, N_DATA_PER_THREAD> <<<NBLOCK(atomssize/(double)N_DATA_PER_THREAD),PERBLOCK,N_DATA_PER_THREAD*sizeof(float)*PERBLOCK>>> 
+    accumulate_gpu<real, real4, SumVectorSqr3D, N_DATA_PER_THREAD> <<<NBLOCK(atomssize/(double)N_DATA_PER_THREAD),PERBLOCK,N_DATA_PER_THREAD*sizeof(real)*PERBLOCK>>> 
         (
          force.getDevData(),
          state->gpd.fs.getDevData(),
@@ -297,7 +297,7 @@ double IntegratorRelax::run(int numTurns, double fTol) {
          SumVectorSqr3D()
         );
     /*
-    sumVectorSqr3D<float,float4, N_DATA_PER_THREAD> <<<NBLOCK(atomssize/(double)N_DATA_PER_THREAD),PERBLOCK,N_DATA_PER_THREAD*sizeof(float)*PERBLOCK>>>(
+    sumVectorSqr3D<real,real4, N_DATA_PER_THREAD> <<<NBLOCK(atomssize/(double)N_DATA_PER_THREAD),PERBLOCK,N_DATA_PER_THREAD*sizeof(real)*PERBLOCK>>>(
                                   force.getDevData(),
                                   state->gpd.fs.getDevData(),
                                   atomssize,
@@ -307,7 +307,7 @@ double IntegratorRelax::run(int numTurns, double fTol) {
 
     basicFinish();
     cudaDeviceSynchronize();
-    float finalForce = sqrt(force.h_data[0]) / atomssize;
+    real finalForce = sqrt(force.h_data[0]) / atomssize;
     std::cout << "FIRE relax done: force=" << finalForce 
               << "; turns=" << numTurns << std::endl;
 

@@ -11,8 +11,8 @@ class FixExternalHarmonic : public FixExternal {
 	public:
 		FixExternalHarmonic(SHARED(State), std::string handle_, std::string groupHandle_,
 							Vector k_, Vector r0_);
-	    float3 k;    // component-wise coefficent from harmonic potential
-	    float3 r0;   // origin for harmonic potential
+	    real3 k;    // component-wise coefficent from harmonic potential
+	    real3 r0;   // origin for harmonic potential
 	    	
         void compute(int);
 
@@ -20,7 +20,7 @@ class FixExternalHarmonic : public FixExternal {
 	    	
         bool postRun();
 
-        void singlePointEng(float *);
+        void singlePointEng(real *);
 
 	    EvaluatorExternalHarmonic evaluator; // evaluator for harmonic wall interactions
 

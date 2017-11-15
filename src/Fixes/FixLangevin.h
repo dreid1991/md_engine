@@ -23,7 +23,7 @@ class State;
 class FixLangevin : public Interpolator, public Fix {
 private:
     int seed;
-    float gamma;
+    real gamma;
     void setDefaults();
     GPUArrayDeviceGlobal<curandState_t> randStates;
 public:

@@ -2,8 +2,7 @@
 #include "boost_for_export.h"
 
 #include <iostream>
-using namespace std;
-using namespace boost::python;
+namespace py = boost::python;
 DeviceManager::DeviceManager() {
     cudaGetDeviceCount(&nDevices);
     setDevice(nDevices-1);
@@ -16,18 +15,18 @@ bool DeviceManager::setDevice(int i, bool output) {
         cudaGetDeviceProperties(&prop, i);
         currentDevice = i;
         if (output) {
-            cout << "Selecting device " << i<<" " << prop.name << endl;
+            std::cout << "Selecting device " << i<<" " << prop.name << std::endl;
         }
         return true;
     }
     return false;
 }
 void export_DeviceManager() {
-    class_<DeviceManager, boost::noncopyable>("DeviceManager", no_init)
+    py::class_<DeviceManager, boost::noncopyable>("DeviceManager", py::no_init)
         
         .def_readonly("nDevices", &DeviceManager::nDevices)
         .def_readonly("currentDevice", &DeviceManager::currentDevice)
-        .def("setDevice", &DeviceManager::setDevice, (boost::python::arg("i"), boost::python::arg("output")=true ))
+        .def("setDevice", &DeviceManager::setDevice, (py::arg("i"), py::arg("output")=true ))
         ;
 
 }

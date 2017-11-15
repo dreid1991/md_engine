@@ -21,7 +21,7 @@ class Dihedral{
 
 class DihedralOPLSType {
     public:
-        float coefs[4];
+        real coefs[4];
         DihedralOPLSType(DihedralOPLS *);
         DihedralOPLSType(){};
         bool operator==(const DihedralOPLSType &) const;
@@ -39,9 +39,9 @@ class DihedralOPLS : public Dihedral, public DihedralOPLSType {
 
 class DihedralCHARMMType {
     public:
-        float k;
+        real k;
         int n;
-        float d;
+        real d;
         DihedralCHARMMType(DihedralCHARMM *);
         DihedralCHARMMType(){};
         bool operator==(const DihedralCHARMMType &) const;

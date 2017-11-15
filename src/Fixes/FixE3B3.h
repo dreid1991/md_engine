@@ -77,7 +77,7 @@ class FixE3B3: public Fix {
 
         bool stepInit();
 
-        //void singlePointEng(float *);
+        //void singlePointEng(real *);
 
         void compute(int);
         

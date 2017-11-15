@@ -12,10 +12,10 @@ void export_FixWallHarmonic();
 class FixWallHarmonic : public FixWall {
 	public:
 		FixWallHarmonic(SHARED(State), std::string handle_, std::string groupHandle_,
-							Vector origin_, Vector forceDir_, float dist_, float k_);
-		float dist;
+							Vector origin_, Vector forceDir_, real dist_, real k_);
+		real dist;
 
-		float k;
+		real k;
 		
         void compute(int);
 
@@ -23,7 +23,7 @@ class FixWallHarmonic : public FixWall {
 		
         bool postRun();
 
-        void singlePointEng(float *);
+        void singlePointEng(real *);
 
 		EvaluatorWallHarmonic evaluator; // evaluator for harmonic wall interactions
 

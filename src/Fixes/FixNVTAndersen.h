@@ -27,7 +27,7 @@ class FixNVTAndersen : public Interpolator, public Fix {
 
 private:
     int   seed;
-    float nudt;
+    real nudt;
     void setDefaults();
     GPUArrayDeviceGlobal<curandState_t> randStates;
     BoundsGPU boundsGPU;
@@ -39,9 +39,9 @@ private:
 
 public:
     boost::shared_ptr<Bounds> thermoBounds;
-    FixNVTAndersen(boost::shared_ptr<State>, std::string handle_, std::string groupHandle_, boost::python::list intervals, boost::python::list temps_, float nu_= 0.01 , int applyEvery = 10);
-    FixNVTAndersen(boost::shared_ptr<State>, std::string handle_, std::string groupHandle_, boost::python::object tempFunc_, float nu_ = 0.01 , int applyEvery = 10);
-    FixNVTAndersen(boost::shared_ptr<State>, std::string handle_, std::string groupHandle_, double temp_, float nu_ = 0.01 , int applyEvery = 10);
+    FixNVTAndersen(boost::shared_ptr<State>, std::string handle_, std::string groupHandle_, boost::python::list intervals, boost::python::list temps_, real nu_= 0.01 , int applyEvery = 10);
+    FixNVTAndersen(boost::shared_ptr<State>, std::string handle_, std::string groupHandle_, boost::python::object tempFunc_, real nu_ = 0.01 , int applyEvery = 10);
+    FixNVTAndersen(boost::shared_ptr<State>, std::string handle_, std::string groupHandle_, double temp_, real nu_ = 0.01 , int applyEvery = 10);
     Interpolator *getInterpolator(std::string);
     void setParams(double seed);
 

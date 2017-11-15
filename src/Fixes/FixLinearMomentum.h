@@ -14,7 +14,7 @@ void export_FixLinearMomentum();
 class FixLinearMomentum : public Fix {
 
 private:
-    GPUArrayDeviceGlobal<float4> sumMomentum;
+    GPUArrayDeviceGlobal<real4> sumMomentum;
     Vector dimensions;
 
     bool prepareForRun();

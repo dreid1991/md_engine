@@ -196,4 +196,15 @@ struct SharedMemory <float4>
         return s_float4;
     }
 };
+
+template <>
+struct SharedMemory <double4>
+{
+    __device__ double4 *getPointer()
+    {
+        extern __shared__ double4 s_double4[];
+        return s_double4;
+    }
+};
+
 #endif //_SHAREDMEM_H_

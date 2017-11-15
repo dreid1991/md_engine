@@ -11,81 +11,81 @@ const std::string ARITHMETICTYPE = "arithmetic";
 const std::string GEOMETRICTYPE = "geometric";
 
 void FixPair::prepareParameters(std::string handle,
-                                std::function<float (float, float)> fillFunction,
-                                std::function<float (float)> processFunction,
+                                std::function<real (real, real)> fillFunction,
+                                std::function<real (real)> processFunction,
                                 bool fillDiag,
-                                std::function<float ()> fillDiagFunction)
+                                std::function<real ()> fillDiagFunction)
 {
-    std::vector<float> &preProc = *paramMap[handle];
-    std::vector<float> *postProc = &paramMapProcessed[handle];
+    std::vector<real> &preProc = *paramMap[handle];
+    std::vector<real> *postProc = &paramMapProcessed[handle];
     int desiredSize = state->atomParams.numTypes;
 
     *postProc = preProc;
     ensureParamSize(*postProc);
     if (fillDiag) {
-        SquareVector::populateDiagonal<float>(postProc, desiredSize, fillDiagFunction);
+        SquareVector::populateDiagonal<real>(postProc, desiredSize, fillDiagFunction);
     }
     //populate will fill off-diagonal terms
-    SquareVector::populate<float>(postProc, desiredSize, fillFunction);
+    SquareVector::populate<real>(postProc, desiredSize, fillFunction);
     //process will perform unary operations on parameters, like converting rCut to rCut^2
-    SquareVector::process<float>(postProc, desiredSize, processFunction);
+    SquareVector::process<real>(postProc, desiredSize, processFunction);
     
     //okay, now ready to go to device!
 
 }
 
 void FixPair::prepareParameters(std::string handle,
-                                std::function<float (float)> processFunction)
+                                std::function<real (real)> processFunction)
 {
-    std::vector<float> &preProc = *paramMap[handle];
-    std::vector<float> *postProc = &paramMapProcessed[handle];
+    std::vector<real> &preProc = *paramMap[handle];
+    std::vector<real> *postProc = &paramMapProcessed[handle];
     int desiredSize = state->atomParams.numTypes;
 
     *postProc = preProc;
     ensureParamSize(*postProc);
-    SquareVector::check_populate<float>(postProc, desiredSize);
-    SquareVector::process<float>(postProc, desiredSize, processFunction);
+    SquareVector::check_populate<real>(postProc, desiredSize);
+    SquareVector::process<real>(postProc, desiredSize, processFunction);
 }
 
 void FixPair::prepareParameters(std::string handle,
-                                std::function<float (int, int)>  fillFunction)
+                                std::function<real (int, int)>  fillFunction)
 {
-    //std::vector<float> &array = *paramMap[handle];
+    //std::vector<real> &array = *paramMap[handle];
     //int desiredSize = state->atomParams.numTypes;
     //ensureParamSize(array);
-    std::vector<float> &preProc = *paramMap[handle];
-    std::vector<float> *postProc = &paramMapProcessed[handle];
+    std::vector<real> &preProc = *paramMap[handle];
+    std::vector<real> *postProc = &paramMapProcessed[handle];
     int desiredSize = state->atomParams.numTypes;
 
     *postProc = preProc;
     ensureParamSize(*postProc);
-    SquareVector::populate<float>(postProc, desiredSize, fillFunction);
+    SquareVector::populate<real>(postProc, desiredSize, fillFunction);
 }
 
 void FixPair::prepareParameters_from_other(std::string handle,
-                                std::function<float (int,int)> fillFunction,
-                                std::function<float (float)> processFunction,
+                                std::function<real (int,int)> fillFunction,
+                                std::function<real (real)> processFunction,
                                 bool fillDiag,
                                 std::function<int ()> fillDiagFunction)
 {
-    std::vector<float> &preProc = *paramMap[handle];
-    std::vector<float> *postProc = &paramMapProcessed[handle];
+    std::vector<real> &preProc = *paramMap[handle];
+    std::vector<real> *postProc = &paramMapProcessed[handle];
     int desiredSize = state->atomParams.numTypes;
 
     *postProc = preProc;
     ensureParamSize(*postProc);
     if (fillDiag) {
-        SquareVector::populateDiagonal<float>(postProc, desiredSize, fillDiagFunction);
+        SquareVector::populateDiagonal<real>(postProc, desiredSize, fillDiagFunction);
     }
-    SquareVector::populate<float>(postProc, desiredSize, fillFunction);
-    SquareVector::process<float>(postProc, desiredSize, processFunction);
+    SquareVector::populate<real>(postProc, desiredSize, fillFunction);
+    SquareVector::process<real>(postProc, desiredSize, processFunction);
     
     //okay, now ready to go to device!
 
 }
 
 void FixPair::acceptChargePairCalc(Fix *chargeFix) {
-    std::vector<float> cutoffs = chargeFix->getRCuts();
+    std::vector<real> cutoffs = chargeFix->getRCuts();
     mdAssert(cutoffs.size()==1, "Charge fix gave multiple rcutoffs.  This is a bug.");
     chargeRCut = cutoffs[0];
 
@@ -93,16 +93,16 @@ void FixPair::acceptChargePairCalc(Fix *chargeFix) {
     //setEvalWrapper(); done in integrator after prepareForRun is done
 
 }
-void FixPair::ensureParamSize(std::vector<float> &array)
+void FixPair::ensureParamSize(std::vector<real> &array)
 {
     int desiredSize = state->atomParams.numTypes;
     if (array.size() != desiredSize*desiredSize) {
-        std::vector<float> newVals = SquareVector::copyToSize(
+        std::vector<real> newVals = SquareVector::copyToSize(
                 array,
                 sqrt((double) array.size()),
                 state->atomParams.numTypes
                 );
-        std::vector<float> *asPtr = &array;
+        std::vector<real> *asPtr = &array;
         *(&array) = newVals;
     }
 }
@@ -122,10 +122,10 @@ void FixPair::sendAllToDevice() {
         totalSize += it->second.size(); 
 
     }
-    paramsCoalesced = GPUArrayDeviceGlobal<float>(totalSize);
+    paramsCoalesced = GPUArrayDeviceGlobal<real>(totalSize);
     int runningSize = 0;
     for (std::string handle : paramOrder) {
-        std::vector<float> &vals = paramMapProcessed[handle];
+        std::vector<real> &vals = paramMapProcessed[handle];
         paramsCoalesced.set(vals.data(), runningSize, vals.size());
         runningSize += vals.size();
     }
@@ -143,7 +143,7 @@ bool FixPair::setParameter(std::string param,
     }
     if (paramMap.find(param) != paramMap.end()) {
         int numTypes = state->atomParams.numTypes;
-        std::vector<float> &arr = *(paramMap[param]);
+        std::vector<real> &arr = *(paramMap[param]);
         ensureParamSize(arr);
         if (i>=numTypes or j>=numTypes or i<0 or j<0) {
             std::cout << "Tried to set param " << param
@@ -153,8 +153,8 @@ bool FixPair::setParameter(std::string param,
                       << " species." << std::endl;
             return false;
         }
-        squareVectorRef<float>(arr.data(), numTypes, i, j) = val;
-        squareVectorRef<float>(arr.data(), numTypes, j, i) = val;
+        squareVectorRef<real>(arr.data(), numTypes, i, j) = val;
+        squareVectorRef<real>(arr.data(), numTypes, j, i) = val;
         return true;
     } 
     return false;
@@ -174,7 +174,7 @@ double FixPair::getParameter(std::string param,
     }
     if (paramMap.find(param) != paramMap.end()) {
         int numTypes = state->atomParams.numTypes;
-        std::vector<float> &arr = *(paramMap[param]);
+        std::vector<real> &arr = *(paramMap[param]);
         if (i>=numTypes or j>=numTypes or i<0 or j<0) {
             std::cout << "Tried to get param " << param
                       << " for invalid atom types " << handleA
@@ -184,7 +184,7 @@ double FixPair::getParameter(std::string param,
             exit(1);
             return -1;
         }
-        return squareVectorItem<float>(arr.data(), numTypes, i, j);
+        return squareVectorItem<real>(arr.data(), numTypes, i, j);
     } 
     std::cout << "Tried to get parameter " << param << " for species " << handleA << " and " << handleB << ".  Invalid combination of parameter, species." << std::endl;
     exit(1);
@@ -192,10 +192,10 @@ double FixPair::getParameter(std::string param,
 
 }
 void FixPair::initializeParameters(std::string paramHandle,
-                                   std::vector<float> &params) {
+                                   std::vector<real> &params) {
     ensureParamSize(params);
     paramMap[paramHandle] = &params;
-    paramMapProcessed[paramHandle] = std::vector<float>();
+    paramMapProcessed[paramHandle] = std::vector<real>();
 }
 
 
@@ -213,9 +213,9 @@ bool FixPair::readFromRestart() {
                     std::cout << "Tried to read bad restart data for fix " << handle << ".  Data type " << paramHandle << std::endl;
                 }
                 mdAssert(it != paramOrder.end(), "Invalid restart data for fix");
-                std::vector<float> *params = paramMap[paramHandle];
+                std::vector<real> *params = paramMap[paramHandle];
                 ensureParamSize(*params);
-                std::vector<float> src = xml_readNums<float>(curr_param);
+                std::vector<real> src = xml_readNums<real>(curr_param);
                 assert(params->size() >= src.size());
                 for (int i=0; i<src.size(); i++) {
                     (*params)[i] = src[i];
@@ -246,7 +246,7 @@ std::string FixPair::restartChunkPairParams(std::string format) {
            // }
         }
         /*
-        for (float x : *(it->second)) {
+        for (real x : *(it->second)) {
             std::cout << "Parameter: " << x << std::endl;
               ss << x << "\n";
         }*/

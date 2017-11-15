@@ -8,8 +8,8 @@ class DihedralEvaluatorOPLS {
     public:
         //dihedralType, phi, c, scValues, invLenSqrs, c12Mags, c0,
 
-                //float3 myForce = evaluator.force(dihedralType, phi, c, scValues, invLenSqrs, c12Mags, c0, c, invMagProds, c12Mags, invLens, directors, myIdxInDihedral);
-        inline __device__ float dPotential(DihedralOPLSType dihedralType, float phi) {
+                //real3 myForce = evaluator.force(dihedralType, phi, c, scValues, invLenSqrs, c12Mags, c0, c, invMagProds, c12Mags, invLens, directors, myIdxInDihedral);
+        inline __device__ real dPotential(DihedralOPLSType dihedralType, real phi) {
     //LAMMPS pre-multiplies all of its coefs by 0.5.  We're doing it in the kernel.
             return -0.5 * (
                     dihedralType.coefs[0] * sinf(phi)
@@ -22,20 +22,8 @@ class DihedralEvaluatorOPLS {
 
 
         // 
-        inline __device__ double dPotential(DihedralOPLSType dihedralType, double phi) {
-    //LAMMPS pre-multiplies all of its coefs by 0.5.  We're doing it in the kernel.
-            return -0.5 * (
-                    double(dihedralType.coefs[0]) * sin(phi)
-                    - 2.0f * double(dihedralType.coefs[1]) * sin(2.0f*phi) 
-                    + 3.0f * double(dihedralType.coefs[2]) * sin(3.0f*phi)
-                    - 4.0f * double(dihedralType.coefs[3]) * sin(4.0f*phi)
-                    )
-                ;
-        }
 
-
-
-        inline __device__ float potential(DihedralOPLSType dihedralType, float phi) {
+        inline __device__ real potential(DihedralOPLSType dihedralType, real phi) {
             return  0.5 * (
                            dihedralType.coefs[0] * (1.0f + cosf(phi))
                            + dihedralType.coefs[1] * (1.0f - cosf(2.0f*phi))

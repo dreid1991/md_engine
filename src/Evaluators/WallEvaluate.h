@@ -4,24 +4,24 @@
 
 
 template <class EVALUATOR, bool COMPUTE_VIRIALS>
-__global__ void compute_wall_iso(int nAtoms,float4 *xs, float4 *fs,float3 origin,
-		float3 forceDir,  uint groupTag, EVALUATOR eval) {
+__global__ void compute_wall_iso(int nAtoms,real4 *xs, real4 *fs,real3 origin,
+		real3 forceDir,  uint groupTag, EVALUATOR eval) {
 
 
 	int idx = GETIDX();
 	if (idx < nAtoms) {
-		float4 forceWhole = fs[idx];
+		real4 forceWhole = fs[idx];
 		uint groupTagAtom = * (uint *) &forceWhole.w;
 		// if this atom is assigned to the group affected by this wall fix, then..
 		if (groupTagAtom & groupTag) {
-			float4 posWhole = xs[idx];
-			float3 pos = make_float3(posWhole);
-			float3 particleDist = pos - origin;
-			float projection = dot(particleDist, forceDir);
-			float magProj = cu_abs(projection);
-            float3 force = eval.force(magProj, forceDir);
+			real4 posWhole = xs[idx];
+			real3 pos = make_real3(posWhole);
+			real3 particleDist = pos - origin;
+			real projection = dot(particleDist, forceDir);
+			real magProj = cu_abs(projection);
+            real3 force = eval.force(magProj, forceDir);
 
-            float4 f = fs[idx];
+            real4 f = fs[idx];
             if (projection >= 0) {
                 f = f + force;
             } else {

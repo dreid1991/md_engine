@@ -7,7 +7,6 @@
 
 namespace py=boost::python;
 
-using namespace std;
 
 void FixNVTAndersen::setDefaults() {
     seed=0;
@@ -15,7 +14,7 @@ void FixNVTAndersen::setDefaults() {
 
 const std::string NVTAndersenType = "NVTAndersen";
 
-FixNVTAndersen::FixNVTAndersen(SHARED(State) state_, string handle_, string groupHandle_, py::list intervals_, py::list temps_, float nu_, int applyEvery_)
+FixNVTAndersen::FixNVTAndersen(SHARED(State) state_, std::string handle_, std::string groupHandle_, py::list intervals_, py::list temps_, real nu_, int applyEvery_)
     : Fix(state_, handle_, groupHandle_, NVTAndersenType, false, false, false, applyEvery_),
       Interpolator(intervals_, temps_), 
       tempComputer(state, "scalar")
@@ -25,7 +24,7 @@ FixNVTAndersen::FixNVTAndersen(SHARED(State) state_, string handle_, string grou
     nudt         = state_->dt * nu_; 
 }
 
-FixNVTAndersen::FixNVTAndersen(SHARED(State) state_, string handle_, string groupHandle_, py::object tempFunc_, float nu_, int applyEvery_)
+FixNVTAndersen::FixNVTAndersen(SHARED(State) state_, std::string handle_, std::string groupHandle_, py::object tempFunc_, real nu_, int applyEvery_)
     : Fix(state_, handle_, groupHandle_, NVTAndersenType, false, false, false, applyEvery_),
       Interpolator(tempFunc_), 
       tempComputer(state, "scalar")
@@ -35,7 +34,7 @@ FixNVTAndersen::FixNVTAndersen(SHARED(State) state_, string handle_, string grou
     nudt         = state_->dt * nu_; 
 }
 
-FixNVTAndersen::FixNVTAndersen(SHARED(State) state_, string handle_, string groupHandle_, double constTemp_, float nu_, int applyEvery_)
+FixNVTAndersen::FixNVTAndersen(SHARED(State) state_, std::string handle_, std::string groupHandle_, double constTemp_, real nu_, int applyEvery_)
     : Fix(state_, handle_, groupHandle_, NVTAndersenType, false, false, false, applyEvery_),
       Interpolator(constTemp_), 
       tempComputer(state, "scalar")
@@ -61,17 +60,17 @@ bool FixNVTAndersen::prepareForRun() {
     return prepared;
 }
 
-void __global__ resample_no_tags_cu(int nAtoms, float4 *vs, curandState_t *randStates, float tempSet, float nudt, float boltz, float mvv_to_e) {
+void __global__ resample_no_tags_cu(int nAtoms, real4 *vs, curandState_t *randStates, real tempSet, real nudt, real boltz, real mvv_to_e) {
     int idx = GETIDX();
     if (tempSet > 0 and idx < nAtoms) {
         curandState_t *randState = randStates + idx;
         curandState_t localState=*randState;
         if ( curand_uniform(&localState) <= nudt ) {
             // resample from Boltzmann distribution
-            float4 vnew    = vs[idx];
-            float  invmass = vnew.w;
-            float  sigma   = sqrtf(boltz * tempSet * invmass / mvv_to_e);
-                float sx; float sy; float sz;
+            real4 vnew    = vs[idx];
+            real  invmass = vnew.w;
+            real  sigma   = sqrtf(boltz * tempSet * invmass / mvv_to_e);
+                real sx; real sy; real sz;
                 sx = curand_normal(&localState);
                 sy = curand_normal(&localState);
                 sz = curand_normal(&localState);
@@ -84,7 +83,7 @@ void __global__ resample_no_tags_cu(int nAtoms, float4 *vs, curandState_t *randS
     }
 }
 
-void __global__ resample_cu(int nAtoms, uint groupTag, float4 *vs, float4 *fs, curandState_t *randStates, float tempSet, float nudt, float boltz, float mvv_to_e) {
+void __global__ resample_cu(int nAtoms, uint groupTag, real4 *vs, real4 *fs, curandState_t *randStates, real tempSet, real nudt, real boltz, real mvv_to_e) {
 
     int idx = GETIDX();
     if (tempSet > 0 and idx < nAtoms) {
@@ -94,10 +93,10 @@ void __global__ resample_cu(int nAtoms, uint groupTag, float4 *vs, float4 *fs, c
         if (groupTag & groupTagAtom) {
             if ( curand_uniform(&localState) <= nudt ) {
                 // resample from Boltzmann distribution
-                float4 vnew    = vs[idx];
-                float  invmass = vnew.w;
-                float  sigma   = sqrtf(boltz * tempSet * invmass / mvv_to_e);
-                float sx; float sy; float sz;
+                real4 vnew    = vs[idx];
+                real  invmass = vnew.w;
+                real  sigma   = sqrtf(boltz * tempSet * invmass / mvv_to_e);
+                real sx; real sy; real sz;
                 sx = curand_normal(&localState);
                 sy = curand_normal(&localState);
                 sz = curand_normal(&localState);
@@ -154,19 +153,19 @@ Interpolator *FixNVTAndersen::getInterpolator(std::string type) {
 void export_FixNVTAndersen() {
     py::class_<FixNVTAndersen, SHARED(FixNVTAndersen), py::bases<Fix>, boost::noncopyable > (
         "FixNVTAndersen", 
-        py::init<boost::shared_ptr<State>, string, string, py::list, py::list, py::optional<float,int> >(
+        py::init<boost::shared_ptr<State>, std::string, std::string, py::list, py::list, py::optional<real,int> >(
             py::args("state", "handle", "groupHandle", "intervals", "temps","nu", "applyEvery")
             )
 
         
     )
    
-    .def(py::init<boost::shared_ptr<State>, string, string, py::object, py::optional<float,int> >(
+    .def(py::init<boost::shared_ptr<State>, std::string, std::string, py::object, py::optional<real,int> >(
                 
             py::args("state", "handle", "groupHandle", "tempFunc","nu","applyEvery")
                 )
             )
-    .def(py::init<boost::shared_ptr<State>, string, string, double, py::optional<float,int> >(
+    .def(py::init<boost::shared_ptr<State>, std::string, std::string, double, py::optional<real,int> >(
             py::args("state", "handle", "groupHandle", "temp","nu", "applyEvery")
                 )
             )

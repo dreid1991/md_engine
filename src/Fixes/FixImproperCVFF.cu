@@ -5,12 +5,11 @@
 #define SMALL 0.001f
 #include "ImproperEvaluate.h"
 namespace py = boost::python;
-using namespace std;
 
 const std::string improperCVFFType = "ImproperCVFF";
 
 
-FixImproperCVFF::FixImproperCVFF(SHARED(State) state_, string handle)
+FixImproperCVFF::FixImproperCVFF(SHARED(State) state_, std::string handle)
     : FixPotentialMultiAtom (state_, handle, improperCVFFType, true) {
         readFromRestart();
 
@@ -30,7 +29,7 @@ void FixImproperCVFF::compute(int virialMode) {
         }
     }
 }
-void FixImproperCVFF::singlePointEng(float *perParticleEng) {
+void FixImproperCVFF::singlePointEng(real *perParticleEng) {
     int nAtoms = state->atoms.size();
     int activeIdx = state->gpd.activeIdx();
     if (forcersGPU.size()) {
@@ -40,7 +39,7 @@ void FixImproperCVFF::singlePointEng(float *perParticleEng) {
 }
 
 void FixImproperCVFF::createImproper(Atom *a, Atom *b, Atom *c, Atom *d, double k, int dParam, int n, int type) {
-    vector<Atom *> atoms = {a, b, c, d};
+    std::vector<Atom *> atoms = {a, b, c, d};
     validAtoms(atoms);
     if (type == -1) {
         assert(k!=COEF_DEFAULT and (dParam==1 or dParam==-1) and n!=COEF_DEFAULT);
@@ -67,13 +66,13 @@ bool FixImproperCVFF::readFromRestart() {
                     int d;
                     int n;
                     std::string type_ = type_node.attribute("id").value();
-                    type = atoi(type_.c_str());
+                    type = std::atoi(type_.c_str());
                     std::string k_ = type_node.attribute("k").value();
                     std::string d_ = type_node.attribute("d").value();
                     std::string n_ = type_node.attribute("n").value();
-                    k = atof(k_.c_str());
-                    d = atof(d_.c_str());
-                    n = atof(n_.c_str());
+                    k = std::atof(k_.c_str());
+                    d = std::atof(d_.c_str());
+                    n = std::atof(n_.c_str());
 
                     setImproperTypeCoefs(type, k, d, n);
                 }
@@ -93,14 +92,14 @@ bool FixImproperCVFF::readFromRestart() {
                     std::string k_ = member_node.attribute("k").value();
                     std::string d_ = member_node.attribute("d").value();
                     std::string n_ = member_node.attribute("n").value();
-                    k = atof(k_.c_str());
-                    dParam = atoi(d_.c_str());
-                    n = atoi(n_.c_str());
-                    type = atoi(type_.c_str());
-                    ids[0] = atoi(atom_a.c_str());
-                    ids[1] = atoi(atom_b.c_str());
-                    ids[2] = atoi(atom_c.c_str());
-                    ids[3] = atoi(atom_d.c_str());
+                    k = std::atof(k_.c_str());
+                    dParam = std::atoi(d_.c_str());
+                    n = std::atoi(n_.c_str());
+                    type = std::atoi(type_.c_str());
+                    ids[0] = std::atoi(atom_a.c_str());
+                    ids[1] = std::atoi(atom_b.c_str());
+                    ids[2] = std::atoi(atom_c.c_str());
+                    ids[3] = std::atoi(atom_d.c_str());
                     Atom * a = &state->idToAtom(ids[0]);
                     Atom * b = &state->idToAtom(ids[1]);
                     Atom * c = &state->idToAtom(ids[2]);
@@ -122,7 +121,7 @@ __host__ void export_FixImproperCVFF() {
                           SHARED(FixImproperCVFF),
                           boost::python::bases<Fix, TypedItemHolder> > (
         "FixImproperCVFF",
-        boost::python::init<SHARED(State), string> (
+        boost::python::init<SHARED(State), std::string> (
                 boost::python::args("state", "handle"))
     )
     .def("createImproper", &FixImproperCVFF::createImproper,

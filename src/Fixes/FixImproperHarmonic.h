@@ -16,7 +16,7 @@ class FixImproperHarmonic: public FixPotentialMultiAtom<ImproperVariant, Imprope
         FixImproperHarmonic(SHARED(State) state_, std::string handle);
 
         void compute(int);
-        void singlePointEng(float *);
+        void singlePointEng(real *);
         bool readFromRestart();
 
         void createImproper(Atom *, Atom *, Atom *, Atom *, double, double, int);

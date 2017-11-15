@@ -4,7 +4,6 @@
 //#include "array_ref.hpp"
 
 namespace py = boost::python;
-using namespace std;
 
 void export_stls() {
     py::class_<std::map<std::string, int> >("stringInt")
@@ -19,8 +18,8 @@ void export_stls() {
     py::class_<std::vector<double> >("vecdouble")
         .def(py::vector_indexing_suite<std::vector<double> >() )
         ;
-    py::class_<std::vector<vector<double> > >("vecdouble")
-        .def(py::vector_indexing_suite<std::vector< vector<double> > >() )
+    py::class_<std::vector<std::vector<double> > >("vecdouble")
+        .def(py::vector_indexing_suite<std::vector< std::vector<double> > >() )
         ;
     py::class_<std::vector<int> >("vecInt")
         .def(py::vector_indexing_suite<std::vector<int> >() )

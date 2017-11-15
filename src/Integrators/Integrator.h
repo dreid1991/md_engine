@@ -135,7 +135,7 @@ public:
 
     //! Write output for all \link WriteConfig WriteConfigs \endlink
     void writeOutput();
-    float dtf;
+    real dtf;
 };
 
 #endif

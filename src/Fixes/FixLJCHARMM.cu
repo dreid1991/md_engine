@@ -10,13 +10,12 @@
 #include "PairEvaluatorCHARMM.h"
 #include "EvaluatorWrapper.h"
 //#include "ChargeEvaluatorEwald.h"
-using namespace std;
 namespace py = boost::python;
-const string LJCHARMMType = "LJCHARMM";
+const std::string LJCHARMMType = "LJCHARMM";
 
 
 
-FixLJCHARMM::FixLJCHARMM(boost::shared_ptr<State> state_, string handle_, string mixingRules_)
+FixLJCHARMM::FixLJCHARMM(boost::shared_ptr<State> state_, std::string handle_, std::string mixingRules_)
     : FixPair(state_, handle_, "all", LJCHARMMType, true, false, 1, mixingRules_),
     epsHandle("eps"), sigHandle("sig"), eps14Handle("eps14"), sig14Handle("sig14"), rCutHandle("rCut")
 {
@@ -51,7 +50,7 @@ void FixLJCHARMM::compute(int virialMode) {
 
 }
 
-void FixLJCHARMM::singlePointEng(float *perParticleEng) {
+void FixLJCHARMM::singlePointEng(real *perParticleEng) {
     int nAtoms = state->atoms.size();
     int nPerRingPoly = state->nPerRingPoly;
     int numTypes = state->atomParams.numTypes;
@@ -60,13 +59,13 @@ void FixLJCHARMM::singlePointEng(float *perParticleEng) {
     int activeIdx = gpd.activeIdx();
     auto neighborCoefs = state->specialNeighborCoefs;
     uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
-    //float neighborCoefs[4] = {1, 1, 1, 0}; //see comment above
+    //real neighborCoefs[4] = {1, 1, 1, 0}; //see comment above
     //evalWrap->energy(nAtoms,nPerRingPoly, gpd.xs(activeIdx), perParticleEng, neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.qs(activeIdx), chargeRCut);
     evalWrap->energy(nAtoms,nPerRingPoly, gpd.xs(activeIdx), perParticleEng, neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.qs(activeIdx), chargeRCut, nThreadPerBlock(), nThreadPerAtom());
 }
 
 
-void FixLJCHARMM::singlePointEngGroupGroup(float *perParticleEng, uint32_t tagA, uint32_t tagB) {
+void FixLJCHARMM::singlePointEngGroupGroup(real *perParticleEng, uint32_t tagA, uint32_t tagB) {
     int nAtoms = state->atoms.size();
     int nPerRingPoly = state->nPerRingPoly;
     int numTypes = state->atomParams.numTypes;
@@ -75,7 +74,7 @@ void FixLJCHARMM::singlePointEngGroupGroup(float *perParticleEng, uint32_t tagA,
     int activeIdx = gpd.activeIdx();
     auto neighborCoefs = state->specialNeighborCoefs;
     uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
-    //float neighborCoefs[4] = {1, 1, 1, 0}; //see comment above
+    //real neighborCoefs[4] = {1, 1, 1, 0}; //see comment above
     //evalWrap->energy(nAtoms,nPerRingPoly, gpd.xs(activeIdx), perParticleEng, neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.qs(activeIdx), chargeRCut);
     evalWrap->energyGroupGroup(nAtoms,nPerRingPoly, gpd.xs(activeIdx), gpd.fs(activeIdx), perParticleEng, neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.qs(activeIdx), chargeRCut, tagA, tagB, nThreadPerBlock(), nThreadPerAtom());
 }
@@ -92,29 +91,29 @@ void FixLJCHARMM::setEvalWrapper() {
 
 bool FixLJCHARMM::prepareForRun() {
     //loop through all params and fill with appropriate lambda function, then send all to device
-    auto fillGeo = [] (float a, float b) {
+    auto fillGeo = [] (real a, real b) {
         return sqrt(a*b);
     };
 
-    auto fillArith = [] (float a, float b) {
+    auto fillArith = [] (real a, real b) {
         return (a+b) / 2.0;
     };
-    auto fillRCut = [this] (float a, float b) {
-        return (float) std::fmax(a, b);
+    auto fillRCut = [this] (real a, real b) {
+        return (real) std::fmax(a, b);
     };
-    auto none = [] (float a){};
+    auto none = [] (real a){};
 
     auto fillRCutDiag = [this] () {
-        return (float) state->rCut;
+        return (real) state->rCut;
     };
 
-    auto processEps = [] (float a) {
+    auto processEps = [] (real a) {
         return 24*a;
     };
-    auto processSig = [] (float a) {
+    auto processSig = [] (real a) {
         return pow(a, 6);
     };
-    auto processRCut = [] (float a) {
+    auto processRCut = [] (real a) {
         return a*a;
     };
 
@@ -122,21 +121,21 @@ bool FixLJCHARMM::prepareForRun() {
     };
     //copy in non 1-4 parameters for sig, eps
 
-    std::vector<float> &epsPreProc = *paramMap["eps"];
-    std::vector<float> &eps14PreProc = *paramMap["eps14"];
+    std::vector<real> &epsPreProc = *paramMap["eps"];
+    std::vector<real> &eps14PreProc = *paramMap["eps14"];
 
-    std::vector<float> &sigPreProc = *paramMap["sig"];
-    std::vector<float> &sig14PreProc = *paramMap["sig14"];
+    std::vector<real> &sigPreProc = *paramMap["sig"];
+    std::vector<real> &sig14PreProc = *paramMap["sig14"];
     assert(epsPreProc.size() == sigPreProc.size());
     int numTypes = state->atomParams.numTypes;
     for (int i=0; i<state->atomParams.numTypes; i++) {
 
-        if (squareVectorRef<float>(eps14PreProc.data(), numTypes, i, i) == DEFAULT_FILL) {
-            squareVectorRef<float>(eps14PreProc.data(), numTypes, i, i) = squareVectorRef<float>(epsPreProc.data(), numTypes, i, i) * state->specialNeighborCoefs[2]; 
+        if (squareVectorRef<real>(eps14PreProc.data(), numTypes, i, i) == DEFAULT_FILL) {
+            squareVectorRef<real>(eps14PreProc.data(), numTypes, i, i) = squareVectorRef<real>(epsPreProc.data(), numTypes, i, i) * state->specialNeighborCoefs[2]; 
         }
 
-        if (squareVectorRef<float>(sig14PreProc.data(), numTypes, i, i) == DEFAULT_FILL) {
-            squareVectorRef<float>(sig14PreProc.data(), numTypes, i, i) = squareVectorRef<float>(sigPreProc.data(), numTypes, i, i) * state->specialNeighborCoefs[2]; 
+        if (squareVectorRef<real>(sig14PreProc.data(), numTypes, i, i) == DEFAULT_FILL) {
+            squareVectorRef<real>(sig14PreProc.data(), numTypes, i, i) = squareVectorRef<real>(sigPreProc.data(), numTypes, i, i) * state->specialNeighborCoefs[2]; 
         }
     }
 
@@ -168,8 +167,8 @@ bool FixLJCHARMM::prepareForRun() {
     return prepared;
 }
 
-string FixLJCHARMM::restartChunk(string format) {
-    stringstream ss;
+std::string FixLJCHARMM::restartChunk(std::string format) {
+    std::stringstream ss;
     ss << restartChunkPairParams(format);
     return ss.str();
 }
@@ -180,7 +179,7 @@ bool FixLJCHARMM::postRun() {
     return true;
 }
 
-void FixLJCHARMM::addSpecies(string handle) {
+void FixLJCHARMM::addSpecies(std::string handle) {
     initializeParameters(epsHandle, epsilons);
     initializeParameters(sigHandle, sigmas);
     initializeParameters(eps14Handle, epsilons14);
@@ -189,10 +188,10 @@ void FixLJCHARMM::addSpecies(string handle) {
 
 }
 
-vector<float> FixLJCHARMM::getRCuts() { 
-    vector<float> res;
-    vector<float> &src = *(paramMap[rCutHandle]);
-    for (float x : src) {
+std::vector<real> FixLJCHARMM::getRCuts() { 
+    std::vector<real> res;
+    std::vector<real> &src = *(paramMap[rCutHandle]);
+    for (real x : src) {
         if (x == DEFAULT_FILL) {
             res.push_back(-1);
         } else {
@@ -206,7 +205,7 @@ vector<float> FixLJCHARMM::getRCuts() {
 void export_FixLJCHARMM() {
     py::class_<FixLJCHARMM, boost::shared_ptr<FixLJCHARMM>, py::bases<FixPair>, boost::noncopyable > (
         "FixLJCHARMM",
-        py::init<boost::shared_ptr<State>, string, py::optional<string> > (py::args("state", "handle", "mixingRules"))
+        py::init<boost::shared_ptr<State>, std::string, py::optional<std::string> > (py::args("state", "handle", "mixingRules"))
     )
       ;
 

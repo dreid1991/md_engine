@@ -9,13 +9,12 @@
 #include "PairEvaluatorLJ.h"
 #include "EvaluatorWrapper.h"
 //#include "ChargeEvaluatorEwald.h"
-using namespace std;
 namespace py = boost::python;
-const string LJCutType = "LJCut";
+const std::string LJCutType = "LJCut";
 
 
 
-FixLJCut::FixLJCut(boost::shared_ptr<State> state_, string handle_, string mixingRules_)
+FixLJCut::FixLJCut(boost::shared_ptr<State> state_, std::string handle_, std::string mixingRules_)
     : FixPair(state_, handle_, "all", LJCutType, true, false, 1, mixingRules_),
     epsHandle("eps"), sigHandle("sig"), rCutHandle("rCut")
 {
@@ -37,7 +36,7 @@ void FixLJCut::compute(int virialMode) {
     GridGPU &grid = state->gridGPU;
     int activeIdx = gpd.activeIdx();
     uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
-    float *neighborCoefs = state->specialNeighborCoefs;
+    real *neighborCoefs = state->specialNeighborCoefs;
     evalWrap->compute(nAtoms, nPerRingPoly, gpd.xs(activeIdx), gpd.fs(activeIdx),
                       neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(),
                       state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU,
@@ -45,7 +44,7 @@ void FixLJCut::compute(int virialMode) {
 
 }
 
-void FixLJCut::singlePointEng(float *perParticleEng) {
+void FixLJCut::singlePointEng(real *perParticleEng) {
     int nAtoms = state->atoms.size();
     int nPerRingPoly = state->nPerRingPoly;
     int numTypes = state->atomParams.numTypes;
@@ -53,11 +52,11 @@ void FixLJCut::singlePointEng(float *perParticleEng) {
     GridGPU &grid = state->gridGPU;
     int activeIdx = gpd.activeIdx();
     uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
-    float *neighborCoefs = state->specialNeighborCoefs;
+    real *neighborCoefs = state->specialNeighborCoefs;
     evalWrap->energy(nAtoms, nPerRingPoly, gpd.xs(activeIdx), perParticleEng, neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.qs(activeIdx), chargeRCut, nThreadPerBlock(), nThreadPerAtom());
 }
 
-void FixLJCut::singlePointEngGroupGroup(float *perParticleEng, uint32_t tagA, uint32_t tagB) {
+void FixLJCut::singlePointEngGroupGroup(real *perParticleEng, uint32_t tagA, uint32_t tagB) {
     int nAtoms = state->atoms.size();
     int nPerRingPoly = state->nPerRingPoly;
     int numTypes = state->atomParams.numTypes;
@@ -65,7 +64,7 @@ void FixLJCut::singlePointEngGroupGroup(float *perParticleEng, uint32_t tagA, ui
     GridGPU &grid = state->gridGPU;
     int activeIdx = gpd.activeIdx();
     uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
-    float *neighborCoefs = state->specialNeighborCoefs;
+    real *neighborCoefs = state->specialNeighborCoefs;
     evalWrap->energyGroupGroup(nAtoms, nPerRingPoly, gpd.xs(activeIdx), gpd.fs(activeIdx), perParticleEng, neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.qs(activeIdx), chargeRCut, tagA, tagB, nThreadPerBlock(), nThreadPerAtom());
 }
 
@@ -81,29 +80,29 @@ void FixLJCut::setEvalWrapper() {
 
 bool FixLJCut::prepareForRun() {
     //loop through all params and fill with appropriate lambda function, then send all to device
-    auto fillGeo = [] (float a, float b) {
+    auto fillGeo = [] (real a, real b) {
         return sqrt(a*b);
     };
 
-    auto fillArith = [] (float a, float b) {
+    auto fillArith = [] (real a, real b) {
         return (a+b) / 2.0;
     };
-    auto fillRCut = [this] (float a, float b) {
-        return (float) std::fmax(a, b);
+    auto fillRCut = [this] (real a, real b) {
+        return (real) std::fmax(a, b);
     };
-    auto none = [] (float a){};
+    auto none = [] (real a){};
 
     auto fillRCutDiag = [this] () {
-        return (float) state->rCut;
+        return (real) state->rCut;
     };
 
-    auto processEps = [] (float a) {
+    auto processEps = [] (real a) {
         return 24*a;
     };
-    auto processSig = [] (float a) {
+    auto processSig = [] (real a) {
         return pow(a, 6);
     };
-    auto processRCut = [] (float a) {
+    auto processRCut = [] (real a) {
         return a*a;
     };
     prepareParameters(epsHandle, fillGeo, processEps, false);
@@ -120,8 +119,8 @@ bool FixLJCut::prepareForRun() {
     return prepared;
 }
 
-string FixLJCut::restartChunk(string format) {
-    stringstream ss;
+std::string FixLJCut::restartChunk(std::string format) {
+    std::stringstream ss;
     ss << restartChunkPairParams(format);
     return ss.str();
 }
@@ -132,17 +131,17 @@ bool FixLJCut::postRun() {
     return true;
 }
 
-void FixLJCut::addSpecies(string handle) {
+void FixLJCut::addSpecies(std::string handle) {
     initializeParameters(epsHandle, epsilons);
     initializeParameters(sigHandle, sigmas);
     initializeParameters(rCutHandle, rCuts);
 
 }
 
-vector<float> FixLJCut::getRCuts() { 
-    vector<float> res;
-    vector<float> &src = *(paramMap[rCutHandle]);
-    for (float x : src) {
+std::vector<real> FixLJCut::getRCuts() { 
+    std::vector<real> res;
+    std::vector<real> &src = *(paramMap[rCutHandle]);
+    for (real x : src) {
         if (x == DEFAULT_FILL) {
             res.push_back(-1);
         } else {
@@ -156,7 +155,7 @@ vector<float> FixLJCut::getRCuts() {
 void export_FixLJCut() {
     py::class_<FixLJCut, boost::shared_ptr<FixLJCut>, py::bases<FixPair>, boost::noncopyable > (
         "FixLJCut",
-        py::init<boost::shared_ptr<State>, string, py::optional<string> > (py::args("state", "handle", "mixingRules"))
+        py::init<boost::shared_ptr<State>, std::string, py::optional<std::string> > (py::args("state", "handle", "mixingRules"))
     )
       ;
 

@@ -5,13 +5,10 @@
 class EvaluatorNone {
     public:
         char x; //variables on device must have non-zero size;
-        inline __device__ float3 force(float3 dr, float params[1], float lenSqr, float multiplier) {
-            return make_float3(0, 0, 0);
+        inline __device__ real3 force(real3 dr, real params[1], real lenSqr, real multiplier) {
+            return make_real3(0, 0, 0);
         }
-        inline __device__ double3 force(double3 dr, double params[1], double lenSqr, double multiplier) {
-            return make_double3(0, 0, 0);
-        }
-        inline __device__ float energy(float params[0], float lenSqr, float multiplier) {
+        inline __device__ real energy(real params[0], real lenSqr, real multiplier) {
             return 0;
         }
 

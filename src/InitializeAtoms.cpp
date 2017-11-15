@@ -5,14 +5,13 @@
 
 #include "Logging.h"
 
-using namespace std;
 
 // make a 'ready' flag in state, which means am ready to run.  creating atoms
 // makes false, make ready by re-doing all atom pointers
 //
 // nah, am making ready on each
 
-int max_id(vector<Atom> &atoms) {
+int max_id(std::vector<Atom> &atoms) {
     int id = -1;
     for (Atom &a : atoms) {
         if (a.id > id) {
@@ -23,9 +22,9 @@ int max_id(vector<Atom> &atoms) {
 }
 
 void InitializeAtoms::populateOnGrid(SHARED(State) state, Bounds &bounds,
-                                     string handle, int n) {
+                                     std::string handle, int n) {
     assert(n>=0);
-    vector<Atom> &atoms = state->atoms;
+    std::vector<Atom> &atoms = state->atoms;
 
     int n_final = atoms.size() + n;
 
@@ -45,23 +44,23 @@ void InitializeAtoms::populateOnGrid(SHARED(State) state, Bounds &bounds,
 }
 
 void InitializeAtoms::populateRand(SHARED(State) state, Bounds &bounds,
-                                   string handle, int n, double distMin) {
+                                   std::string handle, int n, double distMin) {
     assert(n>=0);
 
     std::mt19937 &generator = state->getRNG();
-    vector<Atom> &atoms = state->atoms;
+    std::vector<Atom> &atoms = state->atoms;
     AtomParams &params = state->atomParams;
-    vector<string> handles = params.handles;
-    int type = find(handles.begin(), handles.end(), handle) - handles.begin();
+    std::vector<std::string> handles = params.handles;
+    int type = std::find(handles.begin(), handles.end(), handle) - handles.begin();
 
     assert(type != (int) handles.size()); //makes sure it found one
     unsigned int n_final = atoms.size() + n;
-    uniform_real_distribution<double> dists[3];
+    std::uniform_real_distribution<double> dists[3];
     for (int i=0; i<3; i++) {
-        dists[i] = uniform_real_distribution<double>(bounds.lo[i], bounds.lo[i] + bounds.rectComponents[i]);
+        dists[i] = std::uniform_real_distribution<double>(bounds.lo[i], bounds.lo[i] + bounds.rectComponents[i]);
     }
     if (state->is2d) {
-        dists[2] = uniform_real_distribution<double>(0, 0);
+        dists[2] = std::uniform_real_distribution<double>(0, 0);
     }
 
     int id = max_id(atoms) + 1;
@@ -97,22 +96,22 @@ void InitializeAtoms::populateRand(SHARED(State) state, Bounds &bounds,
     }
 }
 
-void InitializeAtoms::initTemp(SHARED(State) state, string groupHandle,
+void InitializeAtoms::initTemp(SHARED(State) state, std::string groupHandle,
                                double temp) {
     std::mt19937 generator = state->getRNG();
     int groupTag = state->groupTagFromHandle(groupHandle);
 
-    vector<Atom *> atoms = LISTMAPREFTEST(Atom, Atom *, a, state->atoms, &a,
+    std::vector<Atom *> atoms = LISTMAPREFTEST(Atom, Atom *, a, state->atoms, &a,
                                           a.groupTag & groupTag);
 
     assert(atoms.size());
-    map<double, normal_distribution<double> > dists;
+    std::map<double, std::normal_distribution<double> > dists;
     for (Atom *a : atoms) {
         if (dists.find(a->mass) == dists.end()) {
             if (a->mass > 0) {
-                dists[a->mass] = normal_distribution<double>(0, sqrt(1.0/a->mass));
+                dists[a->mass] = std::normal_distribution<double>(0, sqrt(1.0/a->mass));
             }  else {
-                dists[a->mass] = normal_distribution<double>(0,1.0);
+                dists[a->mass] = std::normal_distribution<double>(0,1.0);
             }
         }
     }

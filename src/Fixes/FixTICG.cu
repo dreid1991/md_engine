@@ -30,7 +30,7 @@ void FixTICG::compute(int virialMode) {
     GridGPU &grid = state->gridGPU;
     int activeIdx = gpd.activeIdx();
     uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
-    float *neighborCoefs = state->specialNeighborCoefs;
+    real *neighborCoefs = state->specialNeighborCoefs;
     evalWrap->compute(nAtoms,nPerRingPoly, gpd.xs(activeIdx), gpd.fs(activeIdx),
                       neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(),
                       state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU,
@@ -39,7 +39,7 @@ void FixTICG::compute(int virialMode) {
 
 }
 
-void FixTICG::singlePointEng(float *perParticleEng) {
+void FixTICG::singlePointEng(real *perParticleEng) {
     int nAtoms = state->atoms.size();
     int nPerRingPoly = state->nPerRingPoly;
     int numTypes = state->atomParams.numTypes;
@@ -47,7 +47,7 @@ void FixTICG::singlePointEng(float *perParticleEng) {
     GridGPU &grid = state->gridGPU;
     int activeIdx = gpd.activeIdx();
     uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
-    float *neighborCoefs = state->specialNeighborCoefs;
+    real *neighborCoefs = state->specialNeighborCoefs;
     evalWrap->energy(nAtoms,nPerRingPoly, gpd.xs(activeIdx), perParticleEng, neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.qs(activeIdx), chargeRCut, nThreadPerBlock(), nThreadPerAtom());
 
 
@@ -59,12 +59,12 @@ void FixTICG::singlePointEng(float *perParticleEng) {
 
 bool FixTICG::prepareForRun() {
     //loop through all params and fill with appropriate lambda function, then send all to device
-    auto none = [] (float a){};
+    auto none = [] (real a){};
 
-	std::function<float(float)> processCs = [] (float a) {
+	std::function<real(real)> processCs = [] (real a) {
         return a;
     };
-	std::function<float(float)> processRCut = [] (float a) {
+	std::function<real(real)> processRCut = [] (real a) {
         return a*a;
     };
     prepareParameters(CHandle,  processCs);
@@ -100,10 +100,10 @@ void FixTICG::addSpecies(std::string handle) {
 
 }
 
-std::vector<float> FixTICG::getRCuts() {  
-    std::vector<float> res;
-    std::vector<float> &src = *(paramMap[rCutHandle]);
-    for (float x : src) {
+std::vector<real> FixTICG::getRCuts() {  
+    std::vector<real> res;
+    std::vector<real> &src = *(paramMap[rCutHandle]);
+    for (real x : src) {
         if (x == DEFAULT_FILL) {
             res.push_back(-1);
         } else {

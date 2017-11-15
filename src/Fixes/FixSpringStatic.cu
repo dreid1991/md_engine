@@ -20,19 +20,19 @@ FixSpringStatic::FixSpringStatic(boost::shared_ptr<State> state_,
 }
 
 void FixSpringStatic::updateTethers() {
-    std::vector<float4> tethers_loc;
+    std::vector<real4> tethers_loc;
     PyObject *funcRaw = tetherFunc.ptr();
     if (PyCallable_Check(funcRaw)) {
         for (Atom &a : state->atoms) {
             if (a.groupTag & groupTag) {
                 Vector res = boost::python::call<Vector>(funcRaw, a);
-                tethers_loc.push_back(make_float4(res[0], res[1], res[2], *(float *)&a.id));
+                tethers_loc.push_back(make_real4(res[0], res[1], res[2], *(real *)&a.id));
             }
         }
     } else {
         for (Atom &a : state->atoms) {
             if (a.groupTag & groupTag) {
-                tethers_loc.push_back(make_float4(a.pos[0], a.pos[1], a.pos[2], *(float *)&a.id));
+                tethers_loc.push_back(make_real4(a.pos[0], a.pos[1], a.pos[2], *(real *)&a.id));
             }
         }
     }
@@ -46,19 +46,19 @@ bool FixSpringStatic::prepareForRun() {
     return prepared;
 }
 
-void __global__ compute_cu(int nTethers, float4 *tethers, float4 *xs, float4 *fs,
-                           int *idToIdxs, float k,
-                           BoundsGPU bounds, float3 multiplier) {
+void __global__ compute_cu(int nTethers, real4 *tethers, real4 *xs, real4 *fs,
+                           int *idToIdxs, real k,
+                           BoundsGPU bounds, real3 multiplier) {
     int idx = GETIDX();
     if (idx < nTethers) {
-        float4 tether = tethers[idx];
-        float3 tetherPos = make_float3(tether);
+        real4 tether = tethers[idx];
+        real3 tetherPos = make_real3(tether);
         int id = * (int *) &tether.w;
         int atomIdx = idToIdxs[id];
         //printf("id for tether is %d idx is %d\n", id, idx);//, curPos.x, curPos.y, curPos.z);
-        float3 curPos = make_float3(xs[atomIdx]);
+        real3 curPos = make_real3(xs[atomIdx]);
         //printf("cur is %f %f, tether is %f %f, mult is %f %f %f, k is %f \n", curPos.x, curPos.y, tetherPos.x, tetherPos.y, multiplier.x, multiplier.y, multiplier.z, k);
-        float3 force = multiplier * harmonicForce(bounds, curPos, tetherPos, k, 0);
+        real3 force = multiplier * harmonicForce(bounds, curPos, tetherPos, k, 0);
         //printf("forces %f %f %f\n", force.x, force.y, force.z);
         fs[atomIdx] += force;
     }
@@ -69,7 +69,7 @@ void FixSpringStatic::compute(int virialMode) {
     compute_cu<<<NBLOCK(tethers.h_data.size()), PERBLOCK>>>(
                     tethers.h_data.size(), tethers.getDevData(),
                     gpd.xs(activeIdx), gpd.fs(activeIdx), gpd.idToIdxs.d_data.data(),
-                    k, state->boundsGPU, multiplier.asFloat3());
+                    k, state->boundsGPU, multiplier.asreal3());
 }
 
 std::string FixSpringStatic::restartChunk(std::string format) {
@@ -81,7 +81,7 @@ std::string FixSpringStatic::restartChunk(std::string format) {
     ss << "</multiplier>\n";
     ss << "<k>" << k << "</k>>\n";
     ss << "<tethers n=\"" << tethers.h_data.size() << "\">\n";
-    for (float4 &tether : tethers.h_data) {
+    for (real4 &tether : tethers.h_data) {
         ss << tether.x << " " << tether.y << " " << tether.z << " " << * (int *) &tether.w << "\n"; 
     }
     ss << "</tethers>\n";
@@ -102,7 +102,7 @@ bool FixSpringStatic::readFromRestart() {
                 int i=0;
                 while (curr_pcnode) {
                     std::string data = curr_pcnode.value();
-                    float x = atof(data.c_str());
+                    real x = atof(data.c_str());
                     multiplier[i] = x;
                     curr_pcnode = curr_pcnode.next_sibling();
                     i++;
@@ -115,11 +115,11 @@ bool FixSpringStatic::readFromRestart() {
             } else if (tag == "tethers") {
                 
                 int n = boost::lexical_cast<int>(curr_param.attribute("n").value());
-                std::vector<float4> tethers_loc(n);
+                std::vector<real4> tethers_loc(n);
                 xml_assignValues<double, 4>(curr_param, [&] (int i, double *vals) { //doing as double to preserve precision for ids in w value
                                             int id = vals[3];
-                                            float idAsFloat = *(float *) &id;
-                                            tethers_loc[i] = make_float4(float(vals[0]), float(vals[1]), float(vals[2]), idAsFloat);
+                                            real idAsreal = *(real *) &id;
+                                            tethers_loc[i] = make_real4(real(vals[0]), real(vals[1]), real(vals[2]), idAsreal);
                                             });
 
                 tethers = tethers_loc;

@@ -31,7 +31,7 @@ void FixLJCutFS::compute(int virialMode) {
     GridGPU &grid = state->gridGPU;
     int activeIdx = gpd.activeIdx();
     uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
-    float *neighborCoefs = state->specialNeighborCoefs;
+    real *neighborCoefs = state->specialNeighborCoefs;
     evalWrap->compute(nAtoms,nPerRingPoly, gpd.xs(activeIdx), gpd.fs(activeIdx),
                       neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(),
                       state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU,
@@ -41,7 +41,7 @@ void FixLJCutFS::compute(int virialMode) {
 
 }
 
-void FixLJCutFS::singlePointEng(float *perParticleEng) {
+void FixLJCutFS::singlePointEng(real *perParticleEng) {
     int nAtoms = state->atoms.size();
     int nPerRingPoly = state->nPerRingPoly;
     int numTypes = state->atomParams.numTypes;
@@ -49,14 +49,14 @@ void FixLJCutFS::singlePointEng(float *perParticleEng) {
     GridGPU &grid = state->gridGPU;
     int activeIdx = gpd.activeIdx();
     uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
-    float *neighborCoefs = state->specialNeighborCoefs;
+    real *neighborCoefs = state->specialNeighborCoefs;
 
     evalWrap->energy(nAtoms,nPerRingPoly, gpd.xs(activeIdx), perParticleEng, neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.qs(activeIdx), chargeRCut, nThreadPerBlock(), nThreadPerAtom());
 
 
 }
 
-void FixLJCutFS::singlePointEngGroupGroup(float *perParticleEng, uint32_t tagA, uint32_t tagB) {
+void FixLJCutFS::singlePointEngGroupGroup(real *perParticleEng, uint32_t tagA, uint32_t tagB) {
     int nAtoms = state->atoms.size();
     int nPerRingPoly = state->nPerRingPoly;
     int numTypes = state->atomParams.numTypes;
@@ -64,7 +64,7 @@ void FixLJCutFS::singlePointEngGroupGroup(float *perParticleEng, uint32_t tagA, 
     GridGPU &grid = state->gridGPU;
     int activeIdx = gpd.activeIdx();
     uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
-    float *neighborCoefs = state->specialNeighborCoefs;
+    real *neighborCoefs = state->specialNeighborCoefs;
 
     evalWrap->energyGroupGroup(nAtoms,nPerRingPoly, gpd.xs(activeIdx), gpd.fs(activeIdx), perParticleEng, neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.qs(activeIdx), chargeRCut, tagA, tagB, nThreadPerBlock(), nThreadPerAtom());
 
@@ -72,42 +72,42 @@ void FixLJCutFS::singlePointEngGroupGroup(float *perParticleEng, uint32_t tagA, 
 
 bool FixLJCutFS::prepareForRun() {
     //loop through all params and fill with appropriate lambda function, then send all to device
-    auto fillGeo = [] (float a, float b) {
+    auto fillGeo = [] (real a, real b) {
         return sqrt(a*b);
     };
 
-    auto fillArith = [] (float a, float b) {
+    auto fillArith = [] (real a, real b) {
         return (a+b) / 2.0;
     };
-    auto fillRCut = [this] (float a, float b) {
-        return (float) std::fmax(a, b);
+    auto fillRCut = [this] (real a, real b) {
+        return (real) std::fmax(a, b);
     };
-    auto none = [] (float a){};
+    auto none = [] (real a){};
 
     auto fillRCutDiag = [this] () {
-        return (float) state->rCut;
+        return (real) state->rCut;
     };
 
-    auto processEps = [] (float a) {
+    auto processEps = [] (real a) {
         return 24*a;
     };
-    auto processSig = [] (float a) {
+    auto processSig = [] (real a) {
         return pow(a, 6);
     };
-    auto processRCut = [] (float a) {
+    auto processRCut = [] (real a) {
         return a*a;
     };
     
-	std::function<float(int, int)>fillFCut = [this] (int a, int b) {
+	std::function<real(int, int)>fillFCut = [this] (int a, int b) {
         int numTypes = state->atomParams.numTypes;
-        float epstimes24=24*squareVectorRef<float>(paramMap[epsHandle]->data(),numTypes,a,b);
-        float rCutSqr = pow(squareVectorRef<float>(paramMap[rCutHandle]->data(),numTypes,a,b),2);
-        float sig6 = pow(squareVectorRef<float>(paramMap[sigHandle]->data(),numTypes,a,b),6);
-        float p1 = epstimes24*2*sig6*sig6;
-        float p2 = epstimes24*sig6;
-        float r2inv = 1/rCutSqr;
-        float r6inv = r2inv*r2inv*r2inv;
-        float forceScalar = r6inv * r2inv * (p1 * r6inv - p2)*sqrt(rCutSqr);
+        real epstimes24=24*squareVectorRef<real>(paramMap[epsHandle]->data(),numTypes,a,b);
+        real rCutSqr = pow(squareVectorRef<real>(paramMap[rCutHandle]->data(),numTypes,a,b),2);
+        real sig6 = pow(squareVectorRef<real>(paramMap[sigHandle]->data(),numTypes,a,b),6);
+        real p1 = epstimes24*2*sig6*sig6;
+        real p2 = epstimes24*sig6;
+        real r2inv = 1/rCutSqr;
+        real r6inv = r2inv*r2inv*r2inv;
+        real forceScalar = r6inv * r2inv * (p1 * r6inv - p2)*sqrt(rCutSqr);
 
         return forceScalar;
     };
@@ -158,10 +158,10 @@ void FixLJCutFS::addSpecies(std::string handle) {
 
 }
 
-std::vector<float> FixLJCutFS::getRCuts() {
-    std::vector<float> res;
-    std::vector<float> &src = *(paramMap[rCutHandle]);
-    for (float x : src) {
+std::vector<real> FixLJCutFS::getRCuts() {
+    std::vector<real> res;
+    std::vector<real> &src = *(paramMap[rCutHandle]);
+    for (real x : src) {
         if (x == DEFAULT_FILL) {
             res.push_back(-1);
         } else {

@@ -5,7 +5,7 @@
 #include <cmath>
 #include <string>
 #include <sstream>
-
+#include "globalDefs.h"
 #include "cuda_runtime.h"
 
 void export_Vector();
@@ -99,6 +99,11 @@ public:
         return make_float4(vals[0], vals[1], vals[2], 0);
     }
 
+    double4 asDouble4() const {
+        return make_double4(vals[0], vals[1], vals[2], 0);
+    }
+
+
     /*! \brief Convert vector to int4
      *
      * \return int4 containing values from this Vector
@@ -113,6 +118,19 @@ public:
     /*! \brief Convert vector to float3 */
     float3 asFloat3() const {
         return make_float3(vals[0], vals[1], vals[2]);
+    }
+
+    double3 asDouble3() const {
+        return make_double3(vals[0], vals[1], vals[2]);
+    }
+
+    // real3 --- maps to either float3 or double3, depending on compile time variable DASH_DOUBLE
+    real3 asreal3() const {
+#ifdef DASH_DOUBLE
+        return asDouble3();
+#else
+        return asFloat3();
+#endif
     }
 
     /*! \brief Convert vector to int3 */

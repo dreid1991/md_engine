@@ -29,7 +29,7 @@ void FixWCA::compute(int virialMode) {
     GridGPU &grid = state->gridGPU;
     int activeIdx = gpd.activeIdx();
     uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
-    float *neighborCoefs = state->specialNeighborCoefs;
+    real *neighborCoefs = state->specialNeighborCoefs;
 
 
     evalWrap->compute(nAtoms,nPerRingPoly, gpd.xs(activeIdx), gpd.fs(activeIdx),
@@ -41,7 +41,7 @@ void FixWCA::compute(int virialMode) {
 
 }
 
-void FixWCA::singlePointEng(float *perParticleEng) {
+void FixWCA::singlePointEng(real *perParticleEng) {
     int nAtoms = state->atoms.size();
     int nPerRingPoly = state->nPerRingPoly;
     int numTypes = state->atomParams.numTypes;
@@ -49,7 +49,7 @@ void FixWCA::singlePointEng(float *perParticleEng) {
     GridGPU &grid = state->gridGPU;
     int activeIdx = gpd.activeIdx();
     uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
-    float *neighborCoefs = state->specialNeighborCoefs;
+    real *neighborCoefs = state->specialNeighborCoefs;
 
     evalWrap->energy(nAtoms,nPerRingPoly, gpd.xs(activeIdx), perParticleEng, neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.qs(activeIdx), chargeRCut, nThreadPerBlock(), nThreadPerAtom());
 
@@ -59,35 +59,35 @@ void FixWCA::singlePointEng(float *perParticleEng) {
 
 bool FixWCA::prepareForRun() {
     //loop through all params and fill with appropriate lambda function, then send all to device
-    auto fillGeo = [] (float a, float b) {
+    auto fillGeo = [] (real a, real b) {
         return sqrt(a*b);
     };
 
-    auto fillArith = [] (float a, float b) {
+    auto fillArith = [] (real a, real b) {
         return (a+b) / 2.0;
     };
-//     auto fillRCut = [this] (float a, float b) {
-//         return (float) std::fmax(a, b);
+//     auto fillRCut = [this] (real a, real b) {
+//         return (real) std::fmax(a, b);
 //     };
-    auto none = [] (float a){};
+    auto none = [] (real a){};
 
     auto fillRCutDiag = [this] () {
-        return (float) state->rCut;
+        return (real) state->rCut;
     };
 
-    auto processEps = [] (float a) {
+    auto processEps = [] (real a) {
         return 24*a;
     };
-    auto processSig = [] (float a) {
+    auto processSig = [] (real a) {
         return pow(a, 6);
     };
-    auto processRCut = [] (float a) {
+    auto processRCut = [] (real a) {
         return a*a;
     };
 
     auto fillRCut = [this] (int a, int b) {
         int numTypes = state->atomParams.numTypes;
-        float sig = squareVectorRef<float>(paramMap[sigHandle]->data(),numTypes,a,b);
+        real sig = squareVectorRef<real>(paramMap[sigHandle]->data(),numTypes,a,b);
         return sig*pow(2.0,1.0/6.0);
     };    
     prepareParameters(epsHandle, fillGeo, processEps, false);
@@ -135,10 +135,10 @@ void FixWCA::addSpecies(std::string handle) {
 
 }
 
-std::vector<float> FixWCA::getRCuts() {
-    std::vector<float> res;
-    std::vector<float> &src = *(paramMap[rCutHandle]);
-    for (float x : src) {
+std::vector<real> FixWCA::getRCuts() {
+    std::vector<real> res;
+    std::vector<real> &src = *(paramMap[rCutHandle]);
+    for (real x : src) {
         if (x == DEFAULT_FILL) {
             res.push_back(-1);
         } else {

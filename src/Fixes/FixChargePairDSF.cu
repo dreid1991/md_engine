@@ -11,7 +11,6 @@
 // #include <cmath>
 
 namespace py=boost::python;
-using namespace std;
 
 const std::string chargePairDSFType = "ChargePairDSF";
 
@@ -30,13 +29,13 @@ const std::string chargePairDSFType = "ChargePairDSF";
 //    compute_cu<<<NBLOCK(nAtoms), PERBLOCK>>>(nAtoms, gpd.xs(activeIdx), gpd.fs(activeIdx), neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), gpd.qs(activeIdx), alpha, r_cut, A, shift, state->boundsGPU, state->devManager.prop.warpSize, 0.5);// state->devManager.prop.warpSize, sigmas.getDevData(), epsilons.getDevData(), numTypes, state->rCut, state->boundsGPU, oneFourStrength);
 
 
-FixChargePairDSF::FixChargePairDSF(SHARED(State) state_, string handle_, string groupHandle_) : FixCharge(state_, handle_, groupHandle_, chargePairDSFType, true) {
+FixChargePairDSF::FixChargePairDSF(SHARED(State) state_, std::string handle_, std::string groupHandle_) : FixCharge(state_, handle_, groupHandle_, chargePairDSFType, true) {
    setParameters(0.25,9.0);
    canOffloadChargePairCalc = true;
    setEvalWrapper();
 };
 
-void FixChargePairDSF::setParameters(float alpha_,float r_cut_)
+void FixChargePairDSF::setParameters(real alpha_,real r_cut_)
 {
   alpha=alpha_;
   r_cut=r_cut_;
@@ -51,8 +50,8 @@ bool FixChargePairDSF::prepareForRun() {
     return prepared;
 }
 
-std::vector<float> FixChargePairDSF::getRCuts() { 
-    std::vector<float> res;
+std::vector<real> FixChargePairDSF::getRCuts() { 
+    std::vector<real> res;
     res.push_back(r_cut);
     return res;
 }
@@ -64,7 +63,7 @@ void FixChargePairDSF::compute(int virialMode) {
     GridGPU &grid = state->gridGPU;
     int activeIdx = gpd.activeIdx();
     uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
-    float *neighborCoefs = state->specialNeighborCoefs;
+    real *neighborCoefs = state->specialNeighborCoefs;
     evalWrap->compute(nAtoms,nPerRingPoly, gpd.xs(activeIdx), gpd.fs(activeIdx),
                   neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(),
                   state->devManager.prop.warpSize, nullptr, 0, state->boundsGPU,
@@ -74,14 +73,14 @@ void FixChargePairDSF::compute(int virialMode) {
 
 }
 
-void FixChargePairDSF::singlePointEng(float * perParticleEng) {
+void FixChargePairDSF::singlePointEng(real * perParticleEng) {
     int nAtoms = state->atoms.size();
     int nPerRingPoly = state->nPerRingPoly;
     GPUData &gpd = state->gpd;
     GridGPU &grid = state->gridGPU;
     int activeIdx = gpd.activeIdx();
     uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
-    float *neighborCoefs = state->specialNeighborCoefs;
+    real *neighborCoefs = state->specialNeighborCoefs;
     evalWrap->energy(nAtoms,nPerRingPoly, gpd.xs(activeIdx), perParticleEng,
                   neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(),
                   state->devManager.prop.warpSize, nullptr, 0, state->boundsGPU,
@@ -89,14 +88,14 @@ void FixChargePairDSF::singlePointEng(float * perParticleEng) {
 
 }
 
-void FixChargePairDSF::singlePointEngGroupGroup(float * perParticleEng, uint32_t tagA, uint32_t tagB) {
+void FixChargePairDSF::singlePointEngGroupGroup(real * perParticleEng, uint32_t tagA, uint32_t tagB) {
     int nAtoms = state->atoms.size();
     int nPerRingPoly = state->nPerRingPoly;
     GPUData &gpd = state->gpd;
     GridGPU &grid = state->gridGPU;
     int activeIdx = gpd.activeIdx();
     uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
-    float *neighborCoefs = state->specialNeighborCoefs;
+    real *neighborCoefs = state->specialNeighborCoefs;
     evalWrap->energyGroupGroup(nAtoms,nPerRingPoly, gpd.xs(activeIdx), gpd.fs(activeIdx), perParticleEng,
                   neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(),
                   state->devManager.prop.warpSize, nullptr, 0, state->boundsGPU,
@@ -123,7 +122,7 @@ ChargeEvaluatorDSF FixChargePairDSF::generateEvaluator() {
 void export_FixChargePairDSF() {
     py::class_<FixChargePairDSF, SHARED(FixChargePairDSF), boost::python::bases<FixCharge> > (
         "FixChargePairDSF",
-        py::init<SHARED(State), string, string> (
+        py::init<SHARED(State), std::string, std::string> (
             py::args("state", "handle", "groupHandle"))
     )
     .def("setParameters", &FixChargePairDSF::setParameters,

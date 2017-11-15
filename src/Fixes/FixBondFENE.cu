@@ -5,19 +5,18 @@
 #include "BondEvaluate.h"
 #include "ReadConfig.h"
 namespace py = boost::python;
-using namespace std;
 
 const std::string bondFENEType = "BondFENE";
 
-FixBondFENE::FixBondFENE(SHARED(State) state_, string handle)
-    : FixBond(state_, handle, string("None"), bondFENEType, true, 1) {
+FixBondFENE::FixBondFENE(SHARED(State) state_, std::string handle)
+    : FixBond(state_, handle, std::string("None"), bondFENEType, true, 1) {
         readFromRestart();
     }
 
 
 
 void FixBondFENE::createBond(Atom *a, Atom *b, double k, double r0, double eps, double sig, int type) {
-    vector<Atom *> atoms = {a, b};
+    std::vector<Atom *> atoms = {a, b};
     validAtoms(atoms);
     if (type == -1) {
         assert(k!=-1 and r0!=-1);
@@ -47,7 +46,7 @@ void FixBondFENE::compute(int virialMode) {
     }
 }
 
-void FixBondFENE::singlePointEng(float *perParticleEng) {
+void FixBondFENE::singlePointEng(real *perParticleEng) {
     int nAtoms = state->atoms.size();
     int activeIdx = state->gpd.activeIdx();
     //cout << "Max bonds per block is " << maxBondsPerBlock << endl;
@@ -57,8 +56,8 @@ void FixBondFENE::singlePointEng(float *perParticleEng) {
 
 }
 
-string FixBondFENE::restartChunk(string format) {
-    stringstream ss;
+std::string FixBondFENE::restartChunk(std::string format) {
+    std::stringstream ss;
     ss << "<types>\n";
     for (auto it = bondTypes.begin(); it != bondTypes.end(); it++) {
         ss << "<" << "type id='" << it->first << "'";
@@ -88,15 +87,15 @@ bool FixBondFENE::readFromRestart() {
                     double eps;
                     double sig;
                     std::string type_ = type_node.attribute("id").value();
-                    type = atoi(type_.c_str());
+                    type = std::atoi(type_.c_str());
                     std::string k_ = type_node.attribute("k").value();
                     std::string r0_ = type_node.attribute("r0").value();
                     std::string eps_ = type_node.attribute("eps").value();
                     std::string sig_ = type_node.attribute("sig").value();
-                    k = atof(k_.c_str());
-                    r0 = atof(r0_.c_str());
-                    eps = atof(eps_.c_str());
-                    sig = atof(sig_.c_str());
+                    k = std::atof(k_.c_str());
+                    r0 = std::atof(r0_.c_str());
+                    eps = std::atof(eps_.c_str());
+                    sig = std::atof(sig_.c_str());
 
                     setBondTypeCoefs(type, k, r0, eps, sig);
                 }
@@ -115,15 +114,15 @@ bool FixBondFENE::readFromRestart() {
                     std::string r0_ = member_node.attribute("r0").value();
                     std::string eps_ = member_node.attribute("eps").value();
                     std::string sig_ = member_node.attribute("sig").value();
-                    type = atoi(type_.c_str());
-                    ids[0] = atoi(atom_a.c_str());
-                    ids[1] = atoi(atom_b.c_str());
+                    type = std::atoi(type_.c_str());
+                    ids[0] = std::atoi(atom_a.c_str());
+                    ids[1] = std::atoi(atom_b.c_str());
                     Atom * a = &state->idToAtom(ids[0]);
                     Atom * b = &state->idToAtom(ids[1]);
-                    k = atof(k_.c_str());
-                    r0 = atof(r0_.c_str());
-                    eps = atof(eps_.c_str());
-                    sig = atof(sig_.c_str());
+                    k = std::atof(k_.c_str());
+                    r0 = std::atof(r0_.c_str());
+                    eps = std::atof(eps_.c_str());
+                    sig = std::atof(sig_.c_str());
 
                     createBond(a, b, k, r0, eps, sig, type);
                 }
@@ -140,7 +139,7 @@ void export_FixBondFENE() {
   
     py::class_<FixBondFENE, SHARED(FixBondFENE), py::bases<Fix, TypedItemHolder> >
     (
-        "FixBondFENE", py::init<SHARED(State), string> (py::args("state", "handle"))
+        "FixBondFENE", py::init<SHARED(State), std::string> (py::args("state", "handle"))
     )
     .def("createBond", &FixBondFENE::createBond,
             (py::arg("k")=-1,

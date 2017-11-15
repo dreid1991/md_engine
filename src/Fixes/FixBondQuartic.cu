@@ -5,20 +5,19 @@
 #include "BondEvaluate.h"
 #include "ReadConfig.h"
 namespace py = boost::python;
-using namespace std;
 
 const std::string bondQuarticType = "BondQuartic";
 
-FixBondQuartic::FixBondQuartic(SHARED(State) state_, string handle)
-    : FixBond(state_, handle, string("None"), bondQuarticType, true, 1) {
+FixBondQuartic::FixBondQuartic(SHARED(State) state_, std::string handle)
+    : FixBond(state_, handle, std::string("None"), bondQuarticType, true, 1) {
         readFromRestart();
     }
 
 //template <class BONDTYPE, class EVALUATOR, bool COMPUTEVIRIALS>
-//__global__ void dummy(){};//int nAtoms, float4 *xs, float4 *forces){}//, int *idToIdxs, BondGPU *bonds, int *startstops, BONDTYPE *parameters_arg, int nParameters, BoundsGPU bounds, Virial *__restrict__ virials, bool usingSharedMemForParams, EVALUATOR T) {}
+//__global__ void dummy(){};//int nAtoms, real4 *xs, real4 *forces){}//, int *idToIdxs, BondGPU *bonds, int *startstops, BONDTYPE *parameters_arg, int nParameters, BoundsGPU bounds, Virial *__restrict__ virials, bool usingSharedMemForParams, EVALUATOR T) {}
 
 void FixBondQuartic::createBond(Atom *a, Atom *b, double k2, double k3, double k4, double r0, int type) {
-    vector<Atom *> atoms = {a, b};
+    std::vector<Atom *> atoms = {a, b};
     validAtoms(atoms);
     if (type == -1) {
         assert( k2 != -1);
@@ -51,7 +50,7 @@ void FixBondQuartic::compute(int virialMode) {
     }
 }
 
-void FixBondQuartic::singlePointEng(float *perParticleEng) {
+void FixBondQuartic::singlePointEng(real *perParticleEng) {
     int nAtoms = state->atoms.size();
     int activeIdx = state->gpd.activeIdx();
     //cout << "Max bonds per block is " << maxBondsPerBlock << endl;
@@ -60,8 +59,8 @@ void FixBondQuartic::singlePointEng(float *perParticleEng) {
     }
 }
 
-string FixBondQuartic::restartChunk(string format) {
-    stringstream ss;
+std::string FixBondQuartic::restartChunk(std::string format) {
+    std::stringstream ss;
     ss << "<types>\n";
     for (auto it = bondTypes.begin(); it != bondTypes.end(); it++) {
         ss << "<" << "type id='" << it->first << "'";
@@ -91,15 +90,15 @@ bool FixBondQuartic::readFromRestart() {
                     double k4;
                     double r0;
                     std::string type_ = type_node.attribute("id").value();
-                    type = atoi(type_.c_str());
+                    type = std::atoi(type_.c_str());
                     std::string k2_ = type_node.attribute("k2").value();
                     std::string k3_ = type_node.attribute("k3").value();
                     std::string k4_ = type_node.attribute("k4").value();
                     std::string r0_ = type_node.attribute("r0").value();
-                    k2 = atof(k2_.c_str());
-                    k3 = atof(k3_.c_str());
-                    k4 = atof(k4_.c_str());
-                    r0 = atof(r0_.c_str());
+                    k2 = std::atof(k2_.c_str());
+                    k3 = std::atof(k3_.c_str());
+                    k4 = std::atof(k4_.c_str());
+                    r0 = std::atof(r0_.c_str());
 
                     setBondTypeCoefs(type, k2,k3,k4, r0);
                 }
@@ -121,16 +120,16 @@ bool FixBondQuartic::readFromRestart() {
                     std::string k4_ = member_node.attribute("k4").value();
                     std::string r0_ = member_node.attribute("r0").value();
                     
-                    type = atoi(type_.c_str());
-                    ids[0] = atoi(atom_a.c_str());
-                    ids[1] = atoi(atom_b.c_str());
+                    type = std::atoi(type_.c_str());
+                    ids[0] = std::atoi(atom_a.c_str());
+                    ids[1] = std::atoi(atom_b.c_str());
                     Atom * a = &state->idToAtom(ids[0]);
                     Atom * b = &state->idToAtom(ids[1]);
                     
-                    k2 = atof(k2_.c_str());
-                    k3 = atof(k3_.c_str());
-                    k4 = atof(k4_.c_str());
-                    r0 = atof(r0_.c_str());
+                    k2 = std::atof(k2_.c_str());
+                    k3 = std::atof(k3_.c_str());
+                    k4 = std::atof(k4_.c_str());
+                    r0 = std::atof(r0_.c_str());
                     
 
                     createBond(a, b, k2,k3,k4, r0, type);
@@ -148,7 +147,7 @@ void export_FixBondQuartic() {
   
     py::class_<FixBondQuartic, SHARED(FixBondQuartic), py::bases<Fix, TypedItemHolder> >
     (
-        "FixBondQuartic", py::init<SHARED(State), string> (py::args("state", "handle"))
+        "FixBondQuartic", py::init<SHARED(State), std::string> (py::args("state", "handle"))
     )
     .def("createBond", &FixBondQuartic::createBond,
             (py::arg("k2")=-1,

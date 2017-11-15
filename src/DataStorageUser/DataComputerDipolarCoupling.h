@@ -25,8 +25,8 @@ namespace MD_ENGINE {
             uint32_t groupTagB;
             std::string groupHandleA;
             std::string groupHandleB;
-            GPUArrayGlobal<float> rCutSqrArray;
-            GPUArrayGlobal<float> coalescedInvR6;
+            GPUArrayGlobal<real> rCutSqrArray;
+            GPUArrayGlobal<real> coalescedInvR6;
             std::vector<double> couplingsSqr;
             double magnetoA;
             double magnetoB;

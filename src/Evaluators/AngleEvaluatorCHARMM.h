@@ -9,22 +9,22 @@ class AngleEvaluatorCHARMM {
 public:
 
     //evaluator.force(theta, angleType, s, distSqrs, directors, invDotProd);
-    inline __device__ float3 force(AngleCHARMMType angleType, float theta, float s, float c, float distSqrs[2], float3 directors[2], float invDistProd, int myIdxInAngle) {
-        float dTheta = theta - angleType.theta0;
-        float forceConst = angleType.k * dTheta;
-        float a     = -forceConst * s;
-        float a11   = a*c/distSqrs[0];
-        float a12   = -a*invDistProd;
-        float a22   = a*c/distSqrs[1];
+    inline __device__ real3 force(AngleCHARMMType angleType, real theta, real s, real c, real distSqrs[2], real3 directors[2], real invDistProd, int myIdxInAngle) {
+        real dTheta = theta - angleType.theta0;
+        real forceConst = angleType.k * dTheta;
+        real a     = -forceConst * s;
+        real a11   = a*c/distSqrs[0];
+        real a12   = -a*invDistProd;
+        real a22   = a*c/distSqrs[1];
 
         // Added code for computing Urey-Bradley component (MW)
-        float3 dr31;
+        real3 dr31;
         dr31        = directors[1] - directors[0]; // Urey-Bradley bond between 1 and 3 atoms
-        float rsq31 = dot(dr31,dr31);
-        float r31   = sqrtf(rsq31);
-        float drub  = r31 - angleType.rub;
-        float rk    = angleType.kub * drub;
-        float fub   = -rk / r31;   // consider safe-checking for r31 > 0.0 ?
+        real rsq31 = dot(dr31,dr31);
+        real r31   = sqrtf(rsq31);
+        real drub  = r31 - angleType.rub;
+        real rk    = angleType.kub * drub;
+        real fub   = -rk / r31;   // consider safe-checking for r31 > 0.0 ?
         //printf("Eang= %f\n", (1.0f / 2.0f) *( dTheta * dTheta * angleType.k + drub * drub * angleType.kub ));
         // End added code
         
@@ -41,85 +41,24 @@ public:
 
 
 
-    inline __device__ double3 force(AngleCHARMMType angleType, double theta, double s, double c, double distSqrs[2], double3 directors[2], double invDistProd, int myIdxInAngle) {
-        double dTheta = theta - double(angleType.theta0);
-        double forceConst = double(angleType.k) * dTheta;
-        double a     = -forceConst * s;
-        double a11   = a*c/distSqrs[0];
-        double a12   = -a*invDistProd;
-        double a22   = a*c/distSqrs[1];
-
-        // Added code for computing Urey-Bradley component (MW)
-        double3 dr31;
-        dr31        = directors[1] - directors[0]; // Urey-Bradley bond between 1 and 3 atoms
-        float rsq31 = dot(dr31,dr31);
-        double r31   = sqrtf(rsq31);
-        double drub  = r31 - angleType.rub;
-        double rk    = angleType.kub * drub;
-        double fub   = -rk / r31;   // consider safe-checking for r31 > 0.0 ?
-        //printf("Eang= %f\n", (1.0f / 2.0f) *( dTheta * dTheta * angleType.k + drub * drub * angleType.kub ));
-        // End added code
-        
-        if (myIdxInAngle==0) {
-            return (directors[0] * a11) + (directors[1] * a12) - dr31 * fub ;
-        } else if (myIdxInAngle==1) {
-            return ((directors[0] * a11) + (directors[1] * a12) + (directors[1] * a22) + (directors[0] * a12))*-1.0f ; 
-        } else {
-            return (directors[1] * a22) + (directors[0] * a12) + dr31 * fub ;
-        }
-
-
-    }
-
-
-
-
-
-    inline __device__ void forcesAll(AngleCHARMMType angleType, float theta, float s, float c, float distSqrs[2], float3 directors[2], float invDistProd, float3 forces[3]) {
-        float dTheta = theta - angleType.theta0;
+    inline __device__ void forcesAll(AngleCHARMMType angleType, real theta, real s, real c, real distSqrs[2], real3 directors[2], real invDistProd, real3 forces[3]) {
+        real dTheta = theta - angleType.theta0;
         //   printf("current %f theta eq %f idx %d, type %d\n", acosf(c), angleType.theta0, myIdxInAngle, type);
         
 
-        float forceConst = angleType.k * dTheta;
-        float a = - forceConst * s;
-        float a11 = a*c/distSqrs[0];
-        float a12 = -a*invDistProd;
-        float a22 = a*c/distSqrs[1];
+        real forceConst = angleType.k * dTheta;
+        real a = - forceConst * s;
+        real a11 = a*c/distSqrs[0];
+        real a12 = -a*invDistProd;
+        real a22 = a*c/distSqrs[1];
         // Added code for computing Urey-Bradley component (MW)
-        float3 dr31;
+        real3 dr31;
         dr31        = directors[1] - directors[0]; // Urey-Bradley bond between 1 and 3 atoms
-        float rsq31 = dot(dr31,dr31);
-        float r31   = sqrtf(rsq31);
-        float drub  = r31 - angleType.rub;
-        float rk    = angleType.kub * drub;
-        float fub   = -rk / r31;   // consider safe-checking for r31 > 0.0 ?
-        // End added code
-        forces[0] = (directors[0] * a11) + (directors[1] * a12) - dr31 * fub ;
-        forces[1] = ((directors[0] * a11) + (directors[1] * a12) + (directors[1] * a22) + (directors[0] * a12)) * -1.0f ; 
-        forces[2] = (directors[1] * a22) + (directors[0] * a12) + dr31 * fub ;
-
-
-    }
-
-
-    inline __device__ void forcesAll(AngleCHARMMType angleType, double theta, double s, double c, double distSqrs[2], double3 directors[2], double invDistProd, double3 forces[3]) {
-        double dTheta = theta - double(angleType.theta0);
-        //   printf("current %f theta eq %f idx %d, type %d\n", acosf(c), angleType.theta0, myIdxInAngle, type);
-        
-
-        double forceConst = double(angleType.k) * dTheta;
-        double a = - forceConst * s;
-        double a11 = a*c/distSqrs[0];
-        double a12 = -a*invDistProd;
-        double a22 = a*c/distSqrs[1];
-        // Added code for computing Urey-Bradley component (MW)
-        double3 dr31;
-        dr31        = directors[1] - directors[0]; // Urey-Bradley bond between 1 and 3 atoms
-        double rsq31 = dot(dr31,dr31);
-        double r31   = sqrtf(rsq31);
-        double drub  = r31 - double(angleType.rub);
-        double rk    = double(angleType.kub) * drub;
-        double fub   = -rk / r31;   // consider safe-checking for r31 > 0.0 ?
+        real rsq31 = dot(dr31,dr31);
+        real r31   = sqrtf(rsq31);
+        real drub  = r31 - angleType.rub;
+        real rk    = angleType.kub * drub;
+        real fub   = -rk / r31;   // consider safe-checking for r31 > 0.0 ?
         // End added code
         forces[0] = (directors[0] * a11) + (directors[1] * a12) - dr31 * fub ;
         forces[1] = ((directors[0] * a11) + (directors[1] * a12) + (directors[1] * a22) + (directors[0] * a12)) * -1.0f ; 
@@ -130,14 +69,13 @@ public:
 
 
 
-
-    inline __device__ float energy(AngleCHARMMType angleType, float theta, float3 directors[2]) {
-        float dTheta = theta - angleType.theta0;
-        float3 dr31;
+    inline __device__ real energy(AngleCHARMMType angleType, real theta, real3 directors[2]) {
+        real dTheta = theta - angleType.theta0;
+        real3 dr31;
         dr31        = directors[1] - directors[0]; // Urey-Bradley bond between 1 and 3 atoms
-        float rsq31 = dot(dr31,dr31);
-        float r31   = sqrtf(rsq31);
-        float drub  = r31 - angleType.rub;
+        real rsq31 = dot(dr31,dr31);
+        real r31   = sqrtf(rsq31);
+        real drub  = r31 - angleType.rub;
 //        printf("theta = %f, r31 = %f, theta = %f,k = %f,rub = %f, kub = %f\n",theta,r31,angleType.theta0,angleType.k,angleType.rub,angleType.kub);
 //        printf("eang = %f\n", 0.5f *( dTheta * dTheta * angleType.k + drub * drub * angleType.kub ) );
         return (1.0f / 6.0f) *( dTheta * dTheta * angleType.k + drub * drub * angleType.kub ) ; // 1/6 comes from 1/3 (energy split between three atoms) and 1/2 from 1/2 k dtheta^2

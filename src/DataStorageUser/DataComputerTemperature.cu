@@ -19,10 +19,10 @@ void DataComputerTemperature::computeScalar_GPU(bool transferToCPU, uint32_t gro
     lastGroupTag = groupTag;
     int nAtoms = state->atoms.size();
     if (groupTag == 1) {
-         accumulate_gpu<float, float4, SumVectorSqr3DOverW, N_DATA_PER_THREAD> <<<NBLOCK(nAtoms / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*PERBLOCK*sizeof(float)>>>
+         accumulate_gpu<real, real4, SumVectorSqr3DOverW, N_DATA_PER_THREAD> <<<NBLOCK(nAtoms / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*PERBLOCK*sizeof(real)>>>
             (gpuBuffer.getDevData(), state->gpd.vs.getDevData(), nAtoms, state->devManager.prop.warpSize, SumVectorSqr3DOverW());
     } else {
-        accumulate_gpu_if<float, float4, SumVectorSqr3DOverWIf, N_DATA_PER_THREAD> <<<NBLOCK(nAtoms / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*PERBLOCK*sizeof(float)>>>
+        accumulate_gpu_if<real, real4, SumVectorSqr3DOverWIf, N_DATA_PER_THREAD> <<<NBLOCK(nAtoms / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*PERBLOCK*sizeof(real)>>>
             (gpuBuffer.getDevData(), gpd.vs.getDevData(), nAtoms, state->devManager.prop.warpSize, SumVectorSqr3DOverWIf(gpd.fs.getDevData(), groupTag));
     }
     if (transferToCPU) {
@@ -43,7 +43,7 @@ void DataComputerTemperature::computeVector_GPU(bool transferToCPU, uint32_t gro
     lastGroupTag = groupTag;
     int nAtoms = state->atoms.size();
 
-    oneToOne_gpu<float, float4, SumVectorSqr3DOverW, 8> <<< NBLOCK(nAtoms / (double) 8), PERBLOCK>>> 
+    oneToOne_gpu<real, real4, SumVectorSqr3DOverW, 8> <<< NBLOCK(nAtoms / (double) 8), PERBLOCK>>> 
             (gpuBuffer.getDevData(), gpd.vs.getDevData(), nAtoms, SumVectorSqr3DOverW());
     if (transferToCPU) {
         gpuBuffer.dataToHost();
@@ -58,10 +58,10 @@ void DataComputerTemperature::computeTensor_GPU(bool transferToCPU, uint32_t gro
     lastGroupTag = groupTag;
     int nAtoms = state->atoms.size();
     if (groupTag == 1) {
-        accumulate_gpu<Virial, float4, SumVectorToVirialOverW, N_DATA_PER_THREAD>  <<<NBLOCK(nAtoms / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*PERBLOCK*sizeof(Virial)>>>
+        accumulate_gpu<Virial, real4, SumVectorToVirialOverW, N_DATA_PER_THREAD>  <<<NBLOCK(nAtoms / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*PERBLOCK*sizeof(Virial)>>>
             ((Virial *) gpuBuffer.getDevData(), gpd.vs.getDevData(), nAtoms, state->devManager.prop.warpSize, SumVectorToVirialOverW());    
     } else {
-        accumulate_gpu_if<Virial, float4, SumVectorToVirialOverWIf, N_DATA_PER_THREAD> <<<NBLOCK(nAtoms / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*PERBLOCK*sizeof(Virial)>>>
+        accumulate_gpu_if<Virial, real4, SumVectorToVirialOverWIf, N_DATA_PER_THREAD> <<<NBLOCK(nAtoms / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*PERBLOCK*sizeof(Virial)>>>
             ((Virial *) gpuBuffer.getDevData(), gpd.vs.getDevData(), nAtoms, state->devManager.prop.warpSize, SumVectorToVirialOverWIf(gpd.fs.getDevData(), groupTag));
     } 
     if (transferToCPU) {
@@ -85,7 +85,7 @@ void DataComputerTemperature::computeScalar_CPU() {
 
 void DataComputerTemperature::computeVector_CPU() {
     //appending members in group in no meaningful order
-    std::vector<float> &kes = gpuBuffer.h_data;
+    std::vector<real> &kes = gpuBuffer.h_data;
     std::vector<uint> &ids = state->gpd.ids.h_data;
     std::vector<int> &idToIdxOnCopy = state->gpd.idToIdxsOnCopy;
     std::vector<Atom> &atoms = state->atoms;

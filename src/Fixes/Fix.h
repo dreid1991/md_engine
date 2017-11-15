@@ -148,8 +148,8 @@ public:
      *
      * \todo Make this function purely virtual.
      */
-    virtual void singlePointEng(float *perParticleEng) {}
-    virtual void singlePointEngGroupGroup(float *perParticleEng, uint32_t groupTagA, uint32_t groupTagB) {}
+    virtual void singlePointEng(real *perParticleEng) {}
+    virtual void singlePointEngGroupGroup(real *perParticleEng, uint32_t groupTagA, uint32_t groupTagB) {}
 
     //! Accomodate for new type of Atoms added to the system
     /*!
@@ -223,8 +223,8 @@ public:
      * \return vector storing interaction cutoff values or empty list if no
      *         cutoffs are used.
      */
-    virtual std::vector<float> getRCuts() {
-        return std::vector<float>();
+    virtual std::vector<real> getRCuts() {
+        return std::vector<real>();
     }
 
 
@@ -238,7 +238,7 @@ public:
         return std::vector<int>();
     }
 
-    virtual void scaleRigidBodies(float3 scaleBy, uint32_t groupTag) {};
+    virtual void scaleRigidBodies(real3 scaleBy, uint32_t groupTag) {};
 
     //! Check that all given Atoms are valid
     /*!

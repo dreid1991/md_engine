@@ -27,7 +27,7 @@ FixTIP4PFlexible::FixTIP4PFlexible(boost::shared_ptr<State> state_, std::string 
     readFromRestart();
 }
 
-__global__ void printGPD_Flexible(int4 *waterIds, int* idToIdxs, float4 *xs, float4 *vs, float4 *fs, int nMolecules) {
+__global__ void printGPD_Flexible(int4 *waterIds, int* idToIdxs, real4 *xs, real4 *vs, real4 *fs, int nMolecules) {
     int idx = GETIDX();
     
     // print 5 molecules per turn
@@ -44,20 +44,20 @@ __global__ void printGPD_Flexible(int4 *waterIds, int* idToIdxs, float4 *xs, flo
         int idx_H2= idToIdxs[theseAtoms.z];
         int idx_M = idToIdxs[theseAtoms.w];
 
-        float4 pos_O = xs[idx_O];
-        float4 pos_H1= xs[idx_H1];
-        float4 pos_H2= xs[idx_H2];
-        float4 pos_M = xs[idx_M];
+        real4 pos_O = xs[idx_O];
+        real4 pos_H1= xs[idx_H1];
+        real4 pos_H2= xs[idx_H2];
+        real4 pos_M = xs[idx_M];
 
-        float4 vel_O = vs[idx_O];
-        float4 vel_H1= vs[idx_H1];
-        float4 vel_H2= vs[idx_H2];
-        float4 vel_M = vs[idx_M];
+        real4 vel_O = vs[idx_O];
+        real4 vel_H1= vs[idx_H1];
+        real4 vel_H2= vs[idx_H2];
+        real4 vel_M = vs[idx_M];
 
-        float4 force_O = fs[idx_O];
-        float4 force_H1= fs[idx_H1];
-        float4 force_H2= fs[idx_H2];
-        float4 force_M = fs[idx_M];
+        real4 force_O = fs[idx_O];
+        real4 force_H1= fs[idx_H1];
+        real4 force_H2= fs[idx_H2];
+        real4 force_M = fs[idx_M];
 
         printf("\natoms O, H1, H2, M ids %d %d %d %d\n     pos_O %f %f %f\npos_H1 %f %f %f\npos_H2 %f %f %f\npos_M %f %f %f\n",
                idO, idH1, idH2, idM,
@@ -89,9 +89,9 @@ __global__ void printGPD_Flexible(int4 *waterIds, int* idToIdxs, float4 *xs, flo
 //    see compute_gamma() function for details.
 // ---- but! gamma is a /variable/ for flexible geometries!
 template <bool VIRIALS>
-__global__ void distributeMSiteFlexible(int4 *waterIds, float4 *xs, float4 *vs, float4 *fs, 
+__global__ void distributeMSiteFlexible(int4 *waterIds, real4 *xs, real4 *vs, real4 *fs, 
                                 Virial *virials,
-                                int nMolecules, float gamma, float dtf, int* idToIdxs, BoundsGPU bounds)
+                                int nMolecules, real gamma, real dtf, int* idToIdxs, BoundsGPU bounds)
 
 {
     int idx = GETIDX();
@@ -107,16 +107,16 @@ __global__ void distributeMSiteFlexible(int4 *waterIds, float4 *xs, float4 *vs, 
         int idx_H2 = idToIdxs[id_H2];
         int idx_M = idToIdxs[id_M];
 
-        float4 vel_O = vs[idx_O];
-        float4 vel_H1 = vs[idx_H1];
-        float4 vel_H2 = vs[idx_H2];
+        real4 vel_O = vs[idx_O];
+        real4 vel_H1 = vs[idx_H1];
+        real4 vel_H2 = vs[idx_H2];
 
         //printf("In distributeMSite, velocity of Oxygen %d is %f %f %f\n", id_O, vel_O.x, vel_O.y, vel_O.z);
         // need the forces from O, H1, H2, and M
-        float4 fs_O  = fs[idx_O];
-        float4 fs_H1 = fs[idx_H1];
-        float4 fs_H2 = fs[idx_H2];
-        float4 fs_M  = fs[idx_M];
+        real4 fs_O  = fs[idx_O];
+        real4 fs_H1 = fs[idx_H1];
+        real4 fs_H2 = fs[idx_H2];
+        real4 fs_M  = fs[idx_M];
 
         //printf("Force on m site: %f %f %f\n", fs_M.x, fs_M.y, fs_M.z);
         //printf("Force on Oxygen : %f %f %f\n", fs_O.x, fs_M.y, fs_M.z);
@@ -125,18 +125,18 @@ __global__ void distributeMSiteFlexible(int4 *waterIds, float4 *xs, float4 *vs, 
 
         // this expression derived below in FixTIP4PFlexible::compute_gamma() function
         // -- these are the forces from the M-site partitioned for distribution to the atoms of the water molecule
-        float3 fs_O_d = make_float3(fs_M) * gamma;
-        float3 fs_H_d = make_float3(fs_M) * (1.0 - gamma) * 0.5;
+        real3 fs_O_d = make_real3(fs_M) * gamma;
+        real3 fs_H_d = make_real3(fs_M) * (1.0 - gamma) * 0.5;
 
         // get the inverse masses from velocity variables above
-        float invMassO = vel_O.w;
+        real invMassO = vel_O.w;
 
         // if the hydrogens don't have equivalent masses, we have bigger problems
-        float invMassH = vel_H1.w;
+        real invMassH = vel_H1.w;
 
         // compute the differential addition to the velocities
-        float3 dv_O = dtf * invMassO * fs_O_d;
-        float3 dv_H = dtf * invMassH * fs_H_d;
+        real3 dv_O = dtf * invMassO * fs_O_d;
+        real3 dv_H = dtf * invMassH * fs_H_d;
 
         // and add to the velocities of the atoms
         vel_O  += dv_O;
@@ -163,7 +163,7 @@ __global__ void distributeMSiteFlexible(int4 *waterIds, float4 *xs, float4 *vs, 
                                     0.0, 0.0, 0.0);
         };
         
-        vs[idx_M] = make_float4(0.0, 0.0, 0.0, INVMASSLESS);
+        vs[idx_M] = make_real4(0.0, 0.0, 0.0, INVMASSLESS);
         // finally, modify the forces; this way, the distributed force from M-site is incorporated in to nve_v() integration step
         // at beginning of next iteration in IntegratorVerlet.cu
         fs_O += fs_O_d;
@@ -176,8 +176,8 @@ __global__ void distributeMSiteFlexible(int4 *waterIds, float4 *xs, float4 *vs, 
         fs[idx_H2]= fs_H2;
 
         // zero the force and velocity (for completeness) on the M-site
-        fs[idx_M] = make_float4(0.0, 0.0, 0.0,fs_M.w);
-        vs[idx_M] = make_float4(0.0, 0.0, 0.0, INVMASSLESS);
+        fs[idx_M] = make_real4(0.0, 0.0, 0.0,fs_M.w);
+        vs[idx_M] = make_real4(0.0, 0.0, 0.0, INVMASSLESS);
         // this concludes re-distribution of the forces;
         // we assume nothing needs to be done re: virials; this sum is already tabulated at inner force loop computation
         // in the evaluators; for safety, we might just set 
@@ -185,7 +185,7 @@ __global__ void distributeMSiteFlexible(int4 *waterIds, float4 *xs, float4 *vs, 
     }
 }
 
-__global__ void setMSiteFlexible(int4 *waterIds, int *idToIdxs, float4 *xs, float gamma, int nMolecules, BoundsGPU bounds) {
+__global__ void setMSiteFlexible(int4 *waterIds, int *idToIdxs, real4 *xs, real gamma, int nMolecules, BoundsGPU bounds) {
 
     int idx = GETIDX();
     if (idx < nMolecules) {
@@ -202,36 +202,36 @@ __global__ void setMSiteFlexible(int4 *waterIds, int *idToIdxs, float4 *xs, floa
         int id_H2 = waterIds[idx].z;
         int id_M  = waterIds[idx].w;
 
-        float4 pos_M_whole = xs[idToIdxs[id_M]];
+        real4 pos_M_whole = xs[idToIdxs[id_M]];
         // get the positions of said atoms
-        float3 pos_O = make_float3(xs[idToIdxs[id_O]]);
-        float3 pos_H1= make_float3(xs[idToIdxs[id_H1]]);
-        float3 pos_H2= make_float3(xs[idToIdxs[id_H2]]);
-        float3 pos_M = make_float3(xs[idToIdxs[id_M]]);
+        real3 pos_O = make_real3(xs[idToIdxs[id_O]]);
+        real3 pos_H1= make_real3(xs[idToIdxs[id_H1]]);
+        real3 pos_H2= make_real3(xs[idToIdxs[id_H2]]);
+        real3 pos_M = make_real3(xs[idToIdxs[id_M]]);
 
         // compute vectors r_ij and r_ik according to minimum image convention
         // where r_ij = r_j - r_i, r_ik = r_k - r_i,
-        float3 r_ij = bounds.minImage( pos_H1 - pos_O );
-        float3 r_ik = bounds.minImage( pos_H2 - pos_O );
+        real3 r_ij = bounds.minImage( pos_H1 - pos_O );
+        real3 r_ik = bounds.minImage( pos_H2 - pos_O );
 
         // now get the minimum image /positions/ (r_ij, r_ik are the minimum image displacements)
         pos_H1 = pos_O + r_ij;
         pos_H2 = pos_O + r_ik;
 
         // -- see formula in q-TIP4P/F paper
-        float3 r_M  = (gamma * pos_O) + (0.5 * (1.0 - gamma) * (pos_H1 + pos_H2)) ;
+        real3 r_M  = (gamma * pos_O) + (0.5 * (1.0 - gamma) * (pos_H1 + pos_H2)) ;
 
         //printf("r_M calculated to be: \n%f %f %f\n",
         //       r_M.x, r_M.y, r_M.z);
         //printf("new position of M-site molecule %d r_M: %f %f %f\n      position of oxygen %d: %f %f %f\n", idx, r_M.x, r_M.y, r_M.z, id_O, pos_O.x, pos_O.y, pos_O.z);
-        float4 pos_M_new = make_float4(r_M.x, r_M.y, r_M.z, pos_M_whole.w);
+        real4 pos_M_new = make_real4(r_M.x, r_M.y, r_M.z, pos_M_whole.w);
         xs[idToIdxs[id_M]] = pos_M_new;
     }
 }
 
 template <bool VIRIALS>
-__global__ void initialForcePartitionFlexible(int4 *waterIds, float4 *xs, float4* vs, float4 *fs, 
-                                      Virial *virials, int nMolecules, float gamma,
+__global__ void initialForcePartitionFlexible(int4 *waterIds, real4 *xs, real4* vs, real4 *fs, 
+                                      Virial *virials, int nMolecules, real gamma,
                                       int *idToIdxs, BoundsGPU bounds) {
 
     // we assume the M-site is located in its proper location at this point (initialization of the system)
@@ -251,10 +251,10 @@ __global__ void initialForcePartitionFlexible(int4 *waterIds, float4 *xs, float4
         int idx_H2= idToIdxs[id_H2];
         int idx_M = idToIdxs[id_M];
         // need the forces from O, H1, H2, and M
-        float4 fs_O  = fs[idx_O];
-        float4 fs_H1 = fs[idx_H1];
-        float4 fs_H2 = fs[idx_H2];
-        float4 fs_M  = fs[idx_M];
+        real4 fs_O  = fs[idx_O];
+        real4 fs_H1 = fs[idx_H1];
+        real4 fs_H2 = fs[idx_H2];
+        real4 fs_M  = fs[idx_M];
 
         //printf("Force on m site: %f %f %f\n", fs_M.x, fs_M.y, fs_M.z);
         //printf("Force on Oxygen : %f %f %f\n", fs_O.x, fs_M.y, fs_M.z);
@@ -263,9 +263,9 @@ __global__ void initialForcePartitionFlexible(int4 *waterIds, float4 *xs, float4
 
         // this expression derived below in FixTIP4PFlexible::compute_gamma() function
         // -- these are the forces from the M-site partitioned for distribution to the atoms of the water molecule
-        float3 fs_O_d = (make_float3(fs_M)) * (gamma);
+        real3 fs_O_d = (make_real3(fs_M)) * (gamma);
         //printf("value of fs_O_d from atom M id %d: %f %f %f\n", waterIds[idx].w, fs_O_d.x, fs_O_d.y, fs_O_d.z);
-        float3 fs_H_d = (make_float3(fs_M)) * (1.0 - gamma) * 0.5;
+        real3 fs_H_d = (make_real3(fs_M)) * (1.0 - gamma) * 0.5;
 
         if (VIRIALS) {
             Virial virialToDistribute = virials[idToIdxs[id_M]];
@@ -292,10 +292,10 @@ __global__ void initialForcePartitionFlexible(int4 *waterIds, float4 *xs, float4
         fs[idx_H1]= fs_H1;
         fs[idx_H2]= fs_H2;
         
-        float4 vs_M = vs[idx_M];
+        real4 vs_M = vs[idx_M];
         // zero the force on the M-site, just because
-        fs[idx_M] = make_float4(0.0, 0.0, 0.0,fs_M.w);
-        vs[idx_M] = make_float4(0.0, 0.0, 0.0, vs_M.w);
+        fs[idx_M] = make_real4(0.0, 0.0, 0.0,fs_M.w);
+        vs[idx_M] = make_real4(0.0, 0.0, 0.0, vs_M.w);
         // this concludes re-distribution of the forces;
     }
 }
@@ -468,7 +468,7 @@ void FixTIP4PFlexible::compute_gamma() {
 
     double denominator = (H1Pos + H2Pos).len();
     //
-    gamma = (float) (rOM / denominator);
+    gamma = (real) (rOM / denominator);
     printf("in FixTIP4PFlexible::compute_gamma(): computed a gamma of %f\n", gamma);
     return;
 }
@@ -580,7 +580,7 @@ bool FixTIP4PFlexible::stepFinal() {
     int virialMode = dataManager.getVirialModeForTurn(state->turn);
     bool Virials = (virialMode == 1 or virialMode == 2);
     
-    float dtf = 0.5f * state->dt * state->units.ftm_to_v;
+    real dtf = 0.5f * state->dt * state->units.ftm_to_v;
     if (Virials) {
         distributeMSiteFlexible<true><<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), 
                                                      gpd.vs(activeIdx),  gpd.fs(activeIdx),

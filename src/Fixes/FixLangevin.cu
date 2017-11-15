@@ -8,32 +8,32 @@ namespace py = boost::python;
 
 
 
-__global__ void compute_cu(int nAtoms, float4 *vs, float4 *fs, curandState_t *randStates, float dt, float T, float gamma, float boltz, float mvv_to_e, float ftm_to_v, bool useMass) {
+__global__ void compute_cu(int nAtoms, real4 *vs, real4 *fs, curandState_t *randStates, real dt, real T, real gamma, real boltz, real mvv_to_e, real ftm_to_v, bool useMass) {
 
     int idx = GETIDX();
     if (idx < nAtoms) {
 
         curandState_t *randState = randStates + idx;
         curandState_t localState=*randState;
-        float3 Wiener;
+        real3 Wiener;
         Wiener.x=curand_uniform(&localState)-0.5f;
         Wiener.y=curand_uniform(&localState)-0.5f;
         Wiener.z=curand_uniform(&localState)-0.5f;
         *randState=localState;
-        float4 vel_whole = vs[idx];
-        float3 vel = make_float3(vel_whole);
+        real4 vel_whole = vs[idx];
+        real3 vel = make_real3(vel_whole);
 
-        float invMass = vel_whole.w;
+        real invMass = vel_whole.w;
         if (!useMass) {
             invMass = 1.0f;
         }
-        float dragFactor = gamma / (invMass * ftm_to_v);
-        float kickFactor = sqrtf((24.0f * boltz * gamma * T ) / (invMass * dt * mvv_to_e)) / ftm_to_v;
+        real dragFactor = gamma / (invMass * ftm_to_v);
+        real kickFactor = sqrtf((24.0f * boltz * gamma * T ) / (invMass * dt * mvv_to_e)) / ftm_to_v;
 
-        float4 force = fs[idx];
+        real4 force = fs[idx];
 
 
-        float3 dForce = Wiener * kickFactor - vel * dragFactor;
+        real3 dForce = Wiener * kickFactor - vel * dragFactor;
 
          
         force += dForce;

@@ -1843,4 +1843,91 @@ inline __host__ __device__ bool operator == (int3 a, int3 b) {
 inline __host__ __device__ bool operator != (int3 a, int3 b) { 
     return a.x!=b.x || a.y!=b.y || a.z!=b.z;
 }
+
+/* This solution found from stackoverflow question 16683146 */
+
+// define a macro that routes make_realX(...) to the proper macro with the right number of arguments
+//#define GET_PREC_MACRO(_1,_2,_3,_4,NAME,...) NAME
+
+#define CAT_ARGS( A, B ) A ## B
+#define SELECT_FUNCTION( NAME, NUM ) CAT_ARGS( NAME ## _, NUM )
+
+#define GET_COUNT_ARGS( _1, _2, _3, _4, COUNT, ... ) COUNT
+#define VA_SIZE( ... ) GET_COUNT_ARGS( __VA_ARGS__, 4,3,2,1)
+#define VA_SELECTOR( NAME, ... ) SELECT_FUNCTION( NAME, VA_SIZE(__VA_ARGS__) )(__VA_ARGS__)
+
+// ok, so need to overload the respective make_real2, make_real3, make_real4 macros..
+//#define make_real2(...) GET_PREC_MACRO(__VA_ARGS__,make_real21,make_real22,make_real23,make_real24)(__VA_ARGS__)
+//#define make_real3(...) GET_PREC_MACRO(__VA_ARGS__,make_real31,make_real32,make_real33,make_real34)(__VA_ARGS__)
+//#define make_real4(...) GET_PREC_MACRO(__VA_ARGS__,make_real41,make_real42,make_real43,make_real44)(__VA_ARGS__)
+
+
+#define make_real2(...) VA_SELECTOR( make_real2, __VA_ARGS__)
+#define make_real3(...) VA_SELECTOR( make_real3, __VA_ARGS__)
+#define make_real4(...) VA_SELECTOR( make_real4, __VA_ARGS__)
+
+// now, route them to the correct precision functions based on variable number of arguments and the compile option 
+// denoting the precision chosen by the user
+// ------ also
+//        map the following functions to either single or double, as required:
+//        __float_as_int
+//        __float_as_uint
+//       
+
+#ifdef DASH_DOUBLE
+// if DASH_DOUBLE is defined, route to make_double...() functions
+// make_real2 from 1, 2, 3, or 4 arguments (Z and W arguments are simply dropped)
+#define make_real2_1(X) make_double2(X)
+#define make_real2_2(X,Y) make_double2(X,Y)
+#define make_real2_3(X,Y,Z) make_double2(X,Y)
+#define make_real2_4(X,Y,Z,W) make_double2(X,Y)
+
+// make_real3 from 1,2,3, or 4 arguments (W argument is dropped)
+#define make_real3_1(X) make_double3(X)
+#define make_real3_2(X,Y) make_double3(X,Y)
+#define make_real3_3(X,Y,Z) make_double3(X,Y,Z)
+#define make_real3_4(X,Y,Z,W) make_double3(X,Y,Z)
+
+// make_real4 from 1,2,3, or 4 arguments
+#define make_real4_1(X) make_double4(X)
+#define make_real4_2(X,Y) make_double4(X,Y)
+#define make_real4_3(X,Y,Z) make_double4(X,Y,Z)
+#define make_real4_4(X,Y,Z,W) make_double4(X,Y,Z,W)
+
+// __real_as_int to __double_as_int()
+#define __real_as_int(X) __double_as_int(X)
+#define __real_as_uint(X) __double_as_uint(X)
+
+
+
+
+#else /* DASH_DOUBLE */
+
+// same thing as above, but now we cast as float2, float3, float4...
+// make_real2 from 1 or 2 arguments (Z,W args dropped, as above)
+#define make_real2_1(X) make_float2(X)
+#define make_real2_2(X,Y) make_float2(X,Y)
+#define make_real2_3(X,Y,Z) make_float2(X,Y)
+#define make_real2_4(X,Y,Z,W) make_float2(X,Y)
+
+// make_real3 from 1,2, or 3 arguments (drop W arg if 4 arguments present)
+#define make_real3_1(X) make_float3(X)
+#define make_real3_2(X,Y) make_float3(X,Y)
+#define make_real3_3(X,Y,Z) make_float3(X,Y,Z)
+#define make_real3_4(X,Y,Z,W) make_float3(X,Y,Z,W)
+
+// make_real4 from 1,2,3, or 4 arguments
+#define make_real4_1(X) make_float4(X)
+#define make_real4_2(X,Y) make_float4(X,Y)
+#define make_real4_3(X,Y,Z) make_float4(X,Y,Z)
+#define make_real4_4(X,Y,Z,W) make_float4(X,Y,Z,W)
+
+// __real_as_int to __double_as_int()
+#define __real_as_int(X) __float_as_int(X)
+#define __real_as_uint(X) __float_as_uint(X)
+
+#endif /* DASH_DOUBLE */
+
+
+
 #endif

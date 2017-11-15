@@ -6,36 +6,25 @@
 
 class BondEvaluatorHarmonic {
 public:
-    inline __device__ float3 force(float3 bondVec, float rSqr, BondHarmonicType bondType) {
-        float r = sqrtf(rSqr);
-        float dr = r - bondType.r0;
-        float rk = bondType.k * dr;
+    inline __device__ real3 force(real3 bondVec, real rSqr, BondHarmonicType bondType) {
+        real r = sqrtf(rSqr);
+        real dr = r - bondType.r0;
+        real rk = bondType.k * dr;
         if (r > 0) {//MAKE SURE ALL THIS WORKS, I JUST BORROWED FROM LAMMPS
-            float fBond = -rk/r;
+            real fBond = -rk/r;
             return bondVec * fBond;
         } 
-        return make_float3(0, 0, 0);
+        return make_real3(0, 0, 0);
     }
 
 
-    // double precision
-    inline __device__ double3 force(double3 bondVec, double rSqr, BondHarmonicType bondType) {
-        double r = sqrt(rSqr);
-        double dr = r - double(bondType.r0);
-        double rk = bondType.k * dr;
-        if (r > 0) {//MAKE SURE ALL THIS WORKS, I JUST BORROWED FROM LAMMPS
-            double fBond = -rk/r;
-            return bondVec * fBond;
-        } 
-        return make_double3(0, 0, 0);
-    }
 
 
-    inline __device__ float energy(float3 bondVec, float rSqr, BondHarmonicType bondType) {
-        float r = sqrtf(rSqr);
-        float dr = r - bondType.r0;
+    inline __device__ real energy(real3 bondVec, real rSqr, BondHarmonicType bondType) {
+        real r = sqrtf(rSqr);
+        real dr = r - bondType.r0;
         //printf("%f\n", (bondType.k/2.0) * 0.066 / (3.5*3.5));
-        float eng = bondType.k * dr * dr * 0.5f;
+        real eng = bondType.k * dr * dr * 0.5f;
         return 0.5f * eng; //0.5 for splitting between atoms
     }
 };

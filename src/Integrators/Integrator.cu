@@ -10,13 +10,12 @@
 #include "WriteConfig.h"
 #include "Interpolator.h"
 
-using namespace std;
 
-__global__ void zeroVectorPreserveW(float4 *xs, int n) {
+__global__ void zeroVectorPreserveW(real4 *xs, int n) {
     int idx = GETIDX();
     if (idx < n) {
-        float w = xs[idx].w;
-        xs[idx] = make_float4(0, 0, 0, w);
+        real w = xs[idx].w;
+        xs[idx] = make_real4(0, 0, 0, w);
     }
 }
 
@@ -94,21 +93,21 @@ void Integrator::asyncOperations() {
 
 void Integrator::basicPreRunChecks() {
     if (state->devManager.prop.major < 3) {
-        cout << "Device compute capability must be >= 3.0. Quitting" << endl;
+        std::cout << "Device compute capability must be >= 3.0. Quitting" << std::endl;
         assert(state->devManager.prop.major >= 3);
     }
     if (state->rCut == RCUT_INIT) {
-        cout << "rcut is not set" << endl;
+        std::cout << "rcut is not set" << std::endl;
         assert(state->rCut != RCUT_INIT);
     }
     if (state->is2d and state->periodic[2]) {
-        cout << "2d system cannot be periodic is z dimension" << endl;
+        std::cout << "2d system cannot be periodic is z dimension" << std::endl;
         assert(not (state->is2d and state->periodic[2]));
     }
     mdAssert(state->bounds.isInitialized(), "Bounds must be initialized");
     /*
     if (not state->bounds.isInitialized()) {
-        cout << "Bounds not initialized" << endl;
+        std::cout << "Bounds not initialized" << std::endl;
         assert(state->bounds.isInitialized());
     }
     */
@@ -229,7 +228,7 @@ void Integrator::basicFinish() {
 
 
 void Integrator::setActiveData() {
-    activeData = vector<GPUArray *>();
+    activeData = std::vector<GPUArray *>();
     activeData.push_back((GPUArray *) &state->gpd.ids);
     activeData.push_back((GPUArray *) &state->gpd.xs);
     activeData.push_back((GPUArray *) &state->gpd.vs);
@@ -256,7 +255,7 @@ void Integrator::writeOutput() {
 
     /*
 double Integrator::singlePointEngPythonAvg(string groupHandle) {
-    GPUArrayGlobal<float> eng(2);
+    GPUArrayGlobal<real> eng(2);
     eng.d_data.memset(0);
     basicPreRunChecks();
     basicPrepare(0);
@@ -266,7 +265,7 @@ double Integrator::singlePointEngPythonAvg(string groupHandle) {
     cudaDeviceSynchronize();
     uint32_t groupTag = state->groupTagFromHandle(groupHandle);
     int warpSize = state->devManager.prop.warpSize;
-    accumulate_gpu_if<float, float, SumSingleIf, N_DATA_PER_THREAD> <<<NBLOCK(state->atoms.size() / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*sizeof(float)*PERBLOCK>>>
+    accumulate_gpu_if<real, real, SumSingleIf, N_DATA_PER_THREAD> <<<NBLOCK(state->atoms.size() / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*sizeof(real)*PERBLOCK>>>
         (
          eng.getDevData(), 
          state->gpd.perParticleEng.getDevData(),
@@ -288,10 +287,10 @@ boost::python::list Integrator::singlePointEngPythonPerParticle() {
     state->gpd.ids.dataToHost();
     cudaDeviceSynchronize();
     CUT_CHECK_ERROR("Calculation of single point per-particle energy failed");
-    vector<float> &engs = state->gpd.perParticleEng.h_data;
-    vector<uint> &ids = state->gpd.ids.h_data;
-    vector<int> &idToIdxsOnCopy = state->gpd.idToIdxsOnCopy;
-    vector<double> sortedEngs(ids.size());
+    std::vector<real> &engs = state->gpd.perParticleEng.h_data;
+    std::vector<uint> &ids = state->gpd.ids.h_data;
+    std::vector<int> &idToIdxsOnCopy = state->gpd.idToIdxsOnCopy;
+    std::vector<double> sortedEngs(ids.size());
 
     for (int i=0, ii=state->atoms.size(); i<ii; i++) {
         int id = ids[i];
@@ -332,10 +331,10 @@ double Integrator::tune() {
 
 	int curNTPB = state->nThreadPerBlock;
 	int curNTPA = state->nThreadPerAtom;
-    vector<vector<double> > times;
+    std::vector<std::vector<double> > times;
     //REMEMBER TO MAKE COPY OF FORCES AND SET THEM BACK AFTER THIS;
     for (int i=0; i<threadPerBlocks.size(); i++) {
-        vector<double> timesWithBlock;
+        std::vector<double> timesWithBlock;
         for (int j=0; j<threadPerAtoms.size(); j++) {
             int threadPerBlock = threadPerBlocks[i];
             int threadPerAtom = threadPerAtoms[j];

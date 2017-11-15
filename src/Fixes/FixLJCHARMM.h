@@ -39,8 +39,8 @@ class FixLJCHARMM : public FixPair {
         void compute(int);
 
         //! Compute single point energy
-        void singlePointEng(float *);
-        void singlePointEngGroupGroup(float *, uint32_t, uint32_t);
+        void singlePointEng(real *);
+        void singlePointEngGroupGroup(real *, uint32_t, uint32_t);
 
         //! Prepare Fix
         /*!
@@ -74,7 +74,7 @@ class FixLJCHARMM : public FixPair {
         void addSpecies(std::string handle);
 
         //! Return list of cutoff values
-        std::vector<float> getRCuts();
+        std::vector<real> getRCuts();
     public:
         void setEvalWrapper();
         const std::string epsHandle; //!< Handle for parameter epsilon
@@ -82,11 +82,11 @@ class FixLJCHARMM : public FixPair {
         const std::string eps14Handle; //!< Handle for parameter epsilon for 1-4 interactions
         const std::string sig14Handle; //!< Handle for parameter sigma for 1-4 interactions
         const std::string rCutHandle; //!< Handle for parameter rCut
-        std::vector<float> epsilons; //!< vector storing epsilon values
-        std::vector<float> sigmas; //!< vector storing sigma values
-        std::vector<float> epsilons14; //!< vector storing epsilon 1-4 values
-        std::vector<float> sigmas14; //!< vector storing sigma 1-4 values
-        std::vector<float> rCuts; //!< vector storing cutoff distance values
+        std::vector<real> epsilons; //!< vector storing epsilon values
+        std::vector<real> sigmas; //!< vector storing sigma values
+        std::vector<real> epsilons14; //!< vector storing epsilon 1-4 values
+        std::vector<real> sigmas14; //!< vector storing sigma 1-4 values
+        std::vector<real> rCuts; //!< vector storing cutoff distance values
 
 
 };

@@ -5,12 +5,11 @@
 #define SMALL 0.001f
 #include "ImproperEvaluate.h"
 namespace py = boost::python;
-using namespace std;
 
 const std::string improperHarmonicType = "ImproperHarmonic";
 
 
-FixImproperHarmonic::FixImproperHarmonic(SHARED(State) state_, string handle)
+FixImproperHarmonic::FixImproperHarmonic(SHARED(State) state_, std::string handle)
     : FixPotentialMultiAtom (state_, handle, improperHarmonicType, true) {
         readFromRestart();
 
@@ -31,7 +30,7 @@ void FixImproperHarmonic::compute(int virialMode) {
         }
     }
 }
-void FixImproperHarmonic::singlePointEng(float *perParticleEng) {
+void FixImproperHarmonic::singlePointEng(real *perParticleEng) {
     int nAtoms = state->atoms.size();
     int activeIdx = state->gpd.activeIdx();
     if (forcersGPU.size()) {
@@ -41,7 +40,7 @@ void FixImproperHarmonic::singlePointEng(float *perParticleEng) {
 }
 
 void FixImproperHarmonic::createImproper(Atom *a, Atom *b, Atom *c, Atom *d, double k, double thetaEq, int type) {
-    vector<Atom *> atoms = {a, b, c, d};
+    std::vector<Atom *> atoms = {a, b, c, d};
     validAtoms(atoms);
     if (type == -1) {
         assert(k!=COEF_DEFAULT and thetaEq!=COEF_DEFAULT);
@@ -68,11 +67,11 @@ bool FixImproperHarmonic::readFromRestart() {
                     double k;
                     double thetaEq;
                     std::string type_ = type_node.attribute("id").value();
-                    type = atoi(type_.c_str());
+                    type = std::atoi(type_.c_str());
                     std::string k_ = type_node.attribute("k").value();
                     std::string thetaEq_ = type_node.attribute("thetaEq").value();
-                    k = atof(k_.c_str());
-                    thetaEq = atof(thetaEq_.c_str());
+                    k = std::atof(k_.c_str());
+                    thetaEq = std::atof(thetaEq_.c_str());
 
                     setImproperTypeCoefs(type, k, thetaEq);
                 }
@@ -89,17 +88,17 @@ bool FixImproperHarmonic::readFromRestart() {
                     std::string atom_d = member_node.attribute("atomID_d").value();
                     std::string k_ = member_node.attribute("k").value();
                     std::string thetaEq_ = member_node.attribute("thetaEq").value();
-                    type = atoi(type_.c_str());
-                    ids[0] = atoi(atom_a.c_str());
-                    ids[1] = atoi(atom_b.c_str());
-                    ids[2] = atoi(atom_c.c_str());
-                    ids[3] = atoi(atom_d.c_str());
+                    type = std::atoi(type_.c_str());
+                    ids[0] = std::atoi(atom_a.c_str());
+                    ids[1] = std::atoi(atom_b.c_str());
+                    ids[2] = std::atoi(atom_c.c_str());
+                    ids[3] = std::atoi(atom_d.c_str());
                     Atom * a = &state->idToAtom(ids[0]);
                     Atom * b = &state->idToAtom(ids[1]);
                     Atom * c = &state->idToAtom(ids[2]);
                     Atom * d = &state->idToAtom(ids[3]);
-                    k = atof(k_.c_str());
-                    thetaEq = atof(thetaEq_.c_str());
+                    k = std::atof(k_.c_str());
+                    thetaEq = std::atof(thetaEq_.c_str());
 
                     createImproper(a, b, c, d, k, thetaEq, type);
                 }
@@ -117,7 +116,7 @@ void export_FixImproperHarmonic() {
                           SHARED(FixImproperHarmonic),
                           boost::python::bases<Fix, TypedItemHolder> > (
         "FixImproperHarmonic",
-        boost::python::init<SHARED(State), string> (
+        boost::python::init<SHARED(State), std::string> (
                 boost::python::args("state", "handle"))
     )
     .def("createImproper", &FixImproperHarmonic::createImproper,

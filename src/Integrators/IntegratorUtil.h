@@ -1,6 +1,7 @@
 #pragma once
 #ifndef INTEGRATOR_UTIL_H
 #define INTEGRATOR_UTIL_H
+#include "globalDefs.h"
 //so this class exists because integrators are not members of the class, but sometimes the state needs to internally call some things have to do with integration, like calculating energies.  
 //The state has one of these classes.  Its methods are agnostic to integrator
 class State;

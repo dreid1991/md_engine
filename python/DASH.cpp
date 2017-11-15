@@ -8,9 +8,7 @@
 #include <boost/python/suite/indexing/map_indexing_suite.hpp>
 #include <boost/python/operators.hpp>
 
-using namespace boost::python;
 #include <tuple>
-using namespace std;
 #include "State.h"
 #include "GridGPU.h"
 #include "Atom.h"

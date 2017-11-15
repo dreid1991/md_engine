@@ -378,7 +378,7 @@ int State::addSpecies(std::string handle, double mass) {
     return id;
 }
 */
-void State::setSpecialNeighborCoefs(float onetwo, float onethree, float onefour) {
+void State::setSpecialNeighborCoefs(real onetwo, real onethree, real onefour) {
     specialNeighborCoefs[0] = onetwo;
     specialNeighborCoefs[1] = onethree;
     specialNeighborCoefs[2] = onefour;
@@ -474,11 +474,11 @@ bool State::deactivateFix(SHARED(Fix) other) {
     return removeGeneric<Fix>(fixesShr, &fixes, other);
 }
 
-float State::getMaxRCut() {
-    float maxRCut = rCut;
+real State::getMaxRCut() {
+    real maxRCut = rCut;
     for (Fix *f : fixes) {
-        std::vector<float> rCuts = f->getRCuts();
-        for (float x : rCuts) {
+        std::vector<real> rCuts = f->getRCuts();
+        for (real x : rCuts) {
             maxRCut = fmax(x, maxRCut);
         }
     }
@@ -503,9 +503,9 @@ void State::initializeGrid() {
 }
 
 void State::copyAtomDataToGPU(std::vector<int> &idToIdx) {
-    std::vector<float4> xs_vec, vs_vec, fs_vec;
+    std::vector<real4> xs_vec, vs_vec, fs_vec;
     std::vector<uint> ids;
-    std::vector<float> qs_vec;
+    std::vector<real> qs_vec;
 
     int nAtoms = atoms.size();
     xs_vec.resize(nAtoms);
@@ -514,12 +514,12 @@ void State::copyAtomDataToGPU(std::vector<int> &idToIdx) {
     qs_vec.resize(nAtoms);
 
     for (const auto &a : atoms) {
-        xs_vec[idToIdx[a.id]] = make_float4(a.pos[0], a.pos[1], a.pos[2],
-                                     *(float *)&a.type);
-        vs_vec[idToIdx[a.id]] = make_float4(a.vel[0], a.vel[1], a.vel[2],
+        xs_vec[idToIdx[a.id]] = make_real4(a.pos[0], a.pos[1], a.pos[2],
+                                     *(real *)&a.type);
+        vs_vec[idToIdx[a.id]] = make_real4(a.vel[0], a.vel[1], a.vel[2],
                                      1/a.mass);
-        fs_vec[idToIdx[a.id]] = make_float4(a.force[0], a.force[1], a.force[2],
-                                     *(float *)&a.groupTag);
+        fs_vec[idToIdx[a.id]] = make_real4(a.force[0], a.force[1], a.force[2],
+                                     *(real *)&a.groupTag);
         qs_vec[idToIdx[a.id]] = a.q;
     }
     //just setting host-side vectors
@@ -552,9 +552,9 @@ bool State::prepareForRun() {
         requiresPostNVE_V = *std::max_element(requirePostNVE_V.begin(), requirePostNVE_V.end());
     }
 
-    std::vector<float4> xs_vec, vs_vec, fs_vec;
+    std::vector<real4> xs_vec, vs_vec, fs_vec;
     std::vector<uint> ids;
-    std::vector<float> qs;
+    std::vector<real> qs;
 
     int nAtoms = atoms.size();
     xs_vec.reserve(nAtoms);
@@ -564,21 +564,21 @@ bool State::prepareForRun() {
     qs.reserve(nAtoms);
    
     for (const auto &a : atoms) {
-        xs_vec.push_back(make_float4(a.pos[0], a.pos[1], a.pos[2],
-                                     *(float *)&a.type));
+        xs_vec.push_back(make_real4(a.pos[0], a.pos[1], a.pos[2],
+                                     *(real *)&a.type));
         if (a.mass == 0.0) {
             // make the inverse mass a very large, but finite number
-            // -- must be representable by floating point
+            // -- must be representable by realing point
             // -- make it a few orders of magnitude small than 1e38 so overflow is
             //    never an issue
-            vs_vec.push_back(make_float4(a.vel[0], a.vel[1], a.vel[2],
+            vs_vec.push_back(make_real4(a.vel[0], a.vel[1], a.vel[2],
                                          INVMASSLESS));
         } else {
-            vs_vec.push_back(make_float4(a.vel[0], a.vel[1], a.vel[2],
+            vs_vec.push_back(make_real4(a.vel[0], a.vel[1], a.vel[2],
                                          1/a.mass));
         }
-        fs_vec.push_back(make_float4(a.force[0], a.force[1], a.force[2],
-                                     *(float *)&a.groupTag));
+        fs_vec.push_back(make_real4(a.force[0], a.force[1], a.force[2],
+                                     *(real *)&a.groupTag));
         ids.push_back(a.id);
         qs.push_back(a.q);
     }
@@ -594,7 +594,7 @@ bool State::prepareForRun() {
     std::vector<Virial> virials(atoms.size(), Virial(0, 0, 0, 0, 0, 0));
     gpd.virials = GPUArrayGlobal<Virial>(nAtoms);
     gpd.virials.set(virials);
-    //gpd.perParticleEng = GPUArrayGlobal<float>(nAtoms);
+    //gpd.perParticleEng = GPUArrayGlobal<real>(nAtoms);
     // so... wanna keep ids tightly packed.  That's managed by program, not user
     std::vector<int> id_vec = LISTMAPREF(Atom, int, a, atoms, a.id);
     std::vector<int> idToIdxs_vec;
@@ -611,12 +611,12 @@ bool State::prepareForRun() {
     gpd.idToIdxs.set(idToIdxs_vec);
     bounds.handle2d();
     boundsGPU = bounds.makeGPU();
-    float maxRCut = getMaxRCut();
+    real maxRCut = getMaxRCut();
     initializeGrid();
 
-    gpd.xsBuffer = GPUArrayGlobal<float4>(nAtoms);
-    gpd.vsBuffer = GPUArrayGlobal<float4>(nAtoms);
-    gpd.fsBuffer = GPUArrayGlobal<float4>(nAtoms);
+    gpd.xsBuffer = GPUArrayGlobal<real4>(nAtoms);
+    gpd.vsBuffer = GPUArrayGlobal<real4>(nAtoms);
+    gpd.fsBuffer = GPUArrayGlobal<real4>(nAtoms);
     gpd.idsBuffer = GPUArrayGlobal<uint>(nAtoms);
 
     return true;
@@ -643,9 +643,9 @@ void copyAsyncWithInstruc(State *state, std::function<void (int64_t )> cb, int64
     state->gpd.idsBuffer.dataToHostAsync(stream);
     CUCHECK(cudaStreamSynchronize(stream));
     std::vector<int> idToIdxsOnCopy = state->gpd.idToIdxsOnCopy;
-    std::vector<float4> &xs = state->gpd.xsBuffer.h_data;
-    std::vector<float4> &vs = state->gpd.vsBuffer.h_data;
-    std::vector<float4> &fs = state->gpd.fsBuffer.h_data;
+    std::vector<real4> &xs = state->gpd.xsBuffer.h_data;
+    std::vector<real4> &vs = state->gpd.vsBuffer.h_data;
+    std::vector<real4> &fs = state->gpd.fsBuffer.h_data;
     std::vector<uint> &ids = state->gpd.idsBuffer.h_data;
     std::vector<Atom> &atoms = state->atoms;
 
@@ -669,9 +669,9 @@ void copySyncWithInstruc(State *state, std::function<void (int64_t )> cb, int64_
 
     CUCHECK(cudaDeviceSynchronize());
     std::vector<int> idToIdxsOnCopy = state->gpd.idToIdxsOnCopy;
-    std::vector<float4> &xs = state->gpd.xs.h_data;
-    std::vector<float4> &vs = state->gpd.vs.h_data;
-    std::vector<float4> &fs = state->gpd.fs.h_data;
+    std::vector<real4> &xs = state->gpd.xs.h_data;
+    std::vector<real4> &vs = state->gpd.vs.h_data;
+    std::vector<real4> &fs = state->gpd.fs.h_data;
     std::vector<uint> &ids = state->gpd.ids.h_data;
     std::vector<Atom> &atoms = state->atoms;
     for (int i=0, ii=state->atoms.size(); i<ii; i++) {
@@ -772,9 +772,9 @@ void State::findRigidBodies() {
 
 
 bool State::downloadFromRun() {
-    std::vector<float4> &xs = gpd.xs.h_data;
-    std::vector<float4> &vs = gpd.vs.h_data;
-    std::vector<float4> &fs = gpd.fs.h_data;
+    std::vector<real4> &xs = gpd.xs.h_data;
+    std::vector<real4> &vs = gpd.vs.h_data;
+    std::vector<real4> &fs = gpd.fs.h_data;
     std::vector<uint> &ids = gpd.ids.h_data;
     for (int i=0, ii=atoms.size(); i<ii; i++) {
         int id = ids[i];
@@ -988,10 +988,10 @@ bool State::preparePIMD(double temp) {
         RPatoms.reserve(nTot);              
         boost::python::list RPmolecules;    // new list of molecules to replace current list
 
-        float betaP     = 1.0f / units.boltz / temp;        // Here simulation is run at betaP by default
-        float omegaP    = (float) units.boltz * temp / units.hbar  ;
-        float invP            = 1.0 / (float) nPerRingPoly;
-        float twoPiInvP       = 2.0f * M_PI * invP;
+        real betaP     = 1.0f / units.boltz / temp;        // Here simulation is run at betaP by default
+        real omegaP    = (real) units.boltz * temp / units.hbar  ;
+        real invP            = 1.0 / (real) nPerRingPoly;
+        real twoPiInvP       = 2.0f * M_PI * invP;
 
         //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         // UPDATE ATOMS
@@ -1008,12 +1008,12 @@ bool State::preparePIMD(double temp) {
             // a new set of coordinates with centroid at the initial position of the atoms
             std::vector<Vector> xsNM;       // vector for containing normal-mode coordinates
             xsNM.reserve(nPerRingPoly);
-            xsNM.push_back(ai.pos* sqrtf( (float) nPerRingPoly));
+            xsNM.push_back(ai.pos* sqrtf( (real) nPerRingPoly));
             for (int k = 1; k < nPerRingPoly; k++) {
-                float omegak = 2.0f * omegaP * sinf( k * twoPiInvP * 0.5);
-                float sigmak = sqrtf((float) 1.0  / betaP / ai.mass / units.mvv_to_eng) / omegak; // sigma = sqrt(1/ beta_P * m *omegak^2)
-                std::normal_distribution<float> distNM(0.0,sigmak);
-                float xk, yk, zk;
+                real omegak = 2.0f * omegaP * sinf( k * twoPiInvP * 0.5);
+                real sigmak = sqrtf((real) 1.0  / betaP / ai.mass / units.mvv_to_eng) / omegak; // sigma = sqrt(1/ beta_P * m *omegak^2)
+                std::normal_distribution<real> distNM(0.0,sigmak);
+                real xk, yk, zk;
                 xk = distNM(randomNumberGenerator);
                 yk = distNM(randomNumberGenerator);
                 zk = distNM(randomNumberGenerator);
@@ -1021,7 +1021,7 @@ bool State::preparePIMD(double temp) {
             }
 
             // prepare for velocity initialization
-            std::normal_distribution<float> distVel(0.0,sqrtf( (float) 1.0 / betaP / ai.mass / units.mvv_to_eng));
+            std::normal_distribution<real> distVel(0.0,sqrtf( (real) 1.0 / betaP / ai.mass / units.mvv_to_eng));
 
             // fill in atom copies
             for (int k=0; k < nPerRingPoly; k++) {

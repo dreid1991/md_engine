@@ -48,8 +48,8 @@ namespace MD_ENGINE {
         bool requiresVirials;
         bool requiresPerAtomVirials;
 
-        GPUArrayGlobal<float> gpuBuffer; //will be cast as virial if necessary
-        GPUArrayGlobal<float> gpuBufferReduce; //target for reductions, also maybe cast as virial
+        GPUArrayGlobal<real> gpuBuffer; //will be cast as virial if necessary
+        GPUArrayGlobal<real> gpuBufferReduce; //target for reductions, also maybe cast as virial
         std::vector<double> sorted; //sorted vector values
 
         std::string computeMode;
