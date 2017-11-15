@@ -698,17 +698,17 @@ void FixChargeEwald::setTotalQ2() {
     tmp.dataToHost();   
     total_Q=sqrt(conversion)*tmp.h_data[0]/state->nPerRingPoly;   
     
-    cout<<"total_Q "<<total_Q<<'\n';
-    cout<<"total_Q2 "<<total_Q2<<'\n';
+    std::cout<<"total_Q "<<total_Q<<'\n';
+    std::cout<<"total_Q2 "<<total_Q2<<'\n';
 }
 double FixChargeEwald::find_optimal_parameters(bool printError){
 
     int nAtoms = state->atoms.size();    
     L=state->boundsGPU.trace();
     h=make_real3(L.x/sz.x,L.y/sz.y,L.z/sz.z);
-//     cout<<"Lx "<<L.x<<'\n';
-//     cout<<"hx "<<h.x<<'\n';
-//     cout<<"nA "<<nAtoms<<'\n';
+//     std::cout<<"Lx "<<L.x<<'\n';
+//     std::cout<<"hx "<<h.x<<'\n';
+//     std::cout<<"nA "<<nAtoms<<'\n';
 
 //now root solver 
 //solving DeltaF_k=DeltaF_real
@@ -722,8 +722,8 @@ double FixChargeEwald::find_optimal_parameters(bool printError){
     
     double y_a=DeltaF_k(x_a)-DeltaF_real(x_a);
     double y_b=DeltaF_k(x_b)-DeltaF_real(x_b);
-//           cout<<x_a<<' '<<y_a<<'\n';
-//           cout<<x_b<<' '<<y_b<<' '<<DeltaF_real(x_b)<<'\n';
+//           std::cout<<x_a<<' '<<y_a<<'\n';
+//           std::cout<<x_b<<' '<<y_b<<' '<<DeltaF_real(x_b)<<'\n';
 
     double tol=1E-5;
     int n_iter=0,max_iter=100;
@@ -733,10 +733,10 @@ double FixChargeEwald::find_optimal_parameters(bool printError){
       x_a=x_b;
       x_b=x_a-y_a*kinv;
       y_b=DeltaF_k(x_b)-DeltaF_real(x_b);
-//       cout<<x_b<<' '<<y_b<<'\n';
+//       std::cout<<x_b<<' '<<y_b<<'\n';
       n_iter++;
     }
-    if (n_iter==max_iter) cout<<"Ewald RMS Root finder failed, max_iter "<<max_iter<<" reached\n";
+    if (n_iter==max_iter) std::cout<<"Ewald RMS Root finder failed, max_iter "<<max_iter<<" reached\n";
     alpha=x_b;
     setEvalWrapper();
     //set orig!
@@ -744,8 +744,8 @@ double FixChargeEwald::find_optimal_parameters(bool printError){
     double error = DeltaF_k(alpha)+DeltaF_real(alpha);
     if (printError) {
 
-        cout<<"Ewald alpha="<<alpha<<'\n';
-        cout<<"Ewald RMS error is  "<<error<<'\n';
+        std::cout<<"Ewald alpha="<<alpha<<'\n';
+        std::cout<<"Ewald RMS error is  "<<error<<'\n';
     }
     return error;
     
@@ -760,15 +760,15 @@ void FixChargeEwald::setParameters(int szx_,int szy_,int szz_,real rcut_,int int
         rcut_ = state->rCut;
     }
     if ((szx_!=32)&&(szx_!=64)&&(szx_!=128)&&(szx_!=256)&&(szx_!=512)&&(szx_!=1024)){
-        cout << szx_ << " is not supported, sorry. Only 2^N grid size works for charge Ewald\n";
+        std::cout << szx_ << " is not supported, sorry. Only 2^N grid size works for charge Ewald\n";
         exit(2);
     }
     if ((szy_!=32)&&(szy_!=64)&&(szy_!=128)&&(szy_!=256)&&(szy_!=512)&&(szy_!=1024)){
-        cout << szy_ << " is not supported, sorry. Only 2^N grid size works for charge Ewald\n";
+        std::cout << szy_ << " is not supported, sorry. Only 2^N grid size works for charge Ewald\n";
         exit(2);
     }
     if ((szz_!=32)&&(szz_!=64)&&(szz_!=128)&&(szz_!=256)&&(szz_!=512)&&(szz_!=1024)){
-        cout << szz_ << " is not supported, sorry. Only 2^N grid size works for charge Ewald\n";
+        std::cout << szz_ << " is not supported, sorry. Only 2^N grid size works for charge Ewald\n";
         exit(2);
     }
     sz=make_int3(szx_,szy_,szz_);
@@ -871,11 +871,11 @@ void FixChargeEwald::calc_Green_function(){
 //     for(int i=0;i<sz.x;i++)
 //             for(int j=0;j<sz.y;j++){
 //                 for(int k=0;k<sz.z;k++){
-//                     cout<<Green_function.h_data[i*sz.y*sz.z+j*sz.z+k]<<'\t';
+//                     std::cout<<Green_function.h_data[i*sz.y*sz.z+j*sz.z+k]<<'\t';
 //                     ofs<<Green_function.h_data[i*sz.y*sz.z+j*sz.z+k]<<'\t';
 //                 }
 //                 ofs<<'\n';
-//                 cout<<'\n';
+//                 std::cout<<'\n';
 //             }
 //     ofs.close();
 
@@ -904,11 +904,11 @@ void FixChargeEwald::calc_potential(cufftComplex *phi_buf){
 //     for(int i=0;i<sz.x;i++)
 //             for(int j=0;j<sz.y;j++){
 //                 for(int k=0;k<sz.z;k++){
-//                     cout<<buf[i*sz.y*sz.z*2+j*sz.z*2+k*2]/volume<<'\t';
+//                     std::cout<<buf[i*sz.y*sz.z*2+j*sz.z*2+k*2]/volume<<'\t';
 //                      ofs<<buf[i*sz.y*sz.z*2+j*sz.z*2+k*2]/volume<<'\t';
 //                 }
 //                 ofs<<'\n';
-//                 cout<<'\n';
+//                 std::cout<<'\n';
 //             }
 //     ofs.close();
 //     delete []buf;
@@ -970,7 +970,7 @@ void FixChargeEwald::handleBoundsChangeInternal(bool printError) {
 void FixChargeEwald::compute(int virialMode) {
  //   CUT_CHECK_ERROR("before FixChargeEwald kernel execution failed");
 
-//     cout<<"FixChargeEwald::compute..\n";
+//     std::cout<<"FixChargeEwald::compute..\n";
     int nAtoms       = state->atoms.size();
     int nPerRingPoly = state->nPerRingPoly;
     int nRingPoly    = nAtoms / nPerRingPoly;
@@ -1037,11 +1037,11 @@ void FixChargeEwald::compute(int virialMode) {
         //     for(int i=0;i<sz.x;i++)
         //             for(int j=0;j<sz.y;j++){
         //                 for(int k=0;k<sz.z;k++){
-        //                     cout<<buf[i*sz.y*sz.z*2+j*sz.z*2+k*2]<<'\t';
+        //                     std::cout<<buf[i*sz.y*sz.z*2+j*sz.z*2+k*2]<<'\t';
         //                     ofs <<buf[i*sz.y*sz.z*2+j*sz.z*2+k*2]<<'\t';
         //                 }
         //                 ofs<<'\n';
-        //                 cout<<'\n';
+        //                 std::cout<<'\n';
         //             }
 
 
@@ -1070,11 +1070,11 @@ void FixChargeEwald::compute(int virialMode) {
           for(int i=0;i<sz.x;i++)
           for(int j=0;j<sz.y;j++){
           for(int k=0;k<sz.z;k++){
-          cout<<-buf[i*sz.y*sz.z*2+j*sz.z*2+k*2]/volume<<'\t';
+          std::cout<<-buf[i*sz.y*sz.z*2+j*sz.z*2+k*2]/volume<<'\t';
           ofs<<-buf[i*sz.y*sz.z*2+j*sz.z*2+k*2]/volume<<'\t';
           }
           ofs<<'\n';
-          cout<<'\n';
+          std::cout<<'\n';
           }
           ofs.close();
           cudaMemcpy((void *)buf,FFT_Ey,sizeof(cufftComplex)*sz.x*sz.y*sz.z,cudaMemcpyDeviceToHost );
@@ -1082,11 +1082,11 @@ void FixChargeEwald::compute(int virialMode) {
           for(int i=0;i<sz.x;i++)
           for(int j=0;j<sz.y;j++){
           for(int k=0;k<sz.z;k++){
-          cout<<-buf[i*sz.y*sz.z*2+j*sz.z*2+k*2]/volume<<'\t';
+          std::cout<<-buf[i*sz.y*sz.z*2+j*sz.z*2+k*2]/volume<<'\t';
           ofs<<-buf[i*sz.y*sz.z*2+j*sz.z*2+k*2]/volume<<'\t';
           }
           ofs<<'\n';
-          cout<<'\n';
+          std::cout<<'\n';
           }
           ofs.close();    
           cudaMemcpy((void *)buf,FFT_Ez,sizeof(cufftComplex)*sz.x*sz.y*sz.z,cudaMemcpyDeviceToHost );
@@ -1094,11 +1094,11 @@ void FixChargeEwald::compute(int virialMode) {
           for(int i=0;i<sz.x;i++)
           for(int j=0;j<sz.y;j++){
           for(int k=0;k<sz.z;k++){
-          cout<<-buf[i*sz.y*sz.z*2+j*sz.z*2+k*2]/volume<<'\t';
+          std::cout<<-buf[i*sz.y*sz.z*2+j*sz.z*2+k*2]/volume<<'\t';
           ofs<<-buf[i*sz.y*sz.z*2+j*sz.z*2+k*2]/volume<<'\t';
           }
           ofs<<'\n';
-          cout<<'\n';
+          std::cout<<'\n';
           }
           ofs.close();    
           delete []buf;   */ 
@@ -1173,7 +1173,7 @@ void FixChargeEwald::singlePointEng(real * perParticleEng) {
     if (state->boundsGPU != boundsLastOptimize) {
         handleBoundsChange();
     }
-//     cout<<"FixChargeEwald::compute..\n";
+//     std::cout<<"FixChargeEwald::compute..\n";
     int nAtoms = state->atoms.size();
     int nPerRingPoly = state->nPerRingPoly;
     int nRingPoly    = nAtoms / nPerRingPoly;
@@ -1264,10 +1264,10 @@ void FixChargeEwald::singlePointEng(real * perParticleEng) {
 
     //field_energy_per_particle=0.5*field_E.h_data[0]/volume/nAtoms;
     field_energy_per_particle=0.5*field_E.h_data[0]/volume/nRingPoly;
-//         cout<<"field_E "<<field_E.h_data[0]<<'\n';
+//         std::cout<<"field_E "<<field_E.h_data[0]<<'\n';
 
     field_energy_per_particle-=alpha/sqrt(M_PI)*total_Q2/nRingPoly;
-//      cout<<"self correction "<<alpha/sqrt(M_PI)*total_Q2<<'\n';
+//      std::cout<<"self correction "<<alpha/sqrt(M_PI)*total_Q2<<'\n';
 
 //pair energies
     mapEngToParticles<<<NBLOCK(nAtoms), PERBLOCK>>>(nAtoms, field_energy_per_particle, perParticleEng);

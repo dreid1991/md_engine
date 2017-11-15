@@ -14,7 +14,6 @@
 #undef _POSIX_C_SOURCE
 #include <boost/python/list.hpp>
 #include "GPUArrayDeviceGlobal.h"
-#include "../Eigen/Dense"
 
 void export_FixRigid();
 

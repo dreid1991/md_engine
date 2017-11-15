@@ -127,7 +127,7 @@ void export_FixBondHarmonic() {
   
     py::class_<FixBondHarmonic, SHARED(FixBondHarmonic), py::bases<Fix, TypedItemHolder> >
     (
-        "FixBondHarmonic", py::init<SHARED(State), string> (py::args("state", "handle"))
+        "FixBondHarmonic", py::init<SHARED(State), std::string> (py::args("state", "handle"))
     )
     .def("createBond", &FixBondHarmonic::createBond,
             (py::arg("k")=-1,

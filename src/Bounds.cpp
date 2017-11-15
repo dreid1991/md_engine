@@ -34,7 +34,7 @@ void Bounds::handle2d() {
 
 BoundsGPU Bounds::makeGPU() {
     bool *periodic = state->periodic;
-    return BoundsGPU(lo.asFloat3(), rectComponents.asFloat3(), make_float3((int) periodic[0], (int) periodic[1], (int) periodic[2]));
+    return BoundsGPU(lo.asreal3(), rectComponents.asreal3(), make_real3((int) periodic[0], (int) periodic[1], (int) periodic[2]));
 }
 
 bool Bounds::vectorInBounds(Vector &v) {

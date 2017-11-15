@@ -9,7 +9,6 @@
 #include <math.h>
 #include "globalDefs.h"
 #include "xml_func.h"
-#include "../Eigen/Dense"
 namespace py = boost::python;
 const std::string rigidType = "Rigid";
 

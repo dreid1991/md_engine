@@ -32,7 +32,7 @@ set(DASH_DOUBLE_DEFAULT OFF)
 option(DASH_DOUBLE "Double precision may be required for some use cases" ${DASH_DOUBLE_DEFAULT})
 
 if(DASH_DOUBLE)
-    add_defintions(-DDASH_DOUBLE)
+    add_definitions(-DDASH_DOUBLE)
 endif()
 
 if (CMAKE_BUILD_TYPE MATCHES "RELEASE")

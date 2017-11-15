@@ -1,9 +1,18 @@
 #pragma once
 
+
+#define DEFAULT_FILL -1000
+#include <boost/shared_ptr.hpp>
+
+#define DEBUG
+
+#include "cuda_runtime.h"
+
 // here is where to define real types... either float or double
+// -- cuda_runtime provides double2/3/4 & float2/3/4 types
 #ifdef DASH_DOUBLE
 #ifndef HAVE_DASH_REAL_
-typedef double        real;
+typedef double       real;
 typedef double2      real2;
 typedef double3      real3;
 typedef double4      real4;
@@ -12,20 +21,13 @@ typedef double4      real4;
 #else
 // else we place real as float
 #ifndef HAVE_DASH_REAL
-typedef float         real;
+typedef float        real;
 typedef float2       real2;
 typedef float3       real3;
 typedef float4       real4;
 #define HAVE_DASH_REAL
 #endif /* HAVE_DASH_REAL */
 #endif /* DASH_DOUBLE */
-
-#define DEFAULT_FILL -1000
-#include <boost/shared_ptr.hpp>
-
-#define DEBUG
-
-#include "cuda_runtime.h"
 #include "Logging.h"
 
 // define inverse of massless particle as arbitrarily large, but finite number

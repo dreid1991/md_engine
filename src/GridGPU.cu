@@ -56,7 +56,7 @@ void GridGPU::setBounds(BoundsGPU &newBounds) {
     // making grid that is exactly size of box.  This way can compute offsets
     // easily from Grid that doesn't have to deal with higher-level stuff like
     // bounds
-    ds = actualDDim.asFloat3();
+    ds = actualDDim.asreal3();
     os = state->boundsGPU.lo;
     int3 nsNew = nGrid.asInt3();
     if (state->is2d) {

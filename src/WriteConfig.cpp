@@ -94,7 +94,7 @@ void writeXMLfileBase64(State *state, std::string fnFinal, int64_t turn, bool on
     Bounds b = state->bounds;
     if (oneFilePerWrite) {
         outFile.open(fnFinal.c_str(), std::ofstream::out);
-        outFile << "<data>" << endl;
+        outFile << "<data>" << std::endl;
     } else {
         outFile.open(fnFinal.c_str(), std::ofstream::app);
     }
@@ -154,7 +154,7 @@ void writeXMLfileBase64(State *state, std::string fnFinal, int64_t turn, bool on
     sprintf(buffer, "</configuration>\n");
     outFile << buffer;
     if (oneFilePerWrite) {
-        outFile << "</data>" << endl;
+        outFile << "</data>" << std::endl;
     }
     outFile.close();
 
@@ -184,18 +184,18 @@ void writeLAMMPSTRJFile(State *state, std::string fn, int64_t turn, bool oneFile
 	}
 
     // WRITE THE HEADER INFORMATION
-    outFile << "ITEM: TIMESTEP" << endl << turn << endl;    // TIMESTEP
-    outFile << "ITEM: NUMBER OF ATOMS" << endl << count << endl;   // NUMBER OF ATOMS
-    outFile << "ITEM: BOX BOUNDS pp pp pp" << endl;
-    outFile << state->bounds.lo[0] << " " << state->bounds.lo[0] + state->bounds.rectComponents[0] << endl;
-    outFile << state->bounds.lo[1] << " " << state->bounds.lo[1] + state->bounds.rectComponents[1] << endl;
-    outFile << state->bounds.lo[2] << " " << state->bounds.lo[2] + state->bounds.rectComponents[2] << endl;       // BOX DIMENSION
+    outFile << "ITEM: TIMESTEP" << std::endl << turn << std::endl;    // TIMESTEP
+    outFile << "ITEM: NUMBER OF ATOMS" << std::endl << count << std::endl;   // NUMBER OF ATOMS
+    outFile << "ITEM: BOX BOUNDS pp pp pp" << std::endl;
+    outFile << state->bounds.lo[0] << " " << state->bounds.lo[0] + state->bounds.rectComponents[0] << std::endl;
+    outFile << state->bounds.lo[1] << " " << state->bounds.lo[1] + state->bounds.rectComponents[1] << std::endl;
+    outFile << state->bounds.lo[2] << " " << state->bounds.lo[2] + state->bounds.rectComponents[2] << std::endl;       // BOX DIMENSION
 
     // WRITE THE ATOM rectINFORMATION
-    outFile << "ITEM: ATOMS id type x y z" << endl;         // ATOM HEADER
+    outFile << "ITEM: ATOMS id type x y z" << std::endl;         // ATOM HEADER
     for (Atom &a : atoms) {
         if (a.groupTag & groupBit) {
-            outFile << a.id << " " << a.type << " " << a.pos[0] << " " << a.pos[1] << " " << a.pos[2] << endl;
+            outFile << a.id << " " << a.type << " " << a.pos[0] << " " << a.pos[1] << " " << a.pos[2] << std::endl;
         }
     }
 
@@ -213,9 +213,9 @@ void writeXYZFile(State *state, std::string fn, int64_t turn, bool oneFilePerWri
     }
     std::ofstream outFile;
     if (oneFilePerWrite) {
-        outFile.open(fn.c_str(), ofstream::out);
+        outFile.open(fn.c_str(), std::ofstream::out);
     } else {
-        outFile.open(fn.c_str(), ofstream::app);
+        outFile.open(fn.c_str(), std::ofstream::app);
     }
 	if (groupBit == 1) {
 		outFile << atoms.size() <<  std::endl << "bounds lo " << state->bounds.lo << " hi " << (state->bounds.lo + state->bounds.rectComponents);
@@ -249,7 +249,7 @@ void writeXMLfile(State *state, std::string fnFinal, int64_t turn, bool oneFileP
     Bounds b = state->bounds;
     if (oneFilePerWrite) {
         outFile.open(fnFinal.c_str(), std::ofstream::out);
-        outFile << "<data>" << endl;
+        outFile << "<data>" << std::endl;
     } else {
         outFile.open(fnFinal.c_str(), std::ofstream::app);
     }
