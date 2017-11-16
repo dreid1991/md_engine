@@ -35,9 +35,11 @@ inline __host__ __device__ real3 rotation(real3 vector, real3 X, real3 Y, real3 
     return make_real3(dot(X,vector), dot(Y,vector), dot(Z, vector));
 }
 
+#ifndef DASH_DOUBLE
 inline __host__ __device__ double3 rotation(double3 vector, double3 X, double3 Y, double3 Z) {
     return make_double3(dot(X,vector), dot(Y,vector), dot(Z, vector));
 }
+#endif
 
 // verified to be correct
 inline __host__ __device__ double matrixDet(double3 ROW1, double3 ROW2, double3 ROW3) 
@@ -177,9 +179,13 @@ __global__ void rigid_scaleSystem_cu(int4* waterIds, real4* xs, int* idToIdxs,
         double3 COM_d1 = (posO ) - ( ( posH1 + posH2 ) * weightH);
     
         // do as Mod::scale on COM_d1
+#ifdef DASH_DOUBLE
+        double3 center = lo + rectLen * 0.5;
+        double3 newRel = (COM_d1 - center) * (scaleBy);
+#else
         double3 center = make_double3(lo) + make_double3(rectLen) * 0.5;
-
         double3 newRel = (COM_d1 - center) * make_double3(scaleBy);
+#endif
 
         // this is the vector which we will add to the positions of our atoms
         double3 diff = center - COM_d1;
@@ -192,14 +198,24 @@ __global__ void rigid_scaleSystem_cu(int4* waterIds, real4* xs, int* idToIdxs,
             real4 posM_whole = xs[idxM];
             double3 posM = make_double3(posM_whole);
             posM += diff;
+#ifdef DASH_DOUBLE
+            real3 newPosM = posM;
+#else
             real3 newPosM = make_real3(posM);
+#endif
             xs[idxM] = make_real4(newPosM, posM_whole.w);
         }
 
+#ifdef DASH_DOUBLE
+        real3 newPosO = posO;
+        real3 newPosH1= posH1;
+        real3 newPosH2= posH2;
+
+#else
         real3 newPosO = make_real3(posO);
         real3 newPosH1= make_real3(posH1);
         real3 newPosH2= make_real3(posH2);
-
+#endif
         xs[idxO] = make_real4(newPosO, posO_whole.w);
         xs[idxH1]= make_real4(newPosH1,posH1_whole.w);
         xs[idxH2]= make_real4(newPosH2,posH2_whole.w);
@@ -259,10 +275,13 @@ __global__ void rigid_scaleSystemGroup_cu(int4* waterIds, real4* xs, int* idToId
             double3 COM_d1 = (posO * weightO) + ( ( posH1 + posH2 ) * weightH);
         
             // do as Mod::scale on COM_d1
+#ifdef DASH_DOUBLE
+            double3 center = lo + rectLen * 0.5;
+            double3 newRel = (COM_d1 - center) * scaleBy;
+#else
             double3 center = make_double3(lo) + make_double3(rectLen) * 0.5;
-
             double3 newRel = (COM_d1 - center) * make_double3(scaleBy);
-
+#endif
             // this is the vector which we will add to the positions of our atoms
             double3 diff = center - COM_d1;
 
@@ -274,14 +293,24 @@ __global__ void rigid_scaleSystemGroup_cu(int4* waterIds, real4* xs, int* idToId
                 real4 posM_whole = xs[idxM];
                 double3 posM = make_double3(posM_whole);
                 posM += diff;
+#ifdef DASH_DOUBLE
+                real3 newPosM = posM;
+#else 
                 real3 newPosM = make_real3(posM);
+#endif
                 xs[idxM] = make_real4(newPosM, posM_whole.w);
             }
 
+
+#ifdef DASH_DOUBLE
+            real3 newPosO = posO;
+            real3 newPosH1= posH1;
+            real3 newPosH2= posH2;
+#else
             real3 newPosO = make_real3(posO);
             real3 newPosH1= make_real3(posH1);
             real3 newPosH2= make_real3(posH2);
-
+#endif 
             xs[idxO] = make_real4(newPosO, posO_whole.w);
             xs[idxH1]= make_real4(newPosH1,posH1_whole.w);
             xs[idxH2]= make_real4(newPosH2,posH2_whole.w);
@@ -776,10 +805,15 @@ __global__ void settleVelocities(int4 *waterIds, real4 *xs, real4 *xs_0,
         velCorrectionStored[idx*3 + 1] = H1_corr;
         velCorrectionStored[idx*3 + 2] = H2_corr;
 
+#ifdef DASH_DOUBLE
+        velO_tmp = velO;
+        velH1_tmp= velH1;
+        velH2_tmp= velH2;
+#else
         velO_tmp = make_real3(velO);
         velH1_tmp= make_real3(velH1);
         velH2_tmp= make_real3(velH2);
-        
+#endif
         if (DEBUG_BOOL) {
             printf("settleProj routine after substracting corrections from derp!\n");
             printf("ow1 x,y,z derp: %18.14f   %18.14f   %18.14f\n",
@@ -1028,11 +1062,19 @@ __global__ void settlePositions(int4 *waterIds, real4 *xs, real4 *xs_0,
         double3 dx_b = b_pos - posB1;
         double3 dx_c = c_pos - posC1;
 
-        // cast as real, then send to the global arrays
+#ifdef DASH_DOUBLE
+        // if DASH_DOUBLE, then just set equal - do not call make_real3
+        real3 oPosNew = oPosFinal;
+        real3 H1PosNew= H1PosFinal;
+        real3 H2PosNew= H2PosFinal;
+#else
+        // else, we still did the intermediate calculations in double, and must now send to real
+        // -- as an aside, this is only be done so that the code compiles.  If you're simulating rigid water, you should 
+        //    be using double precision
         real3 oPosNew = make_real3(oPosFinal);
         real3 H1PosNew= make_real3(H1PosFinal);
         real3 H2PosNew= make_real3(H2PosFinal);
-
+#endif
         // set the positions in the global arrays as the new, solved positions
         xs[idxO] = make_real4(oPosNew.x, oPosNew.y, oPosNew.z,posO_whole.w);
         xs[idxH1]= make_real4(H1PosNew.x,H1PosNew.y,H1PosNew.z,posH1_whole.w);
@@ -1054,10 +1096,16 @@ __global__ void settlePositions(int4 *waterIds, real4 *xs, real4 *xs_0,
         velH2 += (dx_c * invdt);
 
         // cast as real
+#ifdef DASH_DOUBLE
+        // just set equal
+        real3 newVelO = velO;
+        real3 newVelH1= velH1;
+        real3 newVelH2= velH2;
+#else 
         real3 newVelO = make_real3(velO);
         real3 newVelH1= make_real3(velH1);
         real3 newVelH2= make_real3(velH2);
-
+#endif
         if (DEBUG_BOOL) {
             printf("ow1 x,y,z v : %18.14f   %18.14f   %18.14f\n",
                    velO.x, velO.y, velO.z);

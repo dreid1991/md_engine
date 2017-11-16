@@ -1,4 +1,5 @@
 #pragma once
+#include "globalDefs.h"
 #include "PairEvaluateIso.h"
 #include <boost/shared_ptr.hpp>
 #include "FixChargeEwald.h"
@@ -186,8 +187,10 @@ boost::shared_ptr<EvaluatorWrapper> pickEvaluator_CHARGE(PAIR_EVAL pairEval, Fix
         ChargeEvaluatorDSF chargeEval = f->generateEvaluator();
         return boost::shared_ptr<EvaluatorWrapper> (dynamic_cast<EvaluatorWrapper *>(new EvaluatorWrapperImplement<PAIR_EVAL, COMP_PAIRS, N_PARAM, ChargeEvaluatorDSF, true>(pairEval, chargeEval)));
     }
+    // this will cause runtime failure anyways; so, just get it to compile.
     assert(false);
-    return boost::shared_ptr<EvaluatorWrapper>(nullptr);
+    // won't compile if only provided nullptr
+    return boost::shared_ptr<EvaluatorWrapper>();
 }
 
 template <class PAIR_EVAL, int N_PARAM, bool COMP_PAIRS>

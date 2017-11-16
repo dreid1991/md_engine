@@ -6,6 +6,7 @@
 
 #include "cutils_math.h"
 #include <boost/variant.hpp>
+#include <boost/functional/hash.hpp>
 #include <array>
 class AngleHarmonic;
 class AngleCHARMM;

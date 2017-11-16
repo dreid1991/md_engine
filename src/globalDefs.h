@@ -10,6 +10,7 @@
 
 // here is where to define real types... either float or double
 // -- cuda_runtime provides double2/3/4 & float2/3/4 types
+// so, it is important that this comes after cuda_runtime
 #ifdef DASH_DOUBLE
 #ifndef HAVE_DASH_REAL_
 typedef double       real;

@@ -6,7 +6,7 @@
 #include "cutils_math.h"
 #include "Virial.h"
 #include "SharedMem.h"
-#define N_DATA_PER_THREAD 4 //must be power of 2, 4 found to be fastest for a floats and float4s
+#define N_DATA_PER_THREAD 4 //must be power of 2, 4 found to be fastest for a reals and real4s
 //tests show that N_DATA_PER_THREAD = 4 is fastest
 
 inline __device__ int baseNeighlistIdx(const uint32_t *cumulSumMaxMemPerWarp, int warpSize, int nThreadPerAtom) { 
@@ -152,6 +152,39 @@ inline __device__ void sortBubble_NOSYNC(T *toSort, bool *sorted, int sortSize, 
     }
 }
 
+
+#ifdef DASH_DOUBLE
+#define ACCUMULATION_CLASS(NAME, TO, FROM, VARNAME_PROC, PROC, ZERO)\
+class NAME {\
+public:\
+    inline __host__ __device__ TO process (FROM & VARNAME_PROC ) {\
+        return ( PROC );\
+    }\
+    inline __host__ __device__ TO zero() {\
+        return ( ZERO );\
+    }\
+};\
+\
+class NAME ## If {\
+public:\
+    double4  *fs;\
+    uint32_t groupTag;\
+    NAME ## If (double4 *fs_, uint32_t groupTag_) : fs(fs_), groupTag(groupTag_) {}\
+    inline __host__ __device__ TO process (FROM & VARNAME_PROC ) {\
+        return ( PROC );\
+    }\
+    inline __host__ __device__ TO zero() {\
+        return ( ZERO );\
+    }\
+    inline __host__ __device__ bool willProcess(FROM *src, int idx) {\
+        uint32_t atomGroupTag = * (uint32_t *) &(fs[idx].w);\
+        return atomGroupTag & groupTag;\
+    }\
+};
+
+
+#else /* DASH_DOUBLE */
+
 #define ACCUMULATION_CLASS(NAME, TO, FROM, VARNAME_PROC, PROC, ZERO)\
 class NAME {\
 public:\
@@ -180,20 +213,20 @@ public:\
     }\
 };
 
+#endif /* DASH_DOUBLE */
 
-
-ACCUMULATION_CLASS(SumSingle, float, float, x, x, 0);
+ACCUMULATION_CLASS(SumSingle, real, real, x, x, 0);
 ACCUMULATION_CLASS(SumVirial, Virial, Virial, vir, vir, Virial(0, 0, 0, 0, 0, 0));
-ACCUMULATION_CLASS(SumSqr, float, float, x, x*x, 0);
-ACCUMULATION_CLASS(SumVectorSqr3D, float, float4, v, lengthSqr(make_float3(v)), 0);
-ACCUMULATION_CLASS(SumVectorSqr3DOverW, float, float4, v, lengthSqrOverW(v), 0); //for temperature
-ACCUMULATION_CLASS(SumVectorXYZOverW, float4, float4, v, xyzOverW(v), make_float4(0, 0, 0, 0)); //for linear momentum
+ACCUMULATION_CLASS(SumSqr, real, real, x, x*x, 0);
+ACCUMULATION_CLASS(SumVectorSqr3D, real, real4, v, lengthSqr(make_real3(v)), 0);
+ACCUMULATION_CLASS(SumVectorSqr3DOverW, real, real4, v, lengthSqrOverW(v), 0); //for temperature
+ACCUMULATION_CLASS(SumVectorXYZOverW, real4, real4, v, xyzOverW(v), make_real4(0, 0, 0, 0)); //for linear momentum
 //opt by precomputing 1/w.  probably trivial speedup
-ACCUMULATION_CLASS(SumVectorToVirial, Virial, float4, v, Virial(v.x*v.x, v.y*v.y, v.z*v.z, v.x*v.y, v.x*v.z, v.y*v.z), Virial(0, 0, 0, 0, 0, 0)); 
+ACCUMULATION_CLASS(SumVectorToVirial, Virial, real4, v, Virial(v.x*v.x, v.y*v.y, v.z*v.z, v.x*v.y, v.x*v.z, v.y*v.z), Virial(0, 0, 0, 0, 0, 0)); 
 
 /* TODO: this is the line giving grief for massless particles! */
-ACCUMULATION_CLASS(SumVectorToVirialOverW, Virial, float4, v, Virial(v.x*v.x/v.w, v.y*v.y/v.w, v.z*v.z/v.w, v.x*v.y/v.w, v.x*v.z/v.w, v.y*v.z/v.w), Virial(0, 0, 0, 0, 0, 0)); 
-ACCUMULATION_CLASS(SumVirialToScalar, float, Virial, vir, (vir[0]+vir[1]+vir[2]), 0); 
+ACCUMULATION_CLASS(SumVectorToVirialOverW, Virial, real4, v, Virial(v.x*v.x/v.w, v.y*v.y/v.w, v.z*v.z/v.w, v.x*v.y/v.w, v.x*v.z/v.w, v.y*v.z/v.w), Virial(0, 0, 0, 0, 0, 0)); 
+ACCUMULATION_CLASS(SumVirialToScalar, real, Virial, vir, (vir[0]+vir[1]+vir[2]), 0); 
 
 template <class K, class T, class C, int NPERTHREAD>
 __global__ void oneToOne_gpu(K *dest, T *src, int n, C instance) {
@@ -241,12 +274,19 @@ __global__ void accumulate_gpu(K *dest, T *src, int n, int warpSize, C instance)
             __syncthreads();
         }
     }
-    if (threadIdx.x < sizeof(K) / sizeof(float)) {
+    if (threadIdx.x < sizeof(K) / sizeof(real)) {
         //one day, some hero will find out why it doesn't work to do atomicAdd as a member of the accumulation class.
         //in the mean time, just adding 32 bit chunks.  Could template this to do ints too.
-        float *destFloat = (float *) dest;
-        float *tmpFloat = (float *) tmp;
-        atomicAdd(destFloat + threadIdx.x, tmpFloat[threadIdx.x]);
+#ifdef DASH_DOUBLE
+        float *destDASH = (float *) dest;
+        float *tmpDASH = (float *) tmp;
+#else
+        double *destDASH = (double *) dest;
+        double *tmpDASH = (double *) tmp;
+#endif /* DASH_DOUBLE */
+        //real *destreal = (real *) dest;
+        //real *tmpreal = (real *) tmp;
+        atomicAdd(destDASH + threadIdx.x, tmpDASH[threadIdx.x]);
     }
 }
 
@@ -290,12 +330,17 @@ __global__ void accumulate_gpu_if(K *dest, T *src, int n, int warpSize, C instan
             __syncthreads();
         }
     }
-    if (threadIdx.x < sizeof(K) / sizeof(float)) {
+    if (threadIdx.x < sizeof(K) / sizeof(real)) {
         //one day, some hero will find out why it doesn't work to do atomicAdd as a member of the accumulation class.
         //in the mean time, just adding 32 bit chunks.  Could template this to do ints too.
-        float *destFloat = (float *) dest;
-        float *tmpFloat = (float *) tmp;
-        atomicAdd(destFloat + threadIdx.x, tmpFloat[threadIdx.x]);
+#ifdef DASH_DOUBLE
+        float *destDASH = (float *) dest;
+        float *tmpDASH = (float *) tmp;
+#else
+        double *destDASH = (double *) dest;
+        double *tmpDASH = (double *) tmp;
+#endif /* DASH_DOUBLE */
+        atomicAdd(destDASH + threadIdx.x, tmpDASH[threadIdx.x]);
     }
 }
 

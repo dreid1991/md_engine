@@ -25,8 +25,8 @@ namespace MD_ENGINE {
             void prepareForRun();
             
             // as from FixLinearMomentum
-            GPUArrayGlobal<float4> sumMomentum;
-            float4 systemMomentum;
+            GPUArrayGlobal<real4> sumMomentum;
+            real4 systemMomentum;
 
             void appendScalar(boost::python::list &);
             void appendVector(boost::python::list &){};

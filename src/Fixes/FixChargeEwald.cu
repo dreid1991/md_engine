@@ -37,7 +37,12 @@ __global__ void computeCentroid(real4 *centroids, real4 *xs, int nAtoms, int nPe
         real3 unwrappedPos = init + diffSum;
         real3 trace = bounds.trace();
         real3 diffFromLo = unwrappedPos - bounds.lo;
+// so, we need to use either floor() or floorf(), depending on typedef of real
+#ifdef DASH_DOUBLE
+        real3 imgs = floor(diffFromLo / trace); //are unskewed at this point
+#else
         real3 imgs = floorf(diffFromLo / trace); //are unskewed at this point
+#endif
         real3 wrappedPos = unwrappedPos - trace * imgs * bounds.periodic;
 
         centroids[idx] = make_real4(wrappedPos);
@@ -56,7 +61,12 @@ __global__ void computeCentroid(real4 *centroids, real4 *xs, int nAtoms, int nPe
          real id = pos.w;
          real3 trace = bounds.trace();
          real3 diffFromLo = make_real3(pos) - bounds.lo;
+// same as above - floor() or floorf(), depending on typedef of real
+#ifdef DASH_DOUBLE
+         real3 imgs = floor(diffFromLo / trace); //are unskewed at this point
+#else
          real3 imgs = floorf(diffFromLo / trace); //are unskewed at this point
+#endif /* DASH_DOUBLE */
          pos -= make_real4(trace * imgs * bounds.periodic);
          pos.w = id;
          //if (not(pos.x==orig.x and pos.y==orig.y and pos.z==orig.z)) { //sigh
@@ -80,7 +90,12 @@ __global__ void map_charge_to_grid_order_1_cu(int nRingPoly, int nPerRingPoly, r
         real qi = Qunit*qs[idx * nPerRingPoly];
         
         //find nearest grid point
-        real3 h=bounds.trace()/make_real3(sz);
+// might be possible to change this back to real3; but, it was complaining before
+#ifdef DASH_DOUBLE
+        double3 h=bounds.trace()/make_double3(sz);
+#else 
+        float3 h = bounds.trace()/make_float3(sz);
+#endif
         int3 nearest_grid_point=make_int3((pos+0.5*h)/h);
         //or
         int3 p=nearest_grid_point;
@@ -369,7 +384,8 @@ __global__ void Ewald_long_range_forces_order_3_cu(int nRingPoly, int nPerRingPo
     }
 }
 
-
+// XXX: may need to template this cufftComplex & double prec analog, if they are different;
+//      -- consult NVIDIA docs to find out
 __global__ void Energy_cu(int3 sz,real *Green_function,
                                     cufftComplex *FFT_qs, cufftComplex *E_grid){
       int3 id = make_int3( blockIdx.x*blockDim.x + threadIdx.x,

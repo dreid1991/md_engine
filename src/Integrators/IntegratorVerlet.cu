@@ -23,26 +23,22 @@ __global__ void nve_v_cu(int nAtoms, real4 *vs, real4 *fs, real dtf) {
     int idx = GETIDX();
     if (idx < nAtoms) {
         // Update velocity by a half timestep
-        //double4 vel = make_double4(vs[idx]);
         real4 vel = vs[idx];
-        //double invmass = vel.w;
         real invmass = vel.w;
-        //double4 force = make_double4(fs[idx]);
         real4 force = fs[idx];
         
         // ghost particles should not have their velocities integrated; causes overflow
         if (invmass > INVMASSBOOL) {
-            vs[idx] = make_real4(0.0f, 0.0f, 0.0f,invmass);
-            fs[idx] = make_real4(0.0f, 0.0f, 0.0f,force.w);
+            vs[idx] = make_real4(0.0, 0.0, 0.0,invmass);
+            fs[idx] = make_real4(0.0, 0.0, 0.0,force.w);
             return;
         }
 
-        //double3 dv = dtf * invmass * make_double3(force);
+        //real3 dv = dtf * invmass * make_real3(force);
         real3 dv = dtf * invmass * make_real3(force);
         vel += dv;
-        //vs[idx] = make_real4(vel);
         vs[idx] = vel;
-        fs[idx] = make_real4(0.0f, 0.0f, 0.0f, force.w);
+        fs[idx] = make_real4(0.0, 0.0, 0.0, force.w);
     }
 }
 
@@ -50,14 +46,12 @@ __global__ void nve_x_cu(int nAtoms, real4 *xs, real4 *vs, real dt) {
     int idx = GETIDX();
     if (idx < nAtoms) {
         // Update position by a full timestep
-        //double4 vel = make_double4(vs[idx]);
-        //double4 pos = make_double4(xs[idx]);
         real4 vel = vs[idx];
         real4 pos = xs[idx];
 
         //printf("pos %f %f %f\n", pos.x, pos.y, pos.z);
         //printf("vel %f %f %f\n", vel.x, vel.y, vel.z);
-        //double3 dx = dt*make_double3(vel);
+        //real3 dx = dt*make_real3(vel);
         real3 dx = dt*make_real3(vel);
         //printf("dx %f %f %f\n",dx.x, dx.y, dx.z);
         pos += dx;
@@ -96,10 +90,17 @@ __global__ void nve_xPIMD_cu(int nAtoms, int nPerRingPoly, real omegaP, real4 *x
 	// 2. advance positions/velocities by full timestep according
 	// to free ring-polymer evolution
 	// 3. back transform to regular coordinates
+#ifdef DASH_DOUBLE
+	real invP            = 1.0 / (real) nPerRingPoly;
+	real twoPiInvP       = 2.0 * M_PI * invP;
+	real invSqrtP 	      = sqrt(invP);
+	real sqrt2           = sqrt(2.0f);
+#else
 	real invP            = 1.0f / (real) nPerRingPoly;
 	real twoPiInvP       = 2.0f * M_PI * invP;
 	real invSqrtP 	      = sqrtf(invP);
 	real sqrt2           = sqrtf(2.0f);
+#endif
 	int   halfP           = nPerRingPoly / 2;	// P must be even for the following transformation!!!
 
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -149,7 +150,11 @@ __global__ void nve_xPIMD_cu(int nAtoms, int nPerRingPoly, real omegaP, real4 *x
 
     // k = 1,...,P/2-1; n = 1,...,P
     for (int k = 1; k < halfP; k++) {
+#ifdef DASH_DOUBLE
+        real cosval = cos(twoPiInvP * k * n);	// cos(2*pi*k*n/P)
+#else 
         real cosval = cosf(twoPiInvP * k * n);	// cos(2*pi*k*n/P)
+#endif
         tbr[threadIdx.x] = xn*sqrt2*cosval;
         if (needSync)   { __syncthreads();}
         reduceByN<real3>(tbr, nPerRingPoly, warpSize);
@@ -158,7 +163,11 @@ __global__ void nve_xPIMD_cu(int nAtoms, int nPerRingPoly, real omegaP, real4 *x
 
     // k = P/2+1,...,P-1; n = 1,...,P
     for (int k = halfP+1; k < nPerRingPoly; k++) {
+#ifdef DASH_DOUBLE
+        real  sinval = sin(twoPiInvP * k * n);	// sinf(2*pi*k*n/P)
+#else
         real  sinval = sinf(twoPiInvP * k * n);	// sinf(2*pi*k*n/P)
+#endif
         tbr[threadIdx.x] = xn*sqrt2*sinval;
         if (needSync)   { __syncthreads();}
         reduceByN<real3>(tbr, nPerRingPoly, warpSize);
@@ -184,7 +193,11 @@ __global__ void nve_xPIMD_cu(int nAtoms, int nPerRingPoly, real omegaP, real4 *x
 
 	// k = 1,...,P/2-1; n = 1,...,P
     for (int k = 1; k < halfP; k++) {
+#ifdef DASH_DOUBLE
+        real cosval = cos(twoPiInvP * k * n);	// cos(2*pi*k*n/P)
+#else 
         real cosval = cosf(twoPiInvP * k * n);	// cos(2*pi*k*n/P)
+#endif
         tbr[threadIdx.x] = vn*sqrt2*cosval;
         if (needSync)   { __syncthreads();}
         reduceByN<real3>(tbr, nPerRingPoly, warpSize);
@@ -193,7 +206,11 @@ __global__ void nve_xPIMD_cu(int nAtoms, int nPerRingPoly, real omegaP, real4 *x
 
 	// k = P/2+1,...,P-1; n = 1,...,P
     for (int k = halfP+1; k < nPerRingPoly; k++) {
+#ifdef DASH_DOUBLE
+	    real  sinval = sin(twoPiInvP * k * n);	// sinf(2*pi*k*n/P)
+#else
 	    real  sinval = sinf(twoPiInvP * k * n);	// sinf(2*pi*k*n/P)
+#endif
         tbr[threadIdx.x] = vn*sqrt2*sinval;
         if (needSync)   { __syncthreads();}
         reduceByN<real3>(tbr, nPerRingPoly, warpSize);
@@ -212,9 +229,16 @@ __global__ void nve_xPIMD_cu(int nAtoms, int nPerRingPoly, real omegaP, real4 *x
         if (amRoot) {
             xsNM[threadIdx.x] += vsNM[threadIdx.x] * dt; 
         } else {
+#ifdef DASH_DOUBLE
+	        real omegaK = 2.0 * omegaP * sin( beadIdx * twoPiInvP * 0.5f);
+	        real cosdt  = cos(omegaK * dt);
+	        real sindt  = sin(omegaK * dt);
+#else
 	        real omegaK = 2.0f * omegaP * sinf( beadIdx * twoPiInvP * 0.5f);
 	        real cosdt  = cosf(omegaK * dt);
 	        real sindt  = sinf(omegaK * dt);
+#endif
+
 	        real3 xsNMk = xsNM[threadIdx.x];
 	        real3 vsNMk = vsNM[threadIdx.x];
 	        xsNM[threadIdx.x] *= cosdt;
@@ -245,14 +269,22 @@ __global__ void nve_xPIMD_cu(int nAtoms, int nPerRingPoly, real omegaP, real4 *x
 
 	    // k = 1,...,P/2-1; n = 1,...,P
         for (int k = 1; k < halfP; k++) {
-	        real  cosval = cosf(twoPiInvP * k * n);	// cosf(2*pi*k*n/P)
+#ifdef DASH_DOUBLE
+	        real  cosval = cos(twoPiInvP * k * n);	// cosf(2*pi*k*n/P)
+#else 
+            real  cosval = cosf(twoPiInvP * k * n);	// cosf(2*pi*k*n/P)
+#endif
 	        xn += xsNM[rootIdx+k] * sqrt2 * cosval;
 	        vn += vsNM[rootIdx+k] * sqrt2 * cosval;
         }
 
 	    // k = P/2+1,...,P-1; n = 1,...,P
         for (int k = halfP+1; k < nPerRingPoly; k++) {
-	        real  sinval = sinf(twoPiInvP * k * n);	// cosf(2*pi*k*n/P)
+#ifdef DASH_DOUBLE
+	        real  sinval = sin(twoPiInvP * k * n);	// cosf(2*pi*k*n/P)
+#else 
+            real  sinval = sinf(twoPiInvP * k * n);	// cosf(2*pi*k*n/P)
+#endif
 	        xn += xsNM[rootIdx+k] * sqrt2 * sinval;
 	        vn += vsNM[rootIdx+k] * sqrt2 * sinval;
         }
@@ -273,9 +305,9 @@ __global__ void preForce_cu(int nAtoms, real4 *xs, real4 *vs, real4 *fs,
     int idx = GETIDX();
     if (idx < nAtoms) {
         // Update velocity by a half timestep
-        double4 vel = make_double4(vs[idx]);
-        double invmass = vel.w;
-        double4 force = make_double4(fs[idx]);
+        real4 vel = vs[idx];
+        real invmass = vel.w;
+        real4 force = fs[idx];
         
         if (invmass > INVMASSBOOL) {
             vs[idx] = make_real4(0.0f, 0.0f, 0.0f,invmass);
@@ -283,17 +315,17 @@ __global__ void preForce_cu(int nAtoms, real4 *xs, real4 *vs, real4 *fs,
             return;
         }
 
-        double3 dv = dtf * invmass * make_double3(force);
+        real3 dv = dtf * invmass * make_real3(force);
         vel += dv;
-        vs[idx] = make_real4(vel);
+        vs[idx] = vel;
 
         // Update position by a full timestep
-        double4 pos = make_double4(xs[idx]);
+        real4 pos = xs[idx];
 
         //printf("vel %f %f %f\n", vel.x, vel.y, vel.z);
-        double3 dx = dt*make_double3(vel);
+        real3 dx = dt*make_real3(vel);
         pos += dx;
-        xs[idx] = make_real4(pos);
+        xs[idx] = pos;
 
         // Set forces to zero before force calculation
         fs[idx] = make_real4(0.0f, 0.0f, 0.0f, force.w);
@@ -342,10 +374,17 @@ __global__ void preForcePIMD_cu(int nAtoms, int nPerRingPoly, real omegaP, real4
     // 2. advance positions/velocities by full timestep according
     // to free ring-polymer evolution
     // 3. back transform to regular coordinates
+#ifdef DASH_DOUBLE
+    real invP            = 1.0 / (real) nPerRingPoly;
+    real twoPiInvP       = 2.0 * M_PI * invP;
+    real invSqrtP 	      = sqrt(invP);
+    real sqrt2           = sqrt(2.0);
+#else
     real invP            = 1.0f / (real) nPerRingPoly;
     real twoPiInvP       = 2.0f * M_PI * invP;
     real invSqrtP 	      = sqrtf(invP);
     real sqrt2           = sqrtf(2.0f);
+#endif
     int   halfP           = nPerRingPoly / 2;	// P must be even for the following transformation!!!
 
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -394,7 +433,11 @@ __global__ void preForcePIMD_cu(int nAtoms, int nPerRingPoly, real omegaP, real4
 
     // k = 1,...,P/2-1; n = 1,...,P
     for (int k = 1; k < halfP; k++) {
+#ifdef DASH_DOUBLE
+        real cosval = cos(twoPiInvP * k * n);	// cosf(2*pi*k*n/P)
+#else 
         real cosval = cosf(twoPiInvP * k * n);	// cosf(2*pi*k*n/P)
+#endif
         tbr[threadIdx.x] = xn*sqrt2*cosval;
         if (needSync)   { __syncthreads();}
         reduceByN<real3>(tbr, nPerRingPoly, warpSize);
@@ -403,7 +446,11 @@ __global__ void preForcePIMD_cu(int nAtoms, int nPerRingPoly, real omegaP, real4
 
     // k = P/2+1,...,P-1; n = 1,...,P
     for (int k = halfP+1; k < nPerRingPoly; k++) {
+#ifdef DASH_DOUBLE
+        real  sinval = sin(twoPiInvP * k * n);	// sinf(2*pi*k*n/P)
+#else 
         real  sinval = sinf(twoPiInvP * k * n);	// sinf(2*pi*k*n/P)
+#endif
         tbr[threadIdx.x] = xn*sqrt2*sinval;
         if (needSync)   { __syncthreads();}
         reduceByN<real3>(tbr, nPerRingPoly, warpSize);
@@ -429,7 +476,11 @@ __global__ void preForcePIMD_cu(int nAtoms, int nPerRingPoly, real omegaP, real4
 
 	// k = 1,...,P/2-1; n = 1,...,P
     for (int k = 1; k < halfP; k++) {
+#ifdef DASH_DOUBLE
+        real cosval = cos(twoPiInvP * k * n);	// cosf(2*pi*k*n/P)
+#else 
         real cosval = cosf(twoPiInvP * k * n);	// cosf(2*pi*k*n/P)
+#endif
         tbr[threadIdx.x] = vn*sqrt2*cosval;
         if (needSync)   { __syncthreads();}
         reduceByN<real3>(tbr, nPerRingPoly, warpSize);
@@ -438,7 +489,11 @@ __global__ void preForcePIMD_cu(int nAtoms, int nPerRingPoly, real omegaP, real4
 
 	// k = P/2+1,...,P-1; n = 1,...,P
     for (int k = halfP+1; k < nPerRingPoly; k++) {
-	    real  sinval = sinf(twoPiInvP * k * n);	// sinf(2*pi*k*n/P)
+#ifdef DASH_DOUBLE
+	    real  sinval = sin(twoPiInvP * k * n);	// sinf(2*pi*k*n/P)
+#else 
+        real  sinval = sinf(twoPiInvP * k * n);	// sinf(2*pi*k*n/P)
+#endif
         tbr[threadIdx.x] = vn*sqrt2*sinval;
         if (needSync)   { __syncthreads();}
         reduceByN<real3>(tbr, nPerRingPoly, warpSize);
@@ -457,9 +512,15 @@ __global__ void preForcePIMD_cu(int nAtoms, int nPerRingPoly, real omegaP, real4
         if (amRoot) {
             xsNM[threadIdx.x] += vsNM[threadIdx.x] * dt; 
         } else {
-	        real omegaK = 2.0f * omegaP * sinf( beadIdx * twoPiInvP * 0.5);
+#ifdef DASH_DOUBLE
+	        real omegaK = 2.0 * omegaP * sin( beadIdx * twoPiInvP * 0.5);
+	        real cosdt  = cos(omegaK * dt);
+	        real sindt  = sin(omegaK * dt);
+#else 
+            real omegaK = 2.0f * omegaP * sinf( beadIdx * twoPiInvP * 0.5f);
 	        real cosdt  = cosf(omegaK * dt);
 	        real sindt  = sinf(omegaK * dt);
+#endif
 	        real3 xsNMk = xsNM[threadIdx.x];
 	        real3 vsNMk = vsNM[threadIdx.x];
 	        xsNM[threadIdx.x] *= cosdt;
@@ -490,14 +551,22 @@ __global__ void preForcePIMD_cu(int nAtoms, int nPerRingPoly, real omegaP, real4
 
 	    // k = 1,...,P/2-1; n = 1,...,P
         for (int k = 1; k < halfP; k++) {
-	        real  cosval = cosf(twoPiInvP * k * n);	// cosf(2*pi*k*n/P)
+#ifdef DASH_DOUBLE
+	        real  cosval = cos(twoPiInvP * k * n);	// cosf(2*pi*k*n/P)
+#else 
+            real  cosval = cosf(twoPiInvP * k * n);	// cosf(2*pi*k*n/P)
+#endif
 	        xn += xsNM[rootIdx+k] * sqrt2 * cosval;
 	        vn += vsNM[rootIdx+k] * sqrt2 * cosval;
         }
 
 	    // k = P/2+1,...,P-1; n = 1,...,P
         for (int k = halfP+1; k < nPerRingPoly; k++) {
+#ifdef DASH_DOUBLE
 	        real  sinval = sinf(twoPiInvP * k * n);	// sinf(2*pi*k*n/P)
+#else 
+            real  sinval = sinf(twoPiInvP * k * n);	// sinf(2*pi*k*n/P)
+#endif
 	        xn += xsNM[rootIdx+k] * sqrt2 * sinval;
 	        vn += vsNM[rootIdx+k] * sqrt2 * sinval;
         }
@@ -530,17 +599,17 @@ __global__ void postForce_cu(int nAtoms, real4 *vs, real4 *fs, real dtf)
     int idx = GETIDX();
     if (idx < nAtoms) {
         // Update velocities by a halftimestep
-        double4 vel = make_double4(vs[idx]);
-        double invmass = vel.w;
+        real4 vel = vs[idx];
+        real invmass = vel.w;
         if (invmass > INVMASSBOOL) {
             vs[idx] = make_real4(0.0f, 0.0f, 0.0f,invmass);
             return;
         }
-        double4 force = make_double4(fs[idx]);
+        real4 force = fs[idx];
 
-        double3 dv = dtf * invmass * make_double3(force);
+        real3 dv = dtf * invmass * make_real3(force);
         vel += dv;
-        vs[idx] = make_real4(vel);
+        vs[idx] = vel;
     }
 }
 

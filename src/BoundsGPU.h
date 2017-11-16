@@ -27,11 +27,8 @@ public:
         //consider calcing invrectcomponents using doubles
         lo = lo_;
         rectComponents = rectComponents_;
-        rectComponentsD = make_double3(rectComponents_);
         invRectComponents = 1.0f / rectComponents;
-        invRectComponentsD = 1.0f / rectComponentsD;
         periodic = periodic_;
-        periodicD = make_double3(periodic_);
     }
 
     /*! \brief Default constructor */
@@ -40,13 +37,10 @@ public:
     real3 rectComponents; //!< 3 sides - xx, yy, zz
     real3 invRectComponents; //!< Inverse of the box expansion in standard
                        //!< coordinates
-    double3 rectComponentsD;
-    double3 invRectComponentsD; //!< Inverse of the box expansion in standard coordinates and double precision
 
     real3 lo; //!< Point of origin
     real3 periodic; //!< Stores whether box is periodic in x-, y-, and
                      //!< z-direction
-    double3 periodicD; //!< Stores whether box is periodic in x-, y- and z-direction, double precision
     /*! \brief Return an unskewed copy of this box
      *
      * \return Unskewed copy of this box.
@@ -86,11 +80,6 @@ public:
         return v;
     }
     
-    __host__ __device__ double3 minImage(double3 v) {
-        double3 img = make_double3(rint(v.x * invRectComponentsD.x), rint(v.y * invRectComponentsD.y), rint(v.z * invRectComponentsD.z));
-        v -= make_double3(rectComponents) * img * (periodicD);
-        return v;
-    }
     
     __host__ __device__ real volume() {
         return rectComponents.x * rectComponents.y * rectComponents.z;
@@ -116,7 +105,11 @@ public:
         real id = v.w;
         real3 trace = rectComponents;
         real3 diffFromLo = make_real3(newPos) - lo;
+#ifdef DASH_DOUBLE
+        real3 imgs = floor(diffFromLo / trace);
+#else
         real3 imgs = floorf(diffFromLo / trace); //are unskewed at this point
+#endif
         newPos -= make_real4(trace * imgs * periodic);
         newPos.w = id;
 
@@ -130,10 +123,6 @@ public:
         diff *= scaleBy;
         lo = center - diff;
         invRectComponents =  1.0 / rectComponents;
-        
-        rectComponentsD = make_double3(rectComponents);
-        invRectComponentsD = 1.0 / rectComponentsD;
-
     }
     bool operator ==(BoundsGPU &other) {
         return lo==other.lo and rectComponents==other.rectComponents and periodic==other.periodic;

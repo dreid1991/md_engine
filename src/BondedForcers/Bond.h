@@ -3,7 +3,7 @@
 #define BOND_H
 
 #include <boost/variant.hpp>
-
+#include <boost/functional/hash.hpp>
 #include "globalDefs.h"
 #include "Atom.h"
 #include <array>

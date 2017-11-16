@@ -37,11 +37,13 @@ class Virial {
             }
             return res;
         }
+        /*
         inline __host__ __device__ void operator *=(double x) {
             for (int i=0; i<6; i++) {
                 vals[i] *= x;
             }
         } 
+        */
         /*
         real operator[] (int n) { //for python interface
             if (n > 0 and n < 6) {

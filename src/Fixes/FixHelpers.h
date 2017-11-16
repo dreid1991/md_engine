@@ -1,6 +1,7 @@
 #pragma once
 #ifndef FIX_HELPERS_H
 #define FIX_HELPERS_H
+#include "globalDefs.h"
 #include "BoundsGPU.h"
 //__device__ real3 harmonicForce(BoundsGPU bounds, real3 posSelf, real3 posOther, real k, real rEq);
 inline __device__ real3 harmonicForce(BoundsGPU bounds, real3 posSelf, real3 posOther, real k, real rEq) {
@@ -23,7 +24,8 @@ inline __device__ real4 perAtomFromId(cudaTextureObject_t &idToIdxs, real4 *xs, 
     return xs[idx];
 }
 
-inline __device__ real4 real4FromIndex(cudaTextureObject_t &xs, int index) {
-    return tex2D<real4>(xs, XIDX(index, sizeof(real4)), YIDX(index, sizeof(real4)));
+inline __device__ float4 real4FromIndex(cudaTextureObject_t &xs, int index) {
+
+    return tex2D<float4>(xs, XIDX(index, sizeof(float4)), YIDX(index, sizeof(float4)));
 }
 #endif

@@ -1,5 +1,5 @@
 #include "Integrator.h"
-
+#include <cfloat>
 #include "boost_for_export.h"
 #include "globalDefs.h"
 #include "cutils_func.h"

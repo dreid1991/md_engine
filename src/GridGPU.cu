@@ -164,7 +164,11 @@ __global__ void periodicWrap(real4 *xs, int nAtoms, BoundsGPU bounds) {
         real id = pos.w;
         real3 trace = bounds.trace();
         real3 diffFromLo = make_real3(pos) - bounds.lo;
+#ifdef DASH_DOUBLE
+        real3 imgs = floor(diffFromLo / trace); //are unskewed at this point
+#else 
         real3 imgs = floorf(diffFromLo / trace); //are unskewed at this point
+#endif
         pos -= make_real4(trace * imgs * bounds.periodic);
         pos.w = id;
         //if (not(pos.x==orig.x and pos.y==orig.y and pos.z==orig.z)) { //sigh
@@ -191,7 +195,11 @@ __global__ void computeCentroids(real4 *centroids, real4 *xs, int nAtoms, int nP
         real3 unwrappedPos = init + diffSum;
         real3 trace = bounds.trace();
         real3 diffFromLo = unwrappedPos - bounds.lo;
+#ifdef DASH_DOUBLE
+        real3 imgs = floor(diffFromLo / trace); //are unskewed at this point
+#else
         real3 imgs = floorf(diffFromLo / trace); //are unskewed at this point
+#endif
         real3 wrappedPos = unwrappedPos - trace * imgs * bounds.periodic;
 
         centroids[idx] = make_real4(wrappedPos);
@@ -396,6 +404,40 @@ __global__ void countNumNeighbors(real4 *xs, int nRingPoly,
         int xIdx, yIdx, zIdx;
         int xIdxLoop, yIdxLoop, zIdxLoop;
         real3 offset = make_real3(0, 0, 0);
+#ifdef DASH_DOUBLE
+        for (xIdx=sqrIdx.x-1; xIdx<=sqrIdx.x+1; xIdx++) {
+            offset.x = -floor((real) xIdx / ns.x);
+            xIdxLoop = xIdx + ns.x * offset.x;
+            if (periodic.x || (!periodic.x && xIdxLoop == xIdx)) {
+
+                for (yIdx=sqrIdx.y-1; yIdx<=sqrIdx.y+1; yIdx++) {
+                    offset.y = -floor((real) yIdx / ns.y);
+                    yIdxLoop = yIdx + ns.y * offset.y;
+                    if (periodic.y || (!periodic.y && yIdxLoop == yIdx)) {
+
+                        for (zIdx=sqrIdx.z-1; zIdx<=sqrIdx.z+1; zIdx++) {
+                            offset.z = -floor((real) zIdx / ns.z);
+                            zIdxLoop = zIdx + ns.z * offset.z;
+                            if (periodic.z || (!periodic.z && zIdxLoop == zIdx)) {
+                                int3 sqrIdxOther    = make_int3(xIdxLoop, yIdxLoop, zIdxLoop);
+                                int  sqrIdxOtherLin = LINEARIDX(sqrIdxOther, ns);
+                                real3 loop = (-offset) * trace;
+                                // updates myCount for this cell
+                                checkCell(pos, xs, 
+                                          gridCellArrayIdxs, sqrIdxOtherLin,
+                                          loop, neighCutSqr, myCount, nThreadPerRP, myIdxInAtomTeam);
+                                //note sign switch on offset!
+
+                            } // endif periodic.z
+                        } // endfor zIdx
+
+                    } // endif periodic.y
+                } // endfor yIdx
+
+            } //endif periodic.x
+        } // endfor xIdx
+
+#else
         for (xIdx=sqrIdx.x-1; xIdx<=sqrIdx.x+1; xIdx++) {
             offset.x = -floorf((real) xIdx / ns.x);
             xIdxLoop = xIdx + ns.x * offset.x;
@@ -427,6 +469,7 @@ __global__ void countNumNeighbors(real4 *xs, int nRingPoly,
 
             } //endif periodic.x
         } // endfor xIdx
+#endif /* DASH_DOUBLE */
         // XXX
 	//__syncthreads();
         //if (idx == 0) {
@@ -446,7 +489,7 @@ __global__ void countNumNeighbors(real4 *xs, int nRingPoly,
     }
 }
 
-
+// XXX : PHEW!! exclMask is not contingent on typedef of real - just a bunch of uints!
 __device__ uint addExclusion(uint otherId, uint *exclusionIds_shr,
                              int idxLo, int idxHi) {
 
@@ -482,7 +525,11 @@ __device__ int assignFromCell(real3 pos, int idx, uint myId, real4 *xs, uint *id
     int cellSpan = idxMax-idxMin;
     int iterateTo;
     if (MULTITHREADPERATOM) {
+#ifdef DASH_DOUBLE
+        iterateTo = nThreadPerRP * ceil((real) cellSpan / nThreadPerRP)+idxMin;
+#else
         iterateTo = nThreadPerRP * ceilf((real) cellSpan / nThreadPerRP)+idxMin;
+#endif
     } else {
         iterateTo = idxMax;
     }
@@ -632,6 +679,45 @@ __global__ void assignNeighbors(real4 *xs, int nRingPoly, int nPerRingPoly, uint
         sqrIdx = make_int3((pos - os) / ds);
     }
     currentNeighborIdx = assignFromCell<MULTITHREADPERATOM, 1,EXCLUSIONS>(pos, idx, myId, xs, ids, gridCellArrayIdxs, LINEARIDX(sqrIdx, ns), offset, trace, neighCutSqr, currentNeighborIdx, teamNlist_base_shr, teamOffset, neighborlist, exclusionIds_shr, exclIdxLo_shr, exclIdxHi_shr, nPerRingPoly, nThreadPerRP, warpSize, myIdxInTeam, validThread);
+#ifdef DASH_DOUBLE 
+    for (xIdx=sqrIdx.x-1; xIdx<=sqrIdx.x+1; xIdx++) {
+        offset.x = -floor((real) xIdx / ns.x);
+        xIdxLoop = xIdx + ns.x * offset.x;
+        if (periodic.x || (!periodic.x && xIdxLoop == xIdx)) {
+
+            for (yIdx=sqrIdx.y-1; yIdx<=sqrIdx.y+1; yIdx++) {
+                offset.y = -floor((real) yIdx / ns.y);
+                yIdxLoop = yIdx + ns.y * offset.y;
+                if (periodic.y || (!periodic.y && yIdxLoop == yIdx)) {
+
+                    for (zIdx=sqrIdx.z-1; zIdx<=sqrIdx.z+1; zIdx++) {
+                        offset.z = -floor((real) zIdx / ns.z);
+                        zIdxLoop = zIdx + ns.z * offset.z;
+                        if (periodic.z || (!periodic.z && zIdxLoop == zIdx)) {
+                            if (! (xIdx == sqrIdx.x and yIdx == sqrIdx.y and zIdx == sqrIdx.z) ) {
+
+                                int3 sqrIdxOther = make_int3(xIdxLoop, yIdxLoop, zIdxLoop);
+                                int sqrIdxOtherLin = LINEARIDX(sqrIdxOther, ns);
+                                currentNeighborIdx = assignFromCell<MULTITHREADPERATOM, 0,EXCLUSIONS>(
+                                        pos, idx, myId, xs, ids, gridCellArrayIdxs,
+                                        sqrIdxOtherLin, -offset, trace, neighCutSqr,
+                                        currentNeighborIdx,
+                                        teamNlist_base_shr,
+                                        teamOffset, neighborlist,
+                                        exclusionIds_shr, exclIdxLo_shr, exclIdxHi_shr,
+                                        nPerRingPoly, nThreadPerRP,
+                                        warpSize, myIdxInTeam, validThread);
+                            }
+
+                        } // endif periodic.z
+                    } // endfor zIdx
+
+                } // endif periodic.y
+            } // endfor yIdx
+
+        } // endif periodic.x
+    } // endfor xIdx
+#else
     for (xIdx=sqrIdx.x-1; xIdx<=sqrIdx.x+1; xIdx++) {
         offset.x = -floorf((real) xIdx / ns.x);
         xIdxLoop = xIdx + ns.x * offset.x;
@@ -669,6 +755,8 @@ __global__ void assignNeighbors(real4 *xs, int nRingPoly, int nPerRingPoly, uint
 
         } // endif periodic.x
     } // endfor xIdx
+#endif
+
 
 }
 /**/
@@ -737,7 +825,12 @@ __global__ void computeMaxMemSizePerWarp(int nAtoms, uint16_t *neighborCounts,
         int blockIdxInPair = blockIdx.x * nThreadPerAtom + offset;
         //this is the number of neighbor indeces required by a warp
      //   printf("num %d\n", (int) ceilf((real) counts_shr[0] / nThreadPerAtom) * warpSize); 
+#ifdef DASH_DOUBLE
+        maxMemSizePerWarp[blockIdxInPair] = ceil((real) counts_shr[offset*virtualBlockSize] / nThreadPerAtom) * warpSize;
+#else
         maxMemSizePerWarp[blockIdxInPair] = ceilf((real) counts_shr[offset*virtualBlockSize] / nThreadPerAtom) * warpSize;
+
+#endif
     }
 
 }

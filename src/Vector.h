@@ -55,23 +55,23 @@ public:
         }
     }
 
-    /*! \brief Constructor from float3
+    /*! \brief Constructor from real3
      *
-     * \param other Float3 to use as values for the vector
+     * \param other real3 to use as values for the vector
      */
-    VectorGeneric<T> (float3 other) {
+    VectorGeneric<T> (real3 other) {
         vals[0] = other.x;
         vals[1] = other.y;
         vals[2] = other.z;
     }
 
-    /*! \brief Constructor from float4
+    /*! \brief Constructor from real4
      *
-     * \param other Float4 to use as values for the vector
+     * \param other real4 to use as values for the vector
      *
-     * The forth value in the float4 will be discarded.
+     * The forth value in the real4 will be discarded.
      */
-    VectorGeneric<T> (float4 other) {
+    VectorGeneric<T> (real4 other) {
         vals[0] = other.x;
         vals[1] = other.y;
         vals[2] = other.z;
@@ -90,12 +90,12 @@ public:
 
     /*! \brief Convert vector to float4
      *
-     * \return float4 containing values of this Vector
+     * \return Float4 containing values of this Vector
      *
      * The first three entries correspond to the vector elements, the forth
      * entry will be set to zero.
      */
-    float4 asFloat4() const {
+    real4 asFloat4() const {
         return make_float4(vals[0], vals[1], vals[2], 0);
     }
 

@@ -247,6 +247,11 @@ inline __host__ __device__ int3 make_int3(float3 a)
     return make_int3(int(a.x), int(a.y), int(a.z));
 }
 
+inline __host__ __device__ int3 make_int3(double3 a)
+{
+    return make_int3(int(a.x), int(a.y), int(a.z));
+}
+
 inline __host__ __device__ int3 make_int3(int4 a)
 {
     return make_int3(int(a.x), int(a.y), int(a.z));
@@ -325,6 +330,10 @@ inline __host__ __device__ double4 make_double4(float4 a)
     return make_double4(double(a.x), double(a.y), double(a.z), double(a.w));
 }
 
+inline __host__ __device__ double4 make_double4(float3 a)
+{
+    return make_double4(double(a.x), double(a.y), double(a.z), 0.0);
+}
 
 inline __host__ __device__ int4 make_int4(int s)
 {
@@ -1661,6 +1670,25 @@ inline __host__ __device__ double lengthSqr(double4 v)
 {
     return dot(v, v);
 }
+
+
+inline __host__ __device__ double lengthSqrOverW(double4 v) 
+{
+    double3 v3 = make_double3(v);
+    return dot(v3, v3) / v.w;
+}
+inline __host__ __device__ double4 xyzOverW(double4 v) 
+{
+    double invW = 1.0 / v.w;
+    double3 v3 = make_double3(v) * invW;
+    return make_double4(v3.x, v3.y, v3.z, invW);
+}
+inline __host__ __device__ double Sqr(double v)
+{
+    return v*v;
+}
+
+
 ////////////////////////////////////////////////////////////////////////////////
 // normalize
 ////////////////////////////////////////////////////////////////////////////////
@@ -1714,6 +1742,19 @@ inline __host__ __device__ float4 floorf(float4 v)
     return make_float4(floorf(v.x), floorf(v.y), floorf(v.z), floorf(v.w));
 }
 
+
+inline __host__ __device__ double2 floor(double2 v)
+{
+    return make_double2(floor(v.x), floor(v.y));
+}
+inline __host__ __device__ double3 floor(double3 v)
+{
+    return make_double3(floor(v.x), floor(v.y), floor(v.z));
+}
+inline __host__ __device__ double4 floor(double4 v)
+{
+    return make_double4(floor(v.x), floor(v.y), floor(v.z), floor(v.w));
+}
 ////////////////////////////////////////////////////////////////////////////////
 // frac - returns the fractional portion of a scalar or each vector component
 ////////////////////////////////////////////////////////////////////////////////
@@ -1844,10 +1885,14 @@ inline __host__ __device__ bool operator != (int3 a, int3 b) {
     return a.x!=b.x || a.y!=b.y || a.z!=b.z;
 }
 
-/* This solution found from stackoverflow question 16683146 */
+inline __host__ __device__ bool operator == (double3 a, double3 b) { 
+    return a.x==b.x && a.y==b.y && a.z==b.z;
+}
 
-// define a macro that routes make_realX(...) to the proper macro with the right number of arguments
-//#define GET_PREC_MACRO(_1,_2,_3,_4,NAME,...) NAME
+
+
+
+/* This solution found from stackoverflow question 16683146 */
 
 #define CAT_ARGS( A, B ) A ## B
 #define SELECT_FUNCTION( NAME, NUM ) CAT_ARGS( NAME ## _, NUM )
@@ -1855,12 +1900,6 @@ inline __host__ __device__ bool operator != (int3 a, int3 b) {
 #define GET_COUNT_ARGS( _1, _2, _3, _4, COUNT, ... ) COUNT
 #define VA_SIZE( ... ) GET_COUNT_ARGS( __VA_ARGS__, 4,3,2,1)
 #define VA_SELECTOR( NAME, ... ) SELECT_FUNCTION( NAME, VA_SIZE(__VA_ARGS__) )(__VA_ARGS__)
-
-// ok, so need to overload the respective make_real2, make_real3, make_real4 macros..
-//#define make_real2(...) GET_PREC_MACRO(__VA_ARGS__,make_real21,make_real22,make_real23,make_real24)(__VA_ARGS__)
-//#define make_real3(...) GET_PREC_MACRO(__VA_ARGS__,make_real31,make_real32,make_real33,make_real34)(__VA_ARGS__)
-//#define make_real4(...) GET_PREC_MACRO(__VA_ARGS__,make_real41,make_real42,make_real43,make_real44)(__VA_ARGS__)
-
 
 #define make_real2(...) VA_SELECTOR( make_real2, __VA_ARGS__)
 #define make_real3(...) VA_SELECTOR( make_real3, __VA_ARGS__)
@@ -1895,11 +1934,9 @@ inline __host__ __device__ bool operator != (int3 a, int3 b) {
 #define make_real4_4(X,Y,Z,W) make_double4(X,Y,Z,W)
 
 // __real_as_int to __double_as_int()
-#define __real_as_int(X) __double_as_int(X)
-#define __real_as_uint(X) __double_as_uint(X)
-
-
-
+//  --- actually, cast as float first.  This... might cause problems.
+#define __real_as_int(X)  __float_as_int( (float ) X)
+#define __real_as_uint(X) __float_as_uint( (float ) X)
 
 #else /* DASH_DOUBLE */
 
@@ -1922,11 +1959,42 @@ inline __host__ __device__ bool operator != (int3 a, int3 b) {
 #define make_real4_3(X,Y,Z) make_float4(X,Y,Z)
 #define make_real4_4(X,Y,Z,W) make_float4(X,Y,Z,W)
 
-// __real_as_int to __double_as_int()
-#define __real_as_int(X) __float_as_int(X)
+// __real_as_int to __float_as_int()
+#define __real_as_int(X)  __float_as_int(X)
 #define __real_as_uint(X) __float_as_uint(X)
 
 #endif /* DASH_DOUBLE */
+
+/* atomicAdd for cuda architectures < 6.0;
+ * from nvidia docs
+ */
+
+// be on the safe side - don't define this if not necessary (else, won't compile)
+#if !defined(__CUDA_ARCH__) ||  __CUDA_ARCH__ >= 600
+
+#else
+// only need to define this if compiled in double, AND the device doesn't already have it
+#ifdef DASH_DOUBLE
+__device__ real atomicAdd(real* address, real val) 
+{
+    unsigned long long int* address_as_ull = (unsigned long long int*)address;
+    unsigned long long int old = *address_as_ull, assumed;
+
+    do {
+        assumed = old;
+        old = atomicCAS(address_as_ull,assumed,
+                        __double_as_longlong(val + 
+                                             __longlong_as_double(assumed)));
+
+        // Note: uses integer comparison to avoid hang in case of NaN (since NaN != NaN)
+    } while (assumed != old);
+    return __longlong_as_double(old);
+}
+#endif /* DASH_DOUBLE */
+#endif /* __CUDA_ARCH__ < 600 */
+
+
+
 
 
 
