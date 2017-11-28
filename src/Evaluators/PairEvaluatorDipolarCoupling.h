@@ -11,7 +11,11 @@ class EvaluatorDipolarCoupling {
         }
         inline __device__ real energy(real params[1], real lenSqr, real multiplier) {
             //need to compute 1/r^6 because we want D^2
-            return 1.0f / powf(lenSqr, 3);
+#ifdef DASH_DOUBLE
+            return 1.0 / pow(lenSqr, 3.0);
+#else
+            return 1.0f / powf(lenSqr, 3.0f);
+#endif
         }
 
 };

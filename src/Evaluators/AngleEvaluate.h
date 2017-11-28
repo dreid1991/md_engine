@@ -72,13 +72,18 @@ __global__ void compute_force_angle(int nAtoms, real4 *xs, real4 *forces, int *i
                 real dists[2];
                 for (int i=0; i<2; i++) {
                     distSqrs[i] = lengthSqr(directors[i]);
+#ifdef DASH_DOUBLE
+                    dists[i] = sqrt(distSqrs[i]);
+#else
                     dists[i] = sqrtf(distSqrs[i]);
+
+#endif
                     //dists[i] = sqrt(distSqrs[i]);
                 }
                 real c = dot(directors[0], directors[1]);
 
              //   printf("prenorm c is %f\n", c);
-                real invDistProd = 1.0f / (dists[0]*dists[1]);
+                real invDistProd = 1.0 / (dists[0]*dists[1]);
 
               //  printf("inv dist is %f\n", invDistProd);
                 c *= invDistProd;
@@ -88,24 +93,23 @@ __global__ void compute_force_angle(int nAtoms, real4 *xs, real4 *forces, int *i
                 } else if (c<-1) {
                     c=-1;
                 }
+#ifdef DASH_DOUBLE
+                 real s = sqrt(1-c*c);
+#else
                  real s = sqrtf(1-c*c);
+#endif
                 if (s < SMALL) {
                     s = SMALL;
                 }
-                s = 1.0f / s;
+                s = 1.0 / s;
+#ifdef DASH_DOUBLE
+                real theta = acos(c);
+#else
                 real theta = acosf(c);
+#endif
                 if (COMPUTEVIRIALS) {
-                     real3 allForces[3];
+                    real3 allForces[3];
                     evaluator.forcesAll(angleType, theta, s, c, distSqrs, directors, invDistProd, allForces);
-                    // XXX if we are doing double precision, we need to re-cast as single for computeVirial() call
-                    //     -- to get back single precision, comment out next 6 lines, uncomment the two below them
-                    //        (provided other changes back to single have been made accordingly)
-                    //real3 tmp_0 = make_real3(allForces[0]);
-                    //real3 dir_0 = make_real3(directors[0]);
-                    //real3 tmp_2 = make_real3(allForces[2]);
-                    //real3 dir_1 = make_real3(directors[1]);
-                    //computeVirial(virialSum, tmp_0,dir_0);
-                    //computeVirial(virialSum, tmp_2,dir_1);
                     computeVirial(virialSum, allForces[0], directors[0]);
                     computeVirial(virialSum, allForces[2], directors[1]);
               
@@ -120,7 +124,7 @@ __global__ void compute_force_angle(int nAtoms, real4 *xs, real4 *forces, int *i
             curForce += forceSum;
             forces[idxSelf] = curForce;
             if (COMPUTEVIRIALS) {
-                virialSum *= 1.0f / 3.0f;
+                virialSum *= 1.0 / 3.0;
                 virials[idx] += virialSum;
             }
         }
@@ -202,11 +206,15 @@ __global__ void compute_energy_angle(int nAtoms, real4 *xs, real *perParticleEng
                 real dists[2];
                 for (int i=0; i<2; i++) {
                     distSqrs[i] = lengthSqr(directors[i]);
+#ifdef DASH_DOUBLE
+                    dists[i] = sqrt(distSqrs[i]);
+#else
                     dists[i] = sqrtf(distSqrs[i]);
+#endif
                 }
                 real c = dot(directors[0], directors[1]);
              //   printf("prenorm c is %f\n", c);
-                real invDistProd = 1.0f / (dists[0]*dists[1]);
+                real invDistProd = 1.0 / (dists[0]*dists[1]);
               //  printf("inv dist is %f\n", invDistProd);
                 c *= invDistProd;
               //  printf("c is %f\n", c);
@@ -215,12 +223,20 @@ __global__ void compute_energy_angle(int nAtoms, real4 *xs, real *perParticleEng
                 } else if (c<-1) {
                     c=-1;
                 }
+#ifdef DASH_DOUBLE
                 real s = sqrtf(1-c*c);
+#else 
+                real s = sqrtf(1-c*c);
+#endif
                 if (s < SMALL) {
                     s = SMALL;
                 }
-                s = 1.0f / s;
+                s = 1.0 / s;
+#ifdef DASH_DOUBLE
+                real theta = acos(c);
+#else 
                 real theta = acosf(c);
+#endif
                 engSum += evaluator.energy(angleType, theta, directors);
 
             }

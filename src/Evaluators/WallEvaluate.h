@@ -28,7 +28,6 @@ __global__ void compute_wall_iso(int nAtoms,real4 *xs, real4 *fs,real3 origin,
                 printf("Atom pos %f %f %f wall origin %f %f %f\n", pos.x, pos.y, pos.z, origin.x, origin.y, origin.z);
                 assert(projection>0); // projection should be greater than 0, otherwise
                 // the wall is ill-defined (forceDir pointing out of box)
-                //
             }
             fs[idx] = f;
 

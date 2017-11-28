@@ -39,14 +39,22 @@ class EvaluatorE3B3 {
         // takes input dr, the displacement vector $r_{ij}$
         inline __device__ real3 force(real3 dr) {
             real r = length(dr); // length from cutils_math.h
+#ifdef DASH_DOUBLE
+            real forceScalar = k2 * E2 * exp(-1.0 * k2 * r) / r;
+#else
             real forceScalar = k2 * E2 * expf(-k2 * r) / r;
+#endif
             return dr * forceScalar;
         }
 
         inline __device__ real energy(real3 dr) {
             real r = length(dr);
             // factor of 0.5 to account for double counting; otherwise, simple exponential expression
+#ifdef DASH_DOUBLE
+            return (0.5 * E2 * exp(- 1.0 * k2 * r));
+#else
             return (0.5f * E2 * expf(-k2 * r));
+#endif
         }
         
 };

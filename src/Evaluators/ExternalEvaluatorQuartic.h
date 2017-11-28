@@ -22,15 +22,15 @@ class EvaluatorExternalQuartic {
        
         // force function called by compute_force_external(...) in ExternalEvaluate.h
 	inline __device__ real3 force(real3 pos) {
-                real3 dr  = pos - r0;
+        real3 dr  = pos - r0;
 		real3 dr2 = dr * dr;
 		real3 dr3 = dr2* dr; 
-        	return -k1 - 2*k2*dr -3*k3*dr2 - 4*k4*dr3;
+        	return -k1 - 2.0*k2*dr -3.0*k3*dr2 - 4.0*k4*dr3;
         };
 
         // force function called by compute_energy_external(...) in ExternalEvaluate.h
 	inline __device__ real energy(real3 pos) {
-                real3 dr  = pos - r0;
+        real3 dr  = pos - r0;
 		real3 dr2 = dr * dr;
 		real3 dr3 = dr2* dr; 
 		real3 dr4 = dr2* dr2; 

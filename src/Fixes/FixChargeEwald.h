@@ -24,9 +24,18 @@ class FixChargeEwald : public FixCharge {
 
 private:
     cufftHandle plan;
+
+// change corresponding types to the type indicated by real's typedef
+#ifdef DASH_DOUBLE
+    cufftDoubleComplex *FFT_Qs;  // change to GPU arrays?
+    cufftDoubleComplex *FFT_Ex, *FFT_Ey, *FFT_Ez;
+    void calc_potential(cufftDoubleComplex *phi_buf);
+#else
     cufftComplex *FFT_Qs;  // change to GPU arrays?
     cufftComplex *FFT_Ex, *FFT_Ey, *FFT_Ez;
-    
+    void calc_potential(cufftComplex *phi_buf);
+#endif
+
     GPUArrayGlobal<real> Green_function;  // Green function in k space
 
 
@@ -41,7 +50,6 @@ private:
     real total_Q2;
     void setTotalQ2();
     void calc_Green_function();
-    void calc_potential(cufftComplex *phi_buf);
 
     int interpolation_order;
 //! RMS variables
@@ -53,7 +61,7 @@ private:
     GPUArrayDeviceGlobal<real4> storedForces;
     BoundsGPU boundsLastOptimize;
     real total_Q2LastOptimize;    
-    void handleBoundsChangeInternal(bool);
+    void handleBoundsChangeInternal(bool,bool forceChange = false);
     void setGridToErrorTolerance(bool);
     bool modeIsError;
     double errorTolerance;

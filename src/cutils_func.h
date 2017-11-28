@@ -278,11 +278,11 @@ __global__ void accumulate_gpu(K *dest, T *src, int n, int warpSize, C instance)
         //one day, some hero will find out why it doesn't work to do atomicAdd as a member of the accumulation class.
         //in the mean time, just adding 32 bit chunks.  Could template this to do ints too.
 #ifdef DASH_DOUBLE
-        float *destDASH = (float *) dest;
-        float *tmpDASH = (float *) tmp;
-#else
         double *destDASH = (double *) dest;
         double *tmpDASH = (double *) tmp;
+#else
+        float *destDASH = (float *) dest;
+        float *tmpDASH = (float *) tmp;
 #endif /* DASH_DOUBLE */
         //real *destreal = (real *) dest;
         //real *tmpreal = (real *) tmp;
@@ -334,11 +334,11 @@ __global__ void accumulate_gpu_if(K *dest, T *src, int n, int warpSize, C instan
         //one day, some hero will find out why it doesn't work to do atomicAdd as a member of the accumulation class.
         //in the mean time, just adding 32 bit chunks.  Could template this to do ints too.
 #ifdef DASH_DOUBLE
-        float *destDASH = (float *) dest;
-        float *tmpDASH = (float *) tmp;
-#else
         double *destDASH = (double *) dest;
         double *tmpDASH = (double *) tmp;
+#else
+        float *destDASH = (float *) dest;
+        float *tmpDASH = (float *) tmp;
 #endif /* DASH_DOUBLE */
         atomicAdd(destDASH + threadIdx.x, tmpDASH[threadIdx.x]);
     }

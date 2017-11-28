@@ -43,7 +43,7 @@ State::State() : units(&dt) {
         periodic[i] = true;
     }
     bounds = Bounds(this);
-
+    
     //! \todo It would be nice to set verbose true/false in Logging.h and use
     //!       it for mdMessage.
     verbose = true;
@@ -64,6 +64,7 @@ State::State() : units(&dt) {
     nThreadPerBlock = 256;
 
     tuneEvery = 1000000;
+    tuning = true;
     nextForceBuild = 0;
 
 }
@@ -936,6 +937,17 @@ void State::zeroVelocities() {
     }
 }
 
+
+void State::getSizeOfReal() {
+    real a = 0;
+    double b = 0;
+    float c = 0;
+    std::cout << "sizeof(real): " << sizeof(a) << std::endl;
+    std::cout << "sizeof(double): " << sizeof(b) << std::endl;
+    std::cout << "sizeof(float) : " << sizeof(c) << std::endl;
+
+}
+
 void State::destroy() {
     //if (bounds) {  //UNCOMMENT
     //  bounds->state = NULL;
@@ -1117,7 +1129,7 @@ BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(State_seedRNG_overloads,State::seedRNG,0,
                 .def("copyAtoms", &State::copyAtoms)
                 .def("idToIdx", &State::idToIdxPy)
                 .def("setSpecialNeighborCoefs", &State::setSpecialNeighborCoefs)
-
+                .def("getSizeOfReal", &State::getSizeOfReal)
                 .def("activateFix", &State::activateFix)
                 .def("deactivateFix", &State::deactivateFix)
                 .def("activateWriteConfig", &State::activateWriteConfig)
@@ -1150,6 +1162,7 @@ BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(State_seedRNG_overloads,State::seedRNG,0,
                 .def_readonly("readConfig", &State::readConfig)
                 .def_readwrite("shoutEvery", &State::shoutEvery)
                 .def_readwrite("verbose", &State::verbose)
+                .def_readwrite("tuning", &State::tuning)
                 .def_readonly("deviceManager", &State::devManager)
                 .def_readonly("units", &State::units)
                 //.def_readonly("grid", &State::gridGPU)

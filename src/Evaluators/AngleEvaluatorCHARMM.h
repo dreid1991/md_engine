@@ -21,7 +21,11 @@ public:
         real3 dr31;
         dr31        = directors[1] - directors[0]; // Urey-Bradley bond between 1 and 3 atoms
         real rsq31 = dot(dr31,dr31);
+#ifdef DASH_DOUBLE
+        real r31   = sqrt(rsq31);
+#else 
         real r31   = sqrtf(rsq31);
+#endif
         real drub  = r31 - angleType.rub;
         real rk    = angleType.kub * drub;
         real fub   = -rk / r31;   // consider safe-checking for r31 > 0.0 ?
@@ -55,13 +59,17 @@ public:
         real3 dr31;
         dr31        = directors[1] - directors[0]; // Urey-Bradley bond between 1 and 3 atoms
         real rsq31 = dot(dr31,dr31);
+#ifdef DASH_DOUBLE
+        real r31   = sqrt(rsq31);
+#else
         real r31   = sqrtf(rsq31);
+#endif
         real drub  = r31 - angleType.rub;
         real rk    = angleType.kub * drub;
         real fub   = -rk / r31;   // consider safe-checking for r31 > 0.0 ?
         // End added code
         forces[0] = (directors[0] * a11) + (directors[1] * a12) - dr31 * fub ;
-        forces[1] = ((directors[0] * a11) + (directors[1] * a12) + (directors[1] * a22) + (directors[0] * a12)) * -1.0f ; 
+        forces[1] = ((directors[0] * a11) + (directors[1] * a12) + (directors[1] * a22) + (directors[0] * a12)) * -1.0 ; 
         forces[2] = (directors[1] * a22) + (directors[0] * a12) + dr31 * fub ;
 
 
@@ -74,11 +82,19 @@ public:
         real3 dr31;
         dr31        = directors[1] - directors[0]; // Urey-Bradley bond between 1 and 3 atoms
         real rsq31 = dot(dr31,dr31);
+#ifdef DASH_DOUBLE
+        real r31   = sqrt(rsq31);
+#else
         real r31   = sqrtf(rsq31);
+#endif
         real drub  = r31 - angleType.rub;
 //        printf("theta = %f, r31 = %f, theta = %f,k = %f,rub = %f, kub = %f\n",theta,r31,angleType.theta0,angleType.k,angleType.rub,angleType.kub);
 //        printf("eang = %f\n", 0.5f *( dTheta * dTheta * angleType.k + drub * drub * angleType.kub ) );
+#ifdef DASH_DOUBLE
+        return (1.0 / 6.0) *( dTheta * dTheta * angleType.k + drub * drub * angleType.kub ) ; // 1/6 comes from 1/3 (energy split between three atoms) and 1/2 from 1/2 k dtheta^2
+#else
         return (1.0f / 6.0f) *( dTheta * dTheta * angleType.k + drub * drub * angleType.kub ) ; // 1/6 comes from 1/3 (energy split between three atoms) and 1/2 from 1/2 k dtheta^2
+#endif
 
     }
 };

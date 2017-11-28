@@ -45,9 +45,15 @@ __global__ void compute_force_dihedral(int nDihedrals, real4 *xs, real4 *fs, int
         for (int i=0; i<3; i++) {
             //printf("directors %d is %f %f %f\n", i, directors[i].x, directors[i].y, directors[i].z);
             lenSqrs[i] = lengthSqr(directors[i]);
+#ifdef DASH_DOUBLE
+            lens[i] = sqrt(lenSqrs[i]);
+            invLenSqrs[i] = 1.0 / lenSqrs[i];
+            invLens[i] = 1.0 / lens[i];
+#else
             lens[i] = sqrtf(lenSqrs[i]);
             invLenSqrs[i] = 1.0f / lenSqrs[i];
             invLens[i] = 1.0f / lens[i];
+#endif
             //   printf("inv len sqrs %d is %f\n", i, invLenSqrs[i]);
         }
 
@@ -69,8 +75,8 @@ __global__ void compute_force_dihedral(int nDihedrals, real4 *xs, real4 *fs, int
 
         real scValues[3]; //???, is s1, s2, s12 in lammps
         for (int i=0; i<2; i++) {
-            real x = max(1 - c12Mags[i]*c12Mags[i], 0.0f);
-            real sqrtVal = max(sqrtf(x), EPSILON);
+            real x = max(1 - c12Mags[i]*c12Mags[i], 0.0);
+            real sqrtVal = max(sqrt(x), EPSILON);
             scValues[i] = 1.0 / sqrtVal;
         }
         scValues[2] = scValues[0] * scValues[1];
@@ -90,12 +96,16 @@ __global__ void compute_force_dihedral(int nDihedrals, real4 *xs, real4 *fs, int
         real dx = dot(cVector, directors[2]) * invLens[2] / cVectorLen;
         //printf("c xyz %f %f %f directors xyz %f %f %f\n", cVector.x, cVector.y, cVector.z, directors[2].x, directors[2].y, directors[2].z);
         //printf("c is %f\n", c);
-        if (c > 1.0f) {
-            c = 1.0f;
-        } else if (c < -1.0f) {
-            c = -1.0f;
+        if (c > 1.0) {
+            c = 1.0;
+        } else if (c < -1.0) {
+            c = -1.0;
         }
+#ifdef DASH_DOUBLE
+        real phi = acos(c);
+#else
         real phi = acosf(c);
+#endif
         // printf("phi is %f\n", phi);
         // printf("dx is %f\n", dx);
         if (dx < 0) {
@@ -104,8 +114,12 @@ __global__ void compute_force_dihedral(int nDihedrals, real4 *xs, real4 *fs, int
         // printf("phi is %f\n", phi);
 
         //printf("no force\n");
-        real dPotential = -1.0f * evaluator.dPotential(dihedralType, phi);
+        real dPotential = -1.0 * evaluator.dPotential(dihedralType, phi);
+#ifdef DASH_DOUBLE
+        real sinPhi = sin(phi);
+#else
         real sinPhi = sinf(phi);
+#endif
         real absSinPhi = sinPhi < 0 ? -sinPhi : sinPhi;
         if (absSinPhi < EPSILON) {
             sinPhi = EPSILON;
@@ -117,7 +131,7 @@ __global__ void compute_force_dihedral(int nDihedrals, real4 *xs, real4 *fs, int
         c *= dPotential;
         scValues[2] *= dPotential;
         real a11 = c * invLenSqrs[0] * scValues[0];
-        real a22 = -invLenSqrs[1] * (2.0f*c0*scValues[2] - c*(scValues[0]+scValues[1]));
+        real a22 = -invLenSqrs[1] * (2.0*c0*scValues[2] - c*(scValues[0]+scValues[1]));
         real a33 = c*invLenSqrs[2]*scValues[1];
         real a12 = -invMagProds[0] * (c12Mags[0] * c * scValues[0] + c12Mags[1] * scValues[2]);
         real a13 = -invLens[0] * invLens[2] * scValues[2];

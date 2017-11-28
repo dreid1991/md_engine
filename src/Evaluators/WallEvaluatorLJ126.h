@@ -33,8 +33,6 @@ class EvaluatorWallLJ126 {
                 real r2_inv = r_inv * r_inv;
                 real r6_inv = r2_inv * r2_inv * r2_inv;
                 real forceScalar = r6_inv * r_inv * ( ( 2.0 * epsilonTimes24 * sig12 * r6_inv - epsilonTimes24 * sig6));
-                
-            
                 return forceDir * forceScalar ;
             } else {
                 return forceDir * 0.0 ;

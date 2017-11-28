@@ -162,19 +162,32 @@ __global__ void map_charge_to_grid_order_3_cu(int nRingPoly, int nPerRingPoly, r
 }
 
 
+#ifdef DASH_DOUBLE
+__global__ void map_charge_set_to_zero_cu(int3 sz,cufftDoubleComplex *grid) {
+#else
 __global__ void map_charge_set_to_zero_cu(int3 sz,cufftComplex *grid) {
+#endif /* DASH_DOUBLE */
       int3 id = make_int3( blockIdx.x*blockDim.x + threadIdx.x,
                           blockIdx.y*blockDim.y + threadIdx.y,
                           blockIdx.z*blockDim.z + threadIdx.z);
 
-      if ((id.x<sz.x)&&(id.y<sz.y)&&(id.z<sz.z))                  
+      if ((id.x<sz.x)&&(id.y<sz.y)&&(id.z<sz.z))             
+
+#ifdef DASH_DOUBLE
+         grid[id.x*sz.y*sz.z+id.y*sz.z+id.z]=make_cuDoubleComplex (0.0, 0.0);    
+#else
          grid[id.x*sz.y*sz.z+id.y*sz.z+id.z]=make_cuComplex (0.0f, 0.0f);    
+#endif
 }
 
 __device__ real sinc(real x){
   if ((x<0.1)&&(x>-0.1)){
     real x2=x*x;
+#ifdef DASH_DOUBLE
+    return 1.0 - x2*0.16666666667 + x2*x2*0.008333333333333333 - x2*x2*x2*0.00019841269841269841;    
+#else 
     return 1.0 - x2*0.16666666667f + x2*x2*0.008333333333333333f - x2*x2*x2*0.00019841269841269841f;    
+#endif
   }
     else return sin(x)/x;
 }
@@ -233,8 +246,14 @@ __global__ void Green_function_cu(BoundsGPU bounds, int3 sz,real *Green_function
              
 }
 
+#ifdef DASH_DOUBLE
+__global__ void potential_cu(int3 sz,real *Green_function,
+                                    cufftDoubleComplex *FFT_qs, cufftDoubleComplex *FFT_phi){
+#else
 __global__ void potential_cu(int3 sz,real *Green_function,
                                     cufftComplex *FFT_qs, cufftComplex *FFT_phi){
+
+#endif /* DASH_DOUBLE */
       int3 id = make_int3( blockIdx.x*blockDim.x + threadIdx.x,
                           blockIdx.y*blockDim.y + threadIdx.y,
                           blockIdx.z*blockDim.z + threadIdx.z);
@@ -245,23 +264,41 @@ __global__ void potential_cu(int3 sz,real *Green_function,
       }
 }
 
+#ifdef DASH_DOUBLE
+__global__ void E_field_cu(BoundsGPU bounds, int3 sz,real *Green_function, cufftDoubleComplex *FFT_qs,
+                           cufftDoubleComplex *FFT_Ex,cufftDoubleComplex *FFT_Ey,cufftDoubleComplex *FFT_Ez){
+#else
 __global__ void E_field_cu(BoundsGPU bounds, int3 sz,real *Green_function, cufftComplex *FFT_qs,
                            cufftComplex *FFT_Ex,cufftComplex *FFT_Ey,cufftComplex *FFT_Ez){
+
+#endif
       int3 id = make_int3( blockIdx.x*blockDim.x + threadIdx.x,
                           blockIdx.y*blockDim.y + threadIdx.y,
                           blockIdx.z*blockDim.z + threadIdx.z);
 
       if ((id.x<sz.x)&&(id.y<sz.y)&&(id.z<sz.z)){
           //K vector
+#ifdef DASH_DOUBLE
+          real3 k= 6.28318530717958647693*make_real3(id)/bounds.trace();
+          if (id.x>sz.x/2) k.x= 6.28318530717958647693*(id.x-sz.x)/bounds.trace().x;
+          if (id.y>sz.y/2) k.y= 6.28318530717958647693*(id.y-sz.y)/bounds.trace().y;
+          if (id.z>sz.z/2) k.z= 6.28318530717958647693*(id.z-sz.z)/bounds.trace().z;        
+ 
+          //ik*q(k)*Gf(k)
+          cufftDoubleComplex Ex,Ey,Ez;
+          real GF=Green_function[id.x*sz.y*sz.z+id.y*sz.z+id.z];
+          cufftDoubleComplex q=FFT_qs[id.x*sz.y*sz.z+id.y*sz.z+id.z];
+
+#else
           real3 k= 6.28318530717958647693f*make_real3(id)/bounds.trace();
           if (id.x>sz.x/2) k.x= 6.28318530717958647693f*(id.x-sz.x)/bounds.trace().x;
           if (id.y>sz.y/2) k.y= 6.28318530717958647693f*(id.y-sz.y)/bounds.trace().y;
           if (id.z>sz.z/2) k.z= 6.28318530717958647693f*(id.z-sz.z)/bounds.trace().z;        
-          
           //ik*q(k)*Gf(k)
           cufftComplex Ex,Ey,Ez;
           real GF=Green_function[id.x*sz.y*sz.z+id.y*sz.z+id.z];
           cufftComplex q=FFT_qs[id.x*sz.y*sz.z+id.y*sz.z+id.z];
+#endif
 
           Ex.y= k.x*q.x*GF;
           Ex.x=-k.x*q.y*GF;
@@ -277,12 +314,19 @@ __global__ void E_field_cu(BoundsGPU bounds, int3 sz,real *Green_function, cufft
       }
 }
 
-
+#ifdef DASH_DOUBLE
+__global__ void Ewald_long_range_forces_order_1_cu(int nRingPoly, int nPerRingPoly, real4 *xs, real4 *fs, 
+                                                   real *qs, BoundsGPU bounds,
+                                                   int3 sz, cufftDoubleComplex *FFT_Ex,
+                                                    cufftDoubleComplex *FFT_Ey,cufftDoubleComplex *FFT_Ez,real  Qunit,
+                                                   bool storeForces, uint *ids, real4 *storedForces) {
+#else
 __global__ void Ewald_long_range_forces_order_1_cu(int nRingPoly, int nPerRingPoly, real4 *xs, real4 *fs, 
                                                    real *qs, BoundsGPU bounds,
                                                    int3 sz, cufftComplex *FFT_Ex,
                                                     cufftComplex *FFT_Ey,cufftComplex *FFT_Ez,real  Qunit,
                                                    bool storeForces, uint *ids, real4 *storedForces) {
+#endif /* DASH_DOUBLE */    
     int idx = GETIDX();
     if (idx < nRingPoly) {
         real4 posWhole= xs[idx];
@@ -324,11 +368,20 @@ __global__ void Ewald_long_range_forces_order_1_cu(int nRingPoly, int nPerRingPo
 }
 
 
+#ifdef DASH_DOUBLE
+__global__ void Ewald_long_range_forces_order_3_cu(int nRingPoly, int nPerRingPoly, real4 *xs, real4 *fs, 
+                                                   real *qs, BoundsGPU bounds,
+                                                   int3 sz, cufftDoubleComplex *FFT_Ex,
+                                                    cufftDoubleComplex *FFT_Ey,cufftDoubleComplex *FFT_Ez,real  Qunit,
+                                                   bool storeForces, uint *ids, real4 *storedForces) {
+#else
 __global__ void Ewald_long_range_forces_order_3_cu(int nRingPoly, int nPerRingPoly, real4 *xs, real4 *fs, 
                                                    real *qs, BoundsGPU bounds,
                                                    int3 sz, cufftComplex *FFT_Ex,
                                                     cufftComplex *FFT_Ey,cufftComplex *FFT_Ez,real  Qunit,
                                                    bool storeForces, uint *ids, real4 *storedForces) {
+
+#endif
     int idx = GETIDX();
     if (idx < nRingPoly) {
         real4 posWhole= xs[idx];
@@ -386,33 +439,60 @@ __global__ void Ewald_long_range_forces_order_3_cu(int nRingPoly, int nPerRingPo
 
 // XXX: may need to template this cufftComplex & double prec analog, if they are different;
 //      -- consult NVIDIA docs to find out
+#ifdef DASH_DOUBLE
+__global__ void Energy_cu(int3 sz,real *Green_function,
+                                    cufftDoubleComplex *FFT_qs, cufftDoubleComplex *E_grid){
+#else
 __global__ void Energy_cu(int3 sz,real *Green_function,
                                     cufftComplex *FFT_qs, cufftComplex *E_grid){
+#endif
       int3 id = make_int3( blockIdx.x*blockDim.x + threadIdx.x,
                           blockIdx.y*blockDim.y + threadIdx.y,
                           blockIdx.z*blockDim.z + threadIdx.z);
 
       if ((id.x<sz.x)&&(id.y<sz.y)&&(id.z<sz.z)){
+#ifdef DASH_DOUBLE
+        cufftDoubleComplex qi=FFT_qs[id.x*sz.y*sz.z+id.y*sz.z+id.z];
+        E_grid[id.x*sz.y*sz.z+id.y*sz.z+id.z]
+            =make_cuDoubleComplex((qi.x*qi.x+qi.y*qi.y)*Green_function[id.x*sz.y*sz.z+id.y*sz.z+id.z],0.0);
+#else
         cufftComplex qi=FFT_qs[id.x*sz.y*sz.z+id.y*sz.z+id.z];
         E_grid[id.x*sz.y*sz.z+id.y*sz.z+id.z]
             =make_cuComplex((qi.x*qi.x+qi.y*qi.y)*Green_function[id.x*sz.y*sz.z+id.y*sz.z+id.z],0.0);
+
+#endif
 //TODO after Inverse FFT divide by volume
       }
 }
 
-
+#ifdef DASH_DOUBLE
+__global__ void virials_cu(BoundsGPU bounds,int3 sz,Virial *dest,real alpha, real *Green_function,cufftDoubleComplex *FFT_qs,int warpSize){
+#else
 __global__ void virials_cu(BoundsGPU bounds,int3 sz,Virial *dest,real alpha, real *Green_function,cufftComplex *FFT_qs,int warpSize){
+#endif
       int3 id = make_int3( blockIdx.x*blockDim.x + threadIdx.x,
                           blockIdx.y*blockDim.y + threadIdx.y,
                           blockIdx.z*blockDim.z + threadIdx.z);
 
       if ((id.x<sz.x)&&(id.y<sz.y)&&(id.z<sz.z)){
+#ifdef DASH_DOUBLE
+          real3 k= 6.28318530717958647693*make_real3(id)/bounds.trace();
+          if (id.x>sz.x/2) k.x= 6.28318530717958647693*(id.x-sz.x)/bounds.trace().x;
+          if (id.y>sz.y/2) k.y= 6.28318530717958647693*(id.y-sz.y)/bounds.trace().y;
+          if (id.z>sz.z/2) k.z= 6.28318530717958647693*(id.z-sz.z)/bounds.trace().z;        
+          real klen=lengthSqr(k);
+          cufftDoubleComplex qi=FFT_qs[id.x*sz.y*sz.z+id.y*sz.z+id.z];
+
+#else 
+          
           real3 k= 6.28318530717958647693f*make_real3(id)/bounds.trace();
           if (id.x>sz.x/2) k.x= 6.28318530717958647693f*(id.x-sz.x)/bounds.trace().x;
           if (id.y>sz.y/2) k.y= 6.28318530717958647693f*(id.y-sz.y)/bounds.trace().y;
           if (id.z>sz.z/2) k.z= 6.28318530717958647693f*(id.z-sz.z)/bounds.trace().z;        
           real klen=lengthSqr(k);
           cufftComplex qi=FFT_qs[id.x*sz.y*sz.z+id.y*sz.z+id.z];
+          
+#endif      
           real E=(qi.x*qi.x+qi.y*qi.y)*Green_function[id.x*sz.y*sz.z+id.y*sz.z+id.z];
           
           real differential=-2.0*(1.0/klen+0.25/(alpha*alpha));
@@ -789,6 +869,19 @@ void FixChargeEwald::setParameters(int szx_,int szy_,int szz_,real rcut_,int int
     }
     sz=make_int3(szx_,szy_,szz_);
     r_cut=rcut_;
+
+#ifdef DASH_DOUBLE
+    cudaMalloc((void**)&FFT_Qs, sizeof(cufftDoubleComplex)*sz.x*sz.y*sz.z);
+
+    cufftPlan3d(&plan, sz.x,sz.y, sz.z, CUFFT_Z2Z);
+
+    
+    cudaMalloc((void**)&FFT_Ex, sizeof(cufftDoubleComplex)*sz.x*sz.y*sz.z);
+    cudaMalloc((void**)&FFT_Ey, sizeof(cufftDoubleComplex)*sz.x*sz.y*sz.z);
+    cudaMalloc((void**)&FFT_Ez, sizeof(cufftDoubleComplex)*sz.x*sz.y*sz.z);
+   
+#else
+
     cudaMalloc((void**)&FFT_Qs, sizeof(cufftComplex)*sz.x*sz.y*sz.z);
 
     cufftPlan3d(&plan, sz.x,sz.y, sz.z, CUFFT_C2C);
@@ -797,7 +890,8 @@ void FixChargeEwald::setParameters(int szx_,int szy_,int szz_,real rcut_,int int
     cudaMalloc((void**)&FFT_Ex, sizeof(cufftComplex)*sz.x*sz.y*sz.z);
     cudaMalloc((void**)&FFT_Ey, sizeof(cufftComplex)*sz.x*sz.y*sz.z);
     cudaMalloc((void**)&FFT_Ez, sizeof(cufftComplex)*sz.x*sz.y*sz.z);
-    
+
+#endif
     Green_function=GPUArrayGlobal<real>(sz.x*sz.y*sz.z);
     CUT_CHECK_ERROR("setParameters execution failed");
     
@@ -844,8 +938,18 @@ void FixChargeEwald::setGridToErrorTolerance(bool printMsg) {
             cudaFree(FFT_Ey);
             cudaFree(FFT_Ez);
         }
-        cudaMalloc((void**)&FFT_Qs, sizeof(cufftComplex)*sz.x*sz.y*sz.z);
 
+#ifdef DASH_DOUBLE
+        cudaMalloc((void**)&FFT_Qs, sizeof(cufftDoubleComplex)*sz.x*sz.y*sz.z);
+        cufftPlan3d(&plan, sz.x,sz.y, sz.z, CUFFT_Z2Z);
+
+
+        cudaMalloc((void**)&FFT_Ex, sizeof(cufftDoubleComplex)*sz.x*sz.y*sz.z);
+        cudaMalloc((void**)&FFT_Ey, sizeof(cufftDoubleComplex)*sz.x*sz.y*sz.z);
+        cudaMalloc((void**)&FFT_Ez, sizeof(cufftDoubleComplex)*sz.x*sz.y*sz.z);
+#else
+
+        cudaMalloc((void**)&FFT_Qs, sizeof(cufftComplex)*sz.x*sz.y*sz.z);
         cufftPlan3d(&plan, sz.x,sz.y, sz.z, CUFFT_C2C);
 
 
@@ -853,6 +957,8 @@ void FixChargeEwald::setGridToErrorTolerance(bool printMsg) {
         cudaMalloc((void**)&FFT_Ey, sizeof(cufftComplex)*sz.x*sz.y*sz.z);
         cudaMalloc((void**)&FFT_Ez, sizeof(cufftComplex)*sz.x*sz.y*sz.z);
 
+
+#endif
         Green_function=GPUArrayGlobal<real>(sz.x*sz.y*sz.z);
         malloced = true;
     }
@@ -898,7 +1004,11 @@ void FixChargeEwald::calc_Green_function(){
 }
 
 
+#ifdef DASH_DOUBLE
+void FixChargeEwald::calc_potential(cufftDoubleComplex *phi_buf){
+#else
 void FixChargeEwald::calc_potential(cufftComplex *phi_buf){
+#endif
      BoundsGPU b=state->boundsGPU;
     real volume=b.volume();
     
@@ -907,10 +1017,13 @@ void FixChargeEwald::calc_potential(cufftComplex *phi_buf){
     potential_cu<<<dimGrid, dimBlock>>>(sz,Green_function.getDevData(), FFT_Qs,phi_buf);
     CUT_CHECK_ERROR("potential_cu kernel execution failed");    
 
-
+#ifdef DASH_DOUBLE
+    cufftExecZ2Z(plan, phi_buf, phi_buf,  CUFFT_INVERSE);
+#else 
     cufftExecC2C(plan, phi_buf, phi_buf,  CUFFT_INVERSE);
+#endif
     cudaDeviceSynchronize();
-    CUT_CHECK_ERROR("cufftExecC2C execution failed");
+    CUT_CHECK_ERROR("cufftExecC2C (Z2Z) execution failed");
 
 //     //test area
 //     real *buf=new real[sz.x*sz.y*sz.z*2];
@@ -933,10 +1046,9 @@ void FixChargeEwald::calc_potential(cufftComplex *phi_buf){
 bool FixChargeEwald::prepareForRun() {
     virialField = GPUArrayDeviceGlobal<Virial>(1);
     setTotalQ2();
-
     //TODO these values for comparison are uninitialized - we should see about this
 
-    handleBoundsChangeInternal(true);
+    handleBoundsChangeInternal(true,true);
     turnInit = state->turn;
     if (longRangeInterval != 1) {
         storedForces = GPUArrayDeviceGlobal<real4>(state->maxIdExisting+1);
@@ -969,7 +1081,20 @@ void FixChargeEwald::handleBoundsChange() {
     handleBoundsChangeInternal(false);
 }
 
-void FixChargeEwald::handleBoundsChangeInternal(bool printError) {
+void FixChargeEwald::handleBoundsChangeInternal(bool printError, bool forceChange) {
+
+    // just to avoid comparing uninitialized value (boundsLastOptimize, on ::prepareForRun())
+    if (forceChange) {
+        if (modeIsError) {
+            setGridToErrorTolerance(printError);
+        } else {
+            find_optimal_parameters(printError);
+        }
+        calc_Green_function();
+        boundsLastOptimize = state->boundsGPU;
+        total_Q2LastOptimize=total_Q2;
+        return;
+    }
 
     if ((state->boundsGPU != boundsLastOptimize)||(total_Q2!=total_Q2LastOptimize)) {
         if (modeIsError) {
@@ -1001,6 +1126,7 @@ void FixChargeEwald::compute(int virialMode) {
     //first update grid from atoms positions
     //set qs to 0
     dim3 dimBlock(8,8,8);
+    // e.g., sz ~ (64,64,64)... so, 64 + 8 - 1 / 8, (64 + 8 - 1) / 8
     dim3 dimGrid((sz.x + dimBlock.x - 1) / dimBlock.x,(sz.y + dimBlock.y - 1) / dimBlock.y,(sz.z + dimBlock.z - 1) / dimBlock.z);    
     if (not ((state->turn - turnInit) % longRangeInterval)) {
         map_charge_set_to_zero_cu<<<dimGrid, dimBlock>>>(sz,FFT_Qs);
@@ -1039,8 +1165,12 @@ void FixChargeEwald::compute(int virialMode) {
                        break;}
         }    
         // CUT_CHECK_ERROR("map_charge_to_grid_cu kernel execution failed");
-
+#ifdef DASH_DOUBLE
+        cufftExecZ2Z(plan, FFT_Qs, FFT_Qs, CUFFT_FORWARD);
+#else
         cufftExecC2C(plan, FFT_Qs, FFT_Qs, CUFFT_FORWARD);
+
+#endif
         // cudaDeviceSynchronize();
         //  CUT_CHECK_ERROR("cufftExecC2C Qs execution failed");
 
@@ -1068,10 +1198,15 @@ void FixChargeEwald::compute(int virialMode) {
         E_field_cu<<<dimGrid, dimBlock>>>(state->boundsGPU,sz,Green_function.getDevData(), FFT_Qs,FFT_Ex,FFT_Ey,FFT_Ez);
         CUT_CHECK_ERROR("E_field_cu kernel execution failed");    
 
-
+#ifdef DASH_DOUBLE
+        cufftExecZ2Z(plan, FFT_Ex, FFT_Ex,  CUFFT_INVERSE);
+        cufftExecZ2Z(plan, FFT_Ey, FFT_Ey,  CUFFT_INVERSE);
+        cufftExecZ2Z(plan, FFT_Ez, FFT_Ez,  CUFFT_INVERSE);
+#else
         cufftExecC2C(plan, FFT_Ex, FFT_Ex,  CUFFT_INVERSE);
         cufftExecC2C(plan, FFT_Ey, FFT_Ey,  CUFFT_INVERSE);
         cufftExecC2C(plan, FFT_Ez, FFT_Ez,  CUFFT_INVERSE);
+#endif
         //  cudaDeviceSynchronize();
         // CUT_CHECK_ERROR("cufftExecC2C  E_field execution failed");
 
@@ -1245,7 +1380,11 @@ void FixChargeEwald::singlePointEng(real * perParticleEng) {
     }    
     CUT_CHECK_ERROR("map_charge_to_grid_cu kernel execution failed");
 
+#ifdef DASH_DOUBLE
+    cufftExecZ2Z(plan, FFT_Qs, FFT_Qs, CUFFT_FORWARD);
+#else 
     cufftExecC2C(plan, FFT_Qs, FFT_Qs, CUFFT_FORWARD);
+#endif
     cudaDeviceSynchronize();
     CUT_CHECK_ERROR("cufftExecC2C Qs execution failed");
 

@@ -39,9 +39,15 @@ __global__ void compute_force_improper(int nImpropers, real4 *xs, real4 *fs, int
         for (int i=0; i<3; i++) {
             //printf("directors %d is %f %f %f\n", i, directors[i].x, directors[i].y, directors[i].z);
             lenSqrs[i] = lengthSqr(directors[i]);
+#ifdef DASH_DOUBLE
+            lens[i] = sqrt(lenSqrs[i]);
+            invLenSqrs[i] = 1.0 / lenSqrs[i];
+            invLens[i] = 1.0 / lens[i];
+#else
             lens[i] = sqrtf(lenSqrs[i]);
             invLenSqrs[i] = 1.0f / lenSqrs[i];
             invLens[i] = 1.0f / lens[i];
+#endif
             //   printf("inv len sqrs %d is %f\n", i, invLenSqrs[i]);
         }
 
@@ -52,7 +58,7 @@ __global__ void compute_force_improper(int nImpropers, real4 *xs, real4 *fs, int
 
         real scValues[3]; //???, is s1, s2, s12 in lammps
         for (int i=0; i<2; i++) {
-            scValues[i] = 1.0f - angleBits[i+1] * angleBits[i+1];
+            scValues[i] = 1.0 - angleBits[i+1] * angleBits[i+1];
             if (scValues[i] < SMALL) {
                 scValues[i] = SMALL;
             }
@@ -61,24 +67,32 @@ __global__ void compute_force_improper(int nImpropers, real4 *xs, real4 *fs, int
         scValues[2] = sqrtf(scValues[0] * scValues[1]);
         real c = (angleBits[1]*angleBits[2] + angleBits[0]) * scValues[2];
 
-        if (c > 1.0f) {
-            c = 1.0f;
-        } else if (c < -1.0f) {
-            c = -1.0f;
+        if (c > 1.0) {
+            c = 1.0;
+        } else if (c < -1.0) {
+            c = -1.0;
         }
+#ifdef DASH_DOUBLE
+        real s = sqrt(1.0 - c*c);
+#else
         real s = sqrtf(1.0f - c*c);
+#endif
         if (s < SMALL) {
             s = SMALL;
         }
+#ifdef DASH_DOUBLE
+        real theta = acos(c);
+#else
         real theta = acosf(c);
+#endif
         real dPotential = evaluator.dPotential(improperType, theta);
 
-        dPotential *= -2.0f / s;
+        dPotential *= -2.0 / s;
         scValues[2] *= dPotential;
         c *= dPotential;
 
         real a11 = c * invLenSqrs[0] * scValues[0];
-        real a22 = - invLenSqrs[1] * (2.0f * angleBits[0] * scValues[2] - c * (scValues[0] + scValues[1]));
+        real a22 = - invLenSqrs[1] * (2.0 * angleBits[0] * scValues[2] - c * (scValues[0] + scValues[1]));
         real a33 = c * invLenSqrs[2] * scValues[1];
         real a12 = -invLens[0] * invLens[1] * (angleBits[1] * c * scValues[0] + angleBits[2] * scValues[2]);
         real a13 = -invLens[0] * invLens[2] * scValues[2];
@@ -173,9 +187,15 @@ __global__ void compute_energy_improper(int nImpropers, real4 *xs, real *perPart
         directors[2] = positions[3] - positions[2];
         for (int i=0; i<3; i++) {
             //printf("directors %d is %f %f %f\n", i, directors[i].x, directors[i].y, directors[i].z);
+            //
             lenSqrs[i] = lengthSqr(directors[i]);
+#ifdef DASH_DOUBLE
+            lens[i] = sqrt(lenSqrs[i]);
+            invLens[i] = 1.0 / lens[i];
+#else
             lens[i] = sqrtf(lenSqrs[i]);
             invLens[i] = 1.0f / lens[i];
+#endif
         }
 
         real angleBits[3]; //c0, 1, 2
@@ -185,26 +205,38 @@ __global__ void compute_energy_improper(int nImpropers, real4 *xs, real *perPart
 
         real scValues[3]; //???, is s1, s2, s12 in lammps
         for (int i=0; i<2; i++) {
-            scValues[i] = 1.0f - angleBits[i+1] * angleBits[i+1];
+            scValues[i] = 1.0 - angleBits[i+1] * angleBits[i+1];
             if (scValues[i] < SMALL) {
                 scValues[i] = SMALL;
             }
             scValues[i] = 1.0 / scValues[i];
         }
+#ifdef DASH_DOUBLE
+        scValues[2] = sqrt(scValues[0] * scValues[1]);
+#else
         scValues[2] = sqrtf(scValues[0] * scValues[1]);
+#endif
         real c = (angleBits[1]*angleBits[2] + angleBits[0]) * scValues[2];
 
-        if (c > 1.0f) {
-            c = 1.0f;
-        } else if (c < -1.0f) {
-            c = -1.0f;
+        if (c > 1.0) {
+            c = 1.0;
+        } else if (c < -1.0) {
+            c = -1.0;
         }
+#ifdef DASH_DOUBLE
+        real s = sqrt(1.0 - c*c);
+#else
         real s = sqrtf(1.0f - c*c);
+#endif
         if (s < SMALL) {
             s = SMALL;
         }
+#ifdef DASH_DOUBLE
+        real theta = acos(c);
+#else
         real theta = acosf(c);
-        real potential = 0.25f * evaluator.potential(improperType, theta);
+#endif
+        real potential = 0.25 * evaluator.potential(improperType, theta);
         for (int i=0; i<4; i++) {
             atomicAdd(perParticleEng + idxs[i], potential);
         }

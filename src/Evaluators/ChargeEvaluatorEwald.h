@@ -12,6 +12,16 @@ class ChargeEvaluatorEwald {
             if (lenSqr < 1e-10) {
                 lenSqr = 1e-10;
             }
+#ifdef DASH_DOUBLE
+            real r2inv = 1.0/lenSqr;
+            real rinv = sqrt(r2inv);
+            real len = sqrt(lenSqr);
+            real forceScalar = qqr_to_eng * qi*qj*(erfc((alpha*len))*rinv+(2.0*0.5641895835477563*alpha)*exp(-alpha*alpha*lenSqr));
+            if (multiplier < 1.0f) {
+                real correctionVal = qqr_to_eng * qi * qj * rinv;
+                forceScalar -= (1.0 - multiplier) * correctionVal;
+            }
+#else
             real r2inv = 1.0f/lenSqr;
             real rinv = sqrtf(r2inv);
             real len = sqrtf(lenSqr);
@@ -20,7 +30,7 @@ class ChargeEvaluatorEwald {
                 real correctionVal = qqr_to_eng * qi * qj * rinv;
                 forceScalar -= (1.0f - multiplier) * correctionVal;
             }
-
+#endif
             forceScalar *= r2inv;
             return dr * forceScalar;
         }
@@ -30,6 +40,17 @@ class ChargeEvaluatorEwald {
             if (lenSqr < 1e-10) {
                 lenSqr = 1e-10;
             }
+#ifdef DASH_DOUBLE
+            real len=sqrt(lenSqr);
+            real rinv = 1.0/len;                 
+            real prefactor = qqr_to_eng * qi * qj * rinv;
+            real eng = prefactor * erfc(alpha*len);
+            if (multiplier < 1.0) {
+                eng -= (1.0 - multiplier) * prefactor;
+            }
+            return 0.5 * eng;
+
+#else
             real len=sqrtf(lenSqr);
             real rinv = 1.0f/len;                 
             real prefactor = qqr_to_eng * qi * qj * rinv;
@@ -38,7 +59,7 @@ class ChargeEvaluatorEwald {
                 eng -= (1 - multiplier) * prefactor;
             }
             return 0.5f * eng;
-
+#endif
         }
         ChargeEvaluatorEwald(real alpha_, real qqr_to_eng_) : alpha(alpha_), qqr_to_eng(qqr_to_eng_) {};
 

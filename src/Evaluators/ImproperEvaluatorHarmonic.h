@@ -14,7 +14,7 @@ public:
 
     inline __device__ real potential(ImproperHarmonicType improperType, real theta) {
         real dTheta = theta - improperType.thetaEq;
-        return (1.0f/2.0f) * dTheta * dTheta * improperType.k;
+        return 0.5 * dTheta * dTheta * improperType.k;
 
     }
 

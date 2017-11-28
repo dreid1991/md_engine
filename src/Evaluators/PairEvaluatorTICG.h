@@ -43,7 +43,7 @@ public:
             //E=1
             real Ldivrcut=sqrt(lenSqr/rCutSqr);
             real  V=0.5*(Ldivrcut-1.0)*(Ldivrcut-1.0)*(Ldivrcut+2.0);   
-            return 0.5f*params[1]*V * multiplier; //0.5 b/c we need to half-count energy b/c pairs are redundant
+            return 0.5*params[1]*V * multiplier; //0.5 b/c we need to half-count energy b/c pairs are redundant
         }
         return 0;
     }

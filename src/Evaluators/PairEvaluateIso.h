@@ -200,7 +200,7 @@ __global__ void compute_force_iso
             forceCur += forceSum;
             fs[atomIdx] = forceCur;
             if (COMP_VIRIALS) {
-                virialsSum *= 0.5f;
+                virialsSum *= 0.5;
                 virials[atomIdx] += virialsSum;
             }
         }
@@ -496,10 +496,11 @@ __global__ void compute_energy_iso_group_group
                     }
                     rCutSqr = params_pair[0];
                 }
-                if (COMP_PAIRS && lenSqr < rCutSqr) {
+                // XXX '<' changed to '<='...
+                if (COMP_PAIRS && lenSqr <= rCutSqr) {
                     engSum += pairEval.energy(params_pair, lenSqr, multiplier);
                 }
-                if (COMP_CHARGES && lenSqr < qCutoffSqr) {
+                if (COMP_CHARGES && lenSqr <= qCutoffSqr) {
                     real qj = qs[otherIdx];
                     real eng = chargeEval.energy(lenSqr, qi, qj, multiplier);
                     //printf("len is %f\n", sqrtf(lenSqr));

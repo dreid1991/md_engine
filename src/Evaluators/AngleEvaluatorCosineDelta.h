@@ -25,9 +25,13 @@ public:
         real b11 = -a*c*cot/distSqrs[0];
         real b12 = a*cot*invDistProd;
         real b22 = -a*c*cot/distSqrs[1];
-
+#ifdef DASH_DOUBLE
+        real c0 = cos(angleType.theta0);
+        real s0 = cos(angleType.theta0);
+#else 
         real c0 = cosf(angleType.theta0);
         real s0 = cosf(angleType.theta0);
+#endif
         //   printf("forceConst %f a %f s %f dists %f %f %f\n", forceConst, a, s, a11, a12, a22);
         //printf("hey %f, eq %f\n", theta, angleType.theta0);
         //printf("directors %f %f %f .. %f %f %f\n", directors[0].x, directors[0].y, directors[0].z,directors[1].x, directors[1].y, directors[1].z);
@@ -65,9 +69,13 @@ public:
         real b11 = -a*c*cot/distSqrs[0];
         real b12 = a*cot*invDistProd;
         real b22 = -a*c*cot/distSqrs[1];
-
+#ifdef DASH_DOUBLE
+        real c0 = cos(angleType.theta0);
+        real s0 = cos(angleType.theta0);
+#else 
         real c0 = cosf(angleType.theta0);
         real s0 = cosf(angleType.theta0);
+#endif
         //   printf("forceConst %f a %f s %f dists %f %f %f\n", forceConst, a, s, a11, a12, a22);
         //printf("hey %f, eq %f\n", theta, angleType.theta0);
         //printf("directors %f %f %f .. %f %f %f\n", directors[0].x, directors[0].y, directors[0].z,directors[1].x, directors[1].y, directors[1].z);
@@ -87,7 +95,11 @@ public:
 
     inline __device__ real energy(AngleCosineDeltaType angleType, real theta, real3 directors[2]) {
         real dTheta = theta - angleType.theta0;
+#ifdef DASH_DOUBLE
+        return (1.0 / 3.0) * (1.0 - cos(dTheta)); //energy split between three atoms
+#else 
         return (1.0f / 3.0f) * (1.0f - cosf(dTheta)); //energy split between three atoms
+#endif
     }
 };
 

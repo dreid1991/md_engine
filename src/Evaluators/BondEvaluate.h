@@ -57,7 +57,7 @@ __global__ void compute_force_bond(int nAtoms, real4 *xs, real4 *forces, int *id
             //real3 forceSumSingle = make_real3(forceSum);
             //forces[myIdx] += forceSumSingle;
             if (COMPUTEVIRIALS) {
-                virialsSum *= 0.5f;
+                virialsSum *= 0.5;
                 virials[idx] += virialsSum;
             }
         }

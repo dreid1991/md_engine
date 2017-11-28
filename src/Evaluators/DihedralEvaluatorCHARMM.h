@@ -10,11 +10,19 @@ class DihedralEvaluatorCHARMM {
 
                 //real3 myForce = evaluator.force(dihedralType, phi, c, scValues, invLenSqrs, c12Mags, c0, c, invMagProds, c12Mags, invLens, directors, myIdxInDihedral);
         inline __device__ real dPotential(DihedralCHARMMType dihedralType, real phi) {
+#ifdef DASH_DOUBLE
+            return dihedralType.k * dihedralType.n * sin(dihedralType.d - dihedralType.n*phi);
+#else
             return dihedralType.k * dihedralType.n * sinf(dihedralType.d - dihedralType.n*phi);
+#endif
         }
 
         inline __device__ real potential(DihedralCHARMMType dihedralType, real phi) {
-            return dihedralType.k * (1 + cosf(dihedralType.n*phi - dihedralType.d));
+#ifdef DASH_DOUBLE
+            return dihedralType.k * (1.0 + cos(dihedralType.n*phi - dihedralType.d));
+#else
+            return dihedralType.k * (1.0f + cosf(dihedralType.n*phi - dihedralType.d));
+#endif
 
         }
 

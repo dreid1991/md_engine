@@ -15,7 +15,7 @@ public:
         
 
         real forceConst = angleType.k * dTheta;
-        real a = -2.0f * forceConst * s;
+        real a = -2.0 * forceConst * s;
         real a11 = a*c/distSqrs[0];
         real a12 = -a*invDistProd;
         real a22 = a*c/distSqrs[1];
@@ -43,7 +43,7 @@ public:
         
 
         real forceConst = angleType.k * dTheta;
-        real a = -2.0f * forceConst * s;
+        real a = -2.0 * forceConst * s;
         real a11 = a*c/distSqrs[0];
         real a12 = -a*invDistProd;
         real a22 = a*c/distSqrs[1];
@@ -64,7 +64,7 @@ public:
 
     inline __device__ real energy(AngleHarmonicType angleType, real theta, real3 directors[2]) {
         real dTheta = theta - angleType.theta0;
-        return (1.0f / 6.0f) * dTheta * dTheta * angleType.k; // 1/6 comes from 1/3 (energy split between three atoms) and 1/2 from 1/2 k dtheta^2
+        return (1.0 / 6.0) * dTheta * dTheta * angleType.k; // 1/6 comes from 1/3 (energy split between three atoms) and 1/2 from 1/2 k dtheta^2
 
     }
 };

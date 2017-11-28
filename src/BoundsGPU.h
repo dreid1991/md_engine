@@ -29,6 +29,9 @@ public:
         rectComponents = rectComponents_;
         invRectComponents = 1.0f / rectComponents;
         periodic = periodic_;
+        periodicD = make_double3(periodic.x, periodic.y, periodic.z);
+        rectComponentsD = make_double3(rectComponents.x, rectComponents.y,rectComponents.z);
+        invRectComponentsD = make_double3(invRectComponents.x, invRectComponents.y, invRectComponents.z);
     }
 
     /*! \brief Default constructor */
@@ -37,6 +40,10 @@ public:
     real3 rectComponents; //!< 3 sides - xx, yy, zz
     real3 invRectComponents; //!< Inverse of the box expansion in standard
                        //!< coordinates
+
+    double3 periodicD;
+    double3 rectComponentsD;
+    double3 invRectComponentsD;
 
     real3 lo; //!< Point of origin
     real3 periodic; //!< Stores whether box is periodic in x-, y-, and
@@ -74,13 +81,24 @@ public:
      * \return Copy of the vector, wrapped into main simulation box
      */
     __host__ __device__ real3 minImage(real3 v) {
+#ifdef DASH_DOUBLE
+        real3 img = make_real3(rint(v.x * invRectComponents.x), rint(v.y * invRectComponents.y), rint(v.z * invRectComponents.z));
+#else
         real3 img = make_real3(rintf(v.x * invRectComponents.x), rintf(v.y * invRectComponents.y), rintf(v.z * invRectComponents.z));
-
+#endif
         v -= rectComponents * img * periodic;
         return v;
     }
-    
-    
+  
+// for FixRigid; even if DASH_DOUBLE not defined, SETTLE routine is in double
+#ifndef DASH_DOUBLE
+    __host__ __device__ double3 minImage(double3 v) {
+        double3 img = make_double3(rint(v.x * invRectComponentsD.x), rint(v.y * invRectComponentsD.y), rint(v.z * invRectComponentsD.z));
+        v -= rectComponentsD * img * periodicD;
+        return v;
+    }
+#endif
+
     __host__ __device__ real volume() {
         return rectComponents.x * rectComponents.y * rectComponents.z;
     }
@@ -123,6 +141,8 @@ public:
         diff *= scaleBy;
         lo = center - diff;
         invRectComponents =  1.0 / rectComponents;
+        rectComponentsD = make_double3(rectComponents.x, rectComponents.y,rectComponents.z);
+        invRectComponentsD = make_double3(invRectComponents.x, invRectComponents.y, invRectComponents.z);
     }
     bool operator ==(BoundsGPU &other) {
         return lo==other.lo and rectComponents==other.rectComponents and periodic==other.periodic;

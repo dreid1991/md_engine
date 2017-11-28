@@ -337,7 +337,7 @@ public:
     int nThreadPerAtom; //!< number of threads per atom for pair computations and nlist building
     int nThreadPerBlock; //!< number of threads per block for pair computations and nlist building
     int tuneEvery;
-    
+    bool tuning; //!< bool; determines whether tuning occurs.  Defaults to true.
     bool verbose; //!< Verbose output
     int shoutEvery; //!< Report state of simulation every this many timesteps
     AtomParams atomParams; //!< Generic properties of the Atoms, e.g. masses,
@@ -549,6 +549,10 @@ public:
      * and their interactions for use in path-integral molecular dynamics simultions
      * currently, the same number of replicas are applied to all particles in the system.
      */
+
+    // to test that our compile time option yields variables with double precision
+    void getSizeOfReal();
+
 
 private:
     std::mt19937 randomNumberGenerator; //!< Random number generator

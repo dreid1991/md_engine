@@ -100,7 +100,7 @@ __global__ void nve_xPIMD_cu(int nAtoms, int nPerRingPoly, real omegaP, real4 *x
 	real twoPiInvP       = 2.0f * M_PI * invP;
 	real invSqrtP 	      = sqrtf(invP);
 	real sqrt2           = sqrtf(2.0f);
-#endif
+#endif /* DASH_DOUBLE */
 	int   halfP           = nPerRingPoly / 2;	// P must be even for the following transformation!!!
 
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -154,7 +154,7 @@ __global__ void nve_xPIMD_cu(int nAtoms, int nPerRingPoly, real omegaP, real4 *x
         real cosval = cos(twoPiInvP * k * n);	// cos(2*pi*k*n/P)
 #else 
         real cosval = cosf(twoPiInvP * k * n);	// cos(2*pi*k*n/P)
-#endif
+#endif /* DASH_DOUBLE */
         tbr[threadIdx.x] = xn*sqrt2*cosval;
         if (needSync)   { __syncthreads();}
         reduceByN<real3>(tbr, nPerRingPoly, warpSize);
@@ -167,7 +167,7 @@ __global__ void nve_xPIMD_cu(int nAtoms, int nPerRingPoly, real omegaP, real4 *x
         real  sinval = sin(twoPiInvP * k * n);	// sinf(2*pi*k*n/P)
 #else
         real  sinval = sinf(twoPiInvP * k * n);	// sinf(2*pi*k*n/P)
-#endif
+#endif /* DASH_DOUBLE */
         tbr[threadIdx.x] = xn*sqrt2*sinval;
         if (needSync)   { __syncthreads();}
         reduceByN<real3>(tbr, nPerRingPoly, warpSize);
@@ -197,7 +197,7 @@ __global__ void nve_xPIMD_cu(int nAtoms, int nPerRingPoly, real omegaP, real4 *x
         real cosval = cos(twoPiInvP * k * n);	// cos(2*pi*k*n/P)
 #else 
         real cosval = cosf(twoPiInvP * k * n);	// cos(2*pi*k*n/P)
-#endif
+#endif /* DASH_DOUBLE */
         tbr[threadIdx.x] = vn*sqrt2*cosval;
         if (needSync)   { __syncthreads();}
         reduceByN<real3>(tbr, nPerRingPoly, warpSize);
@@ -210,7 +210,7 @@ __global__ void nve_xPIMD_cu(int nAtoms, int nPerRingPoly, real omegaP, real4 *x
 	    real  sinval = sin(twoPiInvP * k * n);	// sinf(2*pi*k*n/P)
 #else
 	    real  sinval = sinf(twoPiInvP * k * n);	// sinf(2*pi*k*n/P)
-#endif
+#endif /* DASH_DOUBLE */
         tbr[threadIdx.x] = vn*sqrt2*sinval;
         if (needSync)   { __syncthreads();}
         reduceByN<real3>(tbr, nPerRingPoly, warpSize);
@@ -237,7 +237,7 @@ __global__ void nve_xPIMD_cu(int nAtoms, int nPerRingPoly, real omegaP, real4 *x
 	        real omegaK = 2.0f * omegaP * sinf( beadIdx * twoPiInvP * 0.5f);
 	        real cosdt  = cosf(omegaK * dt);
 	        real sindt  = sinf(omegaK * dt);
-#endif
+#endif /* DASH_DOUBLE */
 
 	        real3 xsNMk = xsNM[threadIdx.x];
 	        real3 vsNMk = vsNM[threadIdx.x];
@@ -273,7 +273,7 @@ __global__ void nve_xPIMD_cu(int nAtoms, int nPerRingPoly, real omegaP, real4 *x
 	        real  cosval = cos(twoPiInvP * k * n);	// cosf(2*pi*k*n/P)
 #else 
             real  cosval = cosf(twoPiInvP * k * n);	// cosf(2*pi*k*n/P)
-#endif
+#endif /* DASH_DOUBLE */
 	        xn += xsNM[rootIdx+k] * sqrt2 * cosval;
 	        vn += vsNM[rootIdx+k] * sqrt2 * cosval;
         }
@@ -284,7 +284,7 @@ __global__ void nve_xPIMD_cu(int nAtoms, int nPerRingPoly, real omegaP, real4 *x
 	        real  sinval = sin(twoPiInvP * k * n);	// cosf(2*pi*k*n/P)
 #else 
             real  sinval = sinf(twoPiInvP * k * n);	// cosf(2*pi*k*n/P)
-#endif
+#endif /* DASH_DOUBLE */
 	        xn += xsNM[rootIdx+k] * sqrt2 * sinval;
 	        vn += vsNM[rootIdx+k] * sqrt2 * sinval;
         }
@@ -384,7 +384,7 @@ __global__ void preForcePIMD_cu(int nAtoms, int nPerRingPoly, real omegaP, real4
     real twoPiInvP       = 2.0f * M_PI * invP;
     real invSqrtP 	      = sqrtf(invP);
     real sqrt2           = sqrtf(2.0f);
-#endif
+#endif /* DASH_DOUBLE */
     int   halfP           = nPerRingPoly / 2;	// P must be even for the following transformation!!!
 
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -437,7 +437,7 @@ __global__ void preForcePIMD_cu(int nAtoms, int nPerRingPoly, real omegaP, real4
         real cosval = cos(twoPiInvP * k * n);	// cosf(2*pi*k*n/P)
 #else 
         real cosval = cosf(twoPiInvP * k * n);	// cosf(2*pi*k*n/P)
-#endif
+#endif /* DASH_DOUBLE */
         tbr[threadIdx.x] = xn*sqrt2*cosval;
         if (needSync)   { __syncthreads();}
         reduceByN<real3>(tbr, nPerRingPoly, warpSize);
@@ -450,7 +450,7 @@ __global__ void preForcePIMD_cu(int nAtoms, int nPerRingPoly, real omegaP, real4
         real  sinval = sin(twoPiInvP * k * n);	// sinf(2*pi*k*n/P)
 #else 
         real  sinval = sinf(twoPiInvP * k * n);	// sinf(2*pi*k*n/P)
-#endif
+#endif /* DASH_DOUBLE */
         tbr[threadIdx.x] = xn*sqrt2*sinval;
         if (needSync)   { __syncthreads();}
         reduceByN<real3>(tbr, nPerRingPoly, warpSize);
@@ -480,7 +480,7 @@ __global__ void preForcePIMD_cu(int nAtoms, int nPerRingPoly, real omegaP, real4
         real cosval = cos(twoPiInvP * k * n);	// cosf(2*pi*k*n/P)
 #else 
         real cosval = cosf(twoPiInvP * k * n);	// cosf(2*pi*k*n/P)
-#endif
+#endif /* DASH_DOUBLE */
         tbr[threadIdx.x] = vn*sqrt2*cosval;
         if (needSync)   { __syncthreads();}
         reduceByN<real3>(tbr, nPerRingPoly, warpSize);
@@ -493,7 +493,7 @@ __global__ void preForcePIMD_cu(int nAtoms, int nPerRingPoly, real omegaP, real4
 	    real  sinval = sin(twoPiInvP * k * n);	// sinf(2*pi*k*n/P)
 #else 
         real  sinval = sinf(twoPiInvP * k * n);	// sinf(2*pi*k*n/P)
-#endif
+#endif /* DASH_DOUBLE */
         tbr[threadIdx.x] = vn*sqrt2*sinval;
         if (needSync)   { __syncthreads();}
         reduceByN<real3>(tbr, nPerRingPoly, warpSize);
@@ -520,7 +520,7 @@ __global__ void preForcePIMD_cu(int nAtoms, int nPerRingPoly, real omegaP, real4
             real omegaK = 2.0f * omegaP * sinf( beadIdx * twoPiInvP * 0.5f);
 	        real cosdt  = cosf(omegaK * dt);
 	        real sindt  = sinf(omegaK * dt);
-#endif
+#endif /* DASH_DOUBLE */
 	        real3 xsNMk = xsNM[threadIdx.x];
 	        real3 vsNMk = vsNM[threadIdx.x];
 	        xsNM[threadIdx.x] *= cosdt;
@@ -555,7 +555,7 @@ __global__ void preForcePIMD_cu(int nAtoms, int nPerRingPoly, real omegaP, real4
 	        real  cosval = cos(twoPiInvP * k * n);	// cosf(2*pi*k*n/P)
 #else 
             real  cosval = cosf(twoPiInvP * k * n);	// cosf(2*pi*k*n/P)
-#endif
+#endif /* DASH_DOUBLE */
 	        xn += xsNM[rootIdx+k] * sqrt2 * cosval;
 	        vn += vsNM[rootIdx+k] * sqrt2 * cosval;
         }
@@ -566,7 +566,7 @@ __global__ void preForcePIMD_cu(int nAtoms, int nPerRingPoly, real omegaP, real4
 	        real  sinval = sinf(twoPiInvP * k * n);	// sinf(2*pi*k*n/P)
 #else 
             real  sinval = sinf(twoPiInvP * k * n);	// sinf(2*pi*k*n/P)
-#endif
+#endif /* DASH_DOUBLE */
 	        xn += xsNM[rootIdx+k] * sqrt2 * sinval;
 	        vn += vsNM[rootIdx+k] * sqrt2 * sinval;
         }
@@ -695,14 +695,15 @@ double IntegratorVerlet::run(int numTurns)
 
         handleBoundsChange();
 
-        if ((state->turn-state->runInit) % tuneEvery == 0 and state->turn > state->runInit) {
-            //this goes here because forces are zero at this point.  I don't need to save any forces this way
-            timeTune += tune();
-        } else if (not haveTunedWithData and state->turn-state->runInit < tuneEvery and state->nlistBuildCount > 20) {
-            timeTune += tune();
-            haveTunedWithData = true;
+        if (state->tuning) {
+            if ((state->turn-state->runInit) % tuneEvery == 0 and state->turn > state->runInit) {
+                //this goes here because forces are zero at this point.  I don't need to save any forces this way
+                timeTune += tune();
+            } else if (not haveTunedWithData and state->turn-state->runInit < tuneEvery and state->nlistBuildCount > 20) {
+                timeTune += tune();
+                haveTunedWithData = true;
+            }
         }
-
         // Recalculate forces
         force(virialMode);
 

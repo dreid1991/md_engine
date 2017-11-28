@@ -19,7 +19,7 @@ std::string NoseHooverType = "NoseHoover";
 
 
 
-#define n_ys_5 {
+//#define n_ys_5 {
 
 // CUDA function to calculate the total kinetic energy
 
@@ -28,7 +28,8 @@ __global__ void rescale_cu(int nAtoms, uint groupTag, real4 *vs, real4 *fs, real
 {
     int idx = GETIDX();
     if (idx < nAtoms) {
-        uint groupTagAtom = ((uint *) (fs+idx))[3];
+        uint groupTagAtom = *((uint *) &(fs[idx].w));
+        //uint groupTagAtom = *((uint *) ( ((real *)(fs+idx))+3));
         if (groupTag & groupTagAtom) {
             real4 vel = vs[idx];
             vel.x *= scale.x;
@@ -58,7 +59,9 @@ __global__ void barostat_vel_cu(int nAtoms,uint groupTag, real4 *vs,
 
     int idx = GETIDX();
     if (idx < nAtoms) {
-        uint groupTagAtom = ((uint *) (fs+idx))[3];
+        uint groupTagAtom = *((uint *) &(fs[idx].w));
+        //uint groupTagAtom = *((uint *) ( ((real *)(fs+idx))+3));
+        //uint groupTagAtom = ((uint *) (fs+idx))[3];
         if (groupTag & groupTagAtom) {
             real4 vel = vs[idx];
             real invmass = vel.w;

@@ -86,6 +86,9 @@ inline double rsqrt(double x)
 inline __host__ __device__ float cu_abs(float x) {
     return x > 0 ? x : -x;
 }
+inline __host__ __device__ double cu_abs(double x) {
+    return x > 0 ? x : -x;
+}
 ////////////////////////////////////////////////////////////////////////////////
 // constructors
 ////////////////////////////////////////////////////////////////////////////////
@@ -1935,8 +1938,8 @@ inline __host__ __device__ bool operator == (double3 a, double3 b) {
 
 // __real_as_int to __double_as_int()
 //  --- actually, cast as float first.  This... might cause problems.
-#define __real_as_int(X)  __float_as_int( (float ) X)
-#define __real_as_uint(X) __float_as_uint( (float ) X)
+#define __real_as_int(X)  *( (int *) &X)
+#define __real_as_uint(X) *( (uint *) &X)
 
 #else /* DASH_DOUBLE */
 
@@ -1991,7 +1994,7 @@ __device__ real atomicAdd(real* address, real val)
     return __longlong_as_double(old);
 }
 #endif /* DASH_DOUBLE */
-#endif /* __CUDA_ARCH__ < 600 */
+#endif /* !defined(__CUDA_ARCH__) || __CUDA_ARCH__ >= 600 */
 
 
 

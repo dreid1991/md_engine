@@ -66,7 +66,11 @@ class EvaluatorE3B3 {
 
         // implements the O-O two-body correction to TIP4P/2005
         inline __device__ real3 twoBodyForce(real3 dr, real r) {
-            real forceScalar = k2 * E2 * expf(-k2 * r) / r;
+#ifdef DASH_DOUBLE
+            real forceScalar = k2 * E2 * exp(-1.0 * k2 * r) / r;
+#else
+            real forceScalar = k2 * E2 * expf(-1.0f * k2 * r) / r;
+#endif
             return dr * forceScalar;
         }
 
@@ -106,7 +110,11 @@ class EvaluatorE3B3 {
         
 
         inline __device__ real threeBodyForceScalar(real magnitude) {
-            return switching(magnitude) * expf(-k3 * magnitude);
+#ifdef DASH_DOUBLE
+            return switching(magnitude) * exp(-1.0 * k3 * magnitude);
+#else
+            return switching(magnitude) * expf(-1.0f * k3 * magnitude);
+#endif
         }
 
         inline __device__ real3 threeBodyInteraction(real rij_scalar, real rik_scalar,  
