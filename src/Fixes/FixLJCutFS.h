@@ -6,6 +6,7 @@
 #include "PairEvaluatorLJFS.h"
 #include "xml_func.h"
 
+class EvaluatorWrapper;
 void export_FixLJCutFS();
 
 //! Fix for truncated Lennard-Jones interactions

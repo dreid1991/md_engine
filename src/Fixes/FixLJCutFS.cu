@@ -11,7 +11,7 @@
 const std::string LJCutType = "LJCutFS";
 namespace py = boost::python;
 
-FixLJCutFS::FixLJCutFS(SHARED(State) state_, std::string handle_, std::string mixingRules_)
+FixLJCutFS::FixLJCutFS(boost::shared_ptr<State> state_, std::string handle_, std::string mixingRules_)
     : FixPair(state_, handle_, "all", LJCutType, true, false, 1, mixingRules_),
       epsHandle("eps"), sigHandle("sig"), rCutHandle("rCut") {
     initializeParameters(epsHandle, epsilons);
@@ -154,7 +154,7 @@ void FixLJCutFS::addSpecies(std::string handle) {
     initializeParameters(epsHandle, epsilons);
     initializeParameters(sigHandle, sigmas);
     initializeParameters(rCutHandle, rCuts);
-    initializeParameters(rCutHandle, FCuts);
+    initializeParameters("FCutHandle", FCuts);
 
 }
 
@@ -174,10 +174,10 @@ std::vector<real> FixLJCutFS::getRCuts() {
 
 void export_FixLJCutFS() {
     py::class_<FixLJCutFS,
-                          SHARED(FixLJCutFS),
+                          boost::shared_ptr<FixLJCutFS>,
                           py::bases<FixPair>, boost::noncopyable > (
         "FixLJCutFS",
-        py::init<SHARED(State), std::string, py::optional<std::string> > (
+        py::init<boost::shared_ptr<State>, std::string, py::optional<std::string> > (
             py::args("state", "handle", "mixingRules"))
     );
 
