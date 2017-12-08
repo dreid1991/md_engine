@@ -284,9 +284,23 @@ __global__ void accumulate_gpu(K *dest, T *src, int n, int warpSize, C instance)
         float *destDASH = (float *) dest;
         float *tmpDASH = (float *) tmp;
 #endif /* DASH_DOUBLE */
+
+
+        /* NOTE TO FUTURE PEOPLE: 
+         * We use the macro above to branch between double and single, because trying to cast as 'real'
+         * as shown below causes the compiler to throw an error;
+         * types deduced in the atomicAdd operations are (real *, real) instead of 
+         * whatever real was compiled to be via typedef in globalDefs.h - either float, or double.
+         * This is an issue because, strictly speaking, there is no atomicAdd function that takes 
+         * parameters of type (real *, real) - but the compiler doesn't recognize them as double or float.
+         */
         //real *destreal = (real *) dest;
         //real *tmpreal = (real *) tmp;
+        
+        
         atomicAdd(destDASH + threadIdx.x, tmpDASH[threadIdx.x]);
+        //atomicAdd(destreal + threadIdx.x, tmpreal[threadIdx.x]);
+
     }
 }
 
