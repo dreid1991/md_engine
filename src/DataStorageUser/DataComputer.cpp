@@ -21,6 +21,7 @@ void DataComputer::prepareForRun() {
         gpuBuffer = GPUArrayGlobal<real>(state->atoms.size() * 6 * dataMultiple);
     } else if (computeMode=="vector") {
         gpuBuffer = GPUArrayGlobal<real>(state->atoms.size() * dataMultiple);
+        gpuBufferReduce = GPUArrayGlobal<real>(); // initialize to empty
         sorted = std::vector<double>(state->atoms.size() * dataMultiple);
     } else {
         std::cout << "Invalid data type " << computeMode << ".  Must be scalar, tensor, or vector" << std::endl;

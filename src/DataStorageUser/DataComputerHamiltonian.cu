@@ -1,29 +1,38 @@
-#include "DataComputerEnergy.h"
+#include "DataComputerHamiltonian.h"
 #include "cutils_func.h"
 #include "boost_for_export.h"
 #include "State.h"
 namespace py = boost::python;
 using namespace MD_ENGINE;
 
-DataComputerEnergy::DataComputerEnergy(State *state_, py::list fixes_, std::string computeMode_, std::string groupHandleB_) : DataComputer(state_, computeMode_, false), groupHandleB(groupHandleB_) {
+DataComputerHamiltonian::DataComputerHamiltonian(State *state_, std::string computeMode_) : DataComputer(state_, computeMode_, false) {
 
-    groupTagB = state->groupTagFromHandle(groupHandleB);
-    otherIsAll = groupHandleB == "all";
-    if (py::len(fixes_)) {
-        int len = py::len(fixes_);
-        for (int i=0; i<len; i++) {
-            py::extract<boost::shared_ptr<Fix> > fixPy(fixes_[i]);
-            if (!fixPy.check()) {
-                assert(fixPy.check());
-            }
-            fixes.push_back(fixPy);
-        }
+    // don't need to check fixes; we compute all parts of the potential.
+}
+
+void DataComputerHamiltonian::prepareForRun() {
+    // call the DataComputer::prepareForRun() function
+    DataComputer::prepareForRun();
+
+    // dataMultiple is initialized in DataComputer constructor, always has a value of 1; integer type...
+    // --- what is the point of this?
+    if (computeMode=="scalar") {
+        gpuBufferReduceKE = GPUArrayGlobal<real>(2);
+        gpuBufferKE = GPUArrayGlobal<real>(state->atoms.size() * dataMultiple);
+    } else if (computeMode=="tensor") {
+        gpuBufferReduceKE = GPUArrayGlobal<real>(2*6);
+        gpuBufferKE = GPUArrayGlobal<real>(state->atoms.size() * 6 * dataMultiple);
+    } else if (computeMode=="vector") {
+        gpuBufferKE = GPUArrayGlobal<real>(state->atoms.size() * dataMultiple);
+        sortedKE = std::vector<double>(state->atoms.size() * dataMultiple);
+    } else {
+        std::cout << "Invalid data type " << computeMode << ".  Must be scalar, tensor, or vector" << std::endl;
     }
 
 }
 
-
-void DataComputerEnergy::computeScalar_GPU(bool transferToCPU, uint32_t groupTag) {
+void DataComputerHamiltonian::computeScalar_GPU(bool transferToCPU, uint32_t groupTag) {
+    
     gpuBuffer.d_data.memset(0);
     gpuBufferReduce.d_data.memset(0);
     lastGroupTag = groupTag;
@@ -55,7 +64,7 @@ void DataComputerEnergy::computeScalar_GPU(bool transferToCPU, uint32_t groupTag
 }
 
 
-void DataComputerEnergy::computeVector_GPU(bool transferToCPU, uint32_t groupTag) {
+void DataComputerHamiltonian::computeVector_GPU(bool transferToCPU, uint32_t groupTag) {
     gpuBuffer.d_data.memset(0);
     lastGroupTag = groupTag;
     int nAtoms = state->atoms.size();
@@ -79,12 +88,12 @@ void DataComputerEnergy::computeVector_GPU(bool transferToCPU, uint32_t groupTag
 
 
 
-void DataComputerEnergy::computeScalar_CPU() {
+void DataComputerHamiltonian::computeScalar_CPU() {
     //int n;
     double total = gpuBufferReduce.h_data[0];
     /*
     if (lastGroupTag == 1) {
-        n = state->atoms.size();//\ * (int *) &tempGPUScalar.h_data[1];
+        n = state->atoms.size();//* (int *) &tempGPUScalar.h_data[1];
     } else {
         n = * (int *) &gpuBufferReduce.h_data[1];
     }
@@ -93,7 +102,7 @@ void DataComputerEnergy::computeScalar_CPU() {
     engScalar = total;
 }
 
-void DataComputerEnergy::computeVector_CPU() {
+void DataComputerHamiltonian::computeVector_CPU() {
     //ids have already been transferred, look in doDataComputation in integUtil
     std::vector<uint> &ids = state->gpd.ids.h_data;
     std::vector<real> &src = gpuBuffer.h_data;
@@ -102,14 +111,14 @@ void DataComputerEnergy::computeVector_CPU() {
 
 
 
-void DataComputerEnergy::appendScalar(boost::python::list &vals) {
+void DataComputerHamiltonian::appendScalar(boost::python::list &vals) {
     vals.append(engScalar);
 }
-void DataComputerEnergy::appendVector(boost::python::list &vals) {
+void DataComputerHamiltonian::appendVector(boost::python::list &vals) {
     vals.append(sorted);
 }
 
-void DataComputerEnergy::prepareForRun() {
+void DataComputerHamiltonian::prepareForRun() {
     if (fixes.size() == 0) {
         fixes = state->fixesShr; //if none specified, use them all
     } else {

@@ -40,12 +40,17 @@ if (CMAKE_BUILD_TYPE MATCHES "RELEASE")
 endif ()
 
 set (CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules")
-set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fpic")
+set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wmaybe-uninitialized -std=c++11 -fpic")
 
 # Find CUDA
 find_package(CUDA REQUIRED)
 set (CUDA_PROPAGATE_HOST_FLAGS OFF)
+
+#if(DASH_DOUBLE)
 set (custom_cuda_flags -std=c++11; -Xcompiler -fpic; --use_fast_math; --prec-div=true; --prec-sqrt=true;)
+#else()
+#set (custom_cuda_flags -std=c++11; -Xcompiler -fpic; --use_fast_math; --prec-div=true; --prec-sqrt=true;)
+#endif()
 #set (custom_cuda_flags -std=c++11; -Xcompiler -fpic; )
 list (APPEND CUDA_NVCC_FLAGS ${custom_cuda_flags})
 list (APPEND CUDA_NVCC_FLAGS ${CUDA_NVCC_DEBUG_FLAGS})

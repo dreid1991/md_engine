@@ -1,7 +1,6 @@
 import sys
-import matplotlib.pyplot as plt
 sys.path = sys.path + ['../build/python/build/lib.linux-x86_64-2.7']
-#from DASH import *
+
 from DASH import *
 state = State()
 state.deviceManager.setDevice(0)
@@ -12,7 +11,7 @@ state.periodicInterval = 7
 state.shoutEvery = 100
 
 state.atomParams.addSpecies(handle='spc1', mass=1, atomicNum=1)
-nonbond = FixLJCut(state, 'cut')
+nonbond = FixLJCutFS(state, 'cut')
 nonbond.setParameter('sig', 'spc1', 'spc1', 1)
 nonbond.setParameter('eps', 'spc1', 'spc1', 1)
 state.activateFix(nonbond)
@@ -32,46 +31,52 @@ fixNPT.setTemperature(1.2,100.0*state.dt)
 #fixNPT.setPressure('ANISO',0.2,1000*state.dt)
 state.activateFix(fixNPT)
 
-integVerlet = IntegratorVerlet(state)
-
-#tempData = state.dataManager.recordTemperature('all','scalar', 1)
-#tempData = state.dataManager.recordTemperature('all','scalar', 100)
-#pressureData = state.dataManager.recordPressure('all','scalar', 1)
 
 integVerlet = IntegratorVerlet(state)
 
-#empData = state.dataManager.recordTemperature('all','scalar', 100)
-#pressureData = state.dataManager.recordPressure('all','scalar', 1)
-#engData = state.dataManager.recordEnergy('all', 100)
-#boundsData = state.dataManager.recordBounds(100)
-
-#pressure = FixPressureBerendsen(state, "constP", .2, 10, 1);
-#state.activateFix(pressure);
-#deform = FixDeform(state, 'def', 'all', 1, Vector(1, 0, 0))
-#state.activateFix(deform)
-
-writeconfig = WriteConfig(state, fn='test_out', writeEvery=20, format='xyz', handle='writer')
+#writeconfig = WriteConfig(state, fn='test_out', writeEvery=20, format='xyz', handle='writer')
 #state.activateWriteConfig(writeconfig)
-state.tuneEvery = 5000
-integVerlet.run(10000)
-sumV = 0.
-for a in state.atoms:
-    sumV += a.vel.lenSqr()
-#print engData.vals
-#print sumV / len(state.atoms)/3.0
-#plt.plot(pressureData.turns, pressureData.vals)
-#plt.show()
-#plt.show()
-#state.dataManager.stopRecord(tempData)
-#integVerlet.run(10000)
-#print len(tempData.vals)
-#plt.plot([x for x in engData.vals])
-#plt.show()
-#print sum(tempData.vals) / len(tempData.vals)
-#print boundsData.vals[0].getSide(1)
-#print engData.turns[-1]
-#print 'last eng %f' % engData.vals[-1]
-#print state.turn
-#print integVerlet.energyAverage('all')
-#perParticle = integVerlet.energyPerParticle()
-#print sum(perParticle) / len(perParticle)
+
+state.tuning = False
+
+# equilibrate for 50k turns
+integVerlet.run(50000)
+
+# deactivate the thermostat
+state.deactivateFix(fixNPT)
+
+# run NVE for 50 000 000 turns
+integVerlet.run(1000000)
+
+
+# conservedData will have a scalar of the conserved quantity (in NVE, KE + PE) in the system
+# --- note that we do not pass in 'all' - this data recorder only records for the entire system no matter what
+conservedData = state.dataManager.recordHamiltonian('scalar',100)
+# tempdata will have a vector of the instantaneous kinetic energy in the system
+tempData = state.dataManager.recordTemperature('all','vector', 100)
+# engData will have a scalar of the total PE in the system
+engData = state.dataManager.recordEnergy('all', 100)
+
+energyFile = open('Benchmark_Test_Results.dat','w')
+
+# ok, so we want the temperature ( = sum(tempData[index].vals) / len(tempData[index].vals))
+# the total kinetic energy in the system ( = ????
+# the total potential energy in the system ( = engData.vals[index] )
+# the conserved quantity (= conservedData.vals[index]
+boltz = 1.0
+energyFile.write('{:>18s}  {:>18s}  {:>18s}  {:>18s}  {:>18s}\n'.format("Temperature (K)","Potential Energy","Kinetic Energy","Hamiltonian", "DataComputerH"))
+    pe = enerData.vals[index]
+    # if tempData records a vector, it is per-particle temperatures.
+    # so, sum these up, then divide by N to get average temperature.
+    temp = sum(tempData.vals[index]) / (float (len(tempData.vals[index])))
+    # next, sum them up, and multiply by 1.5 - in the list is mvv / 3kb;
+    # for LJ units, kb is 1; and we want sum(1/2 mvv)
+    ke  = (3.0 / 2.0) * sum(tempData.vals[index])
+    # the hamiltonian is just pe + ke
+    hamiltonian = pe + ke
+    # and the conserved quantity should be identically the value in hamiltonian
+    conserved = conservedData.vals[index]
+    energyFile.write('{:<18.14f}  {:>18.14f}  {:>18.14f}  {:>18.14f}  {:>18.14f}\n'.format(temp,pe,ke,hamiltonian,conserved))
+
+
+
