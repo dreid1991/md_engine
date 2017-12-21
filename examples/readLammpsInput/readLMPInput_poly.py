@@ -29,7 +29,7 @@ angleHarm = FixAngleHarmonic(state, 'angleHarm')
 dihedralOPLS = FixDihedralOPLS(state, 'opls')
 improperHarm = FixImproperHarmonic(state, 'imp')
 
-tempData = state.dataManager.recordTemperature('all', 100)
+tempData = state.dataManager.recordTemperature('all','scalar', 100)
 state.activateFix(ljcut)
 state.activateFix(bondHarm)
 state.activateFix(angleHarm)
@@ -43,7 +43,7 @@ writeconfig = WriteConfig(state, fn='poly_out', writeEvery=100, format='xyz', ha
 writeconfig.unitLen = 1/unitLen
 #temp = state.dataManager.recordEnergy('all', 50)
 #reader = LAMMPS_Reader(state=state, unitLen = unitLen, unitMass = 12, unitEng = 0.066, bondFix = bondHarm, angleFix = angleHarm, nonbondFix = ljcut, dihedralFix = dihedralOPLS, improperFix=improperHarm, atomTypePrefix = 'PTB7_', setBounds=False)
-reader = LAMMPS_Reader(state=state, unitLen = unitLen, unitMass = unitMass, unitEng = unitEng, nonbondFix = ljcut, atomTypePrefix = 'PTB7_', setBounds=False, bondFix = bondHarm,   angleFix = angleHarm, dihedralFix = dihedralOPLS,improperFix=improperHarm,)
+reader = LAMMPS_Reader(state=state, nonbondFix = ljcut, atomTypePrefix = 'PTB7_', setBounds=False, bondFix = bondHarm,   angleFix = angleHarm, dihedralFix = dihedralOPLS,improperFix=improperHarm,)
 reader.read(dataFn = 'poly_min.data')
 
 #1 kelven = 1.38e-23 J/K  / (276/6.022e23) = .00301 temp units
@@ -91,7 +91,8 @@ integRelax = IntegratorRelax(state)
 integRelax.writeOutput()
 #integRelax.run(11, 1e-9)
 InitializeAtoms.initTemp(state, 'all', 1)
-fixNVT = FixNoseHoover(state, 'temp', 'all', 1, 0.1)
+fixNVT = FixNoseHoover(state, 'temp', 'all')
+fixNVT.setTemperature(1.0, 0.1)
 state.activateFix(fixNVT)
 
 #pressureData = state.dataManager.recordPressure('all', 10)
@@ -112,13 +113,13 @@ for x in range(ndim):
 #print temp.vals
 
 #integVerlet = IntegraterVerlet(state)
-constPressure = FixPressureBerendsen(state, 'constp', 1*pUnit, .5)
+constPressure = FixPressureBerendsen(state, 'constp', 1*pUnit, .5,1)
 #state.activateFix(constPressure)
 ewald = FixChargeEwald(state, "chargeFix", "all")
 ewald.setParameters(32, 3.0, 3)
 state.activateFix(ewald)
 
-tempData = state.dataManager.recordTemperature('all', 1000)
+tempData = state.dataManager.recordTemperature('all','scalar', 1000)
 #print 'energy %f' % (integVerlet.energyAverage('all') * unitEng * len(state.atoms))
 integVerlet.run(100)
 '''

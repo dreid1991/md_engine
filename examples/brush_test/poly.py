@@ -1,6 +1,6 @@
 import sys
-sys.path = sys.path + ['/home/daniel/Documents/md_engine/core/build/python/build/lib.linux-x86_64-2.7' ]
-sys.path.append('/home/daniel/Documents/md_engine/core/util_py')
+sys.path = sys.path + ['../../build/python/build/lib.linux-x86_64-2.7' ]
+sys.path.append('../../util_py')
 import matplotlib.pyplot as plt
 from LAMMPS_Reader import LAMMPS_Reader
 from DASH import *
@@ -26,8 +26,8 @@ state.activateFix(angleHarm)
 #state.bounds = Bounds(state, Vector(-9, -10, -10), Vector(20, 24, 24))
 
 writeconfig = WriteConfig(state, fn='poly_out', writeEvery=10, format='xyz', handle='writer')
-temp = state.dataManager.recordEnergy('all', collectEvery = 50)
-reader = LAMMPS_Reader(state=state, unitLen = 1, unitMass = 1, unitEng = 1, bondFix = bondFENE, nonbondFix = ljcut, angleFix = angleHarm, atomTypePrefix = 'POLY_', setBounds=True)
+temp = state.dataManager.recordTemperature('all','scalar', 50)
+reader = LAMMPS_Reader(state=state, bondFix = bondFENE, nonbondFix = ljcut, angleFix = angleHarm, atomTypePrefix = 'POLY_', setBounds=True)
 
 
 #state.bounds.lo = state.bounds.lo - Vector(0, 0, 3)
