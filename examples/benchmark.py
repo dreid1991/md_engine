@@ -1,5 +1,5 @@
 import sys
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 sys.path = sys.path + ['../build/python/build/lib.linux-x86_64-2.7']
 #from DASH import *
 from DASH import *
