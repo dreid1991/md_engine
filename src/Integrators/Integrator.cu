@@ -112,13 +112,7 @@ void Integrator::basicPreRunChecks() {
         assert(state->bounds.isInitialized());
     }
     */
-    double sumKe = 0;
-    for (Atom &a : state->atoms) {
-        sumKe += a.vel.lenSqr();
-    }
-    if (sumKe < 1e-9) {
-        mdMessage("Warning: System initialized at very low temperature.\n");
-    }
+
 }
 
 void Integrator::prepareFixes(bool requiresForces_) {
@@ -128,7 +122,9 @@ void Integrator::prepareFixes(bool requiresForces_) {
             f->takeStateNThreadPerBlock(state->nThreadPerBlock);//grid will also have this value
             f->takeStateNThreadPerAtom(state->nThreadPerAtom);//grid will also have this value
             f->updateGroupTag();
-            f->prepareForRun();
+            if (f->prepareForRun()) {
+                f->prepared = true;
+            }
             f->setVirialTurnPrepare();
         }
     }

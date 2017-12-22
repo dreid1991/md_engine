@@ -65,6 +65,7 @@ State::State() : units(&dt) {
 
     tuneEvery = 1000000;
     nextForceBuild = 0;
+    rigidBodies = false;
 
 }
 
