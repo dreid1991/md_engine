@@ -40,12 +40,15 @@ void IntegratorUtil::forceInitial(int virialMode) {
            //     Mod::FDotR(state);
            //     computedFDotR = true;
            // }
+            std::cout << "Going to compute fix: " << f->handle << " if it is prepared; " << std::endl;
             if (f->prepared) {
+                std::cout << "Computing fix " << f->handle << std::endl;
                 f->compute(virialMode);
                 f->setVirialTurn();
             }
         }
     }
+    std::cout << "Looped over all fixes!" << std::endl;
 };
 
 void IntegratorUtil::postNVE_V() {
@@ -94,9 +97,17 @@ void IntegratorUtil::doDataComputation() {
     int64_t turn = state->turn;
     bool computedAny = false;
     bool requireIds = false;
+    // looping over all datasets
+    // --- if the data set is computing this turn, and is in 'vector' -mode (per-particle data, typically)
+    //     then we need to send 
     for (boost::shared_ptr<DataSetUser> ds : dm.dataSets) {
         if (ds->nextCompute == turn and ds->computer->computeMode == "vector") {
-            requireIds = true;
+            //if (ds->computer->type != "hamiltonian") {
+                // if data computer isn't a DataComputerHamiltonian, and its in vector compute mode, 
+                // we'll need the id's. 
+                // DataComputerHamiltonian in 'vector' compute mode does not, though.  
+                requireIds = true;
+            //}
         }
     }
     if (requireIds) {

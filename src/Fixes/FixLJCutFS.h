@@ -15,6 +15,7 @@ void export_FixLJCutFS();
  * Original LJ V(r)=4*eps*((sig/r)^12-(sig/r)^6)
  * Original LJ F(r)=24*eps*(2*(sig/r)^12-(sig/r)^6)*1/r
  * FS LJ F_fs(r)=F(r)-F(r_cut)
+ * FS LJ V_fs(r)=V(r)-
  */
 
 class FixLJCutFS : public FixPair {
@@ -71,6 +72,8 @@ class FixLJCutFS : public FixPair {
         std::vector<real> sigmas; //!< vector storing sigma values
         std::vector<real> rCuts; //!< vector storing cutoff distance values
         std::vector<real> FCuts; //!< vector storing force at cutoff distance
+
+        void printParams(); //!< Prints out the associated squareVectors
 
         void setEvalWrapper();
 };

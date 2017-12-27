@@ -24,6 +24,14 @@ namespace MD_ENGINE {
     public:
         State *state;
         uint32_t lastGroupTag;
+        std::string type; //!< string type for this class, constant to specific data computers; 
+        // e.g., DataComputerPressure =        "pressure"
+        //       DataComputerTemperature =     "temperature"
+        //       DataComputerEnergy   =        "potential"
+        //       DataComputerHamiltonian =     "hamiltonian"
+        //       DataComputerDipolarCoupling = "dipolar"
+        
+
         //note that transfer flag doesn't make it sync.  
 
         //used for computers which are shared between multiple fixes.  Only need to have one computer per sim
@@ -35,11 +43,6 @@ namespace MD_ENGINE {
         virtual void computeScalar_CPU() = 0;
         virtual void computeVector_CPU() = 0;
         virtual void computeTensor_CPU() = 0;
-
-
-
-
-
 
         virtual void appendScalar(boost::python::list &) = 0;
         virtual void appendVector(boost::python::list &) = 0;
@@ -59,7 +62,7 @@ namespace MD_ENGINE {
         void compute_CPU();
         void appendData(boost::python::list &);
         DataComputer(){};
-        DataComputer(State *, std::string computeMode_, bool requiresVirials_);
+        DataComputer(State *, std::string computeMode_, bool requiresVirials_,std::string type_);
 
 
     };

@@ -113,6 +113,7 @@ namespace SquareVector {
             }
         }
     }
+
     //for Fcut LJFS 
     template <class T>
     void populate(std::vector<T> *vec, int size, std::function<T (int, int)> fillFunction) {
@@ -179,6 +180,12 @@ namespace SquareVector {
                 squareVectorRef<T>(replacement.data(), newSize, i, j) =
                             squareVectorItem<T>(other.data(), oldSize, i, j);
             }
+        }
+
+        std::cout << "in copyToSize, here is new squareVector: " << std::endl;
+
+        for (size_t i = 0; i < replacement.size(); i++) {
+            std::cout << replacement[i] << std::endl;
         }
         return replacement;
     }

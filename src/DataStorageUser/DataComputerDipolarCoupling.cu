@@ -31,8 +31,7 @@ namespace MD_ENGINE {
 #include "PairEvaluatorDipolarCoupling.h"
 #include "EvaluatorWrapper.h"
 using namespace MD_ENGINE;
-using std::cout;
-using std::endl;
+const std::string computer_type_ = "dipolar";
 
 __global__ void coalesceInvR6(int nAtoms, real4 *fs, real *uncoalesced, int *counter,  real *res, uint32_t groupTagA) {
     int idx = GETIDX();
@@ -45,7 +44,7 @@ __global__ void coalesceInvR6(int nAtoms, real4 *fs, real *uncoalesced, int *cou
     }
 }
 
-DataComputerDipolarCoupling::DataComputerDipolarCoupling(State *state_, std::string computeMode_, std::string groupHandleA_, std::string groupHandleB_, double magnetoA_, double magnetoB_) : DataComputer(state_, computeMode_, false), groupHandleA(groupHandleA_), groupHandleB(groupHandleB_), magnetoA(magnetoA_), magnetoB(magnetoB_) {
+DataComputerDipolarCoupling::DataComputerDipolarCoupling(State *state_, std::string computeMode_, std::string groupHandleA_, std::string groupHandleB_, double magnetoA_, double magnetoB_) : DataComputer(state_, computeMode_, false,computer_type_), groupHandleA(groupHandleA_), groupHandleB(groupHandleB_), magnetoA(magnetoA_), magnetoB(magnetoB_) {
     groupTagA = state->groupTagFromHandle(groupHandleA);
     groupTagB = state->groupTagFromHandle(groupHandleB);
 }

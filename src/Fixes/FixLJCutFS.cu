@@ -14,6 +14,8 @@ namespace py = boost::python;
 FixLJCutFS::FixLJCutFS(boost::shared_ptr<State> state_, std::string handle_, std::string mixingRules_)
     : FixPair(state_, handle_, "all", LJCutType, true, false, 1, mixingRules_),
       epsHandle("eps"), sigHandle("sig"), rCutHandle("rCut") {
+ 
+    // FixPair::initializeParameters()
     initializeParameters(epsHandle, epsilons);
     initializeParameters(sigHandle, sigmas);
     initializeParameters(rCutHandle, rCuts);
@@ -22,7 +24,9 @@ FixLJCutFS::FixLJCutFS(boost::shared_ptr<State> state_, std::string handle_, std
 
     canAcceptChargePairCalc = true;
     setEvalWrapper();
+    printParams();
 }
+
 void FixLJCutFS::compute(int virialMode) {
     int nAtoms = state->atoms.size();
     int nPerRingPoly = state->nPerRingPoly;
@@ -32,13 +36,11 @@ void FixLJCutFS::compute(int virialMode) {
     int activeIdx = gpd.activeIdx();
     uint16_t *neighborCounts = grid.perAtomArray.d_data.data();
     real *neighborCoefs = state->specialNeighborCoefs;
+    
     evalWrap->compute(nAtoms,nPerRingPoly, gpd.xs(activeIdx), gpd.fs(activeIdx),
                       neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(),
                       state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU,
                       neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.virials.d_data.data(), gpd.qs(activeIdx), chargeRCut, virialMode, nThreadPerBlock(), nThreadPerAtom());
-
-
-
 }
 
 void FixLJCutFS::singlePointEng(real *perParticleEng) {
@@ -52,8 +54,6 @@ void FixLJCutFS::singlePointEng(real *perParticleEng) {
     real *neighborCoefs = state->specialNeighborCoefs;
 
     evalWrap->energy(nAtoms,nPerRingPoly, gpd.xs(activeIdx), perParticleEng, neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(), state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU, neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.qs(activeIdx), chargeRCut, nThreadPerBlock(), nThreadPerAtom());
-
-
 }
 
 void FixLJCutFS::singlePointEngGroupGroup(real *perParticleEng, uint32_t tagA, uint32_t tagB) {
@@ -100,17 +100,29 @@ bool FixLJCutFS::prepareForRun() {
     
 	std::function<real(int, int)>fillFCut = [this] (int a, int b) {
         int numTypes = state->atomParams.numTypes;
-        real epstimes24=24*squareVectorRef<real>(paramMap[epsHandle]->data(),numTypes,a,b);
-        real rCutSqr = pow(squareVectorRef<real>(paramMap[rCutHandle]->data(),numTypes,a,b),2);
-        real sig6 = pow(squareVectorRef<real>(paramMap[sigHandle]->data(),numTypes,a,b),6);
-        real p1 = epstimes24*2*sig6*sig6;
+        // fillFCut is called after processEps has been called; therefore, this is already 24 * eps
+        real epstimes24= squareVectorRef<real>(paramMap[epsHandle]->data(),numTypes,a,b);
+        // fillFCut is called after processRCut has been called; therefore, this is already rcutSqr
+        real rCutSqr = squareVectorRef<real>(paramMap[rCutHandle]->data(),numTypes,a,b);
+        // fillFCut is called after processSig has been called; therefore, this is already sigma^6
+        real sig6 =    squareVectorRef<real>(paramMap[sigHandle]->data(),numTypes,a,b);
+        real p1 = epstimes24*2.0*sig6*sig6;
         real p2 = epstimes24*sig6;
-        real r2inv = 1/rCutSqr;
+        real r2inv = 1.0/rCutSqr;
         real r6inv = r2inv*r2inv*r2inv;
         real forceScalar = r6inv * r2inv * (p1 * r6inv - p2)*sqrt(rCutSqr);
-
+        std::cout << "epstimes24: " << epstimes24 << std::endl;
+        std::cout << "rCutSqr: " << rCutSqr << std::endl;
+        std::cout << "sig6: " << sig6 << std::endl;
+        std::cout << "p1: " << p1 << std::endl;
+        std::cout << "p2: " << p2 << std::endl;
+        std::cout << "r2inv: " << r2inv << std::endl;
+        std::cout << "r6inv: " << r6inv << std::endl;
+        std::cout << "forceScalar: " << forceScalar << std::endl;
         return forceScalar;
     };
+    //paramOrder = {rCutHandle, epsHandle, sigHandle, "FCutHandle"};
+    
     prepareParameters(epsHandle, fillGeo, processEps, false);
 	if (mixingRules==ARITHMETICTYPE) {
 		prepareParameters(sigHandle, fillArith, processSig, false);
@@ -118,10 +130,10 @@ bool FixLJCutFS::prepareForRun() {
 		prepareParameters(sigHandle, fillGeo, processSig, false);
 	}
     prepareParameters(rCutHandle, fillRCut, processRCut, true, fillRCutDiag);
-
-
-    prepareParameters(rCutHandle, fillRCut, processRCut, true, fillRCutDiag);
     prepareParameters("FCutHandle", fillFCut);
+
+
+
     sendAllToDevice();
     setEvalWrapper();
     prepared = true;
@@ -129,12 +141,16 @@ bool FixLJCutFS::prepareForRun() {
 }
 
 void FixLJCutFS::setEvalWrapper() {
-    if (evalWrapperMode == "orig") {
+    if (evalWrapperMode == "offload") {
         EvaluatorLJFS eval;
         evalWrap = pickEvaluator<EvaluatorLJFS, 3, true>(eval, chargeCalcFix);
     } else if (evalWrapperMode == "self") {
         EvaluatorLJFS eval;
         evalWrap = pickEvaluator<EvaluatorLJFS, 3, true>(eval, nullptr);
+    } else {
+        std::cout << "evalWrapperMode: " << evalWrapperMode << std::endl;
+        std::cout << "evalWrapperMode does not correspond to either offload or self; aborting" << std::endl;
+        assert(false);
     }
 }
 
@@ -144,12 +160,31 @@ std::string FixLJCutFS::restartChunk(std::string format) {
     return ss.str();
 }
 
+void FixLJCutFS::printParams() {
+    std::cout << "in FixLJCutFS::printParams()!" << std::endl;
+    for (std::size_t i = 0; i < epsilons.size(); i++) {
+        std::cout << "epsilons[" << i << "]: " << epsilons[i] << std::endl;
+    }
+    for (std::size_t i = 0; i < sigmas.size(); i++) {
+        std::cout << "sigmas[" << i << "]: " << sigmas[i] << std::endl;
+    }
+
+    for (std::size_t i = 0; i < rCuts.size(); i++) {
+        std::cout << "rCuts["  << i << "]: " << rCuts[i] << std::endl;
+    }
+
+    for (std::size_t i = 0; i < FCuts.size(); i++) {
+        std::cout << "FCuts["  << i << "]: " << FCuts[i] << std::endl;
+    }
+
+}
 
 bool FixLJCutFS::postRun() {
 
     return true;
 }
 
+// DEPRECATED
 void FixLJCutFS::addSpecies(std::string handle) {
     initializeParameters(epsHandle, epsilons);
     initializeParameters(sigHandle, sigmas);
@@ -179,6 +214,11 @@ void export_FixLJCutFS() {
         "FixLJCutFS",
         py::init<boost::shared_ptr<State>, std::string, py::optional<std::string> > (
             py::args("state", "handle", "mixingRules"))
-    );
+    )
+                              
+    .def("printParams", &FixLJCutFS::printParams) 
+                              
+                              
+    ;
 
 }

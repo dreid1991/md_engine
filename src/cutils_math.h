@@ -1974,15 +1974,16 @@ inline __host__ __device__ bool operator == (double3 a, double3 b) {
 
 
 // if nvcc is not driving this part of compilation, do nothing
-#if (!defined(__CUDACC__))
+//#if (!defined(__CUDACC__))
 
-#else
+//#if !defined(__CUDA_ARCH__) || __CUDA_ARCH__ >= 600
+
+//#else
 // ok, cuda is compiling things for the device... now check if architecture < 600
 // only need to define this if compiled in double, AND the device doesn't already have it
 #ifdef DASH_DOUBLE
-#if ( (defined(__CUDA_ARCH__)) &&__CUDA_ARCH__ < 600)
-#error "DASH does not support double precision compilation for CUDA architectures < 600.  Please compile with -DDASH_DOUBLE=0 or use a different GPU."
-/*
+#if ( (defined(__CUDA_ARCH__)) && (!(__CUDA_ARCH__ >= 600)))
+//#error "DASH does not support double precision compilation for CUDA architectures < 600.  Please compile with -DDASH_DOUBLE=0 or use a different GPU."
 #ifndef HAVE_DOUBLE_ATOMIC_ADD
 #define HAVE_DOUBLE_ATOMIC_ADD
 extern __device__ real atomicAdd(real* address, real val) 
@@ -2000,11 +2001,9 @@ extern __device__ real atomicAdd(real* address, real val)
     } while (assumed != old);
     return __longlong_as_double(old);
 }
-#endif  */
-/* HAVE_DOUBLE_ATOMIC_ADD */
-#endif /* __CUDA_ARCH__ < 600 */
+#endif  /* HAVE_DOUBLE_ATOMIC_ADD */
 #endif /* DASH_DOUBLE */
-#endif /* defined(__CUDACC__) */
+#endif /* !defined(__CUDA_ARCH__) || __CUDA_ARCH__ >= 600 */
 
 
 #endif /* CUTIL_MATH_H */

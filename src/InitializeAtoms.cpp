@@ -115,6 +115,7 @@ void InitializeAtoms::initTemp(SHARED(State) state, std::string groupHandle,
             }
         }
     }
+    std::cout << "in InitializeAtoms::initTemp!; line 118" << std::endl;
     Vector sumMoms;
     double sumMass = 0;
     for (Atom *a : atoms) {
@@ -148,6 +149,7 @@ void InitializeAtoms::initTemp(SHARED(State) state, std::string groupHandle,
         }
         sumKe += 2.0 * a->kinetic();
     }
+    std::cout << "in InitializeAtoms::initTemp!; line 152" << std::endl;
 
 }
 

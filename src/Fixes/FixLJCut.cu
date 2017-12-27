@@ -75,7 +75,10 @@ void FixLJCut::setEvalWrapper() {
     } else if (evalWrapperMode == "self") {
         EvaluatorLJ eval;
         evalWrap = pickEvaluator<EvaluatorLJ, 3, true>(eval, nullptr);
+    } else {
+        mdError("evalWrapperMode in FixLJCut is neither offload nor self; aborting.");
     }
+    
 }
 
 bool FixLJCut::prepareForRun() {

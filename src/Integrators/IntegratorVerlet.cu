@@ -635,20 +635,30 @@ double IntegratorVerlet::run(int numTurns)
 {
 
     basicPreRunChecks();
+    
+    std::cout << "IntegratorVerlet::run, made it past basicPreRunChecks()!" << std::endl;
 
     // basicPrepare now only handles State prepare and sending global State data to device
     basicPrepare(numTurns);
+    
+    std::cout << "IntegratorVerlet::run, made it past basicPrepare()!" << std::endl;
 
     // prepare the fixes that do not require forces to be computed
     // -- e.g., isotropic pair potentials
     prepareFixes(false);
+    
+    std::cout << "IntegratorVerlet::run, made it past prepareFixes(false)!" << std::endl;
    
     // iterates and computes forces only from fixes that return (prepared==true)
     forceInitial(true);
+    
+    std::cout << "IntegratorVerlet::run, made it past forceInitial(true)!" << std::endl;
 
     // prepare the fixes that require forces to be computed on instantiation;
     // -- e.g., constraints
     prepareFixes(true);
+    
+    std::cout << "IntegratorVerlet::run, made it past prepareFixes(true)!" << std::endl;
     
     // finally, prepare barostats, thermostats, datacomputers, etc.
     // datacomputers are prepared first, then the barostats, thermostats, etc.
@@ -661,7 +671,12 @@ double IntegratorVerlet::run(int numTurns)
         setInterpolator();
     }
 
+
+    std::cout << "IntegratorVerlet::run, made it past prepareFinal()!" << std::endl;
+    
     verifyPrepared();
+    
+    std::cout << "IntegratorVerlet::run, made it past verifyPrepared()!" << std::endl;
 
     int periodicInterval = state->periodicInterval;
 	

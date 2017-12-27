@@ -8,8 +8,9 @@
 #include "PairEvaluatorNone.h"
 namespace py = boost::python;
 using namespace MD_ENGINE;
+const std::string computer_type_ = "efield";
 
-DataComputerEField::DataComputerEField(State *state_, double cutoff_) : DataComputer(state_, "vector", false), cutoff(cutoff_) {
+DataComputerEField::DataComputerEField(State *state_, double cutoff_) : DataComputer(state_, "vector", false,computer_type_), cutoff(cutoff_) {
     dataMultiple = 4;
 }
 

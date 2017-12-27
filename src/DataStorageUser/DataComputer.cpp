@@ -2,12 +2,13 @@
 #include "State.h"
 namespace py = boost::python;
 using namespace MD_ENGINE;
-DataComputer::DataComputer(State *state_, std::string computeMode_, bool requiresVirials_) : dataMultiple(1) {
+
+DataComputer::DataComputer(State *state_, std::string computeMode_, bool requiresVirials_, std::string type_) : dataMultiple(1) {
     state = state_;
     computeMode = computeMode_;
     requiresVirials = requiresVirials_;
     lastGroupTag = 0;
-
+    type = type_;
     requiresPerAtomVirials = false; //though may be set to true by a derived class
 };
 

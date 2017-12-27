@@ -8,6 +8,7 @@
 #include "DataComputerCOMV.h"
 #include "DataComputerDipolarCoupling.h"
 #include "DataComputerEField.h"
+#include "DataComputerHamiltonian.h"
 #include "DataSetUser.h"
 using namespace MD_ENGINE;
 using std::set;
@@ -72,6 +73,16 @@ boost::shared_ptr<DataSetUser> DataManager::recordEnergy(std::string groupHandle
 
 }
 
+
+boost::shared_ptr<DataSetUser> DataManager::recordHamiltonian(std::string computeMode, int interval, py::object collectGenerator) { 
+    std::string groupHandle = "all";
+    boost::shared_ptr<DataComputer> comp = boost::shared_ptr<DataComputer> ( (DataComputer *) new DataComputerHamiltonian(state, computeMode) );
+    uint32_t groupTag = state->groupTagFromHandle(groupHandle);
+    boost::shared_ptr<DataSetUser> dataSet = createDataSet(comp, groupTag, interval, collectGenerator);
+    dataSets.push_back(dataSet);
+    return dataSet;
+
+}
 boost::shared_ptr<DataSetUser> DataManager::recordPressure(std::string groupHandle, std::string computeMode, int interval, py::object collectGenerator) {
     int dataType = DATATYPE::PRESSURE;
     boost::shared_ptr<DataComputer> comp = boost::shared_ptr<DataComputer> ( (DataComputer *) new DataComputerPressure(state, computeMode) );
@@ -223,7 +234,11 @@ void export_DataManager() {
             py::arg("interval") = 0,
             py::arg("collectGenerator") = py::object())
         )
-
+    .def("recordHamiltonian", &DataManager::recordHamiltonian,
+         (py::arg("mode") = "scalar",
+          py::arg("interval") = 0,
+          py::arg("collectGenerator") = py::object())
+        )
 //boost::shared_ptr<MD_ENGINE::DataSetUser> DataManager::recordDipolarCoupling(std::string groupHandle, std::string computeMode, std::string groupHandleB, double magnetoA, double magnetoB, int interval, boost::python::object collectGenerator) {
    /* 
     .def("stopRecordBounds", &DataManager::stopRecordBounds)

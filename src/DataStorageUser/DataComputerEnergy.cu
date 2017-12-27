@@ -5,7 +5,10 @@
 namespace py = boost::python;
 using namespace MD_ENGINE;
 
-DataComputerEnergy::DataComputerEnergy(State *state_, py::list fixes_, std::string computeMode_, std::string groupHandleB_) : DataComputer(state_, computeMode_, false), groupHandleB(groupHandleB_) {
+// this data computer will be referenced as type "potential"
+const std::string computer_type_ = "potential";
+
+DataComputerEnergy::DataComputerEnergy(State *state_, py::list fixes_, std::string computeMode_, std::string groupHandleB_) : DataComputer(state_, computeMode_, false,computer_type_), groupHandleB(groupHandleB_) {
 
     groupTagB = state->groupTagFromHandle(groupHandleB);
     otherIsAll = groupHandleB == "all";

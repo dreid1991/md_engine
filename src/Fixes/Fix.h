@@ -156,6 +156,8 @@ public:
      * \param handle String specifying the new type of Atoms
      *
      * \todo Make purely virtual.
+     *
+     * \DEPRECATED
      */
     virtual void addSpecies(std::string handle) {}
 

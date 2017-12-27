@@ -5,7 +5,10 @@
 namespace py = boost::python;
 using namespace MD_ENGINE;
 
-DataComputerBounds::DataComputerBounds(State *state_) : DataComputer(state_, "scalar", false) {
+// this data computer will be referenced as type "bounds"
+const std::string computer_type_ = "bounds";
+
+DataComputerBounds::DataComputerBounds(State *state_) : DataComputer(state_, "scalar", false,computer_type_) {
 }
 
 

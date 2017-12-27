@@ -5,8 +5,10 @@
 namespace py = boost::python;
 using namespace MD_ENGINE;
 
+const std::string computer_type_="comv";
+
 // scalar, because we just need the one return - not a per-atom thing.
-DataComputerCOMV::DataComputerCOMV(State *state_) : DataComputer(state_, "scalar", false) {
+DataComputerCOMV::DataComputerCOMV(State *state_) : DataComputer(state_, "scalar", false,computer_type_) {
     sumMomentum = GPUArrayGlobal<real4>(2);
 }
 

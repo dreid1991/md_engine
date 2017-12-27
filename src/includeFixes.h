@@ -1,5 +1,7 @@
 #pragma once
 
+#include "FixPair.h"
+#include "FixLangevin.h"
 #include "FixBondHarmonic.h"
 #include "FixBondQuartic.h"
 #include "FixBondFENE.h"

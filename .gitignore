@@ -4,6 +4,7 @@
 *.out
 *.o
 python/*.o
+tests/.cache/*
 *.xcf
 *.png
 *.mol

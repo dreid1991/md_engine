@@ -20,7 +20,6 @@
 #include "IntegratorVerlet.h"
 #include "IntegratorRelax.h"
 #include "IntegratorGradientDescent.h"
-#include "FixLangevin.h"
 #include "boost_stls.h"
 #include "PythonOperation.h"
 //#include "DataManager.h"
@@ -117,4 +116,9 @@ BOOST_PYTHON_MODULE(DASH) {
     export_DeviceManager();
     export_DataSetUser();
 
+    /* Exporting Evaluators */
+    export_EvaluatorWallHarmonic();
+
+
+    
 }

@@ -7,8 +7,9 @@
 
 namespace py = boost::python;
 using namespace MD_ENGINE;
+const std::string computer_type_ = "temperature";
 
-DataComputerTemperature::DataComputerTemperature(State *state_, std::string computeMode_) : DataComputer(state_, computeMode_, false) {
+DataComputerTemperature::DataComputerTemperature(State *state_, std::string computeMode_) : DataComputer(state_, computeMode_, false,computer_type_) {
 
 }
 

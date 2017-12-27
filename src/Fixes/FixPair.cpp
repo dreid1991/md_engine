@@ -47,6 +47,7 @@ void FixPair::prepareParameters(std::string handle,
     SquareVector::process<real>(postProc, desiredSize, processFunction);
 }
 
+/* Used by, e.g., PairEvaluatorLJFS, to fill FCuts */
 void FixPair::prepareParameters(std::string handle,
                                 std::function<real (int, int)>  fillFunction)
 {

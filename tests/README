@@ -1,0 +1,220 @@
+This directory contains a series of tests to be used with the 'pytest' tool;
+
+Requirements:
+DASH compiled and available to the python path
+python 2.7
+pytest (install via 'pip install pytest')
+
+Usage, when current directory is /path/to/DASH/here/md_engine/:
+cd tests
+pytest
+
+i.e., calling the command 'pytest' in this directory will automatically run all of the tests.
+
+To see verbose output to terminal from pytest:
+pytest -s -v
+
+To see some details about the tests:
+pytest -rs
+
+Clear pass-fail messages will be sent to the terminal in either case.
+
+Further questions and comments about DASH testing may be sent to 
+bkeene@uchicago.edu
+
+
+############################################################################
+# Features in DASH, and where they are tested
+############################################################################
+
+########################################
+# Integrators
+########################################
+
+IntegratorVerlet:
+    - test_1_particle.py:
+        test_1_particle_no_vel()
+        test_1_particle_const_vel()
+
+
+IntegratorGradientDescent:
+    - test_1_particle.py:
+
+
+IntegratorRelax:
+    - test_1_particle.py:
+
+
+
+Note that Integrator, IntegratorUtil 
+are helper classes, so we don't need 
+to make tests for those.
+
+########################################
+# Fixes
+########################################
+
+Fix2d:
+
+FixAngleCHARMM:
+
+FixAngleCosineDelta:
+
+FixAngleHarmonic:
+
+FixBondFENE:
+
+FixBondHarmonic:
+
+FixBondQuartic:
+
+FixChargeEwald:
+
+FixChargePairDSF:
+
+FixDeform:
+
+FixDihedralCHARMM:
+
+FixDihedralOPLS:
+
+FixE3B3:
+
+FixExternalHarmonic:
+
+FixExternalQuartic:
+
+FixImproperCVFF:
+
+FixImproperHarmonic:
+
+FixLangevin:
+
+FixLinearMomentum:
+
+FixLJCHARMM:
+
+FixLJCut:
+
+FixLJCutFS:
+
+FixNoseHoover:
+
+FixNVTAndersen:
+
+FixNVTRescale:
+
+FixPotentialMultiAtom:
+
+FixPressureBerendsen:
+
+FixRigid:
+
+FixRingPolyPot:
+
+FixSpringStatic:
+
+FixTICG:
+
+FixTIP4PFlexible:
+
+FixWallHarmonic:
+
+FixWallLJ126:
+
+FixWCA:
+
+########################################
+# DataComputers
+########################################
+
+DataComputerBounds:
+
+DataComputerCOMV:
+
+DataComputerDipolarCoupling:
+
+DataComputerEField:
+
+DataComputerEnergy:
+
+DataComputerHamiltonian:
+
+DataComputerPressure:
+
+DataComputerTemperature:
+
+DataSetUser:
+
+
+########################################
+# Evaluators
+########################################
+
+AngleEvaluatorCHARMM:
+
+AngleEvaluatorCosineDelta:
+
+AngleEvaluatorHarmonic:
+
+BondEvaluatorFENE:
+
+BondEvaluatorHarmonic:
+
+BondEvaluatorQuartic:
+
+ChargeEvaluatorDSF:
+
+ChargeEvaluatorEwald:
+
+DihedralEvaluatorCHARMM:
+
+DihedralEvaluatorOPLS:
+
+EvaluatorE3B3:
+
+ExternalEvaluatorHarmonic:
+
+ExternalEvaluatorQuartic:
+
+ImproperEvaluatorCVFF:
+
+ImproperEvaluatorHarmonic:
+
+PairEvaluatorCHARMM:
+
+PairEvaluatorDipolarCoupling:
+
+PairEvaluatorEField:
+
+PairEvaluatorLJFS:
+
+PairEvaluatorLJ:
+
+PairEvaluatorTICG:
+
+PairEvaluatorWCA:
+
+ThreeBodyE3B3:
+
+WallEvaluatorHarmonic:
+
+WallEvaluatorLJ126:
+
+########################################
+# Misc - assorted features in util_py
+# and other classes found in /src/ 
+# directory
+########################################
+
+#############
+/util_py/:
+############# 
+
+
+
+############# 
+/src/:
+############# 
+
+
