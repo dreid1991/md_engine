@@ -42,6 +42,20 @@ void FixWallHarmonic::compute(int virialMode) {
 
 void FixWallHarmonic::singlePointEng(real *perParticleEng) {
 
+	GPUData &gpd = state->gpd;
+	int activeIdx = gpd.activeIdx();
+	int n = state->atoms.size();
+
+    compute_wall_energy<EvaluatorWallHarmonic> <<<NBLOCK(n), PERBLOCK>>>(n,
+                                                                         gpd.xs(activeIdx),
+                                                                         perParticleEng,
+                                                                         gpd.fs(activeIdx), // for groupTag
+                                                                         origin.asreal3(),
+                                                                         forceDir.asreal3(),
+                                                                         groupTag,
+                                                                         evaluator);
+
+    return;   
 };
 
 

@@ -4,6 +4,7 @@
 
 #include "cutils_math.h"
 #include "globalDefs.h"
+#include "Vector.h"
 
 /*! \brief store Boundaries on the GPU
  *
@@ -14,6 +15,10 @@
  * defining the x-, y-, and z- directions of the box. Furthermore, the box can
  * be periodic or fixed in each direction.
  */
+
+void export_BoundsGPU();
+
+
 class BoundsGPU {
 public:
     /*! \brief Constructor
@@ -33,6 +38,9 @@ public:
         rectComponentsD = make_double3(rectComponents.x, rectComponents.y,rectComponents.z);
         invRectComponentsD = make_double3(invRectComponents.x, invRectComponents.y, invRectComponents.z);
     }
+
+    // see .cpp file; make this ctor available to python interface
+    BoundsGPU(Vector lo_, Vector rectComponents_, Vector periodic_);
 
     /*! \brief Default constructor */
     BoundsGPU() {};
@@ -150,6 +158,12 @@ public:
     bool operator !=(BoundsGPU &other) {
         return not (other == *this);
     }
+
+    // python interface to the minImage function
+    __host__ Vector minImagePy(Vector v);
+    
+    // additional exports here as testing requires
+
 };
 
 #endif

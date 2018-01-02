@@ -124,7 +124,6 @@ public:
     std::vector<int> nlistBuildTurns; //!< turns at which we built the neighborlist
     int64_t runInit; //!< Timestep at which the current run started
     int64_t nextForceBuild; //!< Timestep neighborlists will definitely be build.  Fixes might need to request this
-    int dangerousRebuilds; //!< Unused
     int periodicInterval; //!< Periodicity to wrap atoms and rebuild neighbor
                           //!< list
     bool requiresCharges; //!< Charges will be stored 

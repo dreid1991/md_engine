@@ -77,6 +77,9 @@ using b_shared_ptr = boost::shared_ptr<T>;
 #define XIDX(x, SIZE) (x % (PERLINE / SIZE))
 #define YIDX(y, SIZE) (y / (PERLINE / SIZE))
 #define PERBLOCK 256
+
+#ifdef DASH_DOUBLE
+
 #define NBLOCK(x) ((int) (ceil(x / (float) PERBLOCK)))
 #define NBLOCKVAR(x, threadPerBlock) ((int) (ceil(x / (float) threadPerBlock)))
 
@@ -84,3 +87,14 @@ using b_shared_ptr = boost::shared_ptr<T>;
 
 #define LINEARIDX(idx, ns) (ns.z*ns.y*idx.x + ns.z*idx.y + idx.z)
 
+#else /* DASH_DOUBLE */
+
+
+#define NBLOCK(x) ((int) (ceil(x / (double) PERBLOCK)))
+#define NBLOCKVAR(x, threadPerBlock) ((int) (ceil(x / (double) threadPerBlock)))
+
+#define NBLOCKTEAM(x, threadPerBlock, threadPerTeam) ((int) (ceil(x / (double) (threadPerBlock/threadPerTeam))))
+
+#define LINEARIDX(idx, ns) (ns.z*ns.y*idx.x + ns.z*idx.y + idx.z)
+
+#endif /* DASH_DOUBLE */

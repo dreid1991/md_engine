@@ -5,6 +5,10 @@
 #include "cutils_math.h"
 #include "Angle.h"
 #define EPSILON 0.00001f
+
+//void export_AngleEvaluatorCHARMM();
+
+
 class AngleEvaluatorCHARMM {
 public:
 

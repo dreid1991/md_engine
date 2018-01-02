@@ -34,6 +34,7 @@
 BOOST_PYTHON_MODULE(DASH) {
     export_stls();	
 
+    /* exporting things for use by user */
     export_Vector();
     export_VectorInt();	
     export_Atom();
@@ -116,9 +117,11 @@ BOOST_PYTHON_MODULE(DASH) {
     export_DeviceManager();
     export_DataSetUser();
 
-    /* Exporting Evaluators */
-    export_EvaluatorWallHarmonic();
 
+    /* things exported for use with testing */
+    export_BoundsGPU();
+    export_EvaluatorWallHarmonic();
+    export_EvaluatorWallLJ126();
 
     
 }

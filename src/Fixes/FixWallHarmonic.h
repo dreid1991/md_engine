@@ -13,8 +13,10 @@ class FixWallHarmonic : public FixWall {
 	public:
 		FixWallHarmonic(SHARED(State), std::string handle_, std::string groupHandle_,
 							Vector origin_, Vector forceDir_, real dist_, real k_);
-		real dist;
+		// cutoff distance
+        real dist;
 
+        // spring constant
 		real k;
 		
         void compute(int);

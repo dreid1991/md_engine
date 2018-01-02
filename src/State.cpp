@@ -36,7 +36,6 @@ State::State() : units(&dt) {
     turn = 0;
     maxIdExisting = -1;
     maxExclusions = 0;
-    dangerousRebuilds = 0;
     periodicInterval = 50;
     shoutEvery = 5000;
     for (int i=0; i<3; i++) {
@@ -47,7 +46,7 @@ State::State() : units(&dt) {
     //! \todo It would be nice to set verbose true/false in Logging.h and use
     //!       it for mdMessage.
     verbose = true;
-    readConfig = SHARED(ReadConfig) (new ReadConfig(this));
+    readConfig = boost::shared_ptr<ReadConfig> (new ReadConfig(this));
     atomParams = AtomParams(this);
     requiresCharges = false; //will be set to true if a fix needs it (like ewald sum).  Is max of fixes requiresCharges bool
     dataManager = DataManager(this);

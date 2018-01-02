@@ -4,9 +4,17 @@
 
 #include "cutils_math.h"
 
+
+void export_EvaluatorLJ();
+
 class EvaluatorLJ {
     public:
-        inline __device__ real3 force(real3 dr, real params[3], real lenSqr, real multiplier) {
+        
+        // default ctor 
+        EvaluatorLJ();
+        
+        // host and device for testing
+        inline __host__ __device__ real3 force(real3 dr, real params[3], real lenSqr, real multiplier) {
             if (multiplier) {
                 real epstimes24 = params[1];
                 real sig6 = params[2];
@@ -21,8 +29,10 @@ class EvaluatorLJ {
         }
         
 
-
-        inline __device__ real energy(real params[3], real lenSqr, real multiplier) {
+        // host and device for testing
+        // full expression: 0.5 * (4 * epsilon ( ( sigma / r) ^12  - (sigma / r) ^6) + shift),
+        // 0.5 from double counting, and shift is for the cutoff
+        inline __host__ __device__ real energy(real params[3], real lenSqr, real multiplier) {
             if (multiplier) {
 #ifdef DASH_DOUBLE
                 real eps = params[1] / 24.0;
@@ -48,7 +58,18 @@ class EvaluatorLJ {
             }
             return 0;
         }
+        
+        // python interface that calls force function
+        __host__ Vector forcePy(double sigma, double epsilon, double rcut, Vector dr);
 
+        // python interface that calls the energy function
+        __host__ double energyPy(double sigma, double epsilon, double rcut, double distance);
+
+        // python interface that calls the force function, and calculates on the GPU
+        __host__ Vector forcePy_device(double sigma, double epsilon, double rcut, Vector dr);
+
+        // python interface that calls the energy function, and calculates on the GPU
+        __host__ double energyPy_device(double sigma, double epsilon, double rcut, double distance);
 };
 
 #endif

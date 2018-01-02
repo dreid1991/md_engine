@@ -29,7 +29,7 @@ endif (DEBUG)
 
 # double precision for 'real' type - default to false;
 set(DASH_DOUBLE_DEFAULT OFF)
-option(DASH_DOUBLE "Double precision may be required for some use cases" ${DASH_DOUBLE_DEFAULT})
+option(DASH_DOUBLE "Double precision may be required for some use cases.  Use -DDASH_DOUBLE=1 to compile DASH in full double precision; DASH compiles to single precision by default." ${DASH_DOUBLE_DEFAULT})
 
 if(DASH_DOUBLE)
     add_definitions(-DDASH_DOUBLE)
@@ -47,7 +47,7 @@ find_package(CUDA REQUIRED)
 set (CUDA_PROPAGATE_HOST_FLAGS OFF)
 
 #if(DASH_DOUBLE)
-set (custom_cuda_flags -std=c++11; -Xcompiler -fpic; --use_fast_math; --prec-div=true; --prec-sqrt=true;)
+set (custom_cuda_flags -std=c++11; -Wno-deprecated-gpu-targets; -Xcompiler -fpic; --use_fast_math; --prec-div=true; --prec-sqrt=true;)
 #else()
 #set (custom_cuda_flags -std=c++11; -Xcompiler -fpic; --use_fast_math; --prec-div=true; --prec-sqrt=true;)
 #endif()

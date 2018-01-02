@@ -82,6 +82,7 @@ void FixLJCHARMM::singlePointEngGroupGroup(real *perParticleEng, uint32_t tagA, 
 void FixLJCHARMM::setEvalWrapper() {
     if (evalWrapperMode == "offload") {
         EvaluatorCHARMM eval(state->specialNeighborCoefs[2]);
+        // <EVALUATOR, N_PARAM, COMP_PAIRS> ... should make an assert for future dev that n_param == 5, in case it changes
         evalWrap = pickEvaluator<EvaluatorCHARMM, 5, true>(eval, chargeCalcFix);
     } else if (evalWrapperMode == "self") {
         EvaluatorCHARMM eval(state->specialNeighborCoefs[2]);

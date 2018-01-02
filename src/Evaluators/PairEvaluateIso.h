@@ -217,7 +217,7 @@ __global__ void compute_force_iso
 template <class PAIR_EVAL, bool COMP_PAIRS, int N, class CHARGE_EVAL, bool COMP_CHARGES, int MULTITHREADPERATOM>
 __global__ void compute_energy_iso
         (int nAtoms, 
-	 int nPerRingPoly,
+         int nPerRingPoly,
          real4 *xs, 
          real *perParticleEng, 
          uint16_t *neighborCounts, 

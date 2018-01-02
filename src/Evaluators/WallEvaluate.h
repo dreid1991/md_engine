@@ -2,9 +2,8 @@
 #include "cutils_func.h"
 #include "helpers.h"
 
-
 template <class EVALUATOR, bool COMPUTE_VIRIALS>
-__global__ void compute_wall_iso(int nAtoms,real4 *xs, real4 *fs,real3 origin,
+__global__ void compute_wall_iso(int nAtoms,real4 *xs, real4 *fs,real3 wall,
 		real3 forceDir,  uint groupTag, EVALUATOR eval) {
 
 
@@ -16,8 +15,8 @@ __global__ void compute_wall_iso(int nAtoms,real4 *xs, real4 *fs,real3 origin,
 		if (groupTagAtom & groupTag) {
 			real4 posWhole = xs[idx];
 			real3 pos = make_real3(posWhole);
-			real3 particleDist = pos - origin;
-			real projection = dot(particleDist, forceDir);
+			real3 particleDisplacement = pos - wall;
+			real projection = dot(particleDisplacement, forceDir);
 			real magProj = cu_abs(projection);
             real3 force = eval.force(magProj, forceDir);
 
@@ -25,7 +24,7 @@ __global__ void compute_wall_iso(int nAtoms,real4 *xs, real4 *fs,real3 origin,
             if (projection >= 0) {
                 f = f + force;
             } else {
-                printf("Atom pos %f %f %f wall origin %f %f %f\n", pos.x, pos.y, pos.z, origin.x, origin.y, origin.z);
+                printf("Atom pos %f %f %f wall %f %f %f\n", pos.x, pos.y, pos.z, wall.x, wall.y, wall.z);
                 assert(projection>0); // projection should be greater than 0, otherwise
                 // the wall is ill-defined (forceDir pointing out of box)
             }
@@ -37,7 +36,39 @@ __global__ void compute_wall_iso(int nAtoms,real4 *xs, real4 *fs,real3 origin,
 	}
 }
 
+template<class EVALUATOR>
+__global__ void compute_wall_energy(int nAtoms, 
+                                    real4 *xs, 
+                                    real *perParticleEng, 
+                                    real4 *fs, // for groupTag
+                                    real3 wall,
+                                    real3 forceDir,
+                                    uint groupTag,
+                                    EVALUATOR eval) {
 
+    int idx = GETIDX();
+    if (idx < nAtoms) {
+        real4 forceWhole = fs[idx];
+		uint groupTagAtom = * (uint *) &forceWhole.w;
+		// if this atom is assigned to the group affected by this wall fix, then..
+		if (groupTagAtom & groupTag) {
 
+            real4 posWhole = xs[idx];
+            real3 pos = make_real3(posWhole);
+
+            // get the distance from the wall
+			real3 particleDisplacement = pos - wall;
+            // gets the distance in the dimensions that matter
+			real projection = dot(particleDisplacement, forceDir);
+
+            real magnitudeOfProjection = cu_abs(projection);
+            
+            real energy = eval.energy(magnitudeOfProjection);
+            
+            perParticleEng[idx] += energy;
+        }
+    }
+}
+    
 
 

@@ -11,6 +11,7 @@
 class AngleHarmonic;
 class AngleCHARMM;
 class AngleCosineDelta;
+
 void export_AngleHarmonic();
 void export_AngleCHARMM();
 void export_AngleCosineDelta();

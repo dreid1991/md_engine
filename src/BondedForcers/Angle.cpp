@@ -177,6 +177,7 @@ std::string AngleCosineDelta::getInfoString() {
 bool AngleCosineDeltaType::operator==(const AngleCosineDeltaType &other) const {
     return k == other.k and theta0 == other.theta0;
 }
+
 void export_AngleCosineDelta() {
     boost::python::class_<AngleCosineDelta, SHARED(AngleCosineDelta)> ( "AngleCosineDelta", boost::python::init<>())
         .def_readwrite("theta0", &AngleCosineDelta::theta0)

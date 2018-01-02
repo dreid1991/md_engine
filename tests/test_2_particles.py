@@ -12,8 +12,8 @@ import numpy as np
 #
 #  test_2_particle.py
 #
-#  This file considers a series of basic tests for anything and everything that can be done
-#  with 2 particles in DASH.
+#  This file considers a series of basic tests for fixes that can be modelled with a two-particle
+#  system.
 #
 #  Author: Brian Keene
 #
@@ -69,3 +69,4 @@ def make_state():
     state.units.setLJ()
     state.atomParams.addSpecies(handle='test', mass=1, atomicNum=1)
     return state
+
