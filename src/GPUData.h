@@ -9,6 +9,9 @@
 #include "GPUArrayDeviceGlobal.h"
 #include "Virial.h"
 
+
+void export_GPUData();
+
 class GPUData {
 
 public:

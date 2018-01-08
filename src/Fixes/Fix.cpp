@@ -126,6 +126,14 @@ void export_Fix() {
         boost::python::no_init
     )
     .def("prepareForRun", &Fix::prepareForRun)
+    .def("stepInit", &Fix::stepInit)
+    .def("postNVE_V", &Fix::postNVE_V)
+    .def("postNVE_X", &Fix::postNVE_X)
+    .def("prepareFinal", &Fix::prepareFinal)
+    .def("stepFinal", &Fix::stepFinal)
+    .def("compute", &Fix::compute,
+         boost::python::arg("virialMode")
+        )
     .def_readonly("handle", &Fix::handle)
     .def_readonly("type", &Fix::type)
     .def_readwrite("applyEvery", &Fix::applyEvery)

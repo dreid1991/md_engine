@@ -29,7 +29,6 @@ public:
      */
     virtual double run(int numTurns);
 
-private:
     //! Run first half-integration
     /*!
      * The first half-integration of the reversible velocity-Verlet scheme

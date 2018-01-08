@@ -6,7 +6,6 @@
 #include "State.h"
 #include "cutils_func.h"
 #include "ReadConfig.h"
-#include "PairEvaluatorLJ.h"
 #include "EvaluatorWrapper.h"
 //#include "ChargeEvaluatorEwald.h"
 namespace py = boost::python;

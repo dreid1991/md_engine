@@ -1304,12 +1304,12 @@ void FixRigid::populateRigidData() {
     fixRigidData.M2_inv = M2_inv;
     fixRigidData.M3_inv = M3_inv;
 
-    printf("M1_inv values: %18.14f    %18.14f    %18.14f\n",
-            M1_inv.x, M1_inv.y, M1_inv.z);
-    printf("M2_inv values: %18.14f    %18.14f    %18.14f\n",
-            M2_inv.x, M2_inv.y, M2_inv.z);
-    printf("M3_inv values: %18.14f    %18.14f    %18.14f\n",
-            M3_inv.x, M3_inv.y, M3_inv.z);
+    //printf("M1_inv values: %18.14f    %18.14f    %18.14f\n",
+    //        M1_inv.x, M1_inv.y, M1_inv.z);
+    //printf("M2_inv values: %18.14f    %18.14f    %18.14f\n",
+    //        M2_inv.x, M2_inv.y, M2_inv.z);
+    // printf("M3_inv values: %18.14f    %18.14f    %18.14f\n",
+    //        M3_inv.x, M3_inv.y, M3_inv.z);
     
     
     return;
@@ -1375,19 +1375,19 @@ void FixRigid::set_fixed_sides() {
     // we have not yet set the 'weights' attribute for our fixRigidData instance.
     // do so now.
 
-    mdAssert(waterIds.size() > 0,"There needs to be at least one water in FixRigid for thsi fix to be activated!");
+    mdAssert(waterIds.size() > 0,"There needs to be at least one water in FixRigid for this fix to be activated!");
     int4 firstMolecule = waterIds[0];
     int id_O1 = firstMolecule.x;
     int id_H1 = firstMolecule.y;
     //double massO = 15.999400000;
     double massO = state->atoms[id_O1].mass;
-    std::cout << "massO found to be " << massO << std::endl;
+    //std::cout << "massO found to be " << massO << std::endl;
     //double massH = 1.00800000;
     double massH = state->atoms[id_H1].mass;
-    std::cout << "massH1 found to be " << massH << std::endl;
+    //std::cout << "massH1 found to be " << massH << std::endl;
     double massWater = massO + (2.0 * massH);
 
-    std::cout << "massWater found to be " << massWater << std::endl;
+    //std::cout << "massWater found to be " << massWater << std::endl;
 
 
     fixRigidData.weights.x = massO / massWater;
@@ -1435,14 +1435,14 @@ void FixRigid::set_fixed_sides() {
     // finally, subtract ra from raPlusRb to get rb.
     double rb = raPlusRb - ra;
 
-    std::cout << "ra: " << ra << "; rb: " << rb << "; rc: " << rc << std::endl;
+    //std::cout << "ra: " << ra << "; rb: " << rb << "; rc: " << rc << std::endl;
 
 
     double raVal = 2.0 * massH * sqrt(OH * OH - (0.5 * fixRigidData.sideLengths.z * 0.5 * fixRigidData.sideLengths.z) ) / (massWater);
     double rbVal = sqrt(OH * OH - (0.5 * fixRigidData.sideLengths.z * 0.5 * fixRigidData.sideLengths.z)) - raVal;
     double inv2Rc = 1.0 / fixRigidData.sideLengths.z;
 
-    std::cout << "raVal: " << raVal << "; rbVal: " << rbVal << "; inv2Rc: " << inv2Rc << std::endl;
+    //std::cout << "raVal: " << raVal << "; rbVal: " << rbVal << "; inv2Rc: " << inv2Rc << std::endl;
     fixRigidData.canonicalTriangle = make_double4(ra,rb,rc,inv2Rc);
 
 }
@@ -1593,7 +1593,7 @@ bool FixRigid::readFromRestart() {
         }
     }
 
-    std::cout << "There are " << waterIds.size() << " molecules read in from the restart file and " << bonds.size() << " bonds were made in FixRigid.\n";
+    //std::cout << "There are " << waterIds.size() << " molecules read in from the restart file and " << bonds.size() << " bonds were made in FixRigid.\n";
     return true;
 }
 
@@ -1908,7 +1908,7 @@ bool FixRigid::prepareForRun() {
     set_fixed_sides();
     populateRigidData();
 
-    printf("number of molecules in waterIds: %d\n", nMolecules);
+    //printf("number of molecules in waterIds: %d\n", nMolecules);
     waterIdsGPU = GPUArrayDeviceGlobal<int4>(nMolecules);
     waterIdsGPU.set(waterIds.data());
 

@@ -33,6 +33,9 @@ option(DASH_DOUBLE "Double precision may be required for some use cases.  Use -D
 
 if(DASH_DOUBLE)
     add_definitions(-DDASH_DOUBLE)
+    MESSAGE("\n\nDASH will be compiled in double precision.\n\n")
+else()
+    MESSAGE("\n\nDASH will be compiled in single precision.\n\n")
 endif()
 
 if (CMAKE_BUILD_TYPE MATCHES "RELEASE")

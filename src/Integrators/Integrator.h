@@ -23,6 +23,8 @@ void export_Integrator();
 class Integrator : public IntegratorUtil {
 
 protected:
+
+public:
     //! Call fixes just before a step
     void stepInit(bool computeVirials);
 
@@ -94,27 +96,6 @@ protected:
     // checks that all fixes now register as 'prepared'
     void verifyPrepared();
 
-public:
-    //! Calculate and return single point energy
-    /*!
-     * \param groupHandle Handle defining the group used for averaging
-     *
-     * \return Average energy for all particles in the specified group
-     *
-     * This function calculates and returns the average per particle energy for
-     * the particles in the group specified via the groupHandle.
-     */
-    //SHOULD THIS BE HERE OR IN STATE?
-    //double singlePointEngPythonAvg(std::string groupHandle);
-
-    //! Create list of per-particle energies
-    /*!
-     * \return List containing the per-particle energy for each atom
-     *
-     * This function calculates the per-particle energy and returns a list
-     * containing one value per atom in the simulation.
-     */
-    //boost::python::list singlePointEngPythonPerParticle();
 
     //! Default constructor
     /*!

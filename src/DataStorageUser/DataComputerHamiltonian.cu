@@ -37,6 +37,7 @@ void DataComputerHamiltonian::prepareForRun() {
         // for DataComputerHamiltonian.
         std::cout << "Invalid data type " << computeMode << ".  Must be scalar, tensor, or vector" << std::endl;
     }
+
 }
 
 void DataComputerHamiltonian::computeScalar_GPU(bool transferToCPU, uint32_t groupTag) {
@@ -53,15 +54,17 @@ void DataComputerHamiltonian::computeScalar_GPU(bool transferToCPU, uint32_t gro
     GPUData &gpd = state->gpd;
 
     // iterate over the fixes and compute the potential 
-    for (boost::shared_ptr<Fix> fix : fixes) {
+    for (Fix *fix : state->fixes) {
         fix->setEvalWrapperMode("self");
         fix->setEvalWrapper();
+        // ok, gpuBuffer is the device array holding the per-particle PE's
         fix->singlePointEng(gpuBuffer.getDevData());
         fix->setEvalWrapperMode("offload");
         fix->setEvalWrapper();
     }
 
-    // accumulate the per-particle energies in to a single total potential energy
+    // accumulate the per-particle energies in to a single total potential energy: gpuBufferReduce
+    // is the destination in the  accumulation
      accumulate_gpu<real, real, SumSingle, N_DATA_PER_THREAD> <<<NBLOCK(nAtoms / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*PERBLOCK*sizeof(real)>>>
             (gpuBufferReduce.getDevData(), gpuBuffer.getDevData(), nAtoms, state->devManager.prop.warpSize, SumSingle());
    
@@ -120,8 +123,8 @@ void DataComputerHamiltonian::computeVector_GPU(bool transferToCPU, uint32_t gro
 void DataComputerHamiltonian::computeScalar_CPU() {
     
     // as from DataComputerTemperature; we just don't divide by the ndf
-    double total = gpuBuffer.h_data[0];
-    totalKEScalar = total * state->units.mvv_to_eng; 
+    double total = gpuBufferKE.h_data[0]; // m*v*v; so, we need to multiply by 0.5
+    totalKEScalar = 0.5 * total * state->units.mvv_to_eng; 
 
 
     double totalPE = gpuBufferReduce.h_data[0];

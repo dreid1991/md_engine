@@ -26,14 +26,13 @@ void GridGPU::initArrays() {
     // also cumulative sum, tracking cumul. sum of max per block
 //NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerRP)
     initArraysTune();
-    xsLastBuild = GPUArrayDeviceGlobal<real4>(state->atoms.size());
+    xsLastBuild = GPUArrayDeviceGlobal<real4>(gpd->xs.size());
 
     // in prepare for run, you make GPU grid _after_ copying xs to device
     buildFlag = GPUArrayGlobal<int>(1);
     buildFlag.d_data.memset(0);
     copyPositionsAsync();
     
-    buildFlag.d_data.memset(0);
     // TODO delete cudaDS() call below
     cudaDeviceSynchronize();
 }
@@ -83,29 +82,6 @@ GridGPU::GridGPU() {
     //initStream();
 }
 
-__global__ void printGPD(uint* ids, real4 *xs, real4 *vs, real4 *fs, int nAtoms) {
-    int idx = GETIDX();
-    if (idx < nAtoms) {
-        uint id = ids[idx];
-        real4 pos = xs[idx];
-        int type = xs[idx].w;
-        real4 vel = vs[idx];
-        real4 force = fs[idx];
-        uint groupTag = force.w;
-        printf("atom id %d type %d at coords %f %f %f\n", id, type, pos.x, pos.y, pos.z);
-        printf("atom id %d mass %f with vel  %f %f %f\n", id, vel.w, vel.x, vel.y, vel.z);
-        printf("atom id %d groupTag %d with force %f %f %f\n", id, groupTag,  force.x, force.y, force.z);
-        }
-}
-__global__ void printGPD_xsOnly(uint* ids, real4 *xs, int nAtoms) {
-    int idx = GETIDX();
-    if (idx < nAtoms) {
-        uint id = ids[idx];
-        real4 pos = xs[idx];
-        printf("atom id %d at coords %f %f %f\n", id, pos.x, pos.y, pos.z);
-    }
-}
-
 
 GridGPU::GridGPU(State *state_, real dx_, real dy_, real dz_, real neighCutoffMax_, int exclusionMode_, double padding_, GPUData *gpd_, int nPerRingPoly_)
   : state(state_), nPerRingPoly(nPerRingPoly_) {
@@ -113,6 +89,8 @@ GridGPU::GridGPU(State *state_, real dx_, real dy_, real dz_, real neighCutoffMa
     nThreadPerBlock(state->nThreadPerBlock);
     neighCutoffMax = neighCutoffMax_;
     gpd = gpd_;
+    maxNumNeighbors = GPUArrayGlobal<uint16_t>(1);
+    maxNumNeighbors.d_data.memset(0);
     padding = padding_;
     streamCreated = false;
     onlyPositionsFlag = false;
@@ -126,9 +104,7 @@ GridGPU::GridGPU(State *state_, real dx_, real dy_, real dz_, real neighCutoffMa
     numChecksSinceLastBuild = 0;
     exclusionMode = exclusionMode_;
     
-    int activeIdx = gpd->activeIdx();
     handleExclusions();
-    int nAtoms = gpd->xs.size();
 }
 
 void GridGPU::onlyPositions(bool flag) {
@@ -215,51 +191,50 @@ __global__ void countNumInGridCells(real4 *xs, int nAtoms,
         //printf("idx %d\n", idx);
         int3 sqrIdx = make_int3((make_real3(xs[idx]) - os) / ds);
         int sqrLinIdx = LINEARIDX(sqrIdx, ns);
-        //printf("lin is %d\n", sqrLinIdx);
         uint16_t myPlaceInGrid = atomicAdd(counts + sqrLinIdx, 1); //atomicAdd returns old value
-        //printf("grid is %d\n", myPlaceInGrid);
-        //printf("myPlaceInGrid %d\n", myPlaceInGrid);
         atomIdxs[idx] = myPlaceInGrid;
-        //okay - atoms seem to be getting assigned the right idx in grid
     }
 
 }
 
 
-/*
-__global__ void printNeighbors(int *neighborlistBounds, cudaTextureObject_t neighbors,
-                               int nAtoms) {
+template <bool MULTIATOMPERTHREAD>
+__global__ void compute_max_num_neighbors(uint16_t *neighborCounts, int nAtoms, 
+                                          uint16_t *maxNumNeighbors,    int warpSize) {
+
+    // declare the shared memory, and set the initial value
+    extern __shared__ uint16_t counts_shr[];
+    // here we place the maximum value found by a given thread
     int idx = GETIDX();
-    if (idx < nAtoms) {
-        int begin = neighborlistBounds[idx];
-        int end = neighborlistBounds[idx+1];
-        for (int i=begin; i<end; i++) {
-            int xIdx = XIDX(i);
-            int yIdx = YIDX(i);
-            int x = tex2D<int>(neighbors, xIdx, yIdx);
-            printf("idx %d has neighbor of idx %d\n", idx, x);
+    // curIdx will be incremented to traverse the neighborCounts array;
+    // idx will remain constant so we write to same place in shared memory while 
+    // traversing the neighborCounts array
+    int curIdx = idx; 
+    // we don't need to check that idx is less than nAtoms here; 
+    // kernel launch dictates that nThreads is <= nAtoms
+    counts_shr[idx] = 0;
+    __syncthreads();
+    if (MULTIATOMPERTHREAD) {
+        while (curIdx < nAtoms) {
+            uint16_t thisCount = neighborCounts[curIdx];
+            if (thisCount > counts_shr[idx]) counts_shr[idx] = thisCount;
+
+            // increase curIdx by blockDim
+            curIdx += blockDim.x;
         }
+
+    } else {
+        // we have enough threads - just write to shared memory
+        counts_shr[idx] = neighborCounts[idx];
     }
-}
-*/
-
-
-/*
-template <typename T>
-__device__ void copyToOtherSurf(cudaSurfaceObject_t from, cudaSurfaceObject_t to,
-                                int idx_init, int idx_final) {
-    int xIdx, yIdx, xAddr;
-    xIdx = XIDX(idx_init, sizeof(T));
-    yIdx = YIDX(idx_init, sizeof(T));
-    xAddr = xIdx * sizeof(T);
-    T val = surf2Dread<T>(from, xAddr, yIdx);
-    xIdx = XIDX(idx_final, sizeof(T));
-    yIdx = YIDX(idx_final, sizeof(T));
-    xAddr = xIdx * sizeof(T);
-    surf2Dwrite(val, to, xAddr, yIdx);
+    __syncthreads();
+    // call maxByN function in cutils_func.h
+    maxByN<uint16_t>(counts_shr, blockDim.x, warpSize);
+    maxNumNeighbors[0] = counts_shr[0];
+    return;
 }
 
-*/
+
 template <typename T>
 __device__ void copyToOtherList(T *from, T *to, int idx_init, int idx_final, int nPerRingPoly) {
     int initPerAtom  = idx_init  * nPerRingPoly;
@@ -268,19 +243,7 @@ __device__ void copyToOtherList(T *from, T *to, int idx_init, int idx_final, int
         to[finalPerAtom+i] = from[initPerAtom+i];
     }
 }
-/*
-  sortPerAtomArrays<<<NBLOCK(nAtoms), PERBLOCK>>>(
-                    state->gpd.xs(activeIdx), state->gpd.xs(!activeIdx),
-                    state->gpd.vs(activeIdx), state->gpd.vs(!activeIdx),
-                    state->gpd.fs(activeIdx), state->gpd.fs(!activeIdx),
-                    state->gpd.ids(activeIdx), state->gpd.ids(!activeIdx),
-                    state->gpd.qs(activeIdx), state->gpd.qs(!activeIdx),
-                    state->gpd.idToIdxs.getSurf(),
-                    state->computeVirials,
-                    state->requiresCharges,
-                    perCellArray.d_data.data(), perAtomArray.d_data.data(),
-                    nAtoms, os, ds, ns
-*/
+
 __global__ void sortPerAtomArrays(
                     real4 *centroids,
                     real4 *xsFrom,     real4 *xsTo,
@@ -302,7 +265,6 @@ __global__ void sortPerAtomArrays(
         int3   sqrIdx    = make_int3((pos - os) / ds);
         int    sqrLinIdx = LINEARIDX(sqrIdx, ns);
         int    sortedIdx = gridCellArrayIdxs[sqrLinIdx] + idxInGridCell[idx];
-        //printf("I MOVE FROM %d TO %d, id is %d , MY POS IS %f %f %f\n", idx, sortedIdx, id, pos.x, pos.y, pos.z);
 
         //okay, now have all data needed to do copies
         copyToOtherList<real4>(xsFrom, xsTo, idx, sortedIdx, nPerRingPoly);
@@ -788,7 +750,7 @@ __global__ void setBuildFlag(real4 *xsA, real4 *xsB, int nAtoms, BoundsGPU bound
     if (idx < nAtoms) {
         real3 distVector = boundsGPU.minImage(make_real3(xsA[idx] - xsB[idx]));
         real lenSqr = lengthSqr(distVector);
-        flags_shr[threadIdx.x] = (short) (lenSqr > (paddingSqr * 0.25f));
+        flags_shr[threadIdx.x] = (short) (lenSqr > (paddingSqr * 0.25));
     } else {
         flags_shr[threadIdx.x] = 0;
     }
@@ -1055,14 +1017,14 @@ void GridGPU::periodicBoundaryConditions(real neighCut, bool forceBuild) {
         if (nThreadPerRP==1) {
             if (exclusions) {
                 assignNeighbors<0,true><<<NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerRP), nThreadPerBlock(), (nThreadPerBlock()/nThreadPerRP)*maxExclusionsPerAtom*sizeof(uint32_t)>>>(
-                                centroids, nRingPoly, nPerRingPoly, state->gpd.ids(gridIdx),
+                                centroids, nRingPoly, nPerRingPoly, gpd->ids(gridIdx),
                                 perCellArray.d_data.data(), perBlockArray.d_data.data(), os, ds, ns,
                                 bounds.periodic, trace, neighCut*neighCut, neighborlist.data(), warpSize,
                                 exclusionIndexes.data(), exclusionIds.data(), maxExclusionsPerAtom, nThreadPerRP
                                 ); //PER RP CENTROID
             } else {
                 assignNeighbors<0,false><<<NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerRP), nThreadPerBlock(), (nThreadPerBlock()/nThreadPerRP)*maxExclusionsPerAtom*sizeof(uint32_t)>>>(
-                                centroids, nRingPoly, nPerRingPoly, state->gpd.ids(gridIdx),
+                                centroids, nRingPoly, nPerRingPoly, gpd->ids(gridIdx),
                                 perCellArray.d_data.data(), perBlockArray.d_data.data(), os, ds, ns,
                                 bounds.periodic, trace, neighCut*neighCut, neighborlist.data(), warpSize,
                                 exclusionIndexes.data(), exclusionIds.data(), maxExclusionsPerAtom, nThreadPerRP
@@ -1071,14 +1033,14 @@ void GridGPU::periodicBoundaryConditions(real neighCut, bool forceBuild) {
         } else {
             if (exclusions) {
                 assignNeighbors<1,true><<<NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerRP), nThreadPerBlock(), (nThreadPerBlock()/nThreadPerRP)*maxExclusionsPerAtom*sizeof(uint32_t) + nThreadPerBlock()*sizeof(uint32_t)>>>(
-                                centroids, nRingPoly, nPerRingPoly, state->gpd.ids(gridIdx),
+                                centroids, nRingPoly, nPerRingPoly, gpd->ids(gridIdx),
                                 perCellArray.d_data.data(), perBlockArray.d_data.data(), os, ds, ns,
                                 bounds.periodic, trace, neighCut*neighCut, neighborlist.data(), warpSize,
                                 exclusionIndexes.data(), exclusionIds.data(), maxExclusionsPerAtom, nThreadPerRP
                                 ); //PER RP CENTROID
             } else {
                 assignNeighbors<1,false><<<NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerRP), nThreadPerBlock(), (nThreadPerBlock()/nThreadPerRP)*maxExclusionsPerAtom*sizeof(uint32_t) + nThreadPerBlock()*sizeof(uint32_t)>>>(
-                                centroids, nRingPoly, nPerRingPoly, state->gpd.ids(gridIdx),
+                                centroids, nRingPoly, nPerRingPoly, gpd->ids(gridIdx),
                                 perCellArray.d_data.data(), perBlockArray.d_data.data(), os, ds, ns,
                                 bounds.periodic, trace, neighCut*neighCut, neighborlist.data(), warpSize,
                                 exclusionIndexes.data(), exclusionIds.data(), maxExclusionsPerAtom, nThreadPerRP
@@ -1280,6 +1242,110 @@ void GridGPU::handleExclusions() {
     return;
 }
 
+/*
+real GridGPU::computeAverageNumNeighbors() {
+    int nAtoms = gpd->xs.size();
+    DeviceManager &devManager = state->devManager;
+    int 
+    int warpSize = devManager.prop.warpSize;
+
+    // 1024 is the maximum number of threads in a block
+    int numThreads = min(nAtoms, 1024);
+
+    bool multipleAtomsPerThread = (nAtoms > 1024);
+    // since we want the average over all neighbors, we can only use one block;
+    // 
+    if (multipleAtomsPerThread) {
+        compute_average_num_neighbors<true><<<1,numThreads,numThreads * sizeof(uint16_t)>>>(
+                    perAtomArray.d_data.data(), nAtoms,maxNumNeighbors.d_data.data(),
+                    warpSize);
+    } else {
+        compute_average_num_neighbors<false><<<1,numThreads,numThreads * sizeof(uint16_t)>>>(
+                    perAtomArray.d_data.data(), nAtoms,maxNumNeighbors.d_data.data(),
+                    warpSize);
+    }
+    maxNumNeighbors.dataToHost();
+    cudaDeviceSynchronize();
+    return maxNumNeighbors.h_data[0];
+
+}
+*/
+
+
+std::vector<int> GridGPU::getNeighborCounts() {
+    
+    uint16_t *neighCounts = perAtomArray.h_data.data();
+    gpd->xs.dataToHost();
+    gpd->ids.dataToHost();
+
+    std::vector<uint> ids = gpd->ids.h_data;
+    // std::cout << "ids" << std::endl;
+    // for (int i=0; i<ids.size(); i++) {
+    //     std::cout << ids[i] << std::endl;
+    // }
+    gpd->xs.dataToHost(!gpd->xs.activeIdx);
+    cudaDeviceSynchronize();
+    std::vector<real4> sortedXs = gpd->xs.h_data;
+
+    /*
+    for (int i=0; i<xs.size(); i++) {
+        int blockIdx = i / PERBLOCK;
+        int warpIdx = (i - blockIdx * PERBLOCK) / warpSize;
+        int idxInWarp = i - blockIdx * PERBLOCK - warpIdx * warpSize;
+        int cumSumUpToMyBlock = perBlockArray.h_data[blockIdx];
+        int perAtomMyWarp = perBlockArray.h_data[blockIdx+1] - cumSumUpToMyBlock;
+        int baseIdx = PERBLOCK * perBlockArray.h_data[blockIdx] + perAtomMyWarp * warpSize * warpIdx + idxInWarp;
+
+        //std::cout << "i is " << i << " blockIdx is " << blockIdx << " warp idx is " << warpIdx << " and idx in that warp is " << idxInWarp << " resulting base idx is " << baseIdx << std::endl;
+        //std::cout << "id is " << ids[i] << std::endl;
+        std::vector<int> neighIds;
+        // std::cout << "begin end " << neighIdxs[i] << " " << neighIdxs[i+1] << std::endl;
+        for (int j=0; j<neighCounts[i]; j++) {
+            int nIdx = baseIdx + j*warpSize;
+            // std::cout << "looking at neighborlist index " << nIdx << std::endl;
+            // std::cout << "idx " << nlist[nIdx] << std::endl;
+            real4 atom = xs[nlist[nIdx]];
+            uint id = ids[nlist[nIdx]];
+            // std::cout << "id is " << id << std::endl;
+            neighIds.push_back(id);
+        }
+    */
+    return std::vector<int>(); // TODO
+
+}
+int GridGPU::computeMaxNumNeighbors() {
+    // assumes that the neighbor data has already been computed for this grid instance;
+    // finds the largest value in the device array
+    // perAtomArray.d_data.data(),
+    // ---- we need to do this over 1 block
+    //      although, if numAtoms is prohibitively large, it would likely be faster 
+    //      to allocate a global array, do reduction across some number of blocks, 
+    //      then reduction of same array in a single block, rather than starting with 
+    //      just the one block
+    int nAtoms = gpd->xs.size();
+    DeviceManager &devManager = state->devManager;
+    int warpSize = devManager.prop.warpSize;
+
+    // 1024 is the maximum number of threads in a block
+    int numThreads = min(nAtoms, 1024);
+
+    bool multipleAtomsPerThread = (nAtoms > 1024);
+    // we are limited to using 1 block for the reduction, since we want the largest value in the 
+    // array; shared memory will first store the max value found by a given thread while less 
+    // than num atoms; then reduction across threads yields max value of the shared memory
+    if (multipleAtomsPerThread) {
+        compute_max_num_neighbors<true><<<1,numThreads,numThreads * sizeof(uint16_t)>>>(
+                    perAtomArray.d_data.data(), nAtoms,maxNumNeighbors.d_data.data(),
+                    warpSize);
+    } else {
+        compute_max_num_neighbors<false><<<1,numThreads,numThreads * sizeof(uint16_t)>>>(
+                    perAtomArray.d_data.data(), nAtoms,maxNumNeighbors.d_data.data(),
+                    warpSize);
+    }
+    maxNumNeighbors.dataToHost();
+    cudaDeviceSynchronize();
+    return maxNumNeighbors.h_data[0];
+}
 
 void GridGPU::handleExclusionsForcers() {
 
@@ -1438,19 +1504,15 @@ GridGPU::ExclusionList GridGPU::generateExclusionList(const int16_t maxDepth) {
 }
 
 
-/*
 void export_GridGPU() {
     py::class_<GridGPU, boost::noncopyable> (
         "Grid",
         py::no_init
     )
-    //.def("populateOnGrid", &InitializeAtoms::populateOnGrid,
-    //        (py::arg("bounds"),
-    //         py::arg("handle"),
-    //         py::arg("n"))
-    //    )
-    //.staticmethod("populateOnGrid")
     .def("buildNeighborlists", &GridGPU::periodicBoundaryConditions, (py::arg("neighCut")=-1, py::arg("forceBuild")=true))
+    // after buildNeighborlists has been called, we can export the information to python via the following:
+    .def("computeMaxNumNeighbors", &GridGPU::computeMaxNumNeighbors)
+    .def("getNeighborCounts", &GridGPU::getNeighborCounts)
+    //.def("getNeighborList",   &GridGPU::getNeighborList)
     ;
 }
-*/

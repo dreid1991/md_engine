@@ -40,15 +40,15 @@ void IntegratorUtil::forceInitial(int virialMode) {
            //     Mod::FDotR(state);
            //     computedFDotR = true;
            // }
-            std::cout << "Going to compute fix: " << f->handle << " if it is prepared; " << std::endl;
+            //std::cout << "Going to compute fix: " << f->handle << " if it is prepared; " << std::endl;
             if (f->prepared) {
-                std::cout << "Computing fix " << f->handle << std::endl;
+            //    std::cout << "Computing fix " << f->handle << std::endl;
                 f->compute(virialMode);
                 f->setVirialTurn();
             }
         }
     }
-    std::cout << "Looped over all fixes!" << std::endl;
+    //std::cout << "Looped over all fixes!" << std::endl;
 };
 
 void IntegratorUtil::postNVE_V() {

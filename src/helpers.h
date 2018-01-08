@@ -30,7 +30,8 @@ void cumulativeSum(T *data, K n) {
             vals[4] = xz;
             vals[5] = yz;
             */
-inline __device__ void computeVirial(Virial &v, real3 force, real3 dr) {
+// host device, for debugging
+inline __host__ __device__ void computeVirial(Virial &v, real3 force, real3 dr) {
     v[0] += force.x * dr.x;
     v[1] += force.y * dr.y;
     v[2] += force.z * dr.z;

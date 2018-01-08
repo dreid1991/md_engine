@@ -742,14 +742,14 @@ void State::findRigidBodies() {
         //      is responsible for scaling & translation of the rigid body, and this mask evaluates to false 
         //      for that atom (and the other atoms within the rigid body).
         rigidAtoms.reserve(this->atoms.size());
-        for (int i = 0; i < rigidAtoms.size(); i++) {
-            rigidAtoms[i] = 1;
+        for (uint i = 0; i < rigidAtoms.size(); i++) {
+            rigidAtoms[i] = (uint) 1;
         }
 
         for (int i = 0; i < allRigidAtomIds.size(); i++) {
             // so, this contains the ids that we tell the barostat should /not/ have their 
             // positions modified by the barostat, but rather by their constraint algorithm
-            int thisId = allRigidAtomIds[i];
+            uint thisId = (uint) allRigidAtomIds[i]; // cast by value, do not bit cast..
             rigidAtoms[thisId] = 0;
         }
     
@@ -763,7 +763,7 @@ void State::findRigidBodies() {
         // nominally set the vector and GPUArrayDeviceGlobal array to some 1-value so that we aren't
         // playing with bad values anywhere
         rigidAtoms.resize(1,true);
-        rigidBodiesMask = GPUArrayGlobal<int>(1);
+        rigidBodiesMask = GPUArrayGlobal<uint>(1);
         rigidBodiesMask.dataToDevice();
         
     }
@@ -937,13 +937,51 @@ void State::zeroVelocities() {
 }
 
 
-void State::getSizeOfReal() {
+int State::getSizeOfReal() {
     real a = 0;
     double b = 0;
     float c = 0;
     std::cout << "sizeof(real): " << sizeof(a) << std::endl;
     std::cout << "sizeof(double): " << sizeof(b) << std::endl;
     std::cout << "sizeof(float) : " << sizeof(c) << std::endl;
+    int size_of_real = (int) sizeof(a);
+    return size_of_real;
+}
+
+// from copySyncWithInstruc;
+// use case: we want to do things at finer resolution than per-turn
+// -- mostly useful for identifying where in integration scheme a bug is appearing
+void State::toHost() {
+    this->gpd.xs.dataToHost();
+    this->gpd.vs.dataToHost();
+    this->gpd.fs.dataToHost();
+    this->gpd.ids.dataToHost();
+    this->gpd.idToIdxs.dataToHost();
+
+    CUCHECK(cudaDeviceSynchronize());
+    std::vector<int> idToIdxsOnCopy = this->gpd.idToIdxsOnCopy;
+    std::vector<real4> &xs = this->gpd.xs.h_data;
+    std::vector<real4> &vs = this->gpd.vs.h_data;
+    std::vector<real4> &fs = this->gpd.fs.h_data;
+    std::vector<uint> &ids = this->gpd.ids.h_data;
+    std::vector<Atom> &atoms = this->atoms;
+    for (int i=0, ii=this->atoms.size(); i<ii; i++) {
+        int id = ids[i];
+        int idxWriteTo = idToIdxsOnCopy[id];
+        atoms[idxWriteTo].pos = xs[i];
+        atoms[idxWriteTo].vel = vs[i];
+        atoms[idxWriteTo].force = fs[i];
+    }
+
+}
+
+void State::toDevice() {
+    // this assumes that idToIdxs.h_data is already populated;
+    // i.e., that we have called basicPrepare 
+    this->copyAtomDataToGPU(this->gpd.idToIdxs.h_data);
+}
+
+void State::allocateDevice() {
 
 }
 
@@ -1164,11 +1202,12 @@ BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(State_seedRNG_overloads,State::seedRNG,0,
                 .def_readwrite("tuning", &State::tuning)
                 .def_readonly("deviceManager", &State::devManager)
                 .def_readonly("units", &State::units)
-                //.def_readonly("grid", &State::gridGPU)
+                .def_readonly("grid", &State::gridGPU)
                 //helper for reader funcs
                 .def("Vector", &generateVector, (py::arg("vals")=py::list()))
-
-
+                .def_readonly("gpd", &State::gpd)
+                .def("toHost", &State::toHost)
+                .def("toDevice", &State::toDevice)
                 ;
 
     }

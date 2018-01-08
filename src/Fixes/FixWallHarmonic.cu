@@ -31,11 +31,19 @@ void FixWallHarmonic::compute(int virialMode) {
 		// I think we just need the evaluator and whether or not to compute the virials - correct? we'll see..
 		// ^ referring to what to pass in as template specifiers
 		compute_wall_iso<EvaluatorWallHarmonic, true> <<<NBLOCK(n), PERBLOCK>>>(n,  gpd.xs(activeIdx),
-                    gpd.fs(activeIdx), origin.asreal3(), forceDir.asreal3(),  groupTag, 
+                    gpd.fs(activeIdx), 
+                    gpd.virials.d_data.data(),
+                    origin.asreal3(), 
+                    forceDir.asreal3(),  
+                    groupTag, 
                     evaluator);
 	} else {
 		compute_wall_iso<EvaluatorWallHarmonic, false> <<<NBLOCK(n), PERBLOCK>>>(n, gpd.xs(activeIdx),
-                    gpd.fs(activeIdx), origin.asreal3(), forceDir.asreal3(),  groupTag,
+                    gpd.fs(activeIdx), 
+                    gpd.virials.d_data.data(),
+                    origin.asreal3(), 
+                    forceDir.asreal3(),  
+                    groupTag,
                     evaluator);
 	}
 };

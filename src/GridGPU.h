@@ -26,7 +26,8 @@ class State;
  * This class defines a simulation grid on the GPU. Typically, the GridGPU will
  * be created by AtomGrid::makeGPU().
  */
-//void export_GridGPU();
+void export_GridGPU();
+
 class GridGPU : public Tunable {
 
 private:
@@ -134,6 +135,14 @@ public:
     void handleExclusions();
     void handleExclusionsDistance();
     void handleExclusionsForcers();
+
+    /*! \brief Computes the maximum value of countNumNeighbors array 
+     *
+     *  Useful 
+     */
+    int computeMaxNumNeighbors(); 
+    GPUArrayGlobal<uint16_t> maxNumNeighbors;  //!< Largest value in the neighborCounts array
+    std::vector<int> getNeighborCounts(); //!< Returns vector of neighborcounts on host side, ordered by id
 
     void initArraysTune();
     /*! \brief Remap atoms around periodic boundary conditions

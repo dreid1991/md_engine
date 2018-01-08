@@ -183,26 +183,6 @@ void Integrator::basicPrepare(int numTurns) {
     for (GPUArray *dat : activeData) {
         dat->dataToDevice();
     }
-    /*
-    std::vector<bool> prepared;
-    for (Fix *f : state->fixes) {
-        f->takeStateNThreadPerBlock(state->nThreadPerBlock);//grid will also have this value
-        f->takeStateNThreadPerAtom(state->nThreadPerAtom);//grid will also have this value
-        f->updateGroupTag();
-        prepared.push_back(f->prepareForRun());
-        f->setVirialTurnPrepare();
-    }
-    state->handleChargeOffloading();
-    for (Fix *f : state->fixes) {
-        f->setEvalWrapper(); //have to do this after prepare b/c pair calcs need evaluators from charge that have been updated with correct alpha or other coefficiants, and change calcs need to know that handoffs happened
-    }
-    for (boost::shared_ptr<MD_ENGINE::DataSetUser> ds : state->dataManager.dataSets) {
-        ds->prepareForRun(); //will also prepare those data sets' computers
-        if (ds->requiresVirials()) {
-            state->dataManager.addVirialTurn(ds->nextCompute, ds->requiresPerAtomVirials());
-        }
-    }
-    */
     state->gridGPU.periodicBoundaryConditions(-1, true);
 
     return;
@@ -251,59 +231,6 @@ void Integrator::writeOutput() {
         wc->write(state->turn);
     }
 }
-
-
-    /*
-double Integrator::singlePointEngPythonAvg(string groupHandle) {
-    GPUArrayGlobal<real> eng(2);
-    eng.d_data.memset(0);
-    basicPreRunChecks();
-    basicPrepare(0);
-    cudaDeviceSynchronize();
-
-    singlePointEng();
-    cudaDeviceSynchronize();
-    uint32_t groupTag = state->groupTagFromHandle(groupHandle);
-    int warpSize = state->devManager.prop.warpSize;
-    accumulate_gpu_if<real, real, SumSingleIf, N_DATA_PER_THREAD> <<<NBLOCK(state->atoms.size() / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*sizeof(real)*PERBLOCK>>>
-        (
-         eng.getDevData(), 
-         state->gpd.perParticleEng.getDevData(),
-         state->atoms.size(),
-         warpSize,
-         SumSingleIf(state->gpd.fs.getDevData(), groupTag)
-        );
-    eng.dataToHost();
-    cudaDeviceSynchronize();
-    CUT_CHECK_ERROR("Calculation of single point average energy failed");
-    basicFinish();
-    return eng.h_data[0] / *((int *)eng.h_data.data()+1);
-}
-
-boost::python::list Integrator::singlePointEngPythonPerParticle() {
-    basicPrepare(0);
-    singlePointEng();
-    state->gpd.perParticleEng.dataToHost();
-    state->gpd.ids.dataToHost();
-    cudaDeviceSynchronize();
-    CUT_CHECK_ERROR("Calculation of single point per-particle energy failed");
-    std::vector<real> &engs = state->gpd.perParticleEng.h_data;
-    std::vector<uint> &ids = state->gpd.ids.h_data;
-    std::vector<int> &idToIdxsOnCopy = state->gpd.idToIdxsOnCopy;
-    std::vector<double> sortedEngs(ids.size());
-
-    for (int i=0, ii=state->atoms.size(); i<ii; i++) {
-        int id = ids[i];
-        int idxWriteTo = idToIdxsOnCopy[id];
-        sortedEngs[idxWriteTo] = eng:tas[i];
-    }
-    boost::python::list asPy(sortedEngs);
-    basicFinish();
-    return asPy;
-
-}
-
-    */
 
 
 double Integrator::tune() {
@@ -404,6 +331,7 @@ void export_Integrator() {
         "Integrator"
     )
     .def("writeOutput", &Integrator::writeOutput)
+
    // .def("energyAverage", &Integrator::singlePointEngPythonAvg,
     //        (boost::python::arg("groupHandle")="all")
     //    )

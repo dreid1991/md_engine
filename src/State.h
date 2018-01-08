@@ -343,9 +343,9 @@ public:
                            //!< types, handles
     void findRigidBodies(); //!< Gets all rigid bodies associated with this simulation state
     bool rigidBodies; //!< Denotes whether rigid bodies are present in the simulation; 
-    std::vector<int> rigidAtoms; //!< Boolean array that informs barostats whether the barostat performs the position rescaling (evaluates to true), else false (constraint algorithm handles the NPT position scaling and translation).
+    std::vector<uint> rigidAtoms; //!< Boolean array that informs barostats whether the barostat performs the position rescaling (evaluates to true), else false (constraint algorithm handles the NPT position scaling and translation).
 
-    GPUArrayGlobal<int> rigidBodiesMask;
+    GPUArrayGlobal<uint> rigidBodiesMask;
     //!< Boolean mask for NPT simulations (otherwise unused) with rigid bodies; GPU side of rigidAtoms array.  False for rigid bodies (Barostat does /not/ handle the position rescaling; rather, the constraint algorithm does), true otherwise.
     // for now, let's keep this sorted by id?
 
@@ -550,8 +550,14 @@ public:
      */
 
     // to test that our compile time option yields variables with double precision
-    void getSizeOfReal();
+    int getSizeOfReal();
 
+    void toHost(); //!< sends GPU Data from device to host
+
+    void allocateDevice(); //!< allocates arrays on GPU; should not be used after they are 
+    // already allocated
+        
+    void toDevice(); //!< sends host data to device; assumes GPU arrays are already allocated
 
 private:
     std::mt19937 randomNumberGenerator; //!< Random number generator

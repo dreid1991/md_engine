@@ -61,5 +61,6 @@ void export_FixPressureBerendsen() {
             )
     )
     .def("setParameters", &FixPressureBerendsen::setParameters, (py::arg("maxDilation")=-1))
+    .def_readonly("pressureComputer", &FixPressureBerendsen::pressureComputer)
     ;
 }

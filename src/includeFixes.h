@@ -19,7 +19,7 @@
 #include "Fix2d.h"
 #include "Fix.h"
 #include "FixNoseHoover.h"
-#include "FixE3B3.h"
+#include "FixE3B.h"
 #include "FixTIP4PFlexible.h"
 #include "FixNVTAndersen.h"
 #include "FixNVTRescale.h"

@@ -182,11 +182,11 @@ namespace SquareVector {
             }
         }
 
-        std::cout << "in copyToSize, here is new squareVector: " << std::endl;
+        //std::cout << "in copyToSize, here is new squareVector: " << std::endl;
 
-        for (size_t i = 0; i < replacement.size(); i++) {
-            std::cout << replacement[i] << std::endl;
-        }
+        //for (size_t i = 0; i < replacement.size(); i++) {
+        //    std::cout << replacement[i] << std::endl;
+        //}
         return replacement;
     }
 } // namespace SquareVector

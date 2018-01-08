@@ -636,29 +636,19 @@ double IntegratorVerlet::run(int numTurns)
 
     basicPreRunChecks();
     
-    std::cout << "IntegratorVerlet::run, made it past basicPreRunChecks()!" << std::endl;
-
     // basicPrepare now only handles State prepare and sending global State data to device
     basicPrepare(numTurns);
     
-    std::cout << "IntegratorVerlet::run, made it past basicPrepare()!" << std::endl;
-
     // prepare the fixes that do not require forces to be computed
     // -- e.g., isotropic pair potentials
     prepareFixes(false);
     
-    std::cout << "IntegratorVerlet::run, made it past prepareFixes(false)!" << std::endl;
-   
     // iterates and computes forces only from fixes that return (prepared==true)
     forceInitial(true);
     
-    std::cout << "IntegratorVerlet::run, made it past forceInitial(true)!" << std::endl;
-
     // prepare the fixes that require forces to be computed on instantiation;
     // -- e.g., constraints
     prepareFixes(true);
-    
-    std::cout << "IntegratorVerlet::run, made it past prepareFixes(true)!" << std::endl;
     
     // finally, prepare barostats, thermostats, datacomputers, etc.
     // datacomputers are prepared first, then the barostats, thermostats, etc.
@@ -671,13 +661,8 @@ double IntegratorVerlet::run(int numTurns)
         setInterpolator();
     }
 
-
-    std::cout << "IntegratorVerlet::run, made it past prepareFinal()!" << std::endl;
-    
     verifyPrepared();
     
-    std::cout << "IntegratorVerlet::run, made it past verifyPrepared()!" << std::endl;
-
     int periodicInterval = state->periodicInterval;
 	
     auto start = std::chrono::high_resolution_clock::now();
@@ -728,6 +713,7 @@ double IntegratorVerlet::run(int numTurns)
         // Perform second half of velocity-Verlet step
         postForce();
 
+        // for NPT rigid body simulations, this is where the bug occurs..
         stepFinal();
 
         //HEY - MAKE DATA APPENDING HAPPEN WHILE SOMETHING IS GOING ON THE GPU.  
@@ -845,5 +831,38 @@ void export_IntegratorVerlet()
         py::init<State *>()
     )
     .def("run", &IntegratorVerlet::run,(py::arg("numTurns")))
+    /* FOR TESTING PURPOSES ONLY */
+    /* These do not go in the user documentation, and should not be used in a production simulation */
+    /* Methods inherited from IntegratorUtil, Integrator; and methods usually not exported to python */
+    .def("preForce", &IntegratorVerlet::preForce)                   // IntegratorVerlet
+    .def("postForce",&IntegratorVerlet::postForce)                  // IntegratorVerlet
+    .def("nve_v",    &IntegratorVerlet::nve_v)                      // IntegratorVerlet
+    .def("nve_x",    &IntegratorVerlet::nve_x)                      // IntegratorVerlet
+    .def("stepInit", &IntegratorVerlet::stepInit,
+         boost::python::arg("computeVirials")
+         )                                                          // Integrator
+    .def("stepFinal",&IntegratorVerlet::stepFinal)                  // Integrator
+    .def("asyncOperations", &IntegratorVerlet::asyncOperations)     // Integrator
+    .def("basicPreRunChecks", &IntegratorVerlet::basicPreRunChecks) // Integrator
+    .def("basicPrepare", &IntegratorVerlet::basicPrepare,
+         boost::python::arg("numTurns")
+         )                                                          // Integrator
+    .def("prepareFixes", &IntegratorVerlet::prepareFixes,
+         boost::python::arg("requiresForces")
+        )                                                           // Integrator
+    .def("prepareFinal", &IntegratorVerlet::prepareFinal)           // Integrator
+    .def("basicFinish",  &IntegratorVerlet::basicFinish)            // Integrator 
+    .def("setActiveData", &IntegratorVerlet::setActiveData)         // Integrator
+    .def("tune", &IntegratorVerlet::tune)                           // Integrator
+    .def("verifyPrepared", &IntegratorVerlet::verifyPrepared)       // Integrator
+    .def("force", &IntegratorVerlet::force,
+         boost::python::arg("virialMode")
+        )                                                            // IntegratorUtil
+    .def("forceInitial", &IntegratorVerlet::forceInitial,
+         boost::python::arg("virialMode")
+        )                                                             // IntegratorUtil
+    .def("postNVE_V", &IntegratorVerlet::postNVE_V)                   // IntegratorUtil
+    .def("postNVE_X", &IntegratorVerlet::postNVE_X)                   // IntegratorUtil
+    .def("handleBoundsChange", &IntegratorVerlet::handleBoundsChange) // IntegratorUtil
     ;
 }

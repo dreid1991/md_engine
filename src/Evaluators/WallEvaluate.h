@@ -3,7 +3,10 @@
 #include "helpers.h"
 
 template <class EVALUATOR, bool COMPUTE_VIRIALS>
-__global__ void compute_wall_iso(int nAtoms,real4 *xs, real4 *fs,real3 wall,
+__global__ void compute_wall_iso(int nAtoms,real4 * __restrict__ xs, 
+                                 real4 * __restrict__ fs,
+         Virial *__restrict__ virials, 
+         real3 wall,
 		real3 forceDir,  uint groupTag, EVALUATOR eval) {
 
 
@@ -30,9 +33,16 @@ __global__ void compute_wall_iso(int nAtoms,real4 *xs, real4 *fs,real3 wall,
             }
             fs[idx] = f;
 
+            if (COMPUTE_VIRIALS) {
 
-			 
+                Virial virialsSum = Virial(0, 0, 0, 0, 0, 0);
+                computeVirial(virialsSum, force, particleDisplacement);
+                virials[idx] += virialsSum;
+
+            }
+
 		}
+        __syncwarp(); // to delete; just seeing if it compiles
 	}
 }
 

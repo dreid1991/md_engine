@@ -41,9 +41,9 @@ namespace Mod {
 
     template<bool>
     __global__ void scaleSystem_cu(real4 *xs, int nAtoms, real3 lo, real3 rectLen, real3 scaleBy,int *idToIdxs, 
-                                         int *notRigidBody);
+                                         uint *notRigidBody);
     template<bool>
-    __global__ void scaleSystemGroup_cu(real4 *xs, int nAtoms, real3 lo, real3 rectLen, real3 scaleBy, uint32_t groupTag, real4 *fs, int *idToIdxs, int *notRigidBody);
+    __global__ void scaleSystemGroup_cu(real4 *xs, int nAtoms, real3 lo, real3 rectLen, real3 scaleBy, uint32_t groupTag, real4 *fs, int *idToIdxs, uint *notRigidBody);
     void scaleSystem(State *, real3 scaleBy, uint32_t groupTag=1);
     //__global__ void skewAtomsFromZero(cudaSurfaceObject_t xs, real4 xFinal, real4 yFinal);
     //__global__ void skewAtoms(cudaSurfaceObject_t xs, real4 xOrig, real4 xFinal, real4 yOrig, real4 yFinal);

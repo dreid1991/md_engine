@@ -3,9 +3,8 @@
 namespace py = boost::python;
 
 #include "State.h"
-//#include "../Eigen/Dense"
-
 #include "EigenInterface.h"
+
 Molecule::Molecule(State *state_, std::vector<int> &ids_) {
     state = state_;
     ids = ids_;
@@ -18,9 +17,9 @@ void Molecule::translate(Vector &v) {
     }
 }
 void Molecule::rotate(Vector axis, double theta) {
-    /*
     std::vector<double> valsAsFlat;
     Vector com = COM();
+
     for (int id : ids) {
         Atom &a = state->idToAtom(id);
         Vector posRel = a.pos - com;
@@ -35,21 +34,30 @@ void Molecule::rotate(Vector axis, double theta) {
     for (int i=0; i<3; i++) {
         axis_list[i] = axis[i];
     }
-    E
+    
+    double com_list[3];
+    for (int i=0; i < 3; i++) {
+        com_list[i] = com[i];
+    };
 
-    Eigen::Vector3d axisEig = {axis[0], axis[1], axis[2]};
-    Eigen::AngleAxisd ax(theta, axisEig);
-    Eigen::Matrix3d rot;
-    rot = ax;
-    Eigen::Vector3d comEig= {com[0], com[1], com[2]};
+    // compute the rotations
+    std::vector<double> newPositions = eigenInterface_rotate(valsAsFlat, axis_list, com_list, theta);
+    
+    int counter = 0;
     for (int id : ids) {
         Atom &a = state->idToAtom(id);
-        Eigen::Vector3d posEig = {a.pos[0], a.pos[1], a.pos[2]};
-        Eigen::Vector3d relEig = posEig-comEig;
-        relEig = rot * relEig;
-        a.pos = Vector(relEig[0], relEig[1], relEig[2]) + com;
+        int ix = counter * 3;
+        int iy = counter * 3 + 1;
+        int iz = counter * 3 + 2;
+        double xPos = newPositions[ix];
+        double yPos = newPositions[iy];
+        double zPos = newPositions[iz];
+        a.pos = Vector(xPos,yPos,zPos) + com;
+
+        counter++;
     }
-    */
+
+
 }
 
 

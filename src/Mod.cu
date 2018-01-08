@@ -25,7 +25,7 @@ __global__ void Mod::unskewAtoms(real4 *xs, int nAtoms, real3 xOrig, real3 yOrig
         real a = atan2(xOrig.y, xOrig.x);
         real b = atan2(yOrig.x, yOrig.y);
 
-        real invDenom = 1.0f / (lxo*lyo*cos(a)*cos(b) - lxo*lyo*sin(a)*sin(b));
+        real invDenom = 1.0 / (lxo*lyo*cos(a)*cos(b) - lxo*lyo*sin(a)*sin(b));
 
         real c1 = lyo*cos(b) * invDenom;
         real c2 = -lyo*sin(b) * invDenom;
@@ -92,15 +92,17 @@ __global__ void FDotR_cu(int nAtoms, real4 *xs, real4 *fs, Virial *virials) {
 
 template <bool RIGIDBODIES>
 __global__ void Mod::scaleSystem_cu(real4 *xs, int nAtoms, real3 lo, real3 rectLen, real3 scaleBy,
-                                    int* idToIdxs, int* notRigidBody) {
+                                    int* idToIdxs, uint* notRigidBody) {
     int idx = GETIDX();
     if (idx < nAtoms) {
         if (RIGIDBODIES) {
+            // assigned a value of either 1 or 0 in state->findRigidBodies, which is called iff. 
+            // there is a barostat present in the simulation
             if (notRigidBody[idx]) {
                 int thisIdx = idToIdxs[idx];
                 real4 posWhole = xs[thisIdx];
                 real3 pos = make_real3(posWhole);
-                real3 center = lo + rectLen * 0.5f;
+                real3 center = lo + rectLen * 0.5;
                 real3 newRel = (pos - center) * scaleBy;
                 pos = center + newRel;
                 posWhole.x = pos.x;
@@ -113,7 +115,7 @@ __global__ void Mod::scaleSystem_cu(real4 *xs, int nAtoms, real3 lo, real3 rectL
 
             real4 posWhole = xs[idx];
             real3 pos = make_real3(posWhole);
-            real3 center = lo + rectLen * 0.5f;
+            real3 center = lo + rectLen * 0.5;
             real3 newRel = (pos - center) * scaleBy;
             pos = center + newRel;
             posWhole.x = pos.x;
@@ -128,7 +130,7 @@ __global__ void Mod::scaleSystem_cu(real4 *xs, int nAtoms, real3 lo, real3 rectL
 // whichever is most convenient; since this doesnt change during a given run, it doesnt matter that we 
 // have two conventions by which this can proceed.
 template <bool RIGIDBODIES>
-__global__ void Mod::scaleSystemGroup_cu(real4 *xs, int nAtoms, real3 lo, real3 rectLen, real3 scaleBy, uint32_t groupTag, real4 *fs, int* idToIdxs, int* notRigidBody) {
+__global__ void Mod::scaleSystemGroup_cu(real4 *xs, int nAtoms, real3 lo, real3 rectLen, real3 scaleBy, uint32_t groupTag, real4 *fs, int* idToIdxs, uint* notRigidBody) {
     int idx = GETIDX();
     if (idx < nAtoms) {
         if (RIGIDBODIES) {
@@ -141,7 +143,7 @@ __global__ void Mod::scaleSystemGroup_cu(real4 *xs, int nAtoms, real3 lo, real3 
             
                     real4 posWhole = xs[newIdx];
                     real3 pos = make_real3(posWhole);
-                    real3 center = lo + rectLen * 0.5f;
+                    real3 center = lo + rectLen * 0.5;
                     real3 newRel = (pos - center) * scaleBy;
                     pos = center + newRel;
                     posWhole.x = pos.x;
@@ -156,7 +158,7 @@ __global__ void Mod::scaleSystemGroup_cu(real4 *xs, int nAtoms, real3 lo, real3 
             if (tag & groupTag) {
                 real4 posWhole = xs[idx];
                 real3 pos = make_real3(posWhole);
-                real3 center = lo + rectLen * 0.5f;
+                real3 center = lo + rectLen * 0.5;
                 real3 newRel = (pos - center) * scaleBy;
                 pos = center + newRel;
                 posWhole.x = pos.x;

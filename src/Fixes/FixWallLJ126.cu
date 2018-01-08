@@ -27,15 +27,42 @@ void FixWallLJ126::compute(int virialMode) {
 	int activeIdx = gpd.activeIdx();
 	int n = state->atoms.size();
 	if (virialMode) {
-		compute_wall_iso<EvaluatorWallLJ126, true> <<<NBLOCK(n), PERBLOCK>>>(n,  gpd.xs(activeIdx),
-                    gpd.fs(activeIdx), origin.asreal3(), forceDir.asreal3(),  groupTag, evaluator);
+		compute_wall_iso<EvaluatorWallLJ126, true> <<<NBLOCK(n), PERBLOCK>>>(n,  
+                    gpd.xs(activeIdx),
+                    gpd.fs(activeIdx), 
+                    gpd.virials.d_data.data(),
+                    origin.asreal3(), 
+                    forceDir.asreal3(),  
+                    groupTag, 
+                    evaluator);
 	} else {
-		compute_wall_iso<EvaluatorWallLJ126, false> <<<NBLOCK(n), PERBLOCK>>>(n, gpd.xs(activeIdx),
-                    gpd.fs(activeIdx), origin.asreal3(), forceDir.asreal3(),  groupTag, evaluator);
+		compute_wall_iso<EvaluatorWallLJ126, false> <<<NBLOCK(n), PERBLOCK>>>(n, 
+                    gpd.xs(activeIdx),
+                    gpd.fs(activeIdx), 
+                    gpd.virials.d_data.data(),
+                    origin.asreal3(), 
+                    forceDir.asreal3(),  
+                    groupTag, 
+                    evaluator);
 	}
 };
 
 void FixWallLJ126::singlePointEng(real *perParticleEng) {
+    
+	GPUData &gpd = state->gpd;
+	int activeIdx = gpd.activeIdx();
+	int n = state->atoms.size();
+
+    compute_wall_energy<EvaluatorWallLJ126> <<<NBLOCK(n), PERBLOCK>>>(n,
+                                                                     gpd.xs(activeIdx),
+                                                                     perParticleEng,
+                                                                     gpd.fs(activeIdx), // for groupTag
+                                                                     origin.asreal3(),
+                                                                     forceDir.asreal3(),
+                                                                     groupTag,
+                                                                     evaluator);
+
+    return;   
 
 };
 

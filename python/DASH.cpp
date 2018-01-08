@@ -75,7 +75,7 @@ BOOST_PYTHON_MODULE(DASH) {
     export_FixLinearMomentum();
     export_FixRigid();
     export_FixTIP4PFlexible();
-    export_FixE3B3();
+    export_FixE3B();
     export_FixDeform();
 
     export_FixExternal();
@@ -113,15 +113,16 @@ BOOST_PYTHON_MODULE(DASH) {
     export_Units();
 
     export_State(); 	
-    //export_GridGPU(); 	
     export_DeviceManager();
     export_DataSetUser();
 
 
     /* things exported for use with testing */
+    export_GridGPU(); 	
     export_BoundsGPU();
     export_EvaluatorWallHarmonic();
     export_EvaluatorWallLJ126();
-
+    export_EvaluatorLJ();
+    export_EvaluatorLJFS();
     
 }

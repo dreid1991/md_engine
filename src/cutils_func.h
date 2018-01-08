@@ -358,4 +358,16 @@ __global__ void accumulate_gpu_if(K *dest, T *src, int n, int warpSize, C instan
     }
 }
 
+// T must be <= 8 bytes, or you're going to have a bad time
+template <typename T>
+__inline__ __device__ real warpReduceSum(T val, int warpSize) {
+    for (int offset = warpSize/2; offset > 0; offset /= 2) {
+        val += __shfl_down_sync(val, offset);
+    }
+    return val;
+}
+
+
+
+
 #endif
