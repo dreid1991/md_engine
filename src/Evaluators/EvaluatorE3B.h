@@ -107,9 +107,9 @@ class EvaluatorE3B {
         // computes sr1 * sr2 * A * exp(-k3*(r1+r2)) for arbitrary A, k3, r1, r2, and returns the value
         inline __host__ __device__ real threeBodyEnergyScalar(real r1, real r2, real sr1, real sr2, real prefactor,real neg_k3) {
 #ifdef DASH_DOUBLE
-            return (sr1 * sr2 * prefactor *  exp(neg_k3 * (r1 + r2))
+            return (sr1 * sr2 * prefactor *  exp(neg_k3 * (r1 + r2)));
 #else
-            return (sr1 * sr2 * prefactor * expf(neg_k3 * (r1 + r2))
+            return (sr1 * sr2 * prefactor * expf(neg_k3 * (r1 + r2)));
 #endif
         }
         // this is f(r) and so must be accounted for in taking the derivative of the potential

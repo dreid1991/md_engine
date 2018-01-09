@@ -42,7 +42,6 @@ __global__ void compute_wall_iso(int nAtoms,real4 * __restrict__ xs,
             }
 
 		}
-        __syncwarp(); // to delete; just seeing if it compiles
 	}
 }
 

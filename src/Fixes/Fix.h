@@ -266,6 +266,18 @@ public:
     virtual void setEvalWrapper(){};
 
 
+    //! Shuffles fix per-atom data according to new idToIdxs map
+    /*!
+     *
+     * This function is called by GridGPU on having called successfully the 'periodicBoundaryConditions'
+     * method, in which the per-atom arrays are re-shuffled to be contiguous in memory.
+     *
+     * Accordingly, fixes (e.g., E3B, Rigid, etc.) that have per-atom data stored statically by id 
+     * can shuffle their own GPU data so that intermediate force & energy evaluations do not need to 
+     * consult global memory via the idToIdxs map.
+     */
+    virtual void handleLocalData () {};
+
     std::string evalWrapperMode;
     //self or offload
     void setEvalWrapperMode(std::string mode);

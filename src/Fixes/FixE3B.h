@@ -3,14 +3,10 @@
 #define FIXE3B_H
 
 #include "globalDefs.h"
-#include "FixPair.h"
 #include "Fix.h"
 #include "GPUArrayGlobal.h"
 
-/* TODO: move pair interactions in to EvaluatorE3B. */
-//#include "PairEvaluatorE3B.h"
-#include "ThreeBodyE3B.h"
-#include "EvaluatorE3B.h"
+#include "ThreeBodyE3B.h" // includes EvaluatorE3B
 #include "GridGPU.h"
 #include "Molecule.h"
 #include "GPUData.h"
@@ -99,6 +95,16 @@ class FixE3B: public Fix {
        
         int nMolecules; // waterMolecules.size();
         
+        // calls our map
+        void handleLocalData();
+
+        // sets the style
+        void setStyle(std::string);
+
+        std::string style; // either E3B3 or E3B2
+        // creates the evaluator for the corresponding style (E3B3, or E3B2);
+        void createEvaluator();
+
         //!< List of int4 atom ids for the list of molecules;
         //   The order of this list does /not/ change throughout the simulation
         GPUArrayDeviceGlobal<int4> waterIdsGPU;
@@ -115,8 +121,18 @@ class FixE3B: public Fix {
         // the evaluator for E3B
         EvaluatorE3B evaluator;
 
+        //!< List of int4 atom idxs for the list of molecules of idxs
+        //   The order of this list, and the atom idxs within a given item, change every time \textit{either}: 
+        //            (1) state->gpd.idToIdxs changes
+        //            (2) gpdLocal.idToIdxs changes
+        GPUArrayDeviceGlobal<int4> waterIdxsGPU;
+
         int warpsPerBlock; //!< Number of warps (here, also molecules) to send to a given block for E3B 3-body computation
         int numBlocks;     //!< Number of blocks for E3B threebody kernel; depends on how many molecules per block
+        int nThreadsPerMolecule; //!< Number of threads per molecule; declared as an int here for clarity,
+        // we send it as the 'nThreadPerAtom' variable to the grid so that we have coherent 
+        // traversal of the molecular neighbor list
+
         // we use; we'll start with 8, and 32 threads per molecule --> 256 threads per block
         int threadsPerBlock; //!< threads per block for E3B threebody kernel
         // TODO: removing a molecule?? -- any method that permits modifying, esp. at runtime, 

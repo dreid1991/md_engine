@@ -143,7 +143,7 @@ public:
 
     // Variables that enable extension to PIMD
     int nPerRingPoly;			// RP discretization/number of time slices
-					// possibly later allow this to be vector per atom 
+					            // possibly later allow this to be vector per atom 
 
 
 

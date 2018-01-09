@@ -17,7 +17,6 @@ namespace py = boost::python;
 
 void GridGPU::initArrays() {
     //this happens in adjust for new bounds
-    //perCellArray = GPUArrayGlobal<uint32_t>(prod(ns) + 1);
     int nRingPoly = gpd->xs.size() / nPerRingPoly;   // number of ring polymers/atom representations
     if (nPerRingPoly > 1) {
         rpCentroids = GPUArrayDeviceGlobal<real4>(nRingPoly);
@@ -38,7 +37,8 @@ void GridGPU::initArrays() {
 }
 
 void GridGPU::initArraysTune() {
-    int nRingPoly = state->atoms.size() / state->nPerRingPoly;   // number of ring polymers/atom representations
+    // gpd->xs.size should result in same thing...?
+    int nRingPoly = gpd->xs.size() / state->nPerRingPoly;   // number of ring polymers/atom representations
     perBlockArray = GPUArrayGlobal<uint32_t>(NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerAtom()) + 1);
     // not +1 on this one, isn't cumul sum
     perBlockArray_maxNeighborsInBlock = GPUArrayDeviceGlobal<uint16_t>(NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerAtom()));
@@ -83,27 +83,34 @@ GridGPU::GridGPU() {
 }
 
 
-GridGPU::GridGPU(State *state_, real dx_, real dy_, real dz_, real neighCutoffMax_, int exclusionMode_, double padding_, GPUData *gpd_, int nPerRingPoly_)
+GridGPU::GridGPU(State *state_, real dx_, real dy_, real dz_, real neighCutoffMax_, int exclusionMode_, double padding_, GPUData *gpd_, int nPerRingPoly_, bool globalGrid_)
   : state(state_), nPerRingPoly(nPerRingPoly_) {
+    globalGrid = globalGrid_;
+
+    // just set these anyways; non-default grids will have to call the Tunable methods on their own,
+    // and can do so after the constructor is done doing its thing.
+    // --- Note: nThreadPerAtom must be updated for a local grid prior to computing the neighborlist,
+    //           other things will be organized incorrectly per-block etc...
     nThreadPerAtom(state->nThreadPerAtom);
     nThreadPerBlock(state->nThreadPerBlock);
     neighCutoffMax = neighCutoffMax_;
     gpd = gpd_;
+    // initialize maxNumNeighbors and set to zero; if we so choose, compute using computeMaxNumNeighbors();
     maxNumNeighbors = GPUArrayGlobal<uint16_t>(1);
     maxNumNeighbors.d_data.memset(0);
     padding = padding_;
     streamCreated = false;
-    onlyPositionsFlag = false;
+    onlyPositionsFlag = false; // default to false for GPD only having xs (and ids, by necessity)
+    exclusions = true; // default to true for exclusion mode --
     ns = make_int3(0, 0, 0);
     minGridDim = make_real3(dx_, dy_, dz_);
     boundsLastBuild = BoundsGPU(make_real3(0, 0, 0), make_real3(0, 0, 0), make_real3(0, 0, 0));
     setBounds(state->boundsGPU);
     initArrays();
 
-    initStream();
+    //initStream(); // does nothing
     numChecksSinceLastBuild = 0;
     exclusionMode = exclusionMode_;
-    
     handleExclusions();
 }
 
@@ -219,7 +226,7 @@ __global__ void compute_max_num_neighbors(uint16_t *neighborCounts, int nAtoms,
             uint16_t thisCount = neighborCounts[curIdx];
             if (thisCount > counts_shr[idx]) counts_shr[idx] = thisCount;
 
-            // increase curIdx by blockDim
+            // increase curIdx by blockDim.x == threads in this block
             curIdx += blockDim.x;
         }
 
@@ -227,8 +234,11 @@ __global__ void compute_max_num_neighbors(uint16_t *neighborCounts, int nAtoms,
         // we have enough threads - just write to shared memory
         counts_shr[idx] = neighborCounts[idx];
     }
+    // 
     __syncthreads();
     // call maxByN function in cutils_func.h
+    // -- blockDim.x is guaranteed by kernel launch to be <= nAtoms, 
+    //    and identically the number of atoms if nAtoms <= 1024
     maxByN<uint16_t>(counts_shr, blockDim.x, warpSize);
     maxNumNeighbors[0] = counts_shr[0];
     return;
@@ -721,7 +731,6 @@ __global__ void assignNeighbors(real4 *xs, int nRingPoly, int nPerRingPoly, uint
 
 
 }
-/**/
 
 
 
@@ -1071,6 +1080,14 @@ void GridGPU::periodicBoundaryConditions(real neighCut, bool forceBuild) {
 
         numChecksSinceLastBuild = 0;
         copyPositionsAsync(); 
+
+        // finally, loop over fixes and have them re-shuffle their data according to the new idToIdxs map
+        // --- only do this if this is state's gridgpu! Why? Because we are looping over state's fixes.
+        if (globalGrid) {
+            for (Fix *f : state->fixes) {
+                f->handleLocalData(); // our idxs were just shuffled
+            }
+        }
     } else {
         numChecksSinceLastBuild++;
     }
@@ -1344,6 +1361,7 @@ int GridGPU::computeMaxNumNeighbors() {
     }
     maxNumNeighbors.dataToHost();
     cudaDeviceSynchronize();
+    // the whole array now contains the singular max value; return index 0
     return maxNumNeighbors.h_data[0];
 }
 

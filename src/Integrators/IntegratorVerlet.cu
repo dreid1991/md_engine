@@ -643,7 +643,8 @@ double IntegratorVerlet::run(int numTurns)
     // -- e.g., isotropic pair potentials
     prepareFixes(false);
     
-    // iterates and computes forces only from fixes that return (prepared==true)
+    // iterates and computes forces only from fixes that return (prepared==true); 
+    // computes virials 
     forceInitial(true);
     
     // prepare the fixes that require forces to be computed on instantiation;

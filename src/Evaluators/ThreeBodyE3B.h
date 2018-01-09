@@ -238,44 +238,44 @@ __global__ void compute_E3B_force
 
         // warpReduce all forces; if virials, warpReduce all Virials as well
         // __shfl_down intrinsic only knows 32, 64 bit sizes; send element by element
-        warpReduceSum<real>(fs_sum_a.x,warpSize);
-        warpReduceSum<real>(fs_sum_a.y,warpSize);
-        warpReduceSum<real>(fs_sum_a.z,warpSize);
+        warpReduceSum(fs_sum_a,warpSize);
+        //warpReduceSum(fs_sum_a.y,warpSize);
+        //warpReduceSum(fs_sum_a.z,warpSize);
 
-        warpReduceSum<real>(fs_sum_b.x,warpSize);
-        warpReduceSum<real>(fs_sum_b.y,warpSize);
-        warpReduceSum<real>(fs_sum_b.z,warpSize);
+        warpReduceSum(fs_sum_b,warpSize);
+        //warpReduceSum(fs_sum_b.y,warpSize);
+        //warpReduceSum(fs_sum_b.z,warpSize);
 
-        warpReduceSum<real>(fs_sum_c.x,warpSize);
-        warpReduceSum<real>(fs_sum_c.y,warpSize);
-        warpReduceSum<real>(fs_sum_c.z,warpSize);
+        warpReduceSum(fs_sum_c,warpSize);
+        //warpReduceSum(fs_sum_c.y,warpSize);
+        //warpReduceSum(fs_sum_c.z,warpSize);
 
         if (COMP_VIRIALS) {
             // __shfl_down intrinsic only knows 32, 64 bit sizes; send element by element
 
             // virials for oxygen of reference molecule
-            warpReduceSum<real>(virialsSum_a[0],warpSize);
-            warpReduceSum<real>(virialsSum_a[1],warpSize);
-            warpReduceSum<real>(virialsSum_a[2],warpSize);
-            warpReduceSum<real>(virialsSum_a[3],warpSize);
-            warpReduceSum<real>(virialsSum_a[4],warpSize);
-            warpReduceSum<real>(virialsSum_a[5],warpSize);
+            warpReduceSum(virialsSum_a,warpSize);
+            //warpReduceSum<real>(virialsSum_a[1],warpSize);
+            //warpReduceSum<real>(virialsSum_a[2],warpSize);
+            //warpReduceSum<real>(virialsSum_a[3],warpSize);
+            //warpReduceSum<real>(virialsSum_a[4],warpSize);
+            //warpReduceSum<real>(virialsSum_a[5],warpSize);
             
             // virials for hydrogen H1 of reference molecule
-            warpReduceSum<real>(virialsSum_b[0],warpSize);
-            warpReduceSum<real>(virialsSum_b[1],warpSize);
-            warpReduceSum<real>(virialsSum_b[2],warpSize);
-            warpReduceSum<real>(virialsSum_b[3],warpSize);
-            warpReduceSum<real>(virialsSum_b[4],warpSize);
-            warpReduceSum<real>(virialsSum_b[5],warpSize);
+            warpReduceSum(virialsSum_b,warpSize);
+            //warpReduceSum<real>(virialsSum_b[1],warpSize);
+            //warpReduceSum<real>(virialsSum_b[2],warpSize);
+            //warpReduceSum<real>(virialsSum_b[3],warpSize);
+            //warpReduceSum<real>(virialsSum_b[4],warpSize);
+            //warpReduceSum<real>(virialsSum_b[5],warpSize);
 
             // virials for hydrogen H2 of reference molecule
-            warpReduceSum<real>(virialsSum_c[0],warpSize);
-            warpReduceSum<real>(virialsSum_c[1],warpSize);
-            warpReduceSum<real>(virialsSum_c[2],warpSize);
-            warpReduceSum<real>(virialsSum_c[3],warpSize);
-            warpReduceSum<real>(virialsSum_c[4],warpSize);
-            warpReduceSum<real>(virialsSum_c[5],warpSize);
+            warpReduceSum(virialsSum_c,warpSize);
+            //warpReduceSum<real>(virialsSum_c[1],warpSize);
+            //warpReduceSum<real>(virialsSum_c[2],warpSize);
+            //warpReduceSum<real>(virialsSum_c[3],warpSize);
+            //warpReduceSum<real>(virialsSum_c[4],warpSize);
+            //warpReduceSum<real>(virialsSum_c[5],warpSize);
         
         }
         
@@ -318,7 +318,7 @@ __global__ void compute_E3B_force
 
    
 // same thing, but now we compute the energy per molecule
- __global__ void compute_E3B_energy
+__global__ void compute_E3B_energy
         (int nMolecules, 
          const int4 *__restrict__ atomsFromMolecule,         // by moleculeIdx, has atomIdxs
          const uint16_t *__restrict__ neighborCounts,        // gridGPULocal
@@ -326,7 +326,7 @@ __global__ void compute_E3B_force
          const uint32_t * __restrict__ cumulSumMaxPerBlock,  // gridGPULocal
          int warpSize, 
          const real4 *__restrict__ xs,                       // as atomIdxs
-         real * __restrict__ perParticleEng, // this is per-particle (O,H,H)
+         real * __restrict__ perParticleEng,                 // this is per-particle (O,H,H)
          BoundsGPU bounds, 
          int nMoleculesPerBlock,
          int maxNumNeighbors,
@@ -347,14 +347,17 @@ __global__ void compute_E3B_force
     // ---- blockDim.x * (nMoleculesPerBlock) + (threadIdx.x /32) gives moleculeIdx
     int moleculeIdx = blockIdx.x * nMoleculesPerBlock + (threadIdx.x / warpSize);
     
+    // warpIdx in this block
+    int warpIdx     = (threadIdx.x / warpSize);
+
     // get where our neighborlist for this molecule starts
     // NOTE: this works because FixE3B passed our threadsPerBlock,threadsPerMolecule configuration 
     // to its grid when forming the neighborlist.
     int baseIdx = baseNeighlistIdxFromIndex(cumulSumMaxPerBlock, warpSize, moleculeIdx);
-    
+    // this molecule idx's neighborlist starts at nMoleculesPerBlock * blockIdx.x + warpIdx;
     // processing molecules by warp, i.e. a molecule's force computations are distributed across 32 threads in a threadblock;
     // then, 
-    // the molecule idx will be given by blockIdx.x*blockDim.x + (threadIdx.x / warpSize)
+    // the molecule idx will be given by blockIdx.x*nMoleculesPerBlock + (threadIdx.x / warpSize)
 
     // this will be true or false for an entire warp
     if (moleculeIdx < nMolecules) {
@@ -389,7 +392,6 @@ __global__ void compute_E3B_force
         // put the neighbor positions in to shared memory, so that we don't have to consult global memory every time
         // -- here, since we also just traverse the neighborlist the one time, do the two body correction.
         int curNlistIdx = threadIdx.x % warpSize; // begins as 0...31
-        int warpIdx = threadIdx.x / warpSize; // 0....8
         int base_smem_idx = warpIdx * maxNumNeighbors * 3; // this neighborlist begins at warpIdx * maxNumNeighbors * 3 (atoms perNeighbor)
 
         /* LOAD NEIGHBOR ATOM POSITIONS IN TO SHARED MEMORY */
@@ -405,13 +407,8 @@ __global__ void compute_E3B_force
             smem_neighborAtomPos[idx_in_smem_O+1] = xs[neighborAtomIdxs.y]; // global memory access
             smem_neighborAtomPos[idx_in_smem_O+2] = xs[neighborAtomIdxs.z]; // global memory access
 
-            // here we also compute the two body force
             real3 pos_a2 = make_real3(smem_neighborAtomPos[idx_in_smem_O]);
             real3 rij_a1a2 = bounds.minImage(pos_a1 - pos_a2);
-            // this will yield warning 'no effect' if ThreeBodyE3B is not explicitly passed 
-            // EvaluatorE3B; I suppose because the compiler assume pass by value 
-            // if it can't see the templated evaluator?  So, for this evaluator, we don't use 
-            // a template..
             real rij_a1a2_scalar = length(rij_a1a2);
             eng_sum_a += 0.5 * eval.twoBodyEnergy(rij_a1a2_scalar); // 0.5 because we double count all two body pairs
             curNlistIdx += warpSize;                                        // advance as a warpSize
@@ -537,28 +534,27 @@ __global__ void compute_E3B_force
         eng_sum_a /= 3.0;
         eng_sum_b /= 3.0;
         eng_sum_c /= 3.0;
+        real3 eng_sum_as_real3 = make_real3(eng_sum_a, eng_sum_b,eng_sum_c);
 
-        __syncwarp(); // we need to wait until all threads are done computing their forces (and virials)
-        // now, do lane shifting to accumulate the forces (and virials, if necessary) in to threadIdx == 0 which does global write
+        __syncwarp(); // we need to wait until all threads are done computing their energies
+        // now, do lane shifting to accumulate the energies in threadIdx.x % warpSize == 0
 
         // warpReduce all energies
-        warpReduceSum<real>(eng_sum_a,warpSize);
-        warpReduceSum<real>(eng_sum_b,warpSize);
-        warpReduceSum<real>(eng_sum_c,warpSize);
-        
+        warpReduceSum(eng_sum_as_real3,warpSize);
         // no syncing required after warp reductions
         
-        // threadIdx.x % warpSize does global write
+        // threadIdx.x % warpSize  == 0 does global write
         if ((threadIdx.x % warpSize) == 0) {
             // load current energies on O, H, H of reference molecule
             real cur_eng_O  = perParticleEng[atomsReferenceMolecule.x];
             real cur_eng_H1 = perParticleEng[atomsReferenceMolecule.y];
             real cur_eng_H2 = perParticleEng[atomsReferenceMolecule.z];
 
-            // add contributions from E3B
-            cur_eng_O += eng_sum_a;
-            cur_eng_H1+= eng_sum_b;
-            cur_eng_H2+= eng_sum_c;
+            // add contributions from E3B; {.x, .y, .z} as O, H1, H2;
+            // --- for some reason, doing this as simple 'real' instead of real3 caused compilation error
+            cur_eng_O += eng_sum_as_real3.x;
+            cur_eng_H1+= eng_sum_as_real3.y;
+            cur_eng_H2+= eng_sum_as_real3.z;
 
             // write energies to global
             perParticleEng[atomsReferenceMolecule.x] = cur_eng_O;
@@ -570,9 +566,5 @@ __global__ void compute_E3B_force
 } // end compute_E3B_energy
 
 #endif /* __CUDACC__ */
-
-
-
-
 
 

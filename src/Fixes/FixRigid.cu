@@ -910,32 +910,6 @@ __global__ void settlePositions(int4 *waterIds, real4 *xs, real4 *xs_0,
         double3 velH1= make_double3(velH1_whole);
         double3 velH2= make_double3(velH2_whole);
         
-        if (DEBUG_BOOL) {
-
-            posO = make_double3(17.4575271824439, 28.0674544952710, 19.7605025286681);
-            posH1 = make_double3(18.3862875449773, 28.1295399140363, 19.5360517433464);
-            posH2 = make_double3(17.3029620554269, 27.1308634077511, 19.8859719102520);
-
-            velO = make_double3(-0.12600370572210, -0.10849973300457,  0.02401241678280)* 0.01;
-            velH1= make_double3(-0.26968554843436,  2.32281894773213, -0.16386435371728)* 0.01;
-            velH2= make_double3(2.26966936721430,  -0.60066554670720, -0.21727082592036)* 0.01;
-       
-
-            printf("ow1 x,y,z v : %18.14f   %18.14f   %18.14f\n",
-                   velO.x, velO.y, velO.z);
-            printf("hw2 x,y,z v : %18.14f   %18.14f   %18.14f\n",
-                   velH1.x, velH1.y, velH1.z);
-            printf("hw3 x,y,z v : %18.14f   %18.14f   %18.14f\n",
-                   velH2.x, velH2.y, velH2.z);
-
-            printf("ow1 x,y,z after: %18.14f  %18.14f  %18.14f\n",
-                   posO.x, posO.y, posO.z);
-            printf("hw2 x,y,z after: %18.14f  %18.14f  %18.14f\n",
-                   posH1.x, posH1.y, posH1.z);
-            printf("hw3 x,y,z after: %18.14f  %18.14f  %18.14f\n",
-                   posH2.x, posH2.y, posH2.z);
-        }
-    
         // get the relative vectors OH1, OH2 for the initial triangle (solution from last step)
         double3 vectorOH1 = bounds.minImage(posH1_initial - posO_initial);
         double3 vectorOH2 = bounds.minImage(posH2_initial - posO_initial);

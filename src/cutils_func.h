@@ -9,6 +9,7 @@
 #define N_DATA_PER_THREAD 4 //must be power of 2, 4 found to be fastest for a reals and real4s
 //tests show that N_DATA_PER_THREAD = 4 is fastest
 
+#ifdef __CUDACC__
 inline __device__ int baseNeighlistIdx(const uint32_t *cumulSumMaxMemPerWarp, int warpSize, int nThreadPerAtom) { 
     uint32_t cumulSumUpToMe = cumulSumMaxMemPerWarp[blockIdx.x];
     uint32_t memSizePerWarpMe = cumulSumMaxMemPerWarp[blockIdx.x+1] - cumulSumUpToMe;
@@ -53,7 +54,8 @@ inline __device__ int baseNeighlistIdxFromRPIndex(const uint32_t *cumulSumMaxMem
 }
 */
 inline __device__ int baseNeighlistIdxFromIndex(const uint32_t *cumulSumMaxPerBlock, int warpSize, int idx) {
-    int blockIdx = idx / blockDim.x;
+    int blockIdx = idx / blockDim.x; // idx as from GETIDX(); but, as long as idx is an absolute metric, 
+    // we are ok
     int warpIdx = (idx - blockIdx * blockDim.x) / warpSize;
     int idxInWarp = idx - blockIdx * blockDim.x - warpIdx * warpSize;
     uint32_t cumSumUpToMyBlock = cumulSumMaxPerBlock[blockIdx];
@@ -357,17 +359,38 @@ __global__ void accumulate_gpu_if(K *dest, T *src, int n, int warpSize, C instan
         atomicAdd(destDASH + threadIdx.x, tmpDASH[threadIdx.x]);
     }
 }
-
-// T must be <= 8 bytes, or you're going to have a bad time
-template <typename T>
-__inline__ __device__ real warpReduceSum(T val, int warpSize) {
+// overload this function
+__inline__ __device__ double3 warpReduceSum(double3 val, int warpSize) {
     for (int offset = warpSize/2; offset > 0; offset /= 2) {
-        val += __shfl_down_sync(val, offset);
+        val.x += __shfl_down_sync(0xffffffff,val.x, offset);
+        val.y += __shfl_down_sync(0xffffffff,val.y, offset);
+        val.z += __shfl_down_sync(0xffffffff,val.z, offset);
     }
     return val;
 }
 
+// we can overload this function
+__inline__ __device__ float3 warpReduceSum(float3 val, int warpSize) {
+    for (int offset = warpSize/2; offset > 0; offset /= 2) {
+        val.x += __shfl_down_sync(0xffffffff,val.x, offset);
+        val.y += __shfl_down_sync(0xffffffff,val.y, offset);
+        val.z += __shfl_down_sync(0xffffffff,val.z, offset);
+    }
+    return val;
+}
 
+__inline__ __device__ Virial warpReduceSum(Virial val, int warpSize) {
+    for (int offset = warpSize/2; offset > 0; offset /= 2) {
+        val[0] += __shfl_down_sync(0xffffffff,val[0],offset);
+        val[1] += __shfl_down_sync(0xffffffff,val[1],offset);
+        val[2] += __shfl_down_sync(0xffffffff,val[2],offset);
+        val[3] += __shfl_down_sync(0xffffffff,val[3],offset);
+        val[4] += __shfl_down_sync(0xffffffff,val[4],offset);
+        val[5] += __shfl_down_sync(0xffffffff,val[5],offset);
+    }
+    return val;
+}
 
+#endif /* #ifdef __CUDACC__ */
 
 #endif
