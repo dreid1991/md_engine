@@ -144,15 +144,14 @@ class EvaluatorE3B {
 
         template <bool COMP_VIRIALS>
         inline __host__ __device__ void threeBodyForce(real3 &fs_a1_sum, real3 &fs_b1_sum, real3 &fs_c1_sum,
-                                                Virial &virialsSum_a, Virial &virialsSum_b, Virial &virialsSum_c,
-                                                const real3 &r_a1b2, const real3 &r_a1c2, 
-                                                const real3 &r_b1a2, const real3 &r_c1a2,
-                                                const real3 &r_a1b3, const real3 &r_a1c3,
-                                                const real3 &r_b1a3, const real3 &r_c1a3,
-                                                const real3 &r_a2b3, const real3 &r_a2c3,
-                                                const real3 &r_b2a3, const real3 &r_c2a3) {
+                                                    Virial &virialsSum_a, Virial &virialsSum_b, Virial &virialsSum_c,
+                                                    const real3 &r_a1b2, const real3 &r_a1c2, 
+                                                    const real3 &r_b1a2, const real3 &r_c1a2,
+                                                    const real3 &r_a1b3, const real3 &r_a1c3,
+                                                    const real3 &r_b1a3, const real3 &r_c1a3,
+                                                    const real3 &r_a2b3, const real3 &r_a2c3,
+                                                    const real3 &r_b2a3, const real3 &r_c2a3) {
                                  
-
             // get the distance scalars associated with the rij vectors
             real r_a1b2_scalar = length(r_a1b2);  // COMPLETE
             real r_a1c2_scalar = length(r_a1c2);  // COMPLETE
@@ -161,10 +160,10 @@ class EvaluatorE3B {
             real r_c1a2_scalar = length(r_c1a2);  // COMPLETE
 
             real r_a1b3_scalar = length(r_a1b3);  // COMPLETE
-            real r_a1c3_scalar = length(r_a1c3);
+            real r_a1c3_scalar = length(r_a1c3);  // COMPLETE
 
-            real r_b1a3_scalar = length(r_b1a3);
-            real r_c1a3_scalar = length(r_c1a3);
+            real r_b1a3_scalar = length(r_b1a3);  // COMPLETE 
+            real r_c1a3_scalar = length(r_c1a3);  // COMPLETE
 
             real r_a2b3_scalar = length(r_a2b3);  // not a force directing vector
             real r_a2c3_scalar = length(r_a2c3);  // not a force directing vector
@@ -183,16 +182,6 @@ class EvaluatorE3B {
             // we group terms according to vector direction, so as to minimize calls to 
             // computeVirials
 
-            /* b1a2 direction terms:
-             * f(r_b1a2,r_c1a3)
-             * g(b1a2,b3a1)
-             * g(b1a2,c3a1)
-             * g(c2a3,b1a2)
-             * g(b2a3,b1a2)
-             * h(b1a2,b3a2)
-             * h(b1a2,c3a2)
-             */
-            
             // f(r_b1a2,r_c1a3); FIRST CALL, set as assignment
             fs_scalar = threeBodyForceScalar(r_b1a2_scalar,r_c1a3_scalar,Ea);
             // g(b1a2,b3a1); AGGREGATE
@@ -216,16 +205,6 @@ class EvaluatorE3B {
                 computeVirial(virialsSum_b, fs_tmp, r_b1a2);
             }
             
-            /* a1b2 direction terms: (b2a1 in E3B1 paper)
-             * f(b2a1,c2a3)
-             * g(b1a3,b2a1)
-             * g(c1a3,b2a1)
-             * g(b2a1,b3a2)
-             * g(b2a1,c3a2)
-             * h(b2a1,b3a1)
-             * h(b2a1,c3a1)
-             */
-            
             // f(r_b2a1,r_c2a3); FIRST CALL, set as assignment
             fs_scalar = threeBodyForceScalar(r_a1b2_scalar,r_c2a3_scalar,Ea);
             // g(b1a3,b2a1)
@@ -247,16 +226,6 @@ class EvaluatorE3B {
                 computeVirial(virialsSum_a,fs_tmp,r_a1b2);
             }
 
-            /* a1c2 direction: (c2a1 in E3B1 paper) 
-             * f(b2a3,c2a1)
-             * g(b1a3,c2a1)
-             * g(c1a3,c2a1)
-             * g(c2a1,b3a2)
-             * g(c2a1,c3a2)
-             * h(c2a1,b3a1)
-             * h(c2a1,c3a1)
-             */
-           
             // f(b2a3,c2a1)
             fs_scalar =  threeBodyForceScalar(r_a1c2_scalar,r_b2a3_scalar,Ea);
             // g(b1a3,c2a1)
@@ -278,15 +247,6 @@ class EvaluatorE3B {
                 computeVirial(virialsSum_a,fs_tmp,r_a1c2);
             }
 
-            /* c1a2 direction
-             * f(b1a3, c1a2)
-             * g(c1a2, b3a1)
-             * g(c1a2, c3a1)
-             * g(b2a3, c1a2)
-             * g(c2a3, c1a2)
-             * h(c1a2, b3a2)
-             * h(c1a2, c3a2)
-             */
             // f(b1a3,c1a2)
             fs_scalar =  threeBodyForceScalar(r_c1a2_scalar,r_b1a3_scalar,Ea);
             // g(c1a2,b3a1)
@@ -307,15 +267,7 @@ class EvaluatorE3B {
             if (COMP_VIRIALS) {
                 computeVirial(virialsSum_c,fs_tmp,r_c1a2);
             }
-            /* a1b3 direction
-             * f(b3a1,c3a2)
-             * g(b1a2,b3a1)
-             * g(c1a2,b3a1)
-             * g(b3a1,b2a3)
-             * g(b3a1,c2a3)
-             * h(b2a1,b3a1)
-             * h(c2a1,b3a1)
-             */
+            
             // f(b3a1,c3a2)
             fs_scalar =  threeBodyForceScalar(r_a1b3_scalar,r_a2c3_scalar,Ea);
             // g(b1a2,b3a1)
@@ -336,16 +288,7 @@ class EvaluatorE3B {
             if (COMP_VIRIALS) {
                 computeVirial(virialsSum_a,fs_tmp,r_a1b3);
             }
-
-            /* a1c3 direction
-             * f(b3a2,c3a1)
-             * g(b1a2,c3a1)
-             * g(c1a2,c3a1)
-             * g(c3a1,b2a3)
-             * g(c3a1,c2a3)
-             * h(b2a1,c3a1)
-             * h(c2a1,c3a1)
-             */
+            
             // f(b3a2,c3a1)
             fs_scalar =  threeBodyForceScalar(r_a1c3_scalar,r_a2b3_scalar,Ea);
             // g(b1a2,c3a1)
@@ -367,15 +310,6 @@ class EvaluatorE3B {
                 computeVirial(virialsSum_a,fs_tmp,r_a1c3);
             }
 
-            /* b1a3 direction
-             * f(b1a3,c1a2)
-             * g(b1a3,b2a1)
-             * g(b1a3,c2a1)
-             * g(b3a2,b1a3)
-             * g(c3a2,b1a3)
-             * h(b1a3,b2a3)
-             * h(b1a3,c2a3)
-             */
             // f(b1a3,c1a2)
             fs_scalar =  threeBodyForceScalar(r_b1a3_scalar,r_c1a2_scalar,Ea);
             // g(b1a3,b2a1)
@@ -397,15 +331,6 @@ class EvaluatorE3B {
                 computeVirial(virialsSum_b,fs_tmp,r_b1a3);
             }
         
-            /* c1a3 direction 
-             * f(b1a2,c1a3)
-             * g(c1a3,b2a1)
-             * g(c1a3,c2a1)
-             * g(b3a2,c1a3)
-             * g(c3a2,c1a3)
-             * h(c1a3,b2a3)
-             * h(c1a3,c2a3)
-             */
             // f(b1a2,c1a3)
             fs_scalar =  threeBodyForceScalar(r_c1a3_scalar,r_b1a2_scalar,Ea);
             // g(c1a3,b2a1)

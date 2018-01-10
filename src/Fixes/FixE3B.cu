@@ -28,6 +28,9 @@ FixE3B::FixE3B(boost::shared_ptr<State> state_,
 
 };
 
+
+
+
 //
 // what arguments do we need here? we are updating the molecule positions from 
 // the current atom positions
@@ -36,6 +39,69 @@ FixE3B::FixE3B(boost::shared_ptr<State> state_,
 __device__ inline real3 positionsToCOM_E3B(real3 *pos, real *mass, real ims) {
   return (pos[0]*mass[0] + pos[1]*mass[1] + pos[2]*mass[2] + pos[3]*mass[3])*ims;
 }
+
+
+// E.g., check using 3 or 10 molecules initialized close to each other;
+__global__ void printNlist_E3B(int nMolecules, int4 *waterIdxs, uint16_t *neighborCounts, uint *neighborlist,
+                               uint32_t *cumulSumMaxPerBlock, real4 *mol_xs, int warpSize, real4 *xs, real4 *fs, 
+                               BoundsGPU bounds, int nMoleculesPerBlock, int maxNumNeighbors) {
+    
+    int moleculeIdx = blockIdx.x * nMoleculesPerBlock + (threadIdx.x / warpSize);
+
+    // where my nlist starts
+    int baseIdx     = baseNeighlistIdxFromRPIndex(cumulSumMaxPerBlock, warpSize, moleculeIdx, warpSize);
+
+    int threadsPerMolecule = warpSize;
+    //int nlistIdx = baseIdx + initNlistIdx +  warpSize * (curNlistIdx/warpSize);
+    //int neighborMoleculeIdx = neighborlist[nlistIdx];                  // global memory access
+    //int4 neighborAtomIdxs    = atomsFromMolecule[neighborMoleculeIdx]; // global memory access
+    // ok, we have one molecule per warp
+    if (moleculeIdx < nMolecules) {
+        
+        if (threadIdx.x % warpSize == 0) {
+            // ok; let's get ME;
+            int4 atoms = waterIdxs[moleculeIdx];
+            real4 posO = xs[atoms.x];
+            real4 posH1= xs[atoms.y];
+            real4 posH2= xs[atoms.z];
+
+            // those are my atoms; my COM is: 
+            real4 posMolecule = mol_xs[moleculeIdx];
+
+            // print out this information
+            printf("threadIdx %d COM %f %f %f\n", threadIdx.x, posMolecule.x, posMolecule.y, posMolecule.z);
+            printf("threadIdx %d O   %f %f %f\n", threadIdx.x, posO.x, posO.y, posO.z);
+            printf("threadIdx %d H1  %f %f %f\n", threadIdx.x, posH1.x, posH1.y, posH1.z);
+            printf("threadIdx %d H2  %f %f %f\n", threadIdx.x, posH2.x, posH2.y, posH2.z);
+
+        }
+    }
+
+    __syncthreads();
+
+    if (moleculeIdx < nMolecules) {
+
+        // print my neighbors molecule idxs; we can gather the information from above...
+
+        // let's loop over
+        if (threadIdx.x % warpSize == 0) {
+            int numNeighbors = neighborCounts[moleculeIdx];
+            printf("moleculeIdx %d has %d neighbors", moleculeIdx, numNeighbors);
+            for (int i = 0; i < threadsPerMolecule; i++) {// simulated thread idx, using thread 0
+                for (int j = i; j < numNeighbors; j+=threadsPerMolecule) { // start it at the simulated thread idx;
+                    int nlistIdx = baseIdx + i + warpSize * (j / threadsPerMolecule);
+                    int neighborMoleculeIdx = neighborlist[nlistIdx];
+                    printf("moleculeIdx %d neighbor %d: moleculeIdx %d\n", moleculeIdx, j, neighborMoleculeIdx);
+                }
+            }
+        }
+    }
+
+    __syncthreads();
+    // ????
+
+}
+
 
 
 __global__ void updateMoleculeIdxsMap(int nMolecules, int4 *waterIds, 
@@ -79,8 +145,11 @@ __global__ void update_xs(int nMolecules, int4 *waterIdxs, real4 *mol_xs,
         // may as well make these arrays
 
         // just for clarity: we are looking at molecule /id/
-        int4 atomIdxs = waterIdxs[idx];
+        //real4 init_pos = mol_xs[idx];
 
+        //printf("init_pos idx %d: %f %f %f\n", idx, init_pos.x, init_pos.y, init_pos.z);
+        int4 atomIdxs = waterIdxs[idx];
+        
         real4 pos_O_whole = xs[atomIdxs.x];
         real4 pos_H1_whole= xs[atomIdxs.y];
         real4 pos_H2_whole= xs[atomIdxs.z];
@@ -108,18 +177,58 @@ __global__ void update_xs(int nMolecules, int4 *waterIdxs, real4 *mol_xs,
         real3 posH1= make_real3(pos_H1_whole);
         real3 posH2= make_real3(pos_H2_whole);
         real3 posM = make_real3(pos_M_whole);
-
-        real3 posH1_min = posO + bounds.minImage(posH1 - posO);
-        real3 posH2_min = posO + bounds.minImage(posH2 - posO);
-        real3 posM_min  = posO + bounds.minImage(posM  - posO);
+        //printf("idx %d O atom pos: %f %f %f\n", idx, posO.x, posO.y, posO.z);
+        //printf("idx %d H1 atom pos: %f %f %f\n", idx, posH1.x, posH1.y, posH1.z);
+        //printf("idx %d H2 atom pos: %f %f %f\n", idx, posH2.x, posH2.y, posH2.z);
+        //printf("idx %d weights: %f %f %f\n", idx, weightH1, weightH2, weightM);
+        real3 dispH1_min = bounds.minImage(posH1 - posO);
+        real3 dispH2_min = bounds.minImage(posH2 - posO);
+        real3 dispM_min  = bounds.minImage(posM  - posO);
+        // these are not position vectors - they are displacements.
 
         // more accurate way to calculate COM
-        real3 pos_COM =  posO - (posH1_min * weightH1) - (posH2_min * weightH2) - (posM_min * weightM);
+        real3 pos_COM =  posO + (dispH1_min * weightH1) + (dispH2_min * weightH2) + (dispM_min * weightM);
         // make pos_H1, pos_H2, pos_M the minImage w.r.t. pos_O
         real4 value_to_store = make_real4(pos_COM.x, pos_COM.y, pos_COM.z, invMass);
+        //printf("final pos idx %d: %f %f %f\n", idx, value_to_store.x, value_to_store.y,value_to_store.z);
         mol_xs[idx] = value_to_store;
 
     }
+
+}
+
+void FixE3B::checkNeighborlist() {
+    int activeIdx = gpdLocal.activeIdx();
+    int warpSize = state->devManager.prop.warpSize;
+
+    // and the global gpd
+    // --- IMPORTANT: the virials must be taken from the /global/ gpudata!
+    GPUData &gpdGlobal = state->gpd;
+    int globalActiveIdx = gpdGlobal.activeIdx();
+    
+    int maxNumNeighbors = gridGPULocal.computeMaxNumNeighbors();
+    
+    CUT_CHECK_ERROR("GridGPU.computeMaxNumNeighbors() failed\n");
+
+    // shared memory is allocated on a per-block basis
+    // sizeof(real3) * (atoms per neighbor) * (neighbors per molecule) *
+    // (molecules per block) = memory per block
+    //size_t sharedMemSize = 3 * maxNumNeighbors * warpsPerBlock * sizeof(real3);
+    printNlist_E3B<<<numBlocks,threadsPerBlock>>>(nMolecules,
+                                waterIdxsGPU.data(),
+                                gridGPULocal.perAtomArray.d_data.data(),  // neighbor counts for molecule idx
+                                gridGPULocal.neighborlist.data(),         // neighbor idx for molecule idx
+                                gridGPULocal.perBlockArray.d_data.data(), // cumulSumMaxPerBlock
+                                gpdLocal.xs(activeIdx),                   // for comparing to xs of constituent atoms
+                                warpSize,
+                                gpdGlobal.xs(globalActiveIdx),            // as atom idxs 
+                                gpdGlobal.fs(globalActiveIdx),
+                                state->boundsGPU,
+                                warpsPerBlock,                            // used to compute molecule idx
+                                maxNumNeighbors);                          // defines beginning index in smem
+
+    
+    cudaDeviceSynchronize(); // so that we see printed info
 
 }
 
@@ -173,18 +282,18 @@ void FixE3B::compute(int virialMode) {
 
     int maxNumNeighbors = gridGPULocal.computeMaxNumNeighbors();
     
+    CUT_CHECK_ERROR("GridGPU.computeMaxNumNeighbors() failed\n");
 
     // So, we can have 256 concurrently computed threads per streaming multiprocessor; a warp is 32 threads;
     // per SM, we can therefore have 8 molecules; 
     //  -- we will do intra-warp reduction for forces and virials, rather than block reduction
     //  shared memory is used to store nlist molecule - atom positions, so we don't need to access 
     //  global memory for those except the one time
-    size_t sharedMemSize = maxNumNeighbors * warpsPerBlock * sizeof(real4);
+
     if (computeVirials) {
             // numBlocks, threadsPerBlock defined in prepareForRun()
         compute_E3B_force<true><<<numBlocks,
-                                threadsPerBlock,
-                                sharedMemSize>>>(nMolecules,              // nMolecules in E3B potential
+                                threadsPerBlock,3*maxNumNeighbors*warpsPerBlock*sizeof(real3)>>>(nMolecules,              // nMolecules in E3B potential
                                 waterIdxsGPU.data(),                      // atomIdxs for molecule idx
                                 gridGPULocal.perAtomArray.d_data.data(),  // neighbor counts for molecule idx
                                 gridGPULocal.neighborlist.data(),         // neighbor idx for molecule idx
@@ -207,8 +316,7 @@ void FixE3B::compute(int virialMode) {
 
             // numBlocks, threadsPerBlock defined in prepareForRun()
         compute_E3B_force<false><<<numBlocks,
-                                threadsPerBlock,
-                                sharedMemSize>>>(nMolecules,              // nMolecules in E3B potential
+                                threadsPerBlock,3*maxNumNeighbors*warpsPerBlock*sizeof(real3)>>>(nMolecules,              // nMolecules in E3B potential
                                 waterIdxsGPU.data(),                      // atomIdxs for molecule idx
                                 gridGPULocal.perAtomArray.d_data.data(),  // neighbor counts for molecule idx
                                 gridGPULocal.neighborlist.data(),         // neighbor idx for molecule idx
@@ -225,6 +333,8 @@ void FixE3B::compute(int virialMode) {
         //compute_E3B<EvaluatorE3B,false><<<numBlocks,threadsPerBlock,sharedmem>>>(
 
     }
+    
+    CUT_CHECK_ERROR("compute_E3B_force failed.\n");
 }
 
 void FixE3B::handleLocalData() {
@@ -241,8 +351,15 @@ void FixE3B::handleLocalData() {
                                                                waterIdxsGPU.data(),
                                                                gpdLocal.idToIdxs.d_data.data(),
                                                                gpdGlobal.idToIdxs.d_data.data());
+        BoundsGPU &bounds = state->boundsGPU;
+        update_xs<<<NBLOCK(nMolecules), PERBLOCK>>>(nMolecules, 
+                                                waterIdxsGPU.data(),           
+                                                gpdLocal.xs(activeIdx),        // to store COMs
+                                                gpdGlobal.xs(globalActiveIdx), // positions of atoms
+                                                gpdGlobal.vs(globalActiveIdx), // for masses
+                                                bounds
+                                                );
     }
-
 }
 
 
@@ -265,8 +382,7 @@ bool FixE3B::stepInit(){
     //    of their constituent atoms
 
     // update the positions of our molecules
-    // --- if we assume that waterIdxsMap is up-to-date, we can store the positions of the molecule 
-    //     directly in waterIdxsGPU
+    // --- this is stepInit(); so, if state's grid called 
     update_xs<<<NBLOCK(nMolecules), PERBLOCK>>>(nMolecules, 
                                                 waterIdxsGPU.data(),           
                                                 gpdLocal.xs(activeIdx),        // to store COMs
@@ -275,7 +391,7 @@ bool FixE3B::stepInit(){
                                                 bounds
                                                 );
 
-
+    //cudaDeviceSynchronize(); // TODO delete, just for printing stuff
 
     // for each thread, we have one molecule
     // -- get the atoms for this idx, compute COM, set the xs to the new value, and return
@@ -323,10 +439,10 @@ void FixE3B::singlePointEng(real *perParticleEng) {
     //  -- we will do intra-warp reduction for forces and virials, rather than block reduction
     //  shared memory is used to store nlist molecule - atom positions, so we don't need to access 
     //  global memory for those except the one time
-    size_t sharedMemSize = maxNumNeighbors * warpsPerBlock * sizeof(real4);
+    //size_t sharedMemSize = 3 * maxNumNeighbors * warpsPerBlock * sizeof(real3);
     compute_E3B_energy<<<numBlocks,
                         threadsPerBlock,
-                        sharedMemSize>>>(nMolecules,              // nMolecules in E3B potential
+                        3*maxNumNeighbors*warpsPerBlock*sizeof(real3)>>>(nMolecules,              // nMolecules in E3B potential
                         waterIdxsGPU.data(),                      // atomIdxs for molecule idx
                         gridGPULocal.perAtomArray.d_data.data(),  // neighbor counts for molecule idx
                         gridGPULocal.neighborlist.data(),         // neighbor idx for molecule idx
@@ -484,8 +600,8 @@ bool FixE3B::prepareForRun(){
     gpdLocal.idsBuffer = GPUArrayGlobal<uint>(nMolecules);
 
     /* Setting parameters for E3B kernel; we do one molecule per warp */
-    warpsPerBlock = 8;
-    numBlocks = (int) ceil(nMolecules / warpsPerBlock);  // at 8 molecules per block, we need 
+    warpsPerBlock = 4;
+    numBlocks = (int) ceil((double) nMolecules / (double)warpsPerBlock);  // at 8 molecules per block, we need 
     // (nMolecules / molecules per block) = nblocks
     // warpSize gives threads per Molecule;
     int warpSize = state->devManager.prop.warpSize;
@@ -549,9 +665,39 @@ bool FixE3B::prepareForRun(){
     handleLocalData(); // on having a changed idToIdx, for either molecules or atoms, this updates the 
     // int4 atomIdxs stored in waterIdxsGPU
 
+    CUT_CHECK_ERROR("Could not prepare fix e3b correctly..\n");
     return prepared;
 }
 
+void FixE3B::takeStateNThreadPerBlock(int dummy) {
+    // E3B maintains a constant value of threadsPerBlock.
+    if (prepared) {
+        oldNThreadPerBlock = nThreadPerBlock(); // gets the value..
+
+        nThreadPerBlock(threadsPerBlock);
+        gridGPULocal.nThreadPerBlock(threadsPerBlock);
+        // XXX NOTE: 
+        // see Integrator::tune();
+        //     fix->takeStateNThreadPerAtom is called /after/ takeStateNThreadPerBlock... so
+    }
+}
+
+void FixE3B::takeStateNThreadPerAtom(int dummy) {
+    // E3B maintains a constant value of threadsPerAtom (molecule, really)
+    if (prepared) {
+        oldNThreadPerAtom = nThreadPerAtom();
+        nThreadPerAtom(nThreadsPerMolecule);
+        gridGPULocal.nThreadPerAtom(nThreadsPerMolecule);
+        // ok; compare oldNThreadPerAtom, oldNThreadPerBlock with nThreadPerBlock;
+        // if they changed, call initArraysTune(), and then PBC
+
+        if ((oldNThreadPerAtom != nThreadPerAtom()) or 
+            (oldNThreadPerBlock != nThreadPerBlock())) {
+            gridGPULocal.initArraysTune();
+            gridGPULocal.periodicBoundaryConditions(-1,true);
+        }
+    }
+};
 
 /* restart chunk?
 
@@ -630,6 +776,7 @@ void export_FixE3B() {
     .def("setStyle", &FixE3B::setStyle,
          py::arg("style")
         )
+    .def("checkNeighborlist", &FixE3B::checkNeighborlist)
     // the list of molecules
     .def_readonly("molecules", &FixE3B::waterMolecules)
     .def_readonly("nMolecules", &FixE3B::nMolecules)

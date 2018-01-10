@@ -359,8 +359,10 @@ __global__ void accumulate_gpu_if(K *dest, T *src, int n, int warpSize, C instan
         atomicAdd(destDASH + threadIdx.x, tmpDASH[threadIdx.x]);
     }
 }
-// overload this function
+
+// verified correct
 __inline__ __device__ double3 warpReduceSum(double3 val, int warpSize) {
+    // 0xffffffff is bitmask saying all threads participate in warp reduction
     for (int offset = warpSize/2; offset > 0; offset /= 2) {
         val.x += __shfl_down_sync(0xffffffff,val.x, offset);
         val.y += __shfl_down_sync(0xffffffff,val.y, offset);
@@ -369,7 +371,6 @@ __inline__ __device__ double3 warpReduceSum(double3 val, int warpSize) {
     return val;
 }
 
-// we can overload this function
 __inline__ __device__ float3 warpReduceSum(float3 val, int warpSize) {
     for (int offset = warpSize/2; offset > 0; offset /= 2) {
         val.x += __shfl_down_sync(0xffffffff,val.x, offset);

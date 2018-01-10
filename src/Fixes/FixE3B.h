@@ -133,10 +133,21 @@ class FixE3B: public Fix {
         // we send it as the 'nThreadPerAtom' variable to the grid so that we have coherent 
         // traversal of the molecular neighbor list
 
+        void checkNeighborlist();
+
         // we use; we'll start with 8, and 32 threads per molecule --> 256 threads per block
         int threadsPerBlock; //!< threads per block for E3B threebody kernel
         // TODO: removing a molecule?? -- any method that permits modifying, esp. at runtime, 
         // nAtoms in state gpd would similarly be able to remove atoms (molecules) in this GPD
+ 
+        int oldNThreadPerBlock;
+        int oldNThreadPerAtom;
+        // -- override Fix's methods for takeStateNThreadPerBlock; we do not want state's parameters 
+        //    for this fix
+        void takeStateNThreadPerBlock(int);
+        void takeStateNThreadPerAtom(int);
+
+
 };
 
 

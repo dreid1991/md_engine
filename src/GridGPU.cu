@@ -217,28 +217,26 @@ __global__ void compute_max_num_neighbors(uint16_t *neighborCounts, int nAtoms,
     // idx will remain constant so we write to same place in shared memory while 
     // traversing the neighborCounts array
     int curIdx = idx; 
-    // we don't need to check that idx is less than nAtoms here; 
-    // kernel launch dictates that nThreads is <= nAtoms
     counts_shr[idx] = 0;
     __syncthreads();
-    if (MULTIATOMPERTHREAD) {
+    // check if this thread starts at a value
+
+
+    // OK; PERBLOCK threads were launched, and PERBLOCK * sizeof(uint16_t) smem was allocated;
+    // --- if idx > nAtoms (e.g. a 100 atom system), then counts_shr[100:255] = 0;
+    //     and we skip this iff; then, sync threads
+    // --- if idx < nAtoms
+    if (idx < nAtoms) {
         while (curIdx < nAtoms) {
             uint16_t thisCount = neighborCounts[curIdx];
             if (thisCount > counts_shr[idx]) counts_shr[idx] = thisCount;
-
             // increase curIdx by blockDim.x == threads in this block
             curIdx += blockDim.x;
         }
-
-    } else {
-        // we have enough threads - just write to shared memory
-        counts_shr[idx] = neighborCounts[idx];
     }
-    // 
+
     __syncthreads();
     // call maxByN function in cutils_func.h
-    // -- blockDim.x is guaranteed by kernel launch to be <= nAtoms, 
-    //    and identically the number of atoms if nAtoms <= 1024
     maxByN<uint16_t>(counts_shr, blockDim.x, warpSize);
     maxNumNeighbors[0] = counts_shr[0];
     return;
@@ -443,15 +441,16 @@ __global__ void countNumNeighbors(real4 *xs, int nRingPoly,
         } // endfor xIdx
 #endif /* DASH_DOUBLE */
         // XXX
-	//__syncthreads();
         //if (idx == 0) {
         //  for ( int j = 0; j<nRingPoly; j++) {printf("my id = %d, # neigh = %d\n",j,neighborCounts[j]);}
         //}
     }
+	__syncwarp(); // reduceByN_NOSYNC assumes warp synchronicity
     if (MULTITHREADPERATOM) {
         counts_shr[threadIdx.x] = myCount;
         reduceByN_NOSYNC<uint16_t>(counts_shr, nThreadPerRP);
         if (validThread and not (threadIdx.x % nThreadPerRP)) {
+            // so, if validThread and (threadIdx.x%nThreadPerRP == 0)...
             //printf("c %d %d\n ", (int) counts_shr[threadIdx.x], nThreadPerRP);
             //printf("tid %d counted %d\n", threadIdx.x, counts_shr[threadIdx.x]-1);
             neighborCounts[atomIdx] = counts_shr[threadIdx.x] - 1; //-1 because I counted myself
@@ -853,8 +852,10 @@ void GridGPU::periodicBoundaryConditions(real neighCut, bool forceBuild) {
     cudaDeviceSynchronize();
 
     if (buildFlag.h_data[0] or forceBuild) {
-        state->nlistBuildCount++;
-        state->nlistBuildTurns.push_back((int)state->turn);
+        if (globalGrid) {
+            state->nlistBuildCount++;
+            state->nlistBuildTurns.push_back((int)state->turn);
+        }
         real3 ds_orig = ds;
         real3 os_orig = os;
 
@@ -969,6 +970,7 @@ void GridGPU::periodicBoundaryConditions(real neighCut, bool forceBuild) {
          *     call this for ghosts too; everything after this has to be done on
          *     ghosts too
          */
+        // nThreadPerRP == nThreadPerAtom()..
         if (nThreadPerRP==1) {
             countNumNeighbors<0><<<NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerRP), nThreadPerBlock()>>>(
                             centroids, nRingPoly, 
@@ -1010,6 +1012,7 @@ void GridGPU::periodicBoundaryConditions(real neighCut, bool forceBuild) {
 
         //int totalNumNeighbors = perBlockArray.h_data.back() * PERBLOCK;
         int totalNumNeighbors = cumulMemSizePerWarp * (nThreadPerBlock() / warpSize);  // total number of possible neighbors
+        
         if (totalNumNeighbors==0) {
             totalNumNeighbors=1; // gets mad if you send a list of size zero
         }
@@ -1048,6 +1051,7 @@ void GridGPU::periodicBoundaryConditions(real neighCut, bool forceBuild) {
                                 exclusionIndexes.data(), exclusionIds.data(), maxExclusionsPerAtom, nThreadPerRP
                                 ); //PER RP CENTROID
             } else {
+                
                 assignNeighbors<1,false><<<NBLOCKTEAM(nRingPoly, nThreadPerBlock(), nThreadPerRP), nThreadPerBlock(), (nThreadPerBlock()/nThreadPerRP)*maxExclusionsPerAtom*sizeof(uint32_t) + nThreadPerBlock()*sizeof(uint32_t)>>>(
                                 centroids, nRingPoly, nPerRingPoly, gpd->ids(gridIdx),
                                 perCellArray.d_data.data(), perBlockArray.d_data.data(), os, ds, ns,
@@ -1343,22 +1347,14 @@ int GridGPU::computeMaxNumNeighbors() {
     DeviceManager &devManager = state->devManager;
     int warpSize = devManager.prop.warpSize;
 
-    // 1024 is the maximum number of threads in a block
-    int numThreads = min(nAtoms, 1024);
-
-    bool multipleAtomsPerThread = (nAtoms > 1024);
     // we are limited to using 1 block for the reduction, since we want the largest value in the 
     // array; shared memory will first store the max value found by a given thread while less 
     // than num atoms; then reduction across threads yields max value of the shared memory
-    if (multipleAtomsPerThread) {
-        compute_max_num_neighbors<true><<<1,numThreads,numThreads * sizeof(uint16_t)>>>(
-                    perAtomArray.d_data.data(), nAtoms,maxNumNeighbors.d_data.data(),
-                    warpSize);
-    } else {
-        compute_max_num_neighbors<false><<<1,numThreads,numThreads * sizeof(uint16_t)>>>(
-                    perAtomArray.d_data.data(), nAtoms,maxNumNeighbors.d_data.data(),
-                    warpSize);
-    }
+    // ok, PERBLOCK is macro defined in globalDefs.h as 256. this should suffice
+    compute_max_num_neighbors<true><<<1,PERBLOCK,PERBLOCK* sizeof(uint16_t)>>>(
+                perAtomArray.d_data.data(), nAtoms,maxNumNeighbors.d_data.data(),
+                warpSize);
+    
     maxNumNeighbors.dataToHost();
     cudaDeviceSynchronize();
     // the whole array now contains the singular max value; return index 0
