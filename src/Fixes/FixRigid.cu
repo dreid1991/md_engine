@@ -1430,7 +1430,7 @@ void FixRigid::setStyleBondLengths() {
         // 4-site models here
 
         if (style == "TIP4P/2005") {
-            
+            std::cout << "SETTLE algorithm is maintaining a TIP4P/2005 geometry!" << std::endl;
             sigma_O = 3.15890000;
             r_OH = 0.95720000000;
             r_HH = 1.51390000000;
@@ -1451,7 +1451,7 @@ void FixRigid::setStyleBondLengths() {
         r_OM = 0.00000000000;
         gamma = 0.0000;
         if (style == "TIP3P") {
-
+            std::cout << "SETTLE algorithm is maintaing a TIP3P geometry!" << std::endl;
             sigma_O = 3.15890000;
             r_OH = 0.95720000000;
             r_HH = 1.51390000000;

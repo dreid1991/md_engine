@@ -18,14 +18,29 @@ FixE3B::FixE3B(boost::shared_ptr<State> state_,
     // set the cutoffs used in this potential
     rf = 5.2; // far cutoff for threebody interactions (Angstroms)
     rs = 5.0; // short cutoff for threebody interactions (Angstroms)
-    rc = 6.2; // cutoff for our local neighborlist (Angstroms)
+    rc = rf + 0.9572 + (2.0 *0.0655628) + 0.1; //  explanation below
+    // rf is the far cutoff of E3B;
+    // but, in forming the neighborlist, we coarse grain the molecules as being represented by their COM()
+    // so, the molecular neighborlist sees single particles representing our molecules
+    // --- this COM is displaced from the oxygen by a scalar distance of 0.0655628 Angstroms in TIP4P/2005 
+    //     model; this is an uncertainty in the positions of /both/ of the oxygens in different molecules;
+    //     the 0.9572 is the length of an intramolecular OH bond;
+    //     and the 0.1 is a padding factor
     padding = rc - rf; // rc - rf = 1.0; pass this to local GridGPU on instantiation
     style = "E3B3";
     requiresForces = false;
     requiresPerAtomVirials = false;
     prepared = false;
     nThreadPerAtom(state->devManager.prop.warpSize);
-
+    recordMaxNumNeighbors = false;
+    listOfMaxNumNeighbors = std::vector<int>(); // initialize as an empty list
+    computeMaxNumNeighborsEveryTurn = false; // default to false
+    maxNumNeighbors = 65; // explanation of this magic number below
+    oldMaxNumNeighbors = maxNumNeighbors;
+    // this is a conservative estimate based on simulations of e3b3 at densities of 1.6 g/ml; 
+    // if density of water in your simulation is < 1.6 g/mL, then things will be ok; else, there will 
+    // be an unspecified launch failure due to incorrect 
+    // storage / access to shared memory in the compute kernel
 };
 
 
@@ -206,7 +221,7 @@ void FixE3B::checkNeighborlist() {
     GPUData &gpdGlobal = state->gpd;
     int globalActiveIdx = gpdGlobal.activeIdx();
     
-    int maxNumNeighbors = gridGPULocal.computeMaxNumNeighbors();
+    int thisMaxNumNeighbors = gridGPULocal.computeMaxNumNeighbors();
     
     CUT_CHECK_ERROR("GridGPU.computeMaxNumNeighbors() failed\n");
 
@@ -225,7 +240,7 @@ void FixE3B::checkNeighborlist() {
                                 gpdGlobal.fs(globalActiveIdx),
                                 state->boundsGPU,
                                 warpsPerBlock,                            // used to compute molecule idx
-                                maxNumNeighbors);                          // defines beginning index in smem
+                                thisMaxNumNeighbors);                          // defines beginning index in smem
 
     
     cudaDeviceSynchronize(); // so that we see printed info
@@ -280,10 +295,13 @@ void FixE3B::compute(int virialMode) {
        - the evaluator
     */
 
-    int maxNumNeighbors = gridGPULocal.computeMaxNumNeighbors();
+    if (computeMaxNumNeighborsEveryTurn) {
+        oldMaxNumNeighbors = maxNumNeighbors;
+        int tmp = gridGPULocal.computeMaxNumNeighbors();
+        if (tmp < oldMaxNumNeighbors) maxNumNeighbors = tmp; // keep the larger of the two values;
+        //  presumably, this is being done for an /equilibration/ run; so, we want to be cautious
+    }
     
-    CUT_CHECK_ERROR("GridGPU.computeMaxNumNeighbors() failed\n");
-
     // So, we can have 256 concurrently computed threads per streaming multiprocessor; a warp is 32 threads;
     // per SM, we can therefore have 8 molecules; 
     //  -- we will do intra-warp reduction for forces and virials, rather than block reduction
@@ -404,7 +422,11 @@ bool FixE3B::stepInit(){
 
     // our grid now operates on the updated molecule xs to get a molecule by molecule neighborlist    
     gridGPULocal.periodicBoundaryConditions(-1,true);
-    
+   
+
+    if (computeMaxNumNeighborsEveryTurn) {
+        maxNumNeighbors = gridGPULocal.computeMaxNumNeighbors();
+    }
     // update the molecule idxs map
     updateMoleculeIdxsMap<<<NBLOCK(nMolecules),PERBLOCK>>>(nMolecules,
                                                            waterIdsGPU.data(),
@@ -412,6 +434,8 @@ bool FixE3B::stepInit(){
                                                            gpdLocal.idToIdxs.d_data.data(),
                                                            gpdGlobal.idToIdxs.d_data.data());
         
+    if (recordMaxNumNeighbors) listOfMaxNumNeighbors.push_back(maxNumNeighbors);
+
     return true;
 }
 
@@ -431,7 +455,6 @@ void FixE3B::singlePointEng(real *perParticleEng) {
     // --- IMPORTANT: the virials must be taken from the /global/ gpudata!
     GPUData &gpdGlobal = state->gpd;
     int globalActiveIdx = gpdGlobal.activeIdx();
-    int maxNumNeighbors = gridGPULocal.computeMaxNumNeighbors();
     
 
     // So, we can have 256 concurrently computed threads per streaming multiprocessor; a warp is 32 threads;
@@ -463,20 +486,20 @@ void FixE3B::createEvaluator() {
     
     // style defaults to E3B3; otherwise, it can be set to E3B2;
     // there are no other options.
-    float kjToKcal = 0.23900573614;
-    float rs = 5.0;
-    float rf = 5.2;
-    float k2 = 4.872;
-    float k3 = 1.907;
+    real kjToKcal = 0.23900573614;
+    real rs = 5.0;
+    real rf = 5.2;
+    real k2 = 4.872;
+    real k3 = 1.907;
     // default
     if (style == "E3B3") {
         // as angstroms
 
         // E2, Ea, Eb, Ec as kJ/mole -> convert to kcal/mole
-        float E2 = 453000;
-        float Ea = 150.0000;
-        float Eb = -1005.0000;
-        float Ec = 1880.0000;
+        real E2 = 453000;
+        real Ea = 150.0000;
+        real Eb = -1005.0000;
+        real Ec = 1880.0000;
 
         // k2, k3 as angstroms
         
@@ -500,10 +523,10 @@ void FixE3B::createEvaluator() {
     // other option
     } else if (style == "E3B2") {
     
-        float E2 = 2349000.0; // kj/mol
-        float Ea = 1745.7;
-        float Eb = -4565.0;
-        float Ec = 7606.8;
+        real E2 = 2349000.0; // kj/mol
+        real Ea = 1745.7;
+        real Eb = -4565.0;
+        real Ec = 7606.8;
 
         E2 *= kjToKcal;
         Ea *= kjToKcal;
@@ -600,7 +623,24 @@ bool FixE3B::prepareForRun(){
     gpdLocal.idsBuffer = GPUArrayGlobal<uint>(nMolecules);
 
     /* Setting parameters for E3B kernel; we do one molecule per warp */
-    warpsPerBlock = 4;
+    warpsPerBlock = 8; // let's try and get 8 molecules up there..
+    DeviceManager &dev = state->devManager;
+    int smem_available = dev.prop.sharedMemPerBlock;
+
+    // we should get the max num neighbors here; 65 is reasonable.
+    int smem_proposed  = warpsPerBlock * maxNumNeighbors * 3 * sizeof(real3);
+    if (smem_proposed > smem_available) {
+        warpsPerBlock = 4; // recompute smem_proposed...
+        smem_proposed = warpsPerBlock * maxNumNeighbors * 3 * sizeof(real3);
+        if (smem_proposed > smem_available) {
+            std::cout << "In FixE3B..." << std::endl;
+            std::cout << "warpsPerBlock: " << warpsPerBlock << std::endl;
+            std::cout << "maxNumNeighbors: " << maxNumNeighbors << std::endl;
+            mdError("E3B is attempting to allocate %d bytes of shared memory per streaming multiprocessor, but your device only has %d available.  Aborting.\n", smem_proposed,smem_available);
+        }
+    }
+    
+    // NOTE: the above is based on an assumed shared memory limitation of ~ 16,024 bytes per streaming multiprocessor
     numBlocks = (int) ceil((double) nMolecules / (double)warpsPerBlock);  // at 8 molecules per block, we need 
     // (nMolecules / molecules per block) = nblocks
     // warpSize gives threads per Molecule;
@@ -644,8 +684,27 @@ bool FixE3B::prepareForRun(){
     gridGPULocal.periodicBoundaryConditions(-1, true); // MUST update waterIdxsGPU after this 
     // before we compute anything E3B related
 
-    // consider - under what circumstances will we need to compute more than one molecule per warp?
+    // 65 is value used in ctor; but, if we are issuing another run command, reset the value
+    maxNumNeighbors = 65;
 
+    int thisMaxNumNeighbors = gridGPULocal.computeMaxNumNeighbors();
+    if (thisMaxNumNeighbors > maxNumNeighbors) { // maxNumNeighbors as initialized in ctor, presumably
+        maxNumNeighbors = thisMaxNumNeighbors;
+        std::cout << "maxNumNeighbors was initialized with a value of " << maxNumNeighbors << std::endl;
+    }
+    
+    smem_available = dev.prop.sharedMemPerBlock;
+    smem_proposed  = warpsPerBlock * maxNumNeighbors * 3 * sizeof(real3);
+    if (smem_proposed > smem_available) {
+        warpsPerBlock = 2; // recompute smem_proposed...
+        smem_proposed = warpsPerBlock * maxNumNeighbors * 3 * sizeof(real3);
+        if (smem_proposed > smem_available) {
+            std::cout << "In FixE3B..." << std::endl;
+            std::cout << "warpsPerBlock: " << warpsPerBlock << std::endl;
+            std::cout << "maxNumNeighbors: " << maxNumNeighbors << std::endl;
+            mdError("E3B is attempting to allocate %d bytes of shared memory per streaming multiprocessor, but your device only has %d available.  Aborting.\n", smem_proposed,smem_available);
+        }
+    }
     // we have our nMolecules variable; so,
     // with compute capability > 3.0, our gridDim in the x direction can be like 2.1B...
     // this isn't really something we need to worry about.
@@ -654,10 +713,6 @@ bool FixE3B::prepareForRun(){
     waterIdxsGPU = GPUArrayDeviceGlobal<int4>(nMolecules);
     waterIdxsGPU.set(waterIds.data()); // initialize as waterIds; this is a map that is updated at...
     
-    GPUData &gpdGlobal = state->gpd;
-    int globalActiveIdx = gpdGlobal.activeIdx();
-
-
     // everything here is prepared; set it true, THEN:  handleLocalData(), which needs to know that 
     // prepared == true; then, return prepared.
     prepared = true;
@@ -669,12 +724,13 @@ bool FixE3B::prepareForRun(){
     return prepared;
 }
 
-void FixE3B::takeStateNThreadPerBlock(int dummy) {
+void FixE3B::takeStateNThreadPerBlock(int NTPB) {
     // E3B maintains a constant value of threadsPerBlock.
     if (prepared) {
+
         oldNThreadPerBlock = nThreadPerBlock(); // gets the value..
 
-        nThreadPerBlock(threadsPerBlock);
+        nThreadPerBlock();
         gridGPULocal.nThreadPerBlock(threadsPerBlock);
         // XXX NOTE: 
         // see Integrator::tune();
@@ -698,6 +754,14 @@ void FixE3B::takeStateNThreadPerAtom(int dummy) {
         }
     }
 };
+
+std::vector<int> FixE3B::getMaxNumNeighbors() {
+
+    // this is either populated from a simulation, or empty
+    return listOfMaxNumNeighbors;
+}
+
+
 
 /* restart chunk?
 
@@ -781,7 +845,8 @@ void export_FixE3B() {
     .def_readonly("molecules", &FixE3B::waterMolecules)
     .def_readonly("nMolecules", &FixE3B::nMolecules)
     .def_readonly("gridGPU", &FixE3B::gridGPULocal)
-    // can i export GPD??  How would I even do this?  Would need to export /[0
+    .def_readwrite("recordMaxNumNeighbors", &FixE3B::recordMaxNumNeighbors)
+    .def("getMaxNumNeighbors", &FixE3B::getMaxNumNeighbors) // returns a list
+    .def_readwrite("computeMaxNumNeighborsEveryTurn", &FixE3B::computeMaxNumNeighborsEveryTurn)
     ;
-  
 }

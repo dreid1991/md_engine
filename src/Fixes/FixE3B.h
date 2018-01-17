@@ -140,6 +140,7 @@ class FixE3B: public Fix {
         // TODO: removing a molecule?? -- any method that permits modifying, esp. at runtime, 
         // nAtoms in state gpd would similarly be able to remove atoms (molecules) in this GPD
  
+
         int oldNThreadPerBlock;
         int oldNThreadPerAtom;
         // -- override Fix's methods for takeStateNThreadPerBlock; we do not want state's parameters 
@@ -147,6 +148,17 @@ class FixE3B: public Fix {
         void takeStateNThreadPerBlock(int);
         void takeStateNThreadPerAtom(int);
 
+        // uncomment this and pertinent stuff in .cu file to get a list of maxNumNeighbors;
+        // ---- These functions were used in conjunction with a specified density of 1.6 g/mL and 1800 molecule simulation 
+        //      to get safe parameters that allow us to skip doing this computation during usual runtime.
+        //      5 simulations of 100 ps length were used, in which the neighborlist was reconstructed every turn for E3B.
+        //      --- speeds us up by removing a deviceToHost() transfer, and one less kernel
+        bool recordMaxNumNeighbors;
+        int maxNumNeighbors;
+        int oldMaxNumNeighbors;
+        bool computeMaxNumNeighborsEveryTurn;
+        std::vector<int> listOfMaxNumNeighbors;   // !< Let's check how many neighbors we ever have at a given moment;
+        std::vector<int> getMaxNumNeighbors();
 
 };
 

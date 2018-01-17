@@ -98,7 +98,7 @@ __global__ void compute_force_iso
         real3 forceSum = make_real3(0, 0, 0);
         int myIdxInTeam;
         if (MULTITHREADPERATOM) {
-            myIdxInTeam = threadIdx.x % nThreadPerAtom;
+            myIdxInTeam = threadIdx.x % nThreadPerAtom; // 0..... nThreadPerAtom - 1
         } else {
             myIdxInTeam = 0;
         }

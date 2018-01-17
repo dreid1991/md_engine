@@ -384,7 +384,7 @@ __global__ void compute_E3B_energy
         }
     }
     __syncwarp(); // sync the warp; we now have all neighbor atoms for this molecule in shared memory
-                  // --- this is cuda 9.0 function
+                  // --- this is cuda 9.0 function; only needed for Volta architectures (and later)
       
     real3 eng_sum_as_real3 = make_real3(0.0, 0.0, 0.0);
     if (moleculeIdx < nMolecules) {
@@ -404,7 +404,12 @@ __global__ void compute_E3B_energy
         real  r_a1b2_scalar,r_a1c2_scalar,r_b1a2_scalar,r_c1a2_scalar;
         real  r_a1b3_scalar,r_a1c3_scalar,r_b1a3_scalar,r_c1a3_scalar;
         real  r_a2b3_scalar,r_a2c3_scalar,r_b2a3_scalar,r_c2a3_scalar;
-        
+       
+        // In this loop, we will have the intermolecular OH vectors as i,j,k for a given triplet of molecules;
+        // To get the force, we must interchange the indices; but, this would result in the same 
+        // intermolecular OH vectors with re-labled indices;
+        // instead, compute the distances once, shuffle the vectors in E3B's three body evaluator, 
+        // and sum the forces on that side accordingly.
         while (pair_pair_idx < maxNumComputes) {
             // pair_pair_idx is up-to-date; reduced_idx was incremented, but has not been reduced
             // jIdx, reduced_idx might not be up-to-date;
@@ -433,6 +438,10 @@ __global__ void compute_E3B_energy
             // we now have kIdx, jIdx;
             // let jIdx represent molecule 2, and kIdx represent molecule 3
 
+
+            // the three body potential is defined as the sum of energies /i/, j>i, k > j;
+            // but we compute each i on a different thread, and therefore 
+
             // load atom positions from shared memory
             pos_a2 = smem_neighborAtomPos[3*jIdx       + base_smem_idx];
             pos_b2 = smem_neighborAtomPos[3*jIdx + 1   + base_smem_idx];
@@ -444,7 +453,11 @@ __global__ void compute_E3B_energy
 
             // compute the 12 unique vectors for this triplet; pass these, and the force, and virials to evaluator
             // -- no possible way to put these in to shared memory; here, we must do redundant calculations.
-
+            //    i.e., there are too many to put in to shared memory, and its probably faster to just 
+            //    do them per-thread rather than try to communicate, esp. if threads are in lockstep and 
+            //    doing same computation anyways;
+            //    if they are not in lockstep, we would incur computational expense checking on the 
+            //    off chance that two threads are computing the same i-j, same i-k (never would be both)
             // rij = ri - rj
 
             // i = 1, j = 2
@@ -502,7 +515,7 @@ __global__ void compute_E3B_energy
             reduced_idx   += warpSize; // advanced reduced_idx as warpSize; will be reduced at next loop
         } // end while (pair_pair_idx < maxNumComputes)
         
-        // divide all atom energies by 3.0 (we triple count each triplet)
+        // the eng sums were reduced in threeBodyEnergy accordingly
         eng_sum_a /= 3.0;
         eng_sum_b /= 3.0;
         eng_sum_c /= 3.0;

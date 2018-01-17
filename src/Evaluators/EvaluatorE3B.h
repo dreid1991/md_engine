@@ -3,8 +3,7 @@
 #define EVALUATOR_E3B
 
 #include "cutils_math.h"
-#include "Virial.h" // because we do our computeVirial calls here for threebody forces
-
+#include "helpers.h"
 void export_EvaluatorE3B();
 
 class EvaluatorE3B {
@@ -24,6 +23,7 @@ class EvaluatorE3B {
         
         // denominator of the switching function (constant once defined)
         real rfminusrs_cubed_inv;
+        real minus_rfminusrs_cubed_inv; 
         // prefactors E2 - pair correction term for two-body TIP4P
         real E2;
         // prefactors A,B,C (units: kJ/mol, in reference paper)
@@ -54,10 +54,12 @@ class EvaluatorE3B {
             Ec = Ec_;
             k2 = k2_;
             k3 = k3_;
+            // precomputing a few values:
             minus_k3 = -1.0 * k3; // eliminates a -1.0 multiplication that happens every time..
             minus_k2 = -1.0 * k2; // eliminates a -1.0 multiplication that happens every time
             real rfminusrs = rf_ - rs_;
             rfminusrs_cubed_inv = 1.0 / (rfminusrs * rfminusrs * rfminusrs);
+            minus_rfminusrs_cubed_inv = -1.0 * rfminusrs_cubed_inv; // for switching function evaluation
             rstimes3 = 3.0 * rs_;
         };
 
@@ -89,6 +91,7 @@ class EvaluatorE3B {
 
 
         // implements one evaluation of the switching function for smooth cutoff of the potential
+        // --- the switching function is /inclusive/ of the bounds - i.e., [rs,rf]
         inline __host__ __device__ real switching(real dist) {
             if (dist < rs) {
                 return 1.0;
@@ -97,10 +100,14 @@ class EvaluatorE3B {
                 return 0.0;
             }
         
-            real rfMinusDist = rf - dist;
-            real rfDistSqr = rfMinusDist * rfMinusDist;
-            real sr = (rfDistSqr * (rf - (2.0 * dist) + rstimes3) ) * rfminusrs_cubed_inv;
-            return sr;
+            real val = (rf - dist);
+            val *= val;
+            //real rfMinusDist = rf - dist;
+            // rfDistSqr = (rf - r) * (rf - r)
+            //real rfDistSqr = rfMinusDist * rfMinusDist;
+            val *= ((rf + (2.0 * dist) - rstimes3) * rfminusrs_cubed_inv);
+            //real sr = (rfDistSqr * (rf + (2.0 * dist) - rstimes3) ) * rfminusrs_cubed_inv;
+            return val;
         }
 
 
@@ -122,9 +129,8 @@ class EvaluatorE3B {
                 return 0.0;
             } else {
                 // derivative of the polynomial expression w.r.t scalar r_ij scalar.  Returns some real value
-                real value = (2.0 * (rf - dist) * (rf - dist)); 
-                value -= (2.0 * (rf - dist) * (2.0 * dist + rf - 3.0 * rs) );
-                value *= rfminusrs_cubed_inv;
+                real value = 6.0 * (rf - dist) * (dist - rs);
+                value *= minus_rfminusrs_cubed_inv;
                 return value;
             }
 
@@ -182,6 +188,7 @@ class EvaluatorE3B {
             // we group terms according to vector direction, so as to minimize calls to 
             // computeVirials
 
+            // b1a2 direction -- ok, this has been checked.
             // f(r_b1a2,r_c1a3); FIRST CALL, set as assignment
             fs_scalar = threeBodyForceScalar(r_b1a2_scalar,r_c1a3_scalar,Ea);
             // g(b1a2,b3a1); AGGREGATE
@@ -379,6 +386,13 @@ class EvaluatorE3B {
         real local_sum_b = 0.0;
         real local_sum_c = 0.0;
         
+        // we are computing the potential for /all/ molecules i, and then the unique triplets formed by 
+        // i,j,k;
+        // --- in order to divide by 6.0 and make sure we have accumulated all terms this molecule 
+        //     participates in, we need to do a permutation of the indices as well.
+
+        // so, take the initial vectors as passed in, and permute them
+
         // get the switching function values
         // -- note that because of how we traverse the neighbor list as to maintain load balance, 
         //    we cannot pre-compute these
@@ -601,6 +615,19 @@ class EvaluatorE3B {
         
         return;
     }
+
+    // python interface that calls force function
+    __host__ std::vector<double> forcePy(boost::python::list positions_);
+
+    // python interface that calls the energy function
+    __host__ std::vector<double> energyPy(boost::python::list positions_);
+
+    // python interface that calls force function
+    __host__ std::vector<double> forcePy_device(boost::python::list positions_);
+
+    // python interface that calls the energy function
+    __host__ std::vector<double> energyPy_device(boost::python::list positions_);
+
 
 };
 

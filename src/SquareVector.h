@@ -1,5 +1,6 @@
 #pragma once
 #include "globalDefs.h"
+#include <iostream>
 //! Global function returning a single SquareVector item
 /*!
  * \param vals Pointer to SquareVector array

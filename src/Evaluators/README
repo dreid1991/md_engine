@@ -1,0 +1,10 @@
+Header files contain inlined functions for force and energy computations.
+
+Cuda files are solely for declaring exports to the python interface.
+
+These exports are made available to the python interface only for 
+development testing, and must not be used in production simulations.
+As such, these exports and usages are documented via the test suite, 
+and are not in the user guide.
+
+Do not use these for simulations.
