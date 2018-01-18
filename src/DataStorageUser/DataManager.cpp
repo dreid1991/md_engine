@@ -70,6 +70,17 @@ boost::shared_ptr<DataSetUser> DataManager::recordEnergy(std::string groupHandle
 
 }
 
+boost::shared_ptr<DataSetUser> DataManager::recordEnergy(std::string groupHandle, std::string computeMode, int interval, py::object collectGenerator, py::list fixes, std::string groupHandleB,  Vector lo, Vector hi) {
+    int dataType = DATATYPE::ENERGY;
+    boost::shared_ptr<DataComputer> comp = boost::shared_ptr<DataComputer> ( (DataComputer *) new DataComputerEnergy(state, fixes, computeMode, groupHandleB, lo, hi) );
+    uint32_t groupTag = state->groupTagFromHandle(groupHandle);
+    
+    boost::shared_ptr<DataSetUser> dataSet = createDataSet(comp, groupTag, interval, collectGenerator);
+    dataSets.push_back(dataSet);
+   
+    return dataSet;
+}
+
 boost::shared_ptr<DataSetUser> DataManager::recordPressure(std::string groupHandle, std::string computeMode, int interval, py::object collectGenerator) {
     int dataType = DATATYPE::PRESSURE;
     boost::shared_ptr<DataComputer> comp = boost::shared_ptr<DataComputer> ( (DataComputer *) new DataComputerPressure(state, computeMode) );
@@ -155,6 +166,15 @@ SHARED(DataSet) DataManager::getDataSet(string handle) {
 }
 
 */
+//void (FixNoseHoover::*setPressure_x2) (std::string, py::object, double) = &FixNoseHoover::setPressure;
+//void (FixNoseHoover::*setPressure_x1) (std::string, double, double) = &FixNoseHoover::setPressure;
+//void (FixNoseHoover::*setPressure_x3) (std::string, py::list, py::list, double) = &FixNoseHoover::setPressure;
+
+// boost pointers for export
+boost::shared_ptr<MD_ENGINE::DataSetUser> (DataManager::*recordEnergy_x1) (std::string, std::string, int, boost::python::object, boost::python::list, std::string) = &DataManager::recordEnergy;
+
+// as handle, mode, interval, collect generator, fixes, groupHandleB, lower bound, upper bound
+boost::shared_ptr<MD_ENGINE::DataSetUser> (DataManager::*recordEnergy_x2) (std::string, std::string, int, boost::python::object, boost::python::list, std::string, Vector, Vector) = &DataManager::recordEnergy;
 void export_DataManager() {
     py::class_<DataManager>(
         "DataManager",
@@ -168,13 +188,23 @@ void export_DataManager() {
              py::arg("interval") = 0,
              py::arg("collectGenerator") = py::object())
         )
-    .def("recordEnergy", &DataManager::recordEnergy,
+    .def("recordEnergy", recordEnergy_x1,
             (py::arg("handle") = "all",
              py::arg("mode") = "scalar",
              py::arg("interval") = 0,
              py::arg("collectGenerator") = py::object(),
              py::arg("fixes") = py::list(),
              py::arg("handleB") = "all")
+        )
+    .def("recordEnergy", recordEnergy_x2,
+            (py::arg("handle") = "all",
+             py::arg("mode") = "scalar",
+             py::arg("interval") = 0,
+             py::arg("collectGenerator") = py::object(),
+             py::arg("fixes") = py::list(),
+             py::arg("handleB") = "all",
+             py::arg("lo")   = Vector(0.0, 0.0, 0.0),
+             py::arg("hi")   = Vector(0.0, 0.0, 0.0))
         )
     .def("recordPressure", &DataManager::recordPressure,
             (py::arg("handle") = "all",

@@ -4,6 +4,7 @@
 #include "GPUArrayGlobal.h"
 #include "Virial.h"
 #include "Fix.h"
+#include "BoundsGPU.h"
 
 namespace MD_ENGINE {
     class DataComputerEnergy : public DataComputer {
@@ -18,8 +19,14 @@ namespace MD_ENGINE {
             void computeTensor_CPU(){};
 
             DataComputerEnergy(State *, boost::python::list, std::string computeMode_, std::string groupHandleB_);
+            DataComputerEnergy(State *, boost::python::list, std::string computeMode_, std::string groupHandleB_, Vector lo_, Vector hi_);
             void prepareForRun();
             double engScalar;
+            bool checkWithinBounds;
+            BoundsGPU localBounds;
+            Vector lo;
+            Vector hi;
+        
             std::string groupHandleB; //second group if we're doing group-group interactions
             uint32_t groupTagB;
             bool otherIsAll;

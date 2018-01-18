@@ -8,6 +8,8 @@
 #include <string>
 #include <set>
 #include <utility>
+#include "Vector.h"
+
 class State;
 void export_DataManager();
 namespace MD_ENGINE {
@@ -18,14 +20,22 @@ class DataManager {
     State *state;
 	public:
 		DataManager(){};
+
 		DataManager(State *); 
+
         boost::shared_ptr<DataSetUser> createDataSet(boost::shared_ptr<DataComputer> comp, uint32_t groupTag, int interval, boost::python::object collectGenerator);
 
         boost::shared_ptr<MD_ENGINE::DataSetUser> recordTemperature(std::string groupHandle, std::string computeMode, int interval, boost::python::object collectGenerator); 
+
         boost::shared_ptr<MD_ENGINE::DataSetUser> recordEnergy(std::string groupHandle, std::string computeMode, int interval, boost::python::object collectGenerator, boost::python::list fixes, std::string groupHandleB); 
+
         boost::shared_ptr<MD_ENGINE::DataSetUser> recordPressure(std::string groupHandle, std::string computeMode , int interval, boost::python::object collectGenerator); 
+
         boost::shared_ptr<MD_ENGINE::DataSetUser> recordBounds(int collectEvery, boost::python::object collectGenerator); 
         boost::shared_ptr<MD_ENGINE::DataSetUser> recordDipolarCoupling(std::string groupHandle,  std::string groupHandleB, double magnetoA, double magnetaB, std::string computeMode, int interval, boost::python::object collectGenerator); 
+
+        // getting potential energies within a specified bounds
+        boost::shared_ptr<MD_ENGINE::DataSetUser> recordEnergy(std::string groupHandle, std::string computeMode, int interval, boost::python::object collectGenerator, boost::python::list fixes, std::string groupHandleB, Vector lo, Vector hi);
 
         void stopRecord(boost::shared_ptr<MD_ENGINE::DataSetUser>);
 
