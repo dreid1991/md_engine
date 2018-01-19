@@ -148,6 +148,7 @@ void DataComputerEnergy::computeScalar_GPU(bool transferToCPU, uint32_t groupTag
         // it is outside of the specified bounds
         if (countNumInBounds) {
             inBoundsArray.d_data.memset(0);
+            inBoundsArrayReduce.d_data.memset(0);
             zero_outside_bounds<true><<<NBLOCK(nAtoms),PERBLOCK>>> (nAtoms, gpd.xs(activeIdx),gpuBuffer.getDevData(), state->boundsGPU,localBounds,inBoundsArray.getDevData());
         } else {
             zero_outside_bounds<false><<<NBLOCK(nAtoms),PERBLOCK>>> (nAtoms, gpd.xs(activeIdx),gpuBuffer.getDevData(), state->boundsGPU,localBounds,inBoundsArray.getDevData());
@@ -223,6 +224,7 @@ void DataComputerEnergy::computeScalar_CPU() {
 
     if (checkWithinBounds && countNumInBounds) {
         nParticlesInBounds = (double) inBoundsArrayReduce.h_data[0];
+        std::cout << "Total energy: " << total << "; dividing by n particles = " << nParticlesInBounds << std::endl;
         total /= nParticlesInBounds; // we want the per-particle energies
     }
 
