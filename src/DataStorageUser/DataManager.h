@@ -35,7 +35,7 @@ class DataManager {
         boost::shared_ptr<MD_ENGINE::DataSetUser> recordDipolarCoupling(std::string groupHandle,  std::string groupHandleB, double magnetoA, double magnetaB, std::string computeMode, int interval, boost::python::object collectGenerator); 
 
         // getting potential energies within a specified bounds
-        boost::shared_ptr<MD_ENGINE::DataSetUser> recordEnergy(std::string groupHandle, std::string computeMode, int interval, boost::python::object collectGenerator, boost::python::list fixes, std::string groupHandleB, Vector lo, Vector hi);
+        boost::shared_ptr<MD_ENGINE::DataSetUser> recordEnergy(std::string groupHandle, std::string computeMode, int interval, boost::python::object collectGenerator, boost::python::list fixes, std::string groupHandleB, Vector lo, Vector hi,bool countNumInBounds);
 
         void stopRecord(boost::shared_ptr<MD_ENGINE::DataSetUser>);
 

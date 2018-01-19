@@ -19,10 +19,16 @@ namespace MD_ENGINE {
             void computeTensor_CPU(){};
 
             DataComputerEnergy(State *, boost::python::list, std::string computeMode_, std::string groupHandleB_);
-            DataComputerEnergy(State *, boost::python::list, std::string computeMode_, std::string groupHandleB_, Vector lo_, Vector hi_);
+            DataComputerEnergy(State *, boost::python::list, std::string computeMode_, std::string groupHandleB_, Vector lo_, Vector hi_, bool countNumInBounds_);
             void prepareForRun();
             double engScalar;
             bool checkWithinBounds;
+            bool countNumInBounds;
+           
+            GPUArrayGlobal<float> inBoundsArray; 
+            GPUArrayGlobal<float> inBoundsArrayReduce;
+            double nParticlesInBounds;
+
             BoundsGPU localBounds;
             Vector lo;
             Vector hi;

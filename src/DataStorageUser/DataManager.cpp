@@ -70,9 +70,9 @@ boost::shared_ptr<DataSetUser> DataManager::recordEnergy(std::string groupHandle
 
 }
 
-boost::shared_ptr<DataSetUser> DataManager::recordEnergy(std::string groupHandle, std::string computeMode, int interval, py::object collectGenerator, py::list fixes, std::string groupHandleB,  Vector lo, Vector hi) {
+boost::shared_ptr<DataSetUser> DataManager::recordEnergy(std::string groupHandle, std::string computeMode, int interval, py::object collectGenerator, py::list fixes, std::string groupHandleB,  Vector lo, Vector hi, bool countNumInBounds) {
     int dataType = DATATYPE::ENERGY;
-    boost::shared_ptr<DataComputer> comp = boost::shared_ptr<DataComputer> ( (DataComputer *) new DataComputerEnergy(state, fixes, computeMode, groupHandleB, lo, hi) );
+    boost::shared_ptr<DataComputer> comp = boost::shared_ptr<DataComputer> ( (DataComputer *) new DataComputerEnergy(state, fixes, computeMode, groupHandleB, lo, hi,countNumInBounds) );
     uint32_t groupTag = state->groupTagFromHandle(groupHandle);
     
     boost::shared_ptr<DataSetUser> dataSet = createDataSet(comp, groupTag, interval, collectGenerator);
@@ -174,7 +174,7 @@ SHARED(DataSet) DataManager::getDataSet(string handle) {
 boost::shared_ptr<MD_ENGINE::DataSetUser> (DataManager::*recordEnergy_x1) (std::string, std::string, int, boost::python::object, boost::python::list, std::string) = &DataManager::recordEnergy;
 
 // as handle, mode, interval, collect generator, fixes, groupHandleB, lower bound, upper bound
-boost::shared_ptr<MD_ENGINE::DataSetUser> (DataManager::*recordEnergy_x2) (std::string, std::string, int, boost::python::object, boost::python::list, std::string, Vector, Vector) = &DataManager::recordEnergy;
+boost::shared_ptr<MD_ENGINE::DataSetUser> (DataManager::*recordEnergy_x2) (std::string, std::string, int, boost::python::object, boost::python::list, std::string, Vector, Vector, bool) = &DataManager::recordEnergy;
 void export_DataManager() {
     py::class_<DataManager>(
         "DataManager",
@@ -204,7 +204,8 @@ void export_DataManager() {
              py::arg("fixes") = py::list(),
              py::arg("handleB") = "all",
              py::arg("lo")   = Vector(0.0, 0.0, 0.0),
-             py::arg("hi")   = Vector(0.0, 0.0, 0.0))
+             py::arg("hi")   = Vector(0.0, 0.0, 0.0),
+             py::arg("countNumInBounds") = false) // default to false; else, we are computing per-particle energies
         )
     .def("recordPressure", &DataManager::recordPressure,
             (py::arg("handle") = "all",

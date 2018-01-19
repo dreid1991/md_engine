@@ -5,8 +5,8 @@
 namespace py = boost::python;
 using namespace MD_ENGINE;
 
-
-__global__ void zero_outside_bounds(int nAtoms, float4 *xs, float *perParticleEng, BoundsGPU bounds, BoundsGPU localBounds) {
+template <bool COUNTINBOUNDS>
+__global__ void zero_outside_bounds(int nAtoms, float4 *xs, float *perParticleEng, BoundsGPU bounds, BoundsGPU localBounds, float* numInBounds) {
     int idx = GETIDX();
 
     if (idx < nAtoms) {
@@ -26,17 +26,39 @@ __global__ void zero_outside_bounds(int nAtoms, float4 *xs, float *perParticleEn
         float3 hi = localBounds.lo + localBounds.rectComponents;
 
         float energy = perParticleEng[idx];
+        bool inBounds = true;
+        float thisNumInBounds = 1.0f;
         // now, check if the image is within the bounds specified by localBounds
-        if (pos.x < lo.x) energy = 0.0;
-        if (pos.y < lo.y) energy = 0.0;
-        if (pos.z < lo.z) energy = 0.0;
+        if (COUNTINBOUNDS) {
+            if (pos.x < lo.x) inBounds = false;
+            if (pos.y < lo.y) inBounds = false;
+            if (pos.z < lo.z) inBounds = false; 
 
-        if (pos.x > hi.x) energy = 0.0;
-        if (pos.y > hi.y) energy = 0.0;
-        if (pos.z > hi.z) energy = 0.0;
+            if (pos.x > hi.x) inBounds = false;
+            if (pos.y > hi.y) inBounds = false;
+            if (pos.z > hi.z) inBounds = false;
 
+            if (inBounds) {
+                // do nothing
+            } else {
+                // flip both to zero
+                energy = 0.0f;
+                thisNumInBounds = 0.0f;
+            }
+        } else {
+
+            if (pos.x < lo.x) energy = 0.0;
+            if (pos.y < lo.y) energy = 0.0;
+            if (pos.z < lo.z) energy = 0.0;
+
+            if (pos.x > hi.x) energy = 0.0;
+            if (pos.y > hi.y) energy = 0.0;
+            if (pos.z > hi.z) energy = 0.0;
+
+        }
         // write to global data
         perParticleEng[idx] = energy;
+        if (COUNTINBOUNDS) numInBounds[idx] = thisNumInBounds;
     }
 
 }
@@ -66,13 +88,25 @@ DataComputerEnergy::DataComputerEnergy(State *state_, py::list fixes_, std::stri
 }
 
 // constructor when bounds are passed in
-DataComputerEnergy::DataComputerEnergy(State *state_, py::list fixes_, std::string computeMode_, std::string groupHandleB_, Vector lo_, Vector hi_) : DataComputer(state_, computeMode_, false), groupHandleB(groupHandleB_), lo(lo_), hi(hi_) {
+DataComputerEnergy::DataComputerEnergy(State *state_, py::list fixes_, std::string computeMode_, std::string groupHandleB_, Vector lo_, Vector hi_, bool countNumInBounds_) : DataComputer(state_, computeMode_, false), groupHandleB(groupHandleB_), lo(lo_), hi(hi_), countNumInBounds(countNumInBounds_) {
 
     groupTagB = state->groupTagFromHandle(groupHandleB);
     otherIsAll = groupHandleB == "all";
     float3 lo_float3 = lo.asFloat3();
     float3 hi_float3 = hi.asFloat3();
     checkWithinBounds = true;
+    if (countNumInBounds) {
+        inBoundsArray = GPUArrayGlobal<float>(state->atoms.size());
+        inBoundsArrayReduce = GPUArrayGlobal<float>(2);
+        inBoundsArray.d_data.memset(0);
+        inBoundsArrayReduce.d_data.memset(0);
+    } else {
+        inBoundsArray = GPUArrayGlobal<float>(1);
+        inBoundsArrayReduce = GPUArrayGlobal<float>(1);
+        inBoundsArray.d_data.memset(0);
+        inBoundsArrayReduce.d_data.memset(0);
+    }
+        
     bool *periodic = state->periodic;
     localBounds = BoundsGPU(lo_float3, lo_float3 + hi_float3, make_float3((int) periodic[0], (int) periodic[1], (int) periodic[2]));
     if (py::len(fixes_)) {
@@ -112,7 +146,21 @@ void DataComputerEnergy::computeScalar_GPU(bool transferToCPU, uint32_t groupTag
     if (checkWithinBounds) {
         // we don't need to use the nlist here, just get the positions of the atom and zero the energy if 
         // it is outside of the specified bounds
-        zero_outside_bounds<<<NBLOCK(nAtoms),PERBLOCK>>> (nAtoms, gpd.xs(activeIdx),gpuBuffer.getDevData(), state->boundsGPU,localBounds);
+        if (countNumInBounds) {
+            inBoundsArray.d_data.memset(0);
+            zero_outside_bounds<true><<<NBLOCK(nAtoms),PERBLOCK>>> (nAtoms, gpd.xs(activeIdx),gpuBuffer.getDevData(), state->boundsGPU,localBounds,inBoundsArray.getDevData());
+        } else {
+            zero_outside_bounds<false><<<NBLOCK(nAtoms),PERBLOCK>>> (nAtoms, gpd.xs(activeIdx),gpuBuffer.getDevData(), state->boundsGPU,localBounds,inBoundsArray.getDevData());
+        }
+
+        // ok, we flipped a flag there to 1 if within bounds, else zero. do a reduction within a single block to get the value.
+        if (countNumInBounds) {
+            // send the data to one block on the gpu to be reduced and summed.
+
+         accumulate_gpu<float, float, SumSingle, N_DATA_PER_THREAD> <<<NBLOCK(nAtoms / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*PERBLOCK*sizeof(float)>>>
+            (inBoundsArrayReduce.getDevData(), inBoundsArray.getDevData(), nAtoms, state->devManager.prop.warpSize, SumSingle());
+
+        }
     
     }
 
@@ -126,6 +174,9 @@ void DataComputerEnergy::computeScalar_GPU(bool transferToCPU, uint32_t groupTag
     if (transferToCPU) {
         //does NOT sync
         gpuBufferReduce.dataToHost();
+        if (countNumInBounds) {
+            inBoundsArrayReduce.dataToHost();
+        }
     }
 }
 
@@ -149,9 +200,14 @@ void DataComputerEnergy::computeVector_GPU(bool transferToCPU, uint32_t groupTag
         fix->setEvalWrapper();
     }
     if (checkWithinBounds) {
-        // we don't need to use the nlist here, just get the positions of the atom and zero the energy if 
-        // it is outside of the specified bounds (we consider the periodic wrapping here as well)
-        zero_outside_bounds<<<NBLOCK(nAtoms),PERBLOCK>>> (nAtoms, gpd.xs(activeIdx),gpuBuffer.getDevData(), state->boundsGPU,localBounds);
+        if (countNumInBounds) {
+            inBoundsArray.d_data.memset(0);
+            zero_outside_bounds<true><<<NBLOCK(nAtoms),PERBLOCK>>> (nAtoms, gpd.xs(activeIdx),gpuBuffer.getDevData(), state->boundsGPU,localBounds,inBoundsArray.getDevData());
+        } else {
+            zero_outside_bounds<false><<<NBLOCK(nAtoms),PERBLOCK>>> (nAtoms, gpd.xs(activeIdx),gpuBuffer.getDevData(), state->boundsGPU,localBounds,inBoundsArray.getDevData());
+        }
+    
+    
     }
     if (transferToCPU) {
         gpuBuffer.dataToHost();
@@ -164,6 +220,12 @@ void DataComputerEnergy::computeVector_GPU(bool transferToCPU, uint32_t groupTag
 void DataComputerEnergy::computeScalar_CPU() {
     //int n;
     double total = gpuBufferReduce.h_data[0];
+
+    if (checkWithinBounds && countNumInBounds) {
+        nParticlesInBounds = (double) inBoundsArrayReduce.h_data[0];
+        total /= nParticlesInBounds; // we want the per-particle energies
+    }
+
     /*
     if (lastGroupTag == 1) {
         n = state->atoms.size();//* (int *) &tempGPUScalar.h_data[1];
@@ -172,6 +234,8 @@ void DataComputerEnergy::computeScalar_CPU() {
     }
     */
     //just going with total energy value, not average
+    // --- except in the scenario where particle potential energies were computed 
+    //     within a specified volume, AND we were told to compute the number within the specified bounds.
     engScalar = total;
 }
 
@@ -186,6 +250,7 @@ void DataComputerEnergy::computeVector_CPU() {
 
 void DataComputerEnergy::appendScalar(boost::python::list &vals) {
     vals.append(engScalar);
+
 }
 void DataComputerEnergy::appendVector(boost::python::list &vals) {
     vals.append(sorted);
