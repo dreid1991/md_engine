@@ -54,12 +54,6 @@ void Integrator::stepFinal()
 }
 
 
-
-
-
-
-
-
 void Integrator::asyncOperations() {
     int turn = state->turn;
 
@@ -88,7 +82,7 @@ void Integrator::asyncOperations() {
         }
     }
     for (SHARED(PythonOperation) po : state->pythonOperations) {
-        if (not (turn % po->operateEvery)) {
+        if ( not (turn % po->operateEvery)) {
             needOp = true;
             if (po->synchronous) {
                 isAsync = false;
@@ -98,6 +92,7 @@ void Integrator::asyncOperations() {
     if (needOp) {
         state->runtimeHostOperation(writeAndPy, isAsync);
     }
+
 }
 
 

@@ -12,7 +12,7 @@ DataSetUser::DataSetUser(State *state_, boost::shared_ptr<DataComputer> computer
 }
 
 DataSetUser::DataSetUser(State *state_, boost::shared_ptr<DataComputer> computer_, uint32_t groupTag_, int interval_) : state(state_), computeMode(COMPUTEMODE::INTERVAL), groupTag(groupTag_), computer(computer_), interval(interval_) {
-    nextCompute = state->turn;
+    setNextTurn(state->turn);
 
 }
 void DataSetUser::prepareForRun() {
@@ -38,8 +38,16 @@ void DataSetUser::appendData() {
 
         
 int64_t DataSetUser::setNextTurn(int64_t currentTurn) {
+    // ok, we want this to be in sync with PyOps and WriteConfigs..
+    int relativeTurn;
+    int nextTurn;
     if (computeMode == COMPUTEMODE::INTERVAL) {
-        nextCompute = currentTurn + interval;
+        relativeTurn = currentTurn % interval;
+        nextTurn = state->turn + (interval - relativeTurn);
+    }
+
+    if (computeMode == COMPUTEMODE::INTERVAL) {
+        nextCompute = nextTurn;
     } else {
         nextCompute = py::call<int64_t>(pyFuncRaw, currentTurn);
     }

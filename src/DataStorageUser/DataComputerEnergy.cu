@@ -224,7 +224,7 @@ void DataComputerEnergy::computeScalar_CPU() {
 
     if (checkWithinBounds && countNumInBounds) {
         nParticlesInBounds = (double) inBoundsArrayReduce.h_data[0];
-        std::cout << "Total energy: " << total << "; dividing by n particles = " << nParticlesInBounds << std::endl;
+        //std::cout << "Total energy: " << total << "; dividing by n particles = " << nParticlesInBounds << std::endl;
         total /= nParticlesInBounds; // we want the per-particle energies
     }
 

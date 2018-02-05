@@ -174,7 +174,7 @@ double FixPair::getParameter(std::string param,
     }
     if (paramMap.find(param) != paramMap.end()) {
         int numTypes = state->atomParams.numTypes;
-        std::vector<float> &arr = *(paramMap[param]);
+        std::vector<float> &arr = (paramMapProcessed[param]);
         if (i>=numTypes or j>=numTypes or i<0 or j<0) {
             std::cout << "Tried to get param " << param
                       << " for invalid atom types " << handleA
