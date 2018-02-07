@@ -23,7 +23,6 @@ class FixWallLJ126 : public FixWall {
 
 		bool prepareForRun();
 		
-        bool postRun();
 
         void singlePointEng(real *);
 		

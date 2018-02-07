@@ -75,10 +75,6 @@ bool FixWallHarmonic::prepareForRun() {
     return prepared;
 };
 
-bool FixWallHarmonic::postRun () {
-    return true;
-};
-
 
 // export function
 void export_FixWallHarmonic() {

@@ -47,9 +47,6 @@ bool FixExternalQuartic::prepareForRun() {
     return prepared;
 };
 
-bool FixExternalQuartic::postRun () {
-    return true;
-};
 
 // export function
 void export_FixExternalQuartic() {

@@ -21,8 +21,6 @@ class FixExternalQuartic : public FixExternal {
 
 	    bool prepareForRun();
 		
-        bool postRun();
-
         void singlePointEng(real *);
 
 	    EvaluatorExternalQuartic evaluator; // evaluator for harmonic wall interactions

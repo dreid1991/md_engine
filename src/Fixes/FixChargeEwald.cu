@@ -563,6 +563,7 @@ __global__ void mapEngToParticles(int nAtoms, real eng, real *engs) {
 
 FixChargeEwald::FixChargeEwald(SHARED(State) state_, std::string handle_, std::string groupHandle_): FixCharge(state_, handle_, groupHandle_, chargeEwaldType, true){
     cufftCreate(&plan);
+    prepared = false;
     canOffloadChargePairCalc = true;
     modeIsError = false;
     sz = make_int3(32, 32, 32);

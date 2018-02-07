@@ -61,6 +61,7 @@ void FixPair::prepareParameters(std::string handle,
     *postProc = preProc;
     ensureParamSize(*postProc);
     SquareVector::populate<real>(postProc, desiredSize, fillFunction);
+    //SquareVector::process<real>(postProc, desiredSize, processFunction);
 }
 
 void FixPair::prepareParameters_from_other(std::string handle,
@@ -116,7 +117,7 @@ void FixPair::ensureOrderGivenForAllParams() {
         }
     }
 }
-void FixPair::sendAllToDevice() {
+void FixPair::sendAllToDevice(bool printParameters) {
     ensureOrderGivenForAllParams();
     int totalSize = 0;
     for (auto it = paramMapProcessed.begin(); it!=paramMapProcessed.end(); it++) {
@@ -127,6 +128,13 @@ void FixPair::sendAllToDevice() {
     int runningSize = 0;
     for (std::string handle : paramOrder) {
         std::vector<real> &vals = paramMapProcessed[handle];
+        if (printParameters) {
+            std::cout << "Printing values for parameter " << handle << std::endl;
+            for (size_t i = 0; i < vals.size(); i++) {
+                std::cout << "index " << i << ": " << vals[i] << std::endl;
+            }
+            std::cout << "End values for parameter " << handle << std::endl;
+         }
         paramsCoalesced.set(vals.data(), runningSize, vals.size());
         runningSize += vals.size();
     }

@@ -1,4 +1,5 @@
 #include "FixE3B.h"
+#include "DeviceManager.h"
 
 #include "BoundsGPU.h"
 #include "State.h"
@@ -28,7 +29,7 @@ FixE3B::FixE3B(boost::shared_ptr<State> state_,
     //     and the 0.1 is a padding factor
     padding = rc - rf; // rc - rf = 1.0; pass this to local GridGPU on instantiation
     style = "E3B3";
-    requiresForces = false;
+    requiresForces = false; // does NOT require the forces to prepare itself
     requiresPerAtomVirials = false;
     prepared = false;
     nThreadPerAtom(state->devManager.prop.warpSize);
@@ -49,12 +50,6 @@ FixE3B::FixE3B(boost::shared_ptr<State> state_,
 //
 // what arguments do we need here? we are updating the molecule positions from 
 // the current atom positions
-
-// from FixRigid.cu
-__device__ inline real3 positionsToCOM_E3B(real3 *pos, real *mass, real ims) {
-  return (pos[0]*mass[0] + pos[1]*mass[1] + pos[2]*mass[2] + pos[3]*mass[3])*ims;
-}
-
 
 // E.g., check using 3 or 10 molecules initialized close to each other;
 __global__ void printNlist_E3B(int nMolecules, int4 *waterIdxs, uint16_t *neighborCounts, uint *neighborlist,
@@ -117,8 +112,55 @@ __global__ void printNlist_E3B(int nMolecules, int4 *waterIdxs, uint16_t *neighb
 
 }
 
+__global__ void twoBody_compute_check(
+         int nMolecules, 
+         const int4 *__restrict__ atomsFromMolecule,  // accessed by molecule idx, as atomidxs
+         const uint16_t *__restrict__ neighborCounts, // by moleculeIdx
+         const uint *__restrict__ neighborlist,       // bymoleculeIdxs
+         const uint32_t * __restrict__ cumulSumMaxPerBlock, // gridGPULocal
+         int warpSize, // device property
+         const real4 *__restrict__ xs,  // as atom idxs
+         const real4 *__restrict__ vs,
+         real4 *__restrict__ fs,        // as atom idxs
+         BoundsGPU bounds, 
+         Virial *__restrict__ virials,  // as atom idxs
+         int nMoleculesPerBlock,        
+         int maxNumNeighbors,
+         EvaluatorE3B eval) {
 
 
+    int moleculeIdx = blockIdx.x * nMoleculesPerBlock + (threadIdx.x / warpSize);
+  
+    bool masterThread = ( (threadIdx.x % warpSize) == 0);
+    if (moleculeIdx < nMolecules && masterThread) { 
+
+        printf("found moleculeIdx %d\n", moleculeIdx);
+        int4 atomIdxs = atomsFromMolecule[moleculeIdx];
+        real4 vel_O   = vs[atomIdxs.x];
+        printf("mass oxygen: %f\n",1.0/vel_O.w);
+        int numNeighbors = neighborCounts[moleculeIdx];
+        int baseIdx = baseNeighlistIdxFromRPIndex(cumulSumMaxPerBlock, warpSize, moleculeIdx, warpSize);
+
+        real4 pos_o = xs[atomIdxs.x];
+        printf("molecule idx %d pos %f %f %f\n", moleculeIdx, pos_o.x, pos_o.y, pos_o.z);
+        for (int i = 0; i < numNeighbors; i++) {
+            int initNlistIdx = i % warpSize;
+            int curNlistIdx = i;
+            int nlistIdx = baseIdx + initNlistIdx +  warpSize * (curNlistIdx/warpSize);
+            int neighborMoleculeIdx = neighborlist[nlistIdx];                  // global memory access
+
+            int4 atoms_neighbor = atomsFromMolecule[neighborMoleculeIdx];
+            real4 pos_a2 = xs[atoms_neighbor.x];
+            printf("molecule idx %d neighbor %d pos %f %f %f\n", moleculeIdx,neighborMoleculeIdx,pos_a2.x,pos_a2.y,pos_a2.z);
+        }
+
+
+    }
+
+    __syncthreads();
+}
+
+        
 __global__ void updateMoleculeIdxsMap(int nMolecules, int4 *waterIds, 
                                       int4 *waterIdxs, int *mol_idToIdxs, int *idToIdxs) {
 
@@ -192,10 +234,7 @@ __global__ void update_xs(int nMolecules, int4 *waterIdxs, real4 *mol_xs,
         real3 posH1= make_real3(pos_H1_whole);
         real3 posH2= make_real3(pos_H2_whole);
         real3 posM = make_real3(pos_M_whole);
-        //printf("idx %d O atom pos: %f %f %f\n", idx, posO.x, posO.y, posO.z);
-        //printf("idx %d H1 atom pos: %f %f %f\n", idx, posH1.x, posH1.y, posH1.z);
-        //printf("idx %d H2 atom pos: %f %f %f\n", idx, posH2.x, posH2.y, posH2.z);
-        //printf("idx %d weights: %f %f %f\n", idx, weightH1, weightH2, weightM);
+        
         real3 dispH1_min = bounds.minImage(posH1 - posO);
         real3 dispH2_min = bounds.minImage(posH2 - posO);
         real3 dispM_min  = bounds.minImage(posM  - posO);
@@ -211,6 +250,40 @@ __global__ void update_xs(int nMolecules, int4 *waterIdxs, real4 *mol_xs,
     }
 
 }
+
+
+void FixE3B::checkTwoBodyCompute() {
+
+    // get the activeIdx for our local gpdLocal (the molecule-by-molecule stuff);
+    int activeIdx = gpdLocal.activeIdx();
+    int warpSize = state->devManager.prop.warpSize;
+    bool computeVirials = false;
+    // else false
+    
+    GPUData &gpdGlobal = state->gpd;
+    int globalActiveIdx = gpdGlobal.activeIdx();
+    
+    // numBlocks, threadsPerBlock defined in prepareForRun()
+    size_t output_size = 1000 * 3 * 100 * sizeof(double);
+    cudaDeviceSetLimit(cudaLimitPrintfFifoSize,output_size);
+    twoBody_compute_check<<<numBlocks,threadsPerBlock>>>(nMolecules,
+                                waterIdxsGPU.data(),                      // atomIdxs for molecule idx
+                                gridGPULocal.perAtomArray.d_data.data(),  // neighbor counts for molecule idx
+                                gridGPULocal.neighborlist.data(),         // neighbor idx for molecule idx
+                                gridGPULocal.perBlockArray.d_data.data(), // cumulSumMaxPerBlock
+                                warpSize,
+                                gpdGlobal.xs(globalActiveIdx),            // as atom idxs 
+                                gpdGlobal.vs(globalActiveIdx),
+                                gpdGlobal.fs(globalActiveIdx),            // as atom idxs
+                                state->boundsGPU,
+                                gpdGlobal.virials.d_data.data(),          // as atom idxs
+                                warpsPerBlock,                            // used to compute molecule idx
+                                maxNumNeighbors,                          // defines beginning index in smem
+                                evaluator);
+
+    cudaDeviceSynchronize(); // to see output
+}
+
 
 void FixE3B::checkNeighborlist() {
     int activeIdx = gpdLocal.activeIdx();
@@ -308,10 +381,15 @@ void FixE3B::compute(int virialMode) {
     //  shared memory is used to store nlist molecule - atom positions, so we don't need to access 
     //  global memory for those except the one time
 
+    // we put the atom positions of j molecules, as well as all j indices in shared memory;
+    // --- j atom positions are used for (i,j,k) computes where j and k both on i's nlist;
+    //     j indices are used for (i,j,k) computes where j on i's nlist, k is not (simple array index checking)
+    size_t smemSize = warpsPerBlock * (3*maxNumNeighbors*sizeof(real3)+ (maxNumNeighbors+1)*sizeof(uint32_t));
+
     if (computeVirials) {
             // numBlocks, threadsPerBlock defined in prepareForRun()
-        compute_E3B_force<true><<<numBlocks,
-                                threadsPerBlock,3*maxNumNeighbors*warpsPerBlock*sizeof(real3)>>>(nMolecules,              // nMolecules in E3B potential
+        compute_E3B_force_twobody<true><<<numBlocks,
+                                threadsPerBlock>>>(nMolecules,              // nMolecules in E3B potential
                                 waterIdxsGPU.data(),                      // atomIdxs for molecule idx
                                 gridGPULocal.perAtomArray.d_data.data(),  // neighbor counts for molecule idx
                                 gridGPULocal.neighborlist.data(),         // neighbor idx for molecule idx
@@ -325,16 +403,12 @@ void FixE3B::compute(int virialMode) {
                                 maxNumNeighbors,                          // defines beginning index in smem
                                 evaluator);
 
-
-        // probably going to need all the threads
-        // parallel reduction for virial contribution and forces
-            //compute_E3B_force<EvaluatorE3B,true><<<numBlocks,threadsPerBlock,sharedmem>>>()
 
     } else {
 
             // numBlocks, threadsPerBlock defined in prepareForRun()
-        compute_E3B_force<false><<<numBlocks,
-                                threadsPerBlock,3*maxNumNeighbors*warpsPerBlock*sizeof(real3)>>>(nMolecules,              // nMolecules in E3B potential
+        compute_E3B_force_twobody<false><<<numBlocks,
+                                threadsPerBlock,smemSize>>>(nMolecules,              // nMolecules in E3B potential
                                 waterIdxsGPU.data(),                      // atomIdxs for molecule idx
                                 gridGPULocal.perAtomArray.d_data.data(),  // neighbor counts for molecule idx
                                 gridGPULocal.neighborlist.data(),         // neighbor idx for molecule idx
@@ -348,9 +422,84 @@ void FixE3B::compute(int virialMode) {
                                 maxNumNeighbors,                          // defines beginning index in smem
                                 evaluator);
 
-        //compute_E3B<EvaluatorE3B,false><<<numBlocks,threadsPerBlock,sharedmem>>>(
+    }
+    
+    if (computeVirials) {
+            // numBlocks, threadsPerBlock defined in prepareForRun()
+        compute_E3B_force_center<true><<<numBlocks,
+                                threadsPerBlock,smemSize>>>(nMolecules,              // nMolecules in E3B potential
+                                waterIdxsGPU.data(),                      // atomIdxs for molecule idx
+                                gridGPULocal.perAtomArray.d_data.data(),  // neighbor counts for molecule idx
+                                gridGPULocal.neighborlist.data(),         // neighbor idx for molecule idx
+                                gridGPULocal.perBlockArray.d_data.data(), // cumulSumMaxPerBlock
+                                warpSize,
+                                gpdGlobal.xs(globalActiveIdx),            // as atom idxs 
+                                gpdGlobal.fs(globalActiveIdx),            // as atom idxs
+                                state->boundsGPU,
+                                gpdGlobal.virials.d_data.data(),          // as atom idxs
+                                warpsPerBlock,                            // used to compute molecule idx
+                                maxNumNeighbors,                          // defines beginning index in smem
+                                evaluator);
+
+
+    } else {
+
+            // numBlocks, threadsPerBlock defined in prepareForRun()
+        compute_E3B_force_center<false><<<numBlocks,
+                                threadsPerBlock,smemSize>>>(nMolecules,              // nMolecules in E3B potential
+                                waterIdxsGPU.data(),                      // atomIdxs for molecule idx
+                                gridGPULocal.perAtomArray.d_data.data(),  // neighbor counts for molecule idx
+                                gridGPULocal.neighborlist.data(),         // neighbor idx for molecule idx
+                                gridGPULocal.perBlockArray.d_data.data(), // cumulSumMaxPerBlock
+                                warpSize,
+                                gpdGlobal.xs(globalActiveIdx),            // as atom idxs 
+                                gpdGlobal.fs(globalActiveIdx),            // as atom idxs
+                                state->boundsGPU,
+                                gpdGlobal.virials.d_data.data(),          // as atom idxs
+                                warpsPerBlock,                            // used to compute molecule idx
+                                maxNumNeighbors,                          // defines beginning index in smem
+                                evaluator);
 
     }
+    
+    if (computeVirials) {
+            // numBlocks, threadsPerBlock defined in prepareForRun()
+        compute_E3B_force_edge<true><<<numBlocks,
+                                threadsPerBlock,smemSize>>>(nMolecules,              // nMolecules in E3B potential
+                                waterIdxsGPU.data(),                      // atomIdxs for molecule idx
+                                gridGPULocal.perAtomArray.d_data.data(),  // neighbor counts for molecule idx
+                                gridGPULocal.neighborlist.data(),         // neighbor idx for molecule idx
+                                gridGPULocal.perBlockArray.d_data.data(), // cumulSumMaxPerBlock
+                                warpSize,
+                                gpdGlobal.xs(globalActiveIdx),            // as atom idxs 
+                                gpdGlobal.fs(globalActiveIdx),            // as atom idxs
+                                state->boundsGPU,
+                                gpdGlobal.virials.d_data.data(),          // as atom idxs
+                                warpsPerBlock,                            // used to compute molecule idx
+                                maxNumNeighbors,                          // defines beginning index in smem
+                                evaluator);
+
+
+    } else {
+
+            // numBlocks, threadsPerBlock defined in prepareForRun()
+        compute_E3B_force_edge<false><<<numBlocks,
+                                threadsPerBlock,smemSize>>>(nMolecules,              // nMolecules in E3B potential
+                                waterIdxsGPU.data(),                      // atomIdxs for molecule idx
+                                gridGPULocal.perAtomArray.d_data.data(),  // neighbor counts for molecule idx
+                                gridGPULocal.neighborlist.data(),         // neighbor idx for molecule idx
+                                gridGPULocal.perBlockArray.d_data.data(), // cumulSumMaxPerBlock
+                                warpSize,
+                                gpdGlobal.xs(globalActiveIdx),            // as atom idxs 
+                                gpdGlobal.fs(globalActiveIdx),            // as atom idxs
+                                state->boundsGPU,
+                                gpdGlobal.virials.d_data.data(),          // as atom idxs
+                                warpsPerBlock,                            // used to compute molecule idx
+                                maxNumNeighbors,                          // defines beginning index in smem
+                                evaluator);
+
+    }
+    cudaDeviceSynchronize();
     
     CUT_CHECK_ERROR("compute_E3B_force failed.\n");
 }
@@ -383,9 +532,6 @@ void FixE3B::handleLocalData() {
 
 bool FixE3B::stepInit(){
     // we use this as an opportunity to re-create the local neighbor list, if necessary
-    //int periodicInterval = state->periodicInterval;
-    // XXX on second thought, we want the list as short as possible - so re-make the 
-    // threebody neighborlist every turn
     uint activeIdx = gpdLocal.activeIdx();
 
     // get the global gpd and the bounds
@@ -463,9 +609,12 @@ void FixE3B::singlePointEng(real *perParticleEng) {
     //  shared memory is used to store nlist molecule - atom positions, so we don't need to access 
     //  global memory for those except the one time
     //size_t sharedMemSize = 3 * maxNumNeighbors * warpsPerBlock * sizeof(real3);
-    compute_E3B_energy<<<numBlocks,
-                        threadsPerBlock,
-                        3*maxNumNeighbors*warpsPerBlock*sizeof(real3)>>>(nMolecules,              // nMolecules in E3B potential
+
+    size_t smemSize = warpsPerBlock * (3*maxNumNeighbors*sizeof(real3)+ (maxNumNeighbors+1)*sizeof(uint32_t));
+    
+    compute_E3B_energy_twobody<<<numBlocks,
+                        threadsPerBlock
+                        >>>(nMolecules,              // nMolecules in E3B potential
                         waterIdxsGPU.data(),                      // atomIdxs for molecule idx
                         gridGPULocal.perAtomArray.d_data.data(),  // neighbor counts for molecule idx
                         gridGPULocal.neighborlist.data(),         // neighbor idx for molecule idx
@@ -477,6 +626,35 @@ void FixE3B::singlePointEng(real *perParticleEng) {
                         warpsPerBlock,                            // used to compute molecule idx
                         maxNumNeighbors,                          // defines beginning index in smem
                         evaluator);                               // assumes prepareForRun has been called
+    compute_E3B_energy_center<<<numBlocks,
+                        threadsPerBlock,
+                        smemSize>>>(nMolecules,              // nMolecules in E3B potential
+                        waterIdxsGPU.data(),                      // atomIdxs for molecule idx
+                        gridGPULocal.perAtomArray.d_data.data(),  // neighbor counts for molecule idx
+                        gridGPULocal.neighborlist.data(),         // neighbor idx for molecule idx
+                        gridGPULocal.perBlockArray.d_data.data(), // cumulSumMaxPerBlock
+                        warpSize,
+                        gpdGlobal.xs(globalActiveIdx),            // as atom idxs 
+                        perParticleEng,                           // as atom idxs
+                        state->boundsGPU,
+                        warpsPerBlock,                            // used to compute molecule idx
+                        maxNumNeighbors,                          // defines beginning index in smem
+                        evaluator);                               // assumes prepareForRun has been called
+    compute_E3B_energy_edge<<<numBlocks,
+                        threadsPerBlock,
+                        smemSize>>>(nMolecules,              // nMolecules in E3B potential
+                        waterIdxsGPU.data(),                      // atomIdxs for molecule idx
+                        gridGPULocal.perAtomArray.d_data.data(),  // neighbor counts for molecule idx
+                        gridGPULocal.neighborlist.data(),         // neighbor idx for molecule idx
+                        gridGPULocal.perBlockArray.d_data.data(), // cumulSumMaxPerBlock
+                        warpSize,
+                        gpdGlobal.xs(globalActiveIdx),            // as atom idxs 
+                        perParticleEng,                           // as atom idxs
+                        state->boundsGPU,
+                        warpsPerBlock,                            // used to compute molecule idx
+                        maxNumNeighbors,                          // defines beginning index in smem
+                        evaluator);                               // assumes prepareForRun has been called
+    CUT_CHECK_ERROR("compute_E3B_energy failed.\n");
 
     return;
 }
@@ -491,15 +669,16 @@ void FixE3B::createEvaluator() {
     real rf = 5.2;
     real k2 = 4.872;
     real k3 = 1.907;
+    real E2, Ea, Eb, Ec;
     // default
     if (style == "E3B3") {
         // as angstroms
 
         // E2, Ea, Eb, Ec as kJ/mole -> convert to kcal/mole
-        real E2 = 453000;
-        real Ea = 150.0000;
-        real Eb = -1005.0000;
-        real Ec = 1880.0000;
+        E2 = 453000.0;
+        Ea = 150.0000;
+        Eb = -1005.0000;
+        Ec = 1880.0000;
 
         // k2, k3 as angstroms
         
@@ -523,10 +702,10 @@ void FixE3B::createEvaluator() {
     // other option
     } else if (style == "E3B2") {
     
-        real E2 = 2349000.0; // kj/mol
-        real Ea = 1745.7;
-        real Eb = -4565.0;
-        real Ec = 7606.8;
+        E2 = 2349000.0; // kj/mol
+        Ea = 1745.7;
+        Eb = -4565.0;
+        Ec = 7606.8;
 
         E2 *= kjToKcal;
         Ea *= kjToKcal;
@@ -547,6 +726,16 @@ void FixE3B::createEvaluator() {
     } else {
         mdError("Unknown style in FixE3B.\n");
     }
+
+    std::cout << "Created E3B Evaluator:\n" << std::endl;
+    std::cout << "Ea: " << Ea << std::endl;
+    std::cout << "Eb: " << Eb << std::endl;
+    std::cout << "Ec: " << Ec << std::endl;
+    std::cout << "E2: " << E2 << std::endl;
+    std::cout << "rs: " << rs << std::endl;
+    std::cout << "rf: " << rf << std::endl;
+    std::cout << "k2: " << k2 << std::endl;
+    std::cout << "k3: " << k3 << std::endl;
 };
 
 void FixE3B::setStyle(std::string style_) {
@@ -561,9 +750,6 @@ void FixE3B::setStyle(std::string style_) {
 }
 
 
-/* prepareForRun
-
-   */
 bool FixE3B::prepareForRun(){
    
     // a style argument should have been passed by now
@@ -580,7 +766,6 @@ bool FixE3B::prepareForRun(){
     xs_vec.reserve(nMolecules);
     ids.reserve(nMolecules);
 
-    
     int workingId = 0;
     // so, the mass of the molecule starts at 0.0, until we update this
     // -- note that periodicBoundaryConditions in State::prepareForRun has been called by this point
@@ -818,9 +1003,6 @@ void FixE3B::addMolecule(int id_O, int id_H1, int id_H2, int id_M) {
 
 }
 
-/* exports
-
-   */
 
 void export_FixE3B() {
   py::class_<FixE3B, boost::shared_ptr<FixE3B>, py::bases<Fix> > 
@@ -841,6 +1023,7 @@ void export_FixE3B() {
          py::arg("style")
         )
     .def("checkNeighborlist", &FixE3B::checkNeighborlist)
+    .def("checkTwoBodyCompute",&FixE3B::checkTwoBodyCompute)
     // the list of molecules
     .def_readonly("molecules", &FixE3B::waterMolecules)
     .def_readonly("nMolecules", &FixE3B::nMolecules)

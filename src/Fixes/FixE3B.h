@@ -135,6 +135,8 @@ class FixE3B: public Fix {
 
         void checkNeighborlist();
 
+        void checkTwoBodyCompute();
+
         // we use; we'll start with 8, and 32 threads per molecule --> 256 threads per block
         int threadsPerBlock; //!< threads per block for E3B threebody kernel
         // TODO: removing a molecule?? -- any method that permits modifying, esp. at runtime, 

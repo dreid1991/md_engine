@@ -608,6 +608,11 @@ class EvaluatorE3B {
 
         /* END CALCULATION OF THREE BODY ENERGIES */
 
+        // because we calculate each triplet 3 times, divide by 3
+        local_sum_a /= 3.0;
+        local_sum_b /= 3.0;
+        local_sum_c /= 3.0;
+
         // now, write the accumulated local energies to the eng_sum variables that were passed by reference
         eng_sum_a += local_sum_a;
         eng_sum_b += local_sum_b;

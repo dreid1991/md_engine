@@ -175,10 +175,6 @@ std::string FixLJCHARMM::restartChunk(std::string format) {
 }
 
 
-bool FixLJCHARMM::postRun() {
-
-    return true;
-}
 
 void FixLJCHARMM::addSpecies(std::string handle) {
     initializeParameters(epsHandle, epsilons);

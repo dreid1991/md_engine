@@ -18,8 +18,6 @@ class FixExternalHarmonic : public FixExternal {
 
 	    bool prepareForRun();
 	    	
-        bool postRun();
-
         void singlePointEng(real *);
 
 	    EvaluatorExternalHarmonic evaluator; // evaluator for harmonic wall interactions

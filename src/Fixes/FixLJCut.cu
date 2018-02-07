@@ -128,10 +128,6 @@ std::string FixLJCut::restartChunk(std::string format) {
 }
 
 
-bool FixLJCut::postRun() {
-
-    return true;
-}
 
 void FixLJCut::addSpecies(std::string handle) {
     initializeParameters(epsHandle, epsilons);

@@ -53,11 +53,6 @@ class FixLJCut : public FixPair {
          */
         bool prepareForRun();
 
-        //! Run after simulation
-        /*!
-         * This function needs to be called after simulation run.
-         */
-        bool postRun();
 
         //! Create restart string
         /*!

@@ -75,9 +75,6 @@ bool FixWallLJ126::prepareForRun() {
     return prepared;
 };
 
-bool FixWallLJ126::postRun () {
-    return true;
-};
 
 // export function
 void export_FixWallLJ126() {

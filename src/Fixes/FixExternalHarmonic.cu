@@ -46,10 +46,6 @@ bool FixExternalHarmonic::prepareForRun() {
     return prepared;
 };
 
-bool FixExternalHarmonic::postRun () {
-    return true;
-};
-
 // export function
 void export_FixExternalHarmonic() {
 	py::class_<FixExternalHarmonic, SHARED(FixExternalHarmonic), py::bases<FixExternal>, boost::noncopyable > (

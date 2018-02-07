@@ -123,10 +123,6 @@ std::string FixWCA::restartChunk(std::string format) {
 }
 
 
-bool FixWCA::postRun() {
-
-    return true;
-}
 
 void FixWCA::addSpecies(std::string handle) {
     initializeParameters(epsHandle, epsilons);

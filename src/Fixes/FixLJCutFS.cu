@@ -19,12 +19,11 @@ FixLJCutFS::FixLJCutFS(boost::shared_ptr<State> state_, std::string handle_, std
     initializeParameters(epsHandle, epsilons);
     initializeParameters(sigHandle, sigmas);
     initializeParameters(rCutHandle, rCuts);
-    initializeParameters("FCutHandle", FCuts);
-    paramOrder = {rCutHandle, epsHandle, sigHandle, "FCutHandle"};
+    initializeParameters("FCutHandle",FCuts);
+    paramOrder = {rCutHandle, epsHandle, sigHandle,"FCutHandle"};
 
     canAcceptChargePairCalc = true;
     setEvalWrapper();
-    printParams();
 }
 
 void FixLJCutFS::compute(int virialMode) {
@@ -98,27 +97,17 @@ bool FixLJCutFS::prepareForRun() {
         return a*a;
     };
     
-	std::function<real(int, int)>fillFCut = [this] (int a, int b) {
+    std::function<real(int,int)>fillFCut = [this] (int a, int b) {
         int numTypes = state->atomParams.numTypes;
-        // fillFCut is called after processEps has been called; therefore, this is already 24 * eps
-        real epstimes24= squareVectorRef<real>(paramMap[epsHandle]->data(),numTypes,a,b);
-        // fillFCut is called after processRCut has been called; therefore, this is already rcutSqr
-        real rCutSqr = squareVectorRef<real>(paramMap[rCutHandle]->data(),numTypes,a,b);
-        // fillFCut is called after processSig has been called; therefore, this is already sigma^6
-        real sig6 =    squareVectorRef<real>(paramMap[sigHandle]->data(),numTypes,a,b);
-        real p1 = epstimes24*2.0*sig6*sig6;
-        real p2 = epstimes24*sig6;
-        real r2inv = 1.0/rCutSqr;
-        real r6inv = r2inv*r2inv*r2inv;
-        real forceScalar = r6inv * r2inv * (p1 * r6inv - p2)*sqrt(rCutSqr);
-        std::cout << "epstimes24: " << epstimes24 << std::endl;
-        std::cout << "rCutSqr: " << rCutSqr << std::endl;
-        std::cout << "sig6: " << sig6 << std::endl;
-        std::cout << "p1: " << p1 << std::endl;
-        std::cout << "p2: " << p2 << std::endl;
-        std::cout << "r2inv: " << r2inv << std::endl;
-        std::cout << "r6inv: " << r6inv << std::endl;
-        std::cout << "forceScalar: " << forceScalar << std::endl;
+        real epstimes24 = 24.0 * squareVectorRef<real>(paramMap[epsHandle]->data(),numTypes,a,b);
+        real rCutSqr    = pow(squareVectorRef<real>(paramMap[rCutHandle]->data(),numTypes,a,b),2);
+        real sig6 = pow(squareVectorRef<real>(paramMap[sigHandle]->data(),numTypes,a,b),6);
+        real p1 = epstimes24 * 2.0 * sig6 * sig6;
+        real p2 = epstimes24 * sig6;
+        real r2Inv = 1.0 / rCutSqr;
+        real rInv = sqrt(r2Inv);
+        real r6Inv = r2Inv * r2Inv * r2Inv;
+        real forceScalar = r6Inv * rInv * (p1 * r6Inv - p2);
         return forceScalar;
     };
     //paramOrder = {rCutHandle, epsHandle, sigHandle, "FCutHandle"};
@@ -130,11 +119,12 @@ bool FixLJCutFS::prepareForRun() {
 		prepareParameters(sigHandle, fillGeo, processSig, false);
 	}
     prepareParameters(rCutHandle, fillRCut, processRCut, true, fillRCutDiag);
-    prepareParameters("FCutHandle", fillFCut);
+
+    prepareParameters(rCutHandle, fillFCut);
 
 
-
-    sendAllToDevice();
+    // 'true' has sendAllToDevice print after processing the parameters data.
+    sendAllToDevice(true);
     setEvalWrapper();
     prepared = true;
     return prepared;
@@ -173,15 +163,7 @@ void FixLJCutFS::printParams() {
         std::cout << "rCuts["  << i << "]: " << rCuts[i] << std::endl;
     }
 
-    for (std::size_t i = 0; i < FCuts.size(); i++) {
-        std::cout << "FCuts["  << i << "]: " << FCuts[i] << std::endl;
-    }
 
-}
-
-bool FixLJCutFS::postRun() {
-
-    return true;
 }
 
 // DEPRECATED
@@ -215,10 +197,7 @@ void export_FixLJCutFS() {
         py::init<boost::shared_ptr<State>, std::string, py::optional<std::string> > (
             py::args("state", "handle", "mixingRules"))
     )
-                              
     .def("printParams", &FixLJCutFS::printParams) 
-                              
-                              
     ;
 
 }

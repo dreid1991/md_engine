@@ -46,6 +46,7 @@ bool FixPressureBerendsen::stepFinal() {
 
 bool FixPressureBerendsen::postRun() {
     finished = true;
+    prepared = false;
     return true;
 }
 

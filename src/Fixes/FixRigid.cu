@@ -2095,6 +2095,7 @@ bool FixRigid::stepFinal() {
 // in this case, tell state that there are no longer rigid bodies
 bool FixRigid::postRun() {
     prepared = false;
+    solveInitialConstraints = false;
     state->rigidBodies = false;
     return true;
 }

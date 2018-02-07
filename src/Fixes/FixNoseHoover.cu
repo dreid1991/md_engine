@@ -398,7 +398,7 @@ bool FixNoseHoover::postRun()
 {
     tempInterpolator.finishRun();
     rescale();
-
+    prepared = false;
     return true;
 }
 

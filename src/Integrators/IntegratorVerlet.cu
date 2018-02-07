@@ -669,7 +669,7 @@ double IntegratorVerlet::run(int numTurns)
     auto start = std::chrono::high_resolution_clock::now();
 
     DataManager &dataManager = state->dataManager;
-    dtf = 0.5f * state->dt * state->units.ftm_to_v;
+    dtf = 0.5 * state->dt * state->units.ftm_to_v;
     int tuneEvery = state->tuneEvery;
     bool haveTunedWithData = false;
     double timeTune = 0;

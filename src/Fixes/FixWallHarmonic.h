@@ -22,8 +22,6 @@ class FixWallHarmonic : public FixWall {
         void compute(int);
 
 		bool prepareForRun();
-		
-        bool postRun();
 
         void singlePointEng(real *);
 

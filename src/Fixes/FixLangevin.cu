@@ -84,6 +84,7 @@ bool FixLangevin::prepareForRun() {
 
 bool FixLangevin::postRun() {
     finished = true;
+    prepared = false;
     return true;
 }
 

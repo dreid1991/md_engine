@@ -133,6 +133,7 @@ void FixNVTAndersen::compute(int virialMode) {
 
 bool FixNVTAndersen::postRun() {
     finishRun();
+    prepared = false;
     return true;
 }
 

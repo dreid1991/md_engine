@@ -106,6 +106,7 @@ bool FixNVTRescale::stepFinal() {
 
 bool FixNVTRescale::postRun() {
     finishRun();
+    prepared = false;
     return true;
 }
 

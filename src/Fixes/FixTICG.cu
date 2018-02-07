@@ -90,9 +90,6 @@ std::string FixTICG::restartChunk(std::string format) {
     return ss.str();
 }
 
-bool FixTICG::postRun() {
-    return true;
-}
 
 void FixTICG::addSpecies(std::string handle) {
     initializeParameters(CHandle, Cs);

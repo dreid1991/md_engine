@@ -80,7 +80,7 @@ protected:
     void prepareParameters(std::string handle,
                            std::function<real (real)> processFunction);    
     //! Send parameters to all GPU devices
-    void sendAllToDevice();
+    void sendAllToDevice(bool printParameters = false);
 
     //! Ensure GPUArrayGlobal storing the parameters has right size
     /*!

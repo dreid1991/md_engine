@@ -4,6 +4,7 @@
 
 #include <map>
 #include <set>
+#include <boost/python.hpp>
 
 #include "GPUArrayGlobal.h"
 #include "GPUArrayDeviceGlobal.h"
@@ -209,6 +210,8 @@ public:
     void setBounds(BoundsGPU &newBounds);
     real3 minGridDim;
 
+    // returns the neighborlist as a list of lists (neighborlists per atom)
+    boost::python::list getNeighborList();
     /*! \brief Set flag to true/false
      *
      * \param bool the value of the flag
