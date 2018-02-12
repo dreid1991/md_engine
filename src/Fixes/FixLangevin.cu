@@ -66,7 +66,9 @@ FixLangevin::FixLangevin(boost::shared_ptr<State> state_, std::string handle_, s
 
 void __global__ initRandStates(int nAtoms, curandState_t *states, int seed,int turn) {
     int idx = GETIDX();
-    curand_init(seed, idx, turn, states + idx);
+    if (idx < nAtoms) {
+        curand_init(seed, idx, turn, states + idx);
+    }
 
 }
 
@@ -76,7 +78,8 @@ bool FixLangevin::prepareForRun() {
     turnFinishRun = state->runInit + state->runningFor;
     randStates = GPUArrayDeviceGlobal<curandState_t>(state->atoms.size());
     initRandStates<<<NBLOCK(state->atoms.size()), PERBLOCK>>>(state->atoms.size(), randStates.data(), seed,state->turn);
-    return true;
+    prepared = true;
+    return prepared;
 }
 
 bool FixLangevin::postRun() {
