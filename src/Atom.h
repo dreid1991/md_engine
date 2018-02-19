@@ -5,7 +5,6 @@
 #include <vector>
 #include <string.h>
 #include "Vector.h"
-#include "OffsetObj.h"
 
 class Atom;
 

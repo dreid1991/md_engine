@@ -1132,6 +1132,8 @@ bool GridGPU::verifyNeighborlists(real neighCut) {
     // int gpuId = *(int *)&sortedXs[TESTIDX].w;
     // int cpuIdx = gpuId;
 
+    std::cout << "about to get the cpu_neighbors" << std::endl;
+    std::cout << "xs.size() is " << xs.size() << std::endl;
     std::vector<std::vector<int> > cpu_neighbors;
     for (int i=0; i<xs.size(); i++) {
         std::vector<int> atom_neighbors;
@@ -1150,6 +1152,7 @@ bool GridGPU::verifyNeighborlists(real neighCut) {
         cpu_neighbors.push_back(atom_neighbors);
     }
     // std::cout << "cpu dist is " << sqrt(lengthSqr(state->boundsGPU.minImage(xs[0]-xs[1])))  << std::endl;
+    
 
     int warpSize = state->devManager.prop.warpSize;
     for (int i=0; i<xs.size(); i++) {
@@ -1513,7 +1516,6 @@ boost::python::list GridGPU::getNeighborList() {
 
     // ok, we're going to traverse this as we do on the GPU, per-atom, and append to a list of lists.
     // -- each atom will have its own list.
-    boost::python::list neighborlistToReturn = boost::python::list();
    
     // ok - copied from above; this directly copies neighborlist device data to host side vector
     uint *nlist = (uint *) malloc(neighborlist.size()*sizeof(uint));
@@ -1535,8 +1537,6 @@ boost::python::list GridGPU::getNeighborList() {
     // for (int i=0; i<ids.size(); i++) {
     //     std::cout << ids[i] << std::endl;
     // }
-    gpd->xs.dataToHost(!gpd->xs.activeIdx);
-    gpd->ids.dataToHost(!gpd->ids.activeIdx);
 
     cudaDeviceSynchronize();
     // so, what are these vs xs, ids??
@@ -1546,58 +1546,99 @@ boost::python::list GridGPU::getNeighborList() {
     size_t nAtoms = gpd->xs.size();
 
     uint16_t *neighCounts = perAtomArray.h_data.data();
-
+    uint32_t *pba         = perBlockArray.h_data.data();
     int myPerBlock = nThreadPerBlock();
     int myThreadsPerAtom = nThreadPerAtom();
+    
     int warpSize = state->devManager.prop.warpSize;
-    int myBlocksLaunched = NBLOCKVAR(myPerBlock,myThreadsPerAtom);
-    /*
-    for (int i=0; i<xs.size(); i++) {
-        int blockIdx = i / PERBLOCK;
-        int warpIdx = (i - blockIdx * PERBLOCK) / warpSize;
-        int idxInWarp = i - blockIdx * PERBLOCK - warpIdx * warpSize;
-        int cumSumUpToMyBlock = perBlockArray.h_data[blockIdx];
-        int perAtomMyWarp = perBlockArray.h_data[blockIdx+1] - cumSumUpToMyBlock;
-        int baseIdx = PERBLOCK * perBlockArray.h_data[blockIdx] + perAtomMyWarp * warpSize * warpIdx + idxInWarp;
-    */
+    int myBlocksLaunched = NBLOCKTEAM(xs.size(),myPerBlock,myThreadsPerAtom);
 
+    std::cout << "Computing nlists for up to " << myBlocksLaunched * (myPerBlock/myThreadsPerAtom) << " atoms" << std::endl;
+    
+    int thisIdx = 0;
+    boost::python::list neighborlistToReturn = boost::python::list();
 
-    // for each atom...
-    for (size_t i = 0; i < nAtoms; i++) {
-        // here is where i will put the neighborlist..
-        boost::python::list myNeighborList = boost::python::list();
+    for (int i = 0; i < ids.size(); i++) {
+        boost::python::list emptyList{};
+        neighborlistToReturn.append(emptyList);
+    }
 
-        // now, begin traversing as if on the GPU.
-        int blockIdx = i / myPerBlock;
-        int warpIdx = (i - blockIdx * myPerBlock) / warpSize;
-        int offset = 0;
-        //uint16_t numNeighbors = neighCounts;
-        int cumSumUpToMyBlock = perBlockArray.h_data[blockIdx];   
-        
-        if (myThreadsPerAtom > 1)  {
+    // iterate over 'blocks', then 'workGroups' (if NTPA==1, then workGroups==threads per block)
+    for (int blockIndex = 0; blockIndex < myBlocksLaunched; blockIndex++) {
 
-        } else { 
+        // a work group is a group of threads assigned to one atom;
+        for (int workGroupsPerBlock = 0; workGroupsPerBlock < (myPerBlock/myThreadsPerAtom); workGroupsPerBlock++) {
 
-        };
+            // ok, so threadIdx is blockIndex*(blockDim.x) + threadIdx.x
+            // -- a workGroup maps to a single idx
+            thisIdx = blockIndex * myPerBlock + workGroupsPerBlock;
 
+            if (thisIdx >= nAtoms) break;
+            // make an empty list for this
+            boost::python::list myNeighborList{};
 
-        neighborlistToReturn.append(myNeighborList);
+            // get the number of neighbors this idx has
+            int numNeighbors = neighCounts[thisIdx];
 
+            // load where this neighbor list starts
+     
+            int baseNeighlistIdx;
+            if (myThreadsPerAtom > 1) {
+                int nAtomPerBlock           = myPerBlock / myThreadsPerAtom;
+                int  thisblockIdx           = thisIdx / nAtomPerBlock;
+                uint32_t cumulSumUpToMe     = pba[thisblockIdx];
+                uint32_t memSizePerWarpMe   = pba[thisblockIdx+1] - cumulSumUpToMe;
+                int nthAtomInBlock          = thisIdx % nAtomPerBlock;
+                int nAtomPerWarp            = warpSize / myThreadsPerAtom;
+                int myWarp                  = nthAtomInBlock / nAtomPerWarp;
+                int myIdxInWarp             = nthAtomInBlock % nAtomPerWarp;
+                int warpsPerBlock           = myPerBlock/warpSize;
+                baseNeighlistIdx = warpsPerBlock * cumulSumUpToMe + memSizePerWarpMe * myWarp + myIdxInWarp * myThreadsPerAtom;
+            } else {
+                int      thisblockIdx           = thisIdx / myPerBlock;
+                uint32_t cumulSumUpToMe     = perBlockArray.h_data[thisblockIdx];
+                uint32_t memSizePerWarpMe   = perBlockArray.h_data[thisblockIdx+1] - cumulSumUpToMe;
+                int nthAtomInBlock          = thisIdx % myPerBlock;
+                int myWarp                  = nthAtomInBlock / warpSize;
+                int myIdxInWarp             = nthAtomInBlock % warpSize;
+                int warpsPerBlock           = myPerBlock/warpSize;
+                baseNeighlistIdx = warpsPerBlock * cumulSumUpToMe + memSizePerWarpMe * myWarp + myIdxInWarp;
+            }
+
+            // ok, got the baseNeighlistIdx..
+            if (myThreadsPerAtom > 1) {
+                for (int i = 0; i < myThreadsPerAtom; i++) {
+                    for (int j = i; j < numNeighbors; j+=myThreadsPerAtom) {
+                        int nlistIdx = baseNeighlistIdx + i + warpSize*(j/myThreadsPerAtom);
+                        uint32_t otherIdx = nlist[nlistIdx];
+                        myNeighborList.append(ids[otherIdx]);
+                    }
+                }
+
+            } else {
+
+                for (int i=0; i < numNeighbors; i++) {
+                    int nlistIdx = baseNeighlistIdx + warpSize*i;
+                    uint32_t otherIdx = nlist[nlistIdx];
+                    myNeighborList.append(ids[otherIdx]);
+                }
+            }
+            
+            neighborlistToReturn[ids[thisIdx]] = myNeighborList;
+        }
+        if (thisIdx >= nAtoms) break;
     };
 
     return neighborlistToReturn;
 
     /*
-    int nAtomPerBlock = blockDim.x / nThreadPerAtom;
-    int      blockIdx           = myRingPolyIdx / nAtomPerBlock;
-    uint32_t cumulSumUpToMe     = cumulSumMaxMemPerWarp[blockIdx];
-    uint32_t memSizePerWarpMe   = cumulSumMaxMemPerWarp[blockIdx+1] - cumulSumUpToMe;
-    int nthAtomInBlock          = myRingPolyIdx % nAtomPerBlock;
-    int nAtomPerWarp            = warpSize / nThreadPerAtom;
-    int myWarp                  = nthAtomInBlock / nAtomPerWarp;
-    int myIdxInWarp             = nthAtomInBlock % nAtomPerWarp;
-    int warpsPerBlock           = blockDim.x/warpSize;
-    return warpsPerBlock * cumulSumUpToMe + memSizePerWarpMe * myWarp + myIdxInWarp * nThreadPerAtom;
+    boost::python::list idsAsPyList{};
+    for (int i = 0; i < ids.size(); i++) {
+        int idToAppend = (int) ids[i];
+        idsAsPyList.append(idToAppend);
+    }
+    neighborlistToReturn.append(idsAsPyList);
+    // these are idx atoms neighbors, also as idxs; so, get the idxToId map from state.
     */
 }
 
@@ -1609,6 +1650,7 @@ void export_GridGPU() {
     .def("buildNeighborlists", &GridGPU::periodicBoundaryConditions, (py::arg("neighCut")=-1, py::arg("forceBuild")=true))
     // after buildNeighborlists has been called, we can export the information to python via the following:
     .def("computeMaxNumNeighbors", &GridGPU::computeMaxNumNeighbors)
+    .def("verifyNeighborlists", &GridGPU::verifyNeighborlists)
     .def("getNeighborCounts", &GridGPU::getNeighborCounts)
     .def("getNeighborList", &GridGPU::getNeighborList)
     //.def("getNeighborList",   &GridGPU::getNeighborList)

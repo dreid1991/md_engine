@@ -42,6 +42,12 @@ public:
     std::vector<GPUArray *> activeData; //!< List of pointers to the data
                                         //!< used by this integrator
 
+    //! Some fixes & other objects have local data that may need to be updated after a position update
+    /*!
+     * -- updates molecule positions in E3B
+     */
+    void handleLocalData();
+
     //! Simple checks before the run
     /*!
      * The checks consist of:

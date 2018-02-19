@@ -157,6 +157,23 @@ Atom &State::idToAtom(int id) {
     return atoms[idToIdx[id]];
 }
 
+void State::computeIdxToId() {
+
+    // just re-allocate and compute
+    idxToId = std::vector<int>(idToIdx.size(),0);
+
+    // idToIdx is a one-to-one mapping
+    for (int i = 0; i < idToIdx.size(); i++) {
+        // look up the idx that 'i' maps to
+        int idx = idToIdx[i];
+        idxToId[idx] = i;
+    }
+}
+
+std::vector<int> State::getIdxToId() {
+    return idxToId;
+}
+
 int State::idToIdxPy(int id) {
     return idToIdx[id];
 }
@@ -366,6 +383,13 @@ void State::refreshIdToIdx() {
     for (int i=0; i<atoms.size(); i++) {
         idToIdx[atoms[i].id] = i;
     }
+}
+boost::python::list State::getIdToIdx() {
+    boost::python::list idToIdxToReturn {};
+    for (size_t i = 0; i < idToIdx.size(); i++) {
+        idToIdxToReturn.append(idToIdx[i]);
+    }
+    return idToIdxToReturn;
 }
 /*  use atomParams.addSpecies
 int State::addSpecies(std::string handle, double mass) {
@@ -1175,7 +1199,10 @@ BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(State_seedRNG_overloads,State::seedRNG,0,
                 .def("zeroVelocities", &State::zeroVelocities)
                 .def("destroy", &State::destroy)
                 .def("seedRNG", &State::seedRNG, State_seedRNG_overloads())
+                .def("prepareForRun", &State::prepareForRun)
                 .def("preparePIMD", &State::preparePIMD)
+                .def("computeIdxToId", &State::computeIdxToId)
+                .def("getIdxToId", &State::getIdxToId)
                 .def_readwrite("is2d", &State::is2d)
                 .def_readwrite("turn", &State::turn)
                 .def_readwrite("nThreadPerAtom", &State::nThreadPerAtom)
@@ -1207,6 +1234,8 @@ BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(State_seedRNG_overloads,State::seedRNG,0,
                 .def_readonly("gpd", &State::gpd)
                 .def("toHost", &State::toHost)
                 .def("toDevice", &State::toDevice)
+                .def("refreshIdToIdx", &State::refreshIdToIdx)
+                .def("getIdToIdx", &State::getIdToIdx)
                 ;
 
     }
