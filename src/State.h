@@ -499,6 +499,10 @@ public:
     std::vector<int> idToIdx; //!< Cache for easier Atom index lookup.
     int idToIdxPy(int id); 
 
+    void computeIdxToId();
+    std::vector<int> idxToId; //!< reverse map of the above 'idToIdx'
+    std::vector<int> getIdxToId(); 
+    boost::python::list getIdToIdx(); //!< returns idToIdx as boost::python::list; note that it does not automatically refresh idToIdx, so that should be called first
     Atom &idToAtom(int id);
     //! Maximum Atom Id for all existing Atoms
     /*!

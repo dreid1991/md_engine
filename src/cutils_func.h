@@ -19,6 +19,7 @@ inline __device__ int baseNeighlistIdx(const uint32_t *cumulSumMaxMemPerWarp, in
     return warpsPerBlock * cumulSumUpToMe + memSizePerWarpMe * myWarp + myIdxInWarp;
 }
 
+//int baseIdx_globalJIdx = baseNeighlistIdxFromRPIndex(cumulSumMaxPerBlock, warpSize, globalJIdx, warpSize);
 inline __device__ int baseNeighlistIdxFromRPIndex(const uint32_t *cumulSumMaxMemPerWarp, int warpSize, int myRingPolyIdx, int nThreadPerAtom) { 
     int nAtomPerBlock = blockDim.x / nThreadPerAtom;
     int      blockIdx           = myRingPolyIdx / nAtomPerBlock;

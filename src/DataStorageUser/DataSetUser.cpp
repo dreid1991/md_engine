@@ -70,6 +70,5 @@ void export_DataSetUser() {
     .def_readonly("vals", &DataSetUser::vals)
     .def_readwrite("interval", &DataSetUser::interval)
     .add_property("pyFunc", &DataSetUser::getPyFunc, &DataSetUser::setPyFunc);
- //   .def("getDataSet", &DataManager::getDataSet)
     ;
 }

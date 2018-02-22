@@ -30,7 +30,6 @@ void DataManager::computeEnergy() {
 */
 
 
-
 boost::shared_ptr<DataSetUser> DataManager::createDataSet(boost::shared_ptr<DataComputer> comp, uint32_t groupTag, int interval, py::object collectGenerator) {
     if (interval == 0) {
         return boost::shared_ptr<DataSetUser>(new DataSetUser(state, comp, groupTag, collectGenerator));

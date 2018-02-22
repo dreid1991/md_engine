@@ -46,16 +46,6 @@ private:
      */
     void initStream();
 
-    /*! \brief Verfiy consistency of neightbor list
-     *
-     * \param neighCut Cutoff distance for neighbor building
-     *
-     * \return True if neighbor list is built correctly. Else, return False.
-     *
-     * This function is helpful for debugging purposes, checking that the
-     * neighbor listing works as expected.
-     */
-    bool verifyNeighborlists(real neighCut);
 
     /*! \brief Verify that sorting atoms into grid works as expected
      *
@@ -238,6 +228,17 @@ public:
      *       right?
      */
     void copyPositionsAsync();
+    
+    /*! \brief Verfiy consistency of neightbor list
+     *
+     * \param neighCut Cutoff distance for neighbor building
+     *
+     * \return True if neighbor list is built correctly. Else, return False.
+     *
+     * This function is helpful for debugging purposes, checking that the
+     * neighbor listing works as expected.
+     */
+    bool verifyNeighborlists(real neighCut);
 };
 
 #endif
