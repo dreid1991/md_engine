@@ -1175,6 +1175,7 @@ BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(State_seedRNG_overloads,State::seedRNG,0,
                 .def("zeroVelocities", &State::zeroVelocities)
                 .def("destroy", &State::destroy)
                 .def("seedRNG", &State::seedRNG, State_seedRNG_overloads())
+                .def("prepareForRun", &State::prepareForRun)
                 .def("preparePIMD", &State::preparePIMD)
                 .def_readwrite("is2d", &State::is2d)
                 .def_readwrite("turn", &State::turn)

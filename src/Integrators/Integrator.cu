@@ -134,6 +134,15 @@ void Integrator::prepareFixes(bool requiresForces_) {
 
     
 }
+void Integrator::handleLocalData() {
+
+    // finally, prepare any barostats or thermostats that are present in simulation
+    for (Fix *f : state->fixes) {
+        // final stuff that needs to be prepared; in the cases of barostats & thermostats, all the things.
+        f->handleLocalData();
+
+    }
+}
 
 void Integrator::prepareFinal() {
     // iterate over the groups and collect our NDF for a given group
