@@ -696,6 +696,8 @@ double IntegratorVerlet::run(int numTurns)
 
         handleBoundsChange();
 
+        handleLocalData();
+
         if (state->tuning) {
             if ((state->turn-state->runInit) % tuneEvery == 0 and state->turn > state->runInit) {
                 //this goes here because forces are zero at this point.  I don't need to save any forces this way
