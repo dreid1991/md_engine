@@ -183,7 +183,7 @@ void Mod::scaleSystem(State *state, real3 scaleBy, uint32_t groupTag) {
                 f->scaleRigidBodies(scaleBy,groupTag); 
             }
         } else {
-        scaleSystem_cu<false><<<NBLOCK(state->atoms.size()), PERBLOCK>>>(gpd.xs.getDevData(), state->atoms.size(), state->boundsGPU.lo, state->boundsGPU.rectComponents, scaleBy, gpd.idToIdxs.d_data.data(),state->rigidBodiesMask.d_data.data());
+            scaleSystem_cu<false><<<NBLOCK(state->atoms.size()), PERBLOCK>>>(gpd.xs.getDevData(), state->atoms.size(), state->boundsGPU.lo, state->boundsGPU.rectComponents, scaleBy, gpd.idToIdxs.d_data.data(),state->rigidBodiesMask.d_data.data());
         }
     } else if (groupTag) {
         if (state->rigidBodies) {
@@ -191,7 +191,7 @@ void Mod::scaleSystem(State *state, real3 scaleBy, uint32_t groupTag) {
             for (Fix *f: state->fixes)  {
                 f->scaleRigidBodies(scaleBy,groupTag); 
             }
-            
+
         } else {
             scaleSystemGroup_cu<false><<<NBLOCK(state->atoms.size()), PERBLOCK>>>(gpd.xs.getDevData(), state->atoms.size(), state->boundsGPU.lo, state->boundsGPU.rectComponents, scaleBy, groupTag, gpd.fs.getDevData(),gpd.idToIdxs.d_data.data(), state->rigidBodiesMask.d_data.data());
         }
