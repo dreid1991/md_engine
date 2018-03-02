@@ -10,18 +10,13 @@ void export_FixBondFENE();
 class FixBondFENE : public FixBond<BondFENE, BondGPU, BondFENEType> {
 
 public:
-    //int maxBondsPerBlock;
-    //DataSet *eng;
-    //DataSet *press;
 
     FixBondFENE(boost::shared_ptr<State> state_, std::string handle);
 
-    ~FixBondFENE(){};
-
-    void compute(int);
-    void singlePointEng(real *);
+    void compute(int) override;
+    void singlePointEng(real *) override;
     std::string restartChunk(std::string format);
-    bool readFromRestart();
+    bool readFromRestart() override;
     BondEvaluatorFENE evaluator;
 
     // HEY - NEED TO IMPLEMENT REFRESHATOMS
@@ -38,7 +33,6 @@ public:
         return &bonds;
     }
 
-    //std::vector<pair<int, std::vector<int> > > neighborlistExclusions();
 
 };
 

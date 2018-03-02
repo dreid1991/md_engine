@@ -14,11 +14,11 @@ class FixExternalHarmonic : public FixExternal {
 	    real3 k;    // component-wise coefficent from harmonic potential
 	    real3 r0;   // origin for harmonic potential
 	    	
-        void compute(int);
+        void compute(int) override;
 
-	    bool prepareForRun();
+	    bool prepareForRun() override;
 	    	
-        void singlePointEng(real *);
+        void singlePointEng(real *) override;
 
 	    EvaluatorExternalHarmonic evaluator; // evaluator for harmonic wall interactions
 

@@ -276,11 +276,14 @@ __global__ void compute_E3B_force_center
 
     if (moleculeIdx < nMolecules) {    
         // ok, all neighboring atom positions are now stored sequentially in shared memory, grouped by neighboring molecule;
+        /*
         int pair_pair_idx = initNlistIdx; // my index of the pair-pair computation, 0...31
         int reduced_idx   = pair_pair_idx;
         int jIdx          = 0;
         int kIdx          = jIdx + 1 + reduced_idx;
         int pair_computes_this_row = neighborlistSize - 1; // initialize
+        */
+
         // looping over the triplets and storing the virial sum; have E3B evaluator take rij vectors, computed here
         real3 pos_a2,pos_b2,pos_c2;
         real3 pos_a3,pos_b3,pos_c3;
@@ -288,6 +291,7 @@ __global__ void compute_E3B_force_center
         real3 r_a1b3,r_a1c3,r_b1a3,r_c1a3;
         real3 r_a2b3,r_a2c3,r_b2a3,r_c2a3;
 
+        /*
         // here, all i,j,k triplets, where j and k both on i's neighborlist
         while (pair_pair_idx < maxNumComputes) {
             // pair_pair_idx is up-to-date; reduced_idx was incremented, but has not been reduced
@@ -376,6 +380,82 @@ __global__ void compute_E3B_force_center
             pair_pair_idx += warpSize; // advance pair_pair_idx through the nlist by warpSize
             reduced_idx   += warpSize; // advanced reduced_idx as warpSize; will be reduced at next loop
         }
+        */
+
+
+        // let's divide the j's into groups of 4..
+        // initially, a thread starts on j = 0, 1, 2 or 3...
+        int jWorkGroupSize = 4; // four threads to a j
+        int idxInWarp = threadIdx.x % warpSize; // 0...31
+        int thisThreadjIdxInit = (idxInWarp) / jWorkGroupSize; // 0...7
+        int workGroupsPerWarp = warpSize / jWorkGroupSize;
+        int idxInWorkGroup = idxInWarp % jWorkGroupSize; // 0,1,2,3 ...
+
+        // ok, so we have 8 groups of threads (4 threads in a group) advancing over the j neighborlist;
+        // they are incremented by 8 at the conclusion of the computation
+        // --- the kIdxs are traversed by the 4 threads within a given workgroup, advanced by workGroupSize (4)
+        for (int jIdx = thisThreadjIdxInit; jIdx < neighborlistSize; jIdx+=workGroupsPerWarp) {
+            for (int kIdx = idxInWorkGroup; kIdx < neighborlistSize; kIdx+=jWorkGroupSize) {
+                if (kIdx == jIdx) continue;
+                pos_a2 = smem_pos[3*jIdx     + base_smem_idx];
+                pos_b2 = smem_pos[3*jIdx + 1 + base_smem_idx];
+                pos_c2 = smem_pos[3*jIdx + 2 + base_smem_idx];
+                
+                pos_a3 = smem_pos[3*kIdx     + base_smem_idx];
+                pos_b3 = smem_pos[3*kIdx + 1 + base_smem_idx];
+                pos_c3 = smem_pos[3*kIdx + 2 + base_smem_idx];
+
+                // compute the 12 unique vectors for this triplet; pass these, and the force, and virials to evaluator
+                // -- no possible way to put these in to shared memory; here, we must do redundant calculations.
+
+                // rij = ri - rj
+
+                // i = 1, j = 2
+                // rij: i = a1, j = b2
+                r_a1b2 = bounds.minImage(pos_a1 - pos_b2);
+                // rij: i = a1, j = c2
+                r_a1c2 = bounds.minImage(pos_a1 - pos_c2);
+                // rij: i = b1, j = a2
+                r_b1a2 = bounds.minImage(pos_b1 - pos_a2);
+                // rij: i = c1, j = a2
+                r_c1a2 = bounds.minImage(pos_c1 - pos_a2);
+                
+                // i = 1, j = 3
+                // rij: i = a1, j = b3
+                r_a1b3 = bounds.minImage(pos_a1 - pos_b3);
+                // rij: i = a1, j = c3
+                r_a1c3 = bounds.minImage(pos_a1 - pos_c3);
+                // rij: i = b1, j = a3
+                r_b1a3 = bounds.minImage(pos_b1 - pos_a3);
+                // rij: i = c1, j = a3
+                r_c1a3 = bounds.minImage(pos_c1 - pos_a3);
+
+                // i = 2, j = 3
+                // rij: i = a2, j = b3
+                r_a2b3 = bounds.minImage(pos_a2 - pos_b3);
+                // rij: i = a2, j = c3
+                r_a2c3 = bounds.minImage(pos_a2 - pos_c3);
+                // rij: i = b2, j = a3
+                r_b2a3 = bounds.minImage(pos_b2 - pos_a3);
+                // rij: i = c2, j = a3
+                r_c2a3 = bounds.minImage(pos_c2 - pos_a3);
+
+                // send distance vectors, force sums, and virials to evaluator (guaranteed to be e3b type)
+                if (COMP_VIRIALS) {
+                    eval.threeBodyForce<true>(fs_sum_a, fs_sum_b, fs_sum_c,
+                                     virialsSum_a, virialsSum_b, virialsSum_c,
+                                     r_a1b2, r_a1c2, r_b1a2, r_c1a2,
+                                     r_a1b3, r_a1c3, r_b1a3, r_c1a3,
+                                     r_a2b3, r_a2c3, r_b2a3, r_c2a3);
+                } else {
+                    eval.threeBodyForce<false>(fs_sum_a, fs_sum_b, fs_sum_c,
+                                     virialsSum_a, virialsSum_b, virialsSum_c,
+                                     r_a1b2, r_a1c2, r_b1a2, r_c1a2,
+                                     r_a1b3, r_a1c3, r_b1a3, r_c1a3,
+                                     r_a2b3, r_a2c3, r_b2a3, r_c2a3);
+                }
+            } // kIdx
+        } // jIdx
     }
 
     __syncwarp();
@@ -580,13 +660,22 @@ __global__ void compute_E3B_force_edge
         real3 r_a1b3,r_a1c3,r_b1a3,r_c1a3;
         real3 r_a2b3,r_a2c3,r_b2a3,r_c2a3;
         real4 xs_O_whole, xs_H1_whole, xs_H2_whole;
-        
+       
+
+        // it would probably be faster to split the 32 threads in to 8 groups of 4 that 
+        //       work on a different j per group of 8, with 4 threads iterating over each j's neighbors
+        // -- we could do any combination of work group sizes s.t. 32
+        int workGroupSize = 4;
+        int warpIdxInBlock  = threadIdx.x % warpSize; // 0...31
+        int workGroupIdx    = warpIdxInBlock / 4;   // 0...7
+        int kIdxInWorkGroup = warpIdxInBlock % 4;    // 0...3
+        int nlistIncrement  = warpSize / 4; // warpSize / workGroupSize  
+        // ok, so workGroupIdx will determine which jIdx we are working on;
+        // kIdxInWorkGroup will determine which kIdx in a workgroup we are working on
+
         // LOOPING OVER MOLECULE 'i' NEIGHBORLIST TO GET J MOLECULE
         // get j index from global nlist, and load position from smem
-        //
-        // TODO: it would probably be faster to split the 32 threads in to 8 groups of 4 that 
-        //       work on a different j per group of 8, with 4 threads iterating over each j's neighbors
-        for (int jIdx = 0; jIdx < neighborlistSize; jIdx++) {
+        for (int jIdx = workGroupIdx; jIdx < neighborlistSize; jIdx+=nlistIncrement) {
 
             // load j's positions; we'll definitely need these.
             // jIdx as 0... neighborlistSize provides easy access to i's neighborlist in smem.
@@ -625,19 +714,24 @@ __global__ void compute_E3B_force_edge
 
             // load where j molecule idx's neighborlist starts in global memory, using its global index
             int baseIdx_globalJIdx = baseNeighlistIdxFromRPIndex(cumulSumMaxPerBlock, warpSize, globalJIdx, warpSize);
-            
-            // iterate over J's neighborlist (this will be contiguous, but not load balanced - some k's will be on i's, others not)
-            
-            int k_idx_j_neighbors = threadIdx.x % warpSize; // as 0...31
+           
+            int nextOffset = 0; // because we traverse these in groups of 4, not nAtomsPerThread
+            int k_idx_j_neighbors = kIdxInWorkGroup; // as 0...3
             int initNlistIdx_jNlist = k_idx_j_neighbors;
-            while (k_idx_j_neighbors < jNeighCounts) {
+            while ((k_idx_j_neighbors + nextOffset) < jNeighCounts) {
                 // get k idx from the actual j neighborlist - first, advance nlistIdx
                 bool compute_ijk = true; // default to true; if we find k on i's nlist, set to false; then, check boolean
 
-                int nlistIdx_jNlist = baseIdx_globalJIdx + initNlistIdx_jNlist + warpSize * (k_idx_j_neighbors/warpSize);
+                int nlistIdx_jNlist = baseIdx_globalJIdx + initNlistIdx_jNlist + nextOffset + warpSize * (k_idx_j_neighbors/warpSize);
                 // this is our k molecule idx
                 int kIdx = neighborlist[nlistIdx_jNlist];                  // global memory access
                 
+                nextOffset += workGroupSize;
+                
+                if (! (nextOffset % warpSize) ) {
+                    nextOffset = 0;
+                    k_idx_j_neighbors += warpSize;
+                }
                 // check if k is on i's neighborlist, or is i itself; this amounts to checking ~ 30 integers
                 // the good thing is: this should be broadcast to all threads, so no serialized access!
                 // --- neighborlistSize here is the size of i's neighborlist; recall that in shared memory we also 
@@ -685,22 +779,22 @@ __global__ void compute_E3B_force_edge
 
                     // send distance vectors, force sums, and virials to evaluator (guaranteed to be e3b type)
                     if (COMP_VIRIALS) {
-                        eval.threeBodyForce<true>(fs_sum_a, fs_sum_b, fs_sum_c,
-                                         virialsSum_a, virialsSum_b, virialsSum_c,
-                                         r_a1b2, r_a1c2, r_b1a2, r_c1a2,
-                                         r_a1b3, r_a1c3, r_b1a3, r_c1a3,
-                                         r_a2b3, r_a2c3, r_b2a3, r_c2a3);
+                        eval.threeBodyForce_edge<true>(fs_sum_a, fs_sum_b, fs_sum_c,
+                                                       virialsSum_a, virialsSum_b, virialsSum_c,
+                                                       r_a1b2, r_a1c2, r_b1a2, r_c1a2,
+                                                       r_a1b3, r_a1c3, r_b1a3, r_c1a3,
+                                                       r_a2b3, r_a2c3, r_b2a3, r_c2a3);
                     } else {
-                        eval.threeBodyForce<false>(fs_sum_a, fs_sum_b, fs_sum_c,
-                                         virialsSum_a, virialsSum_b, virialsSum_c,
-                                         r_a1b2, r_a1c2, r_b1a2, r_c1a2,
-                                         r_a1b3, r_a1c3, r_b1a3, r_c1a3,
-                                         r_a2b3, r_a2c3, r_b2a3, r_c2a3);
+                        eval.threeBodyForce_edge<false>(fs_sum_a, fs_sum_b, fs_sum_c,
+                                                        virialsSum_a, virialsSum_b, virialsSum_c,
+                                                        r_a1b2, r_a1c2, r_b1a2, r_c1a2,
+                                                        r_a1b3, r_a1c3, r_b1a3, r_c1a3,
+                                                        r_a2b3, r_a2c3, r_b2a3, r_c2a3);
                     }
-                } // end if compute_ijk -- note that this is a significant source of thread divergence :(
+                } // end if compute_ijk
 
                 // finally, advance k_idx_j_neighbors as warpSize
-                k_idx_j_neighbors += warpSize;
+                //k_idx_j_neighbors += workGroupSize;
             } // end loop over j's neighborlist
         } // end loop over i's neighborlist
     }
@@ -967,13 +1061,14 @@ __global__ void compute_E3B_energy_center
     real3 eng_sum_as_real3 = make_real3(0.0, 0.0, 0.0);
     if (moleculeIdx < nMolecules) {
         // ok, all neighboring atom positions are now stored sequentially in shared memory, grouped by neighboring molecule;
+        /*
         int pair_pair_idx = initNlistIdx; // my index of the pair-pair computation, 0...31; i.e., threadIdx.x % warpSize
         int reduced_idx   = pair_pair_idx; // initialize reduced_idx as pair_pair_idx
         int jIdx          = 0; // initialize jIdx as 0
         int kIdx          = jIdx + 1 + reduced_idx;
         int pair_computes_this_row = neighborlistSize - 1; // initialize
         // looping over the triplets and storing the virial sum; have E3B evaluator take rij vectors, computed here
-
+        */
         // declare the variables we need
         real3 pos_a2,pos_b2,pos_c2; // a1,b1,c1,a3,b3,c3 already declared
         real3 r_a1b2,r_a1c2,r_b1a2,r_c1a2;
@@ -988,6 +1083,7 @@ __global__ void compute_E3B_energy_center
         // intermolecular OH vectors with re-labled indices;
         // instead, compute the distances once, shuffle the vectors in E3B's three body evaluator, 
         // and sum the forces on that side accordingly.
+        /*
         while (pair_pair_idx < maxNumComputes) {
             // pair_pair_idx is up-to-date; reduced_idx was incremented, but has not been reduced
             // jIdx, reduced_idx might not be up-to-date;
@@ -1082,8 +1178,83 @@ __global__ void compute_E3B_energy_center
             pair_pair_idx += warpSize; // advance pair_pair_idx through the nlist by warpSize
             reduced_idx   += warpSize; // advanced reduced_idx as warpSize; will be reduced at next loop
         } // end while (pair_pair_idx < maxNumComputes)
-        
+        */
+        // let's divide the j's into groups of 4..
+        // initially, a thread starts on j = 0, 1, 2 or 3...
+        int jWorkGroupSize = 4; // four threads to a j
+        int idxInWarp = threadIdx.x % warpSize; // 0...31
+        int thisThreadjIdxInit = (idxInWarp) / jWorkGroupSize; // 0...7
+        int workGroupsPerWarp = warpSize / jWorkGroupSize;
+        int idxInWorkGroup = idxInWarp % jWorkGroupSize; // 0,1,2,3 ...
 
+        // ok, so we have 8 groups of threads (4 threads in a group) advancing over the j neighborlist;
+        // they are incremented by 8 at the conclusion of the computation
+        // --- the kIdxs are traversed by the 4 threads within a given workgroup, advanced by workGroupSize (4)
+        for (int jIdx = thisThreadjIdxInit; jIdx < neighborlistSize; jIdx+=workGroupsPerWarp) {
+            for (int kIdx = idxInWorkGroup; kIdx < neighborlistSize; kIdx+=jWorkGroupSize) {
+                if (kIdx == jIdx) continue;
+                // load atom positions from shared memory
+                pos_a2 = smem_pos[3*jIdx       + base_smem_idx];
+                pos_b2 = smem_pos[3*jIdx + 1   + base_smem_idx];
+                pos_c2 = smem_pos[3*jIdx + 2   + base_smem_idx];
+
+                pos_a3 = smem_pos[3*kIdx       + base_smem_idx];
+                pos_b3 = smem_pos[3*kIdx + 1   + base_smem_idx];
+                pos_c3 = smem_pos[3*kIdx + 2   + base_smem_idx];
+
+                // rij = ri - rj
+
+                // i = 1, j = 2
+                //
+                // rij: i = a1, j = b2
+                r_a1b2 = bounds.minImage(pos_a1 - pos_b2);
+                r_a1b2_scalar = length(r_a1b2);
+                // rij: i = a1, j = c2
+                r_a1c2 = bounds.minImage(pos_a1 - pos_c2);
+                r_a1c2_scalar = length(r_a1c2);
+                // rij: i = b1, j = a2
+                r_b1a2 = bounds.minImage(pos_b1 - pos_a2);
+                r_b1a2_scalar = length(r_b1a2);
+                // rij: i = c1, j = a2
+                r_c1a2 = bounds.minImage(pos_c1 - pos_a2);
+                r_c1a2_scalar = length(r_c1a2); 
+                // i = 1, j = 3
+                //
+                // rij: i = a1, j = b3
+                r_a1b3 = bounds.minImage(pos_a1 - pos_b3);
+                r_a1b3_scalar = length(r_a1b3);
+                // rij: i = a1, j = c3
+                r_a1c3 = bounds.minImage(pos_a1 - pos_c3);
+                r_a1c3_scalar = length(r_a1c3);
+                // rij: i = b1, j = a3
+                r_b1a3 = bounds.minImage(pos_b1 - pos_a3);
+                r_b1a3_scalar = length(r_b1a3);
+                // rij: i = c1, j = a3
+                r_c1a3 = bounds.minImage(pos_c1 - pos_a3);
+                r_c1a3_scalar = length(r_c1a3);
+
+                // i = 2, j = 3
+                //
+                // rij: i = a2, j = b3
+                r_a2b3 = bounds.minImage(pos_a2 - pos_b3);
+                r_a2b3_scalar = length(r_a2b3);
+                // rij: i = a2, j = c3
+                r_a2c3 = bounds.minImage(pos_a2 - pos_c3);
+                r_a2c3_scalar = length(r_a2c3);
+                // rij: i = b2, j = a3
+                r_b2a3 = bounds.minImage(pos_b2 - pos_a3);
+                r_b2a3_scalar = length(r_b2a3);
+                // rij: i = c2, j = a3
+                r_c2a3 = bounds.minImage(pos_c2 - pos_a3);
+                r_c2a3_scalar = length(r_c2a3);
+
+                // send distance scalars and eng_sum scalars (by reference) to E3B energy evaluator
+                eval.threeBodyEnergy(eng_sum_a, eng_sum_b, eng_sum_c,
+                                 r_a1b2_scalar, r_a1c2_scalar, r_b1a2_scalar, r_c1a2_scalar,
+                                 r_a1b3_scalar, r_a1c3_scalar, r_b1a3_scalar, r_c1a3_scalar,
+                                 r_a2b3_scalar, r_a2c3_scalar, r_b2a3_scalar, r_c2a3_scalar);
+            }
+        }
     } // end doing the pair-pair computes, getting positions from shared memory
 
 
@@ -1120,6 +1291,7 @@ __global__ void compute_E3B_energy_center
 
 // same thing, but now we compute the energy per molecule
 // Compute e3b energy for triplet i-j-k, j on i's neighborlist, k not
+// i.e., j is the bridging molecule
 __global__ void compute_E3B_energy_edge
         (int nMolecules, 
          const int4 *__restrict__ atomsFromMolecule,         // by moleculeIdx, has atomIdxs
@@ -1227,6 +1399,7 @@ __global__ void compute_E3B_energy_edge
     // and now, do (i,j), k on j's nlist, k not on i's nlist 
     // ---- if any one of the rx1x3 distances are less than the 5.2, then k is on i's nlist;
     //      see FixE3B; the nlist cutoff is s.t.
+    // ---- permuting the indices shouldn't matter for the energy, just the forces.
     if (moleculeIdx < nMolecules) {
 
         // ok, so, as a warp, we pick a j; then, a given threadIdx.x % warpSize gives its idx in j's nlist; while 
@@ -1243,7 +1416,15 @@ __global__ void compute_E3B_energy_edge
         
         // LOOPING OVER MOLECULE 'i' NEIGHBORLIST TO GET J MOLECULE
         // get j index from global nlist, and load position from smem
-        for (int jIdx = 0; jIdx < neighborlistSize; jIdx++) {
+        
+        int workGroupSize   = 4;
+        int idxInWarp       = threadIdx.x % warpSize;    // 0...31
+        int numWorkGroups   = warpSize / workGroupSize;  // 8
+        int jWorkGroup      = idxInWarp / workGroupSize; // 0...7
+        int kIdxInWorkGroup = idxInWarp % workGroupSize; // 0,1,2,3
+        
+
+        for (int jIdx = jWorkGroup; jIdx < neighborlistSize; jIdx+=numWorkGroups) {
 
             // load j's positions; we'll definitely need these.
             // jIdx as 0... neighborlistSize provides easy access to i's neighborlist in smem.
@@ -1252,9 +1433,12 @@ __global__ void compute_E3B_energy_edge
             pos_b2 = smem_pos[3*jIdx + 1 + base_smem_idx];
             pos_c2 = smem_pos[3*jIdx + 2 + base_smem_idx];
 
-            // i = 1, j = 2
-            //
-            // rij: i = a1, j = b2
+            // i = 2, j = 1
+            // j-i-k, j is the bridging molecule
+            // s.t. k is not on i's nlist
+
+
+            // rij: i = a1, j = b2 ---> change this to label as r_
             r_a1b2 = bounds.minImage(pos_a1 - pos_b2);
             r_a1b2_scalar = length(r_a1b2);
             // rij: i = a1, j = c2
@@ -1266,6 +1450,7 @@ __global__ void compute_E3B_energy_edge
             // rij: i = c1, j = a2
             r_c1a2 = bounds.minImage(pos_c1 - pos_a2);
             r_c1a2_scalar = length(r_c1a2); 
+
 
             // we stored these in shared memory the first time we read them in
             int globalJIdx = jMoleculeIdxs[base_smem_idx_idxs + jIdx];
@@ -1285,12 +1470,11 @@ __global__ void compute_E3B_energy_edge
 
             // load where j molecule idx's neighborlist starts in global memory, using its global index
             int baseIdx_globalJIdx = baseNeighlistIdxFromRPIndex(cumulSumMaxPerBlock, warpSize, globalJIdx, warpSize);
-            
-            // iterate over J's neighborlist (this will be contiguous, but not load balanced - some k's will be on i's, others not)
-            
-            int k_idx_j_neighbors = threadIdx.x % warpSize; // as 0...31
+           
+            int k_idx_j_neighbors = 0; //TODO fix
             int initNlistIdx_jNlist = k_idx_j_neighbors;
-            while (k_idx_j_neighbors < jNeighCounts) {
+            for (int k_idx_j_neighbors = kIdxInWorkGroup; k_idx_j_neighbors < jNeighCounts; k_idx_j_neighbors += workGroupSize) {
+            //while (k_idx_j_neighbors < jNeighCounts) {
                 // get k idx from the actual j neighborlist - first, advance nlistIdx
                 bool compute_ijk = true; // default to true; if we find k on i's nlist, set to false; then, check boolean
 
@@ -1356,7 +1540,7 @@ __global__ void compute_E3B_energy_edge
                 } // end if compute_ijk -- note that this is a significant source of thread divergence :(
 
                 // finally, advance k_idx_j_neighbors as warpSize
-                k_idx_j_neighbors += warpSize;
+                k_idx_j_neighbors += workGroupSize;
             } // end loop over j's neighborlist
         } // end loop over i's neighborlist
 

@@ -85,11 +85,11 @@ public:
     }
 
     //! Compute forces
-    void compute(int);
+    void compute(int) override;
     int setLongRangeInterval(int interval);
 
     //! Compute single point energy
-    void singlePointEng(real *);
+    void singlePointEng(real *) override;
     //void singlePointEngGroupGroup(real *, uint32_t, uint32_t);
 
     bool prepareForRun();
@@ -102,6 +102,6 @@ public:
     }    
 
     ChargeEvaluatorEwald generateEvaluator();
-    void setEvalWrapper();
+    void setEvalWrapper() override;
 };
 

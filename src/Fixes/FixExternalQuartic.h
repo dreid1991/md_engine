@@ -17,11 +17,11 @@ class FixExternalQuartic : public FixExternal {
 	    real3 k4;    // component-wise coefficent from quartic potential
 	    real3 r0;    // origin for potential
 		
-        void compute(int);
+        void compute(int) override;
 
-	    bool prepareForRun();
+	    bool prepareForRun() override;
 		
-        void singlePointEng(real *);
+        void singlePointEng(real *) override;
 
 	    EvaluatorExternalQuartic evaluator; // evaluator for harmonic wall interactions
 

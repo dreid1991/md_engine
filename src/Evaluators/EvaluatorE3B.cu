@@ -236,9 +236,9 @@ __host__ std::vector<double> EvaluatorE3B::energyPy (boost::python::list positio
         // we are deliberately summing over this triplet three times,
         // as to simulate the approach that is natural to the GPU, and the approach 
         // that we take in practice.
-        eng_sum_a += (tmp_a / 3.0);
-        eng_sum_b += (tmp_b / 3.0);
-        eng_sum_c += (tmp_c / 3.0);
+        eng_sum_a += (tmp_a);
+        eng_sum_b += (tmp_b);
+        eng_sum_c += (tmp_c);
 
         // shuffle the vectors
         positionsAsReal3 = shuffle_vectors(positionsAsReal3);

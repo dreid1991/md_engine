@@ -129,8 +129,8 @@ class EvaluatorE3B {
                 return 0.0;
             } else {
                 // derivative of the polynomial expression w.r.t scalar r_ij scalar.  Returns some real value
-                real value = 6.0 * (rf - dist) * (dist - rs);
-                value *= minus_rfminusrs_cubed_inv;
+                real value = 6.0 * (rf - dist) * (rs - dist);
+                value *= rfminusrs_cubed_inv;
                 return value;
             }
 
@@ -366,8 +366,56 @@ class EvaluatorE3B {
             fs_c1_sum += local_c1_sum;
             // END OF THREEBODY FORCE COMPUTATION
         } // closes threeBodyForce(...) function
-    
-    __inline__ __host__ __device__ void threeBodyEnergy(real &eng_sum_a, real &eng_sum_b, real &eng_sum_c,
+       
+        // just the force on molecule '2' now - looking at the trimer for 123 = jik, but we still want the force on i
+        template <bool COMP_VIRIALS>
+        inline __host__ __device__ void threeBodyForce_edge(real3 &fs_a1_sum, real3 &fs_b1_sum, real3 &fs_c1_sum,
+                                                    Virial &virialsSum_a, Virial &virialsSum_b, Virial &virialsSum_c,
+                                                    const real3 &r_a1b2, const real3 &r_a1c2, 
+                                                    const real3 &r_b1a2, const real3 &r_c1a2,
+                                                    const real3 &r_a1b3, const real3 &r_a1c3,
+                                                    const real3 &r_b1a3, const real3 &r_c1a3,
+                                                    const real3 &r_a2b3, const real3 &r_a2c3,
+                                                    const real3 &r_b2a3, const real3 &r_c2a3) {
+                                 
+            // get the distance scalars associated with the rij vectors
+            real r_a1b2_scalar = length(r_a1b2);  // 
+            real r_a1c2_scalar = length(r_a1c2);  // 
+
+            real r_b1a2_scalar = length(r_b1a2);  // 
+            real r_c1a2_scalar = length(r_c1a2);  // 
+
+            real r_a1b3_scalar = length(r_a1b3);  // 
+            real r_a1c3_scalar = length(r_a1c3);  // 
+
+            real r_b1a3_scalar = length(r_b1a3);  // 
+            real r_c1a3_scalar = length(r_c1a3);  // 
+
+            real r_a2b3_scalar = length(r_a2b3);  // 
+            real r_a2c3_scalar = length(r_a2c3);  // 
+
+            real r_b2a3_scalar = length(r_b2a3);  // 
+            real r_c2a3_scalar = length(r_c2a3);  // 
+
+            real fs_scalar = 0.0;
+            real3 fs_tmp = make_real3(0.0, 0.0, 0.0);
+
+            // local sum; add aggregation to fs sums passed in by reference
+            real3 local_a1_sum = make_real3(0.0,0.0,0.0);
+            real3 local_b1_sum = make_real3(0.0,0.0,0.0);
+            real3 local_c1_sum = make_real3(0.0,0.0,0.0);
+
+            // we group terms according to vector direction, so as to minimize calls to 
+            // computeVirials
+            //
+            //
+            // }
+   
+        }
+
+
+
+        __inline__ __host__ __device__ void threeBodyEnergy(real &eng_sum_a, real &eng_sum_b, real &eng_sum_c,
                                                     const real &r_a1b2, const real &r_a1c2, 
                                                     const real &r_b1a2, const real &r_c1a2,
                                                     const real &r_a1b3, const real &r_a1c3,
@@ -376,7 +424,7 @@ class EvaluatorE3B {
                                                     const real &r_b2a3, const real &r_c2a3) {
 
     
-        // threeBodyEnergyScalar(r1,r2,prefactor,k3)
+        // threeBodyEnergyScalar(r1,r2,sr1,sr2,prefactor,neg_k3)
         // ok, if a '1' subscript occurs in an interaction, we sum it up;
         // if 2 '1' subscript occurs in a single computation, divide by two, then allocate to both 
         // subscripted sums.
@@ -608,7 +656,7 @@ class EvaluatorE3B {
 
         /* END CALCULATION OF THREE BODY ENERGIES */
 
-        // because we calculate each triplet 3 times, divide by 3
+        // because we calculate each triplet 3 times, divide by 3; this must be done /here/. 
         local_sum_a /= 3.0;
         local_sum_b /= 3.0;
         local_sum_c /= 3.0;

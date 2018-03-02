@@ -13,18 +13,16 @@ class FixAngleHarmonic : public FixPotentialMultiAtom<AngleVariant, AngleHarmoni
 private:
     AngleEvaluatorHarmonic evaluator; 
 public:
-    //DataSet *eng;
-    //DataSet *press;
 
     FixAngleHarmonic(boost::shared_ptr<State> state_, std::string handle);
 
-    void compute(int);
-    void singlePointEng(real *);
+    void compute(int) override;
+    void singlePointEng(real *) override;
 
     void createAngle(Atom *, Atom *, Atom *, double, double, int type_);
     void setAngleTypeCoefs(int, double, double);
 
-    bool readFromRestart();
+    bool readFromRestart() override;
 
 };
 

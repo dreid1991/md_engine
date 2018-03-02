@@ -107,6 +107,7 @@ __global__ void map_charge_to_grid_order_1_cu(int nRingPoly, int nPerRingPoly, r
     }
 }
 
+// coefficients here are from appendix E of paper referenced in header file
 inline __host__ __device__ real W_p_3(int i,real x){
     if (i==-1) return 0.125-0.5*x+0.5*x*x;
     if (i== 0) return 0.75-x*x;
@@ -158,6 +159,126 @@ __global__ void map_charge_to_grid_order_3_cu(int nRingPoly, int nPerRingPoly, r
         }
     }
 }
+
+inline __host__ __device__ real W_p_5(int i,real x){
+
+    real x2 = x*x;
+    real x4 = x2*x2;
+    if (i==-2) return ( (1.0/384.0) * (1.0 - 8.0*x + 24.0*x2 - 32.0*x*x2 + 16.0*x4));
+    if (i==-1) return ( (1.0/96.0 ) * (19.0 - 44.0*x + 24.0*x2 + 16.0*x*x2 - 16.0*x4));
+    if (i==0)  return ( (1.0/192.0) * (115.0 - 120.0*x2 + 48.0*x4));
+    if (i==1)  return ( (1.0/96.0)  * (19.0 + 44.0*x + 24.0*x2 - 16.0*x*x2 - 16.0*x4));
+    return ((1.0/384.0) * (1.0 + 8.0*x + 24.0*x2 + 32.0*x*x2 + 16.0*x4));
+}
+
+__global__ void map_charge_to_grid_order_5_cu(int nRingPoly, int nPerRingPoly, real4 *xs,  real *qs,  BoundsGPU bounds,
+                                      int3 sz,real *grid/*convert to real for cufffComplex*/,real  Qunit) {
+
+    int idx = GETIDX();
+    if (idx < nRingPoly) {
+        real4 posWhole = xs[idx];
+        real3 pos = make_real3(posWhole)-bounds.lo;
+
+        real qi = Qunit*qs[idx * nPerRingPoly];
+        
+        //find nearest grid point
+        real3 h=bounds.trace()/make_real3(sz);
+        int3 nearest_grid_point=make_int3((pos+0.5*h)/h);
+        
+        //distance from nearest_grid_point /h
+        real3 d=pos/h-make_real3(nearest_grid_point);
+        
+        int3 p=nearest_grid_point;
+        for (int ix=-2;ix<=2;ix++){
+          p.x=nearest_grid_point.x+ix;
+          real charge_yz_w=qi*W_p_5(ix,d.x);
+          for (int iy=-2;iy<=2;iy++){
+            p.y=nearest_grid_point.y+iy;
+            real charge_z_w=charge_yz_w*W_p_5(iy,d.y);
+            for (int iz=-2;iz<=2;iz++){
+                p.z=nearest_grid_point.z+iz;
+                real charge_w=charge_z_w*W_p_5(iz,d.z);
+                if (p.x>0) p.x-=int(p.x/sz.x)*sz.x;
+                if (p.y>0) p.y-=int(p.y/sz.y)*sz.y;
+                if (p.z>0) p.z-=int(p.z/sz.z)*sz.z;
+                if (p.x<0) p.x-=int((p.x+1)/sz.x-1)*sz.x;
+                if (p.y<0) p.y-=int((p.y+1)/sz.y-1)*sz.y;
+                if (p.z<0) p.z-=int((p.z+1)/sz.z-1)*sz.z;
+                if ((p.x<0) or (p.x>sz.x-1)) printf("grid point miss x  %d, %d, %d, %f \n", idx,p.x,nearest_grid_point.x,pos.x);
+                if ((p.y<0) or (p.y>sz.y-1)) printf("grid point miss y  %d, %d, %d, %f \n", idx,p.y,nearest_grid_point.y,pos.y);
+                if ((p.z<0) or (p.z>sz.z-1)) printf("grid point miss z  %d, %d, %d, %f \n", idx,p.z,nearest_grid_point.z,pos.z);
+                
+                atomicAdd(&grid[p.x*sz.y*sz.z*2+p.y*sz.z*2+p.z*2], charge_w);
+                
+            }
+          }
+        }
+    }
+}
+
+// COMPLETE
+inline __host__ __device__ real W_p_7(int i,real x){
+    real x2 = x*x;
+    real x4 = x2*x2;
+    real x6 = x2*x4;
+    if (i==0) return ( (1.0 / 11520.0) * (5887.0 - 4620.0*x2 + 1680.0 * x4 - 320.0*x6));
+    real x3 = x2*x;
+    real x5 = x3*x2;
+    if (i==-3) return ( (1.0 / 46080.0) * (1.0 - 12.0*x + 60.0*x2 - 160.0*x3 + 240.0*x4 - 192.0*x5 + 64.0*x6));
+    if (i==-2) return ( (1.0 / 23040.0) * (361.0 - 1416.0*x + 2220.0*x2 - 1600.0*x3 + 240.0*x4 + 384.0*x5 - 192.0*x6));
+    if (i==-1) return ( (1.0 / 46080.0) * (10543.0 - 17340.0*x + 4740.0*x2 + 6880.0*x3 - 4080.0*x4 - 960.0*x5 + 960.0*x6));
+
+    if (i==1) return ( (1.0 / 46080.0) * (10543.0 + 17340.0*x + 4740.0*x2 - 6880.0*x3 - 4080.0*x4 + 960.0*x5 + 960.0*x6));
+    if (i==2) return ( (1.0 / 23040.0) * (361.0 + 1416.0*x + 2220.0*x2 + 1600.0*x3 + 240.0*x4 - 384.0*x5 - 192.0*x6));
+    return  ((1.0/46080.0) * (1.0 + 12.0*x + 60.0*x2 + 160.0*x3 + 240.0*x4 + 192.0*x5 + 64.0*x6));
+}
+
+
+__global__ void map_charge_to_grid_order_7_cu(int nRingPoly, int nPerRingPoly, real4 *xs,  real *qs,  BoundsGPU bounds,
+                                      int3 sz,real *grid/*convert to real for cufffComplex*/,real  Qunit) {
+
+    int idx = GETIDX();
+    if (idx < nRingPoly) {
+        real4 posWhole = xs[idx];
+        real3 pos = make_real3(posWhole)-bounds.lo;
+
+        real qi = Qunit*qs[idx * nPerRingPoly];
+        
+        //find nearest grid point
+        real3 h=bounds.trace()/make_real3(sz);
+        int3 nearest_grid_point=make_int3((pos+0.5*h)/h);
+        
+        //distance from nearest_grid_point /h
+        real3 d=pos/h-make_real3(nearest_grid_point);
+        
+        int3 p=nearest_grid_point;
+        for (int ix=-3;ix<=3;ix++){
+          p.x=nearest_grid_point.x+ix;
+          real charge_yz_w=qi*W_p_7(ix,d.x);
+          for (int iy=-3;iy<=3;iy++){
+            p.y=nearest_grid_point.y+iy;
+            real charge_z_w=charge_yz_w*W_p_7(iy,d.y);
+            for (int iz=-3;iz<=3;iz++){
+                p.z=nearest_grid_point.z+iz;
+                real charge_w=charge_z_w*W_p_7(iz,d.z);
+                if (p.x>0) p.x-=int(p.x/sz.x)*sz.x;
+                if (p.y>0) p.y-=int(p.y/sz.y)*sz.y;
+                if (p.z>0) p.z-=int(p.z/sz.z)*sz.z;
+                if (p.x<0) p.x-=int((p.x+1)/sz.x-1)*sz.x;
+                if (p.y<0) p.y-=int((p.y+1)/sz.y-1)*sz.y;
+                if (p.z<0) p.z-=int((p.z+1)/sz.z-1)*sz.z;
+                if ((p.x<0) or (p.x>sz.x-1)) printf("grid point miss x  %d, %d, %d, %f \n", idx,p.x,nearest_grid_point.x,pos.x);
+                if ((p.y<0) or (p.y>sz.y-1)) printf("grid point miss y  %d, %d, %d, %f \n", idx,p.y,nearest_grid_point.y,pos.y);
+                if ((p.z<0) or (p.z>sz.z-1)) printf("grid point miss z  %d, %d, %d, %f \n", idx,p.z,nearest_grid_point.z,pos.z);
+                
+                atomicAdd(&grid[p.x*sz.y*sz.z*2+p.y*sz.z*2+p.z*2], charge_w);
+                
+            }
+          }
+        }
+    }
+}
+
 
 
 #ifdef DASH_DOUBLE
@@ -434,6 +555,149 @@ __global__ void Ewald_long_range_forces_order_3_cu(int nRingPoly, int nPerRingPo
         }
     }
 }
+
+
+#ifdef DASH_DOUBLE
+__global__ void Ewald_long_range_forces_order_5_cu(int nRingPoly, int nPerRingPoly, real4 *xs, real4 *fs, 
+                                                   real *qs, BoundsGPU bounds,
+                                                   int3 sz, cufftDoubleComplex *FFT_Ex,
+                                                    cufftDoubleComplex *FFT_Ey,cufftDoubleComplex *FFT_Ez,real  Qunit,
+                                                   bool storeForces, uint *ids, real4 *storedForces) {
+#else
+__global__ void Ewald_long_range_forces_order_5_cu(int nRingPoly, int nPerRingPoly, real4 *xs, real4 *fs, 
+                                                   real *qs, BoundsGPU bounds,
+                                                   int3 sz, cufftComplex *FFT_Ex,
+                                                    cufftComplex *FFT_Ey,cufftComplex *FFT_Ez,real  Qunit,
+                                                   bool storeForces, uint *ids, real4 *storedForces) {
+
+#endif
+    int idx = GETIDX();
+    if (idx < nRingPoly) {
+        real4 posWhole= xs[idx];
+        real3 pos     = make_real3(posWhole)-bounds.lo;
+        int    baseIdx = idx*nPerRingPoly;
+        real  qi      = qs[baseIdx];
+
+        //find nearest grid point
+        real3 h=bounds.trace()/make_real3(sz);
+        int3 nearest_grid_point=make_int3((pos+0.5*h)/h);
+        
+        //distance from nearest_grid_point /h
+        real3 d=pos/h-make_real3(nearest_grid_point);
+
+        real3 E=make_real3(0,0,0);
+        real volume=bounds.trace().x*bounds.trace().y*bounds.trace().z;
+
+        int3 p=nearest_grid_point;
+        for (int ix=-2;ix<=2;ix++){
+          p.x=nearest_grid_point.x+ix;
+          for (int iy=-2;iy<=2;iy++){
+            p.y=nearest_grid_point.y+iy;
+            for (int iz=-2;iz<=2;iz++){
+                p.z=nearest_grid_point.z+iz;
+                if (p.x>0) p.x-=int(p.x/sz.x)*sz.x;
+                if (p.y>0) p.y-=int(p.y/sz.y)*sz.y;
+                if (p.z>0) p.z-=int(p.z/sz.z)*sz.z;
+                if (p.x<0) p.x-=int((p.x+1)/sz.x-1)*sz.x;
+                if (p.y<0) p.y-=int((p.y+1)/sz.y-1)*sz.y;
+                if (p.z<0) p.z-=int((p.z+1)/sz.z-1)*sz.z;
+                real3 Ep;
+                real W_xyz=W_p_5(ix,d.x)*W_p_5(iy,d.y)*W_p_5(iz,d.z);
+                
+                Ep.x= -FFT_Ex[p.x*sz.y*sz.z+p.y*sz.z+p.z].x/volume;
+                Ep.y= -FFT_Ey[p.x*sz.y*sz.z+p.y*sz.z+p.z].x/volume;
+                Ep.z= -FFT_Ez[p.x*sz.y*sz.z+p.y*sz.z+p.z].x/volume;
+                E+=W_xyz*Ep;
+            }
+          }
+        }
+               
+        real3 force= Qunit*qi*E;
+        // Apply force on centroid to all time slices for given atom
+        for (int i = 0; i < nPerRingPoly; i++) {
+            fs[baseIdx + i] += force;
+        }
+
+        if (storeForces) {
+            for (int i = 0; i < nPerRingPoly; i++) {
+                storedForces[ids[baseIdx+i]] = make_real4(force.x, force.y, force.z, 0);
+            }
+        }
+    }
+}
+
+
+#ifdef DASH_DOUBLE
+__global__ void Ewald_long_range_forces_order_7_cu(int nRingPoly, int nPerRingPoly, real4 *xs, real4 *fs, 
+                                                   real *qs, BoundsGPU bounds,
+                                                   int3 sz, cufftDoubleComplex *FFT_Ex,
+                                                    cufftDoubleComplex *FFT_Ey,cufftDoubleComplex *FFT_Ez,real  Qunit,
+                                                   bool storeForces, uint *ids, real4 *storedForces) {
+#else
+__global__ void Ewald_long_range_forces_order_7_cu(int nRingPoly, int nPerRingPoly, real4 *xs, real4 *fs, 
+                                                   real *qs, BoundsGPU bounds,
+                                                   int3 sz, cufftComplex *FFT_Ex,
+                                                    cufftComplex *FFT_Ey,cufftComplex *FFT_Ez,real  Qunit,
+                                                   bool storeForces, uint *ids, real4 *storedForces) {
+
+#endif
+    int idx = GETIDX();
+    if (idx < nRingPoly) {
+        real4 posWhole= xs[idx];
+        real3 pos     = make_real3(posWhole)-bounds.lo;
+        int    baseIdx = idx*nPerRingPoly;
+        real  qi      = qs[baseIdx];
+
+        //find nearest grid point
+        real3 h=bounds.trace()/make_real3(sz);
+        int3 nearest_grid_point=make_int3((pos+0.5*h)/h);
+        
+        //distance from nearest_grid_point /h
+        real3 d=pos/h-make_real3(nearest_grid_point);
+
+        real3 E=make_real3(0,0,0);
+        real volume=bounds.trace().x*bounds.trace().y*bounds.trace().z;
+
+        int3 p=nearest_grid_point;
+        for (int ix=-3;ix<=3;ix++){
+          p.x=nearest_grid_point.x+ix;
+          for (int iy=-3;iy<=3;iy++){
+            p.y=nearest_grid_point.y+iy;
+            for (int iz=-3;iz<=3;iz++){
+                p.z=nearest_grid_point.z+iz;
+                if (p.x>0) p.x-=int(p.x/sz.x)*sz.x;
+                if (p.y>0) p.y-=int(p.y/sz.y)*sz.y;
+                if (p.z>0) p.z-=int(p.z/sz.z)*sz.z;
+                if (p.x<0) p.x-=int((p.x+1)/sz.x-1)*sz.x;
+                if (p.y<0) p.y-=int((p.y+1)/sz.y-1)*sz.y;
+                if (p.z<0) p.z-=int((p.z+1)/sz.z-1)*sz.z;
+                real3 Ep;
+                real W_xyz=W_p_7(ix,d.x)*W_p_7(iy,d.y)*W_p_7(iz,d.z);
+                
+                Ep.x= -FFT_Ex[p.x*sz.y*sz.z+p.y*sz.z+p.z].x/volume;
+                Ep.y= -FFT_Ey[p.x*sz.y*sz.z+p.y*sz.z+p.z].x/volume;
+                Ep.z= -FFT_Ez[p.x*sz.y*sz.z+p.y*sz.z+p.z].x/volume;
+                E+=W_xyz*Ep;
+            }
+          }
+        }
+               
+        real3 force= Qunit*qi*E;
+        // Apply force on centroid to all time slices for given atom
+        for (int i = 0; i < nPerRingPoly; i++) {
+            fs[baseIdx + i] += force;
+        }
+
+        if (storeForces) {
+            for (int i = 0; i < nPerRingPoly; i++) {
+                storedForces[ids[baseIdx+i]] = make_real4(force.x, force.y, force.z, 0);
+            }
+        }
+    }
+}
+
+
+
 
 // XXX: may need to template this cufftComplex & double prec analog, if they are different;
 //      -- consult NVIDIA docs to find out
@@ -1015,6 +1279,24 @@ void FixChargeEwald::compute(int virialMode) {
                                (real *)FFT_Qs,
                                Qconversion);
                        break;}
+            case 5:{map_charge_to_grid_order_5_cu
+                       <<<NBLOCK(nRingPoly), PERBLOCK>>>(nRingPoly, nPerRingPoly,
+                               centroids,
+                               gpd.qs(activeIdx),
+                               state->boundsGPU,
+                               sz,
+                               (real *)FFT_Qs,
+                               Qconversion);
+                       break;}
+            case 7:{map_charge_to_grid_order_7_cu
+                       <<<NBLOCK(nRingPoly), PERBLOCK>>>(nRingPoly, nPerRingPoly,
+                               centroids,
+                               gpd.qs(activeIdx),
+                               state->boundsGPU,
+                               sz,
+                               (real *)FFT_Qs,
+                               Qconversion);
+                       break;}
         }    
         // CUT_CHECK_ERROR("map_charge_to_grid_cu kernel execution failed");
 #ifdef DASH_DOUBLE
@@ -1136,6 +1418,28 @@ void FixChargeEwald::compute(int virialMode) {
                            );
 
                        break;}
+            case 5:{Ewald_long_range_forces_order_5_cu<<<NBLOCK(nRingPoly), PERBLOCK>>>( nRingPoly, nPerRingPoly,
+                           centroids,                                                      
+                           gpd.fs(activeIdx),
+                           gpd.qs(activeIdx),
+                           state->boundsGPU,
+                           sz,
+                           FFT_Ex,FFT_Ey,FFT_Ez,Qconversion,
+                           storeForces, gpd.ids(activeIdx), storedForces.data()
+                           );
+
+                       break;}
+            case 7:{Ewald_long_range_forces_order_7_cu<<<NBLOCK(nRingPoly), PERBLOCK>>>( nRingPoly, nPerRingPoly,
+                           centroids,                                                      
+                           gpd.fs(activeIdx),
+                           gpd.qs(activeIdx),
+                           state->boundsGPU,
+                           sz,
+                           FFT_Ex,FFT_Ey,FFT_Ez,Qconversion,
+                           storeForces, gpd.ids(activeIdx), storedForces.data()
+                           );
+
+                       break;}
         }
     } else {
         applyStoredForces<<<NBLOCK(nAtoms), PERBLOCK>>>( nAtoms,
@@ -1229,6 +1533,22 @@ void FixChargeEwald::singlePointEng(real * perParticleEng) {
                                               sz,
                                               (real *)FFT_Qs,Qconversion);
               break;}
+      case 5:{map_charge_to_grid_order_5_cu
+              <<<NBLOCK(nRingPoly), PERBLOCK>>>(nRingPoly, nPerRingPoly, 
+                                              centroids,
+                                              gpd.qs(activeIdx),
+                                              state->boundsGPU,
+                                              sz,
+                                              (real *)FFT_Qs,Qconversion);
+              break;}
+      case 7:{map_charge_to_grid_order_7_cu
+              <<<NBLOCK(nRingPoly), PERBLOCK>>>(nRingPoly, nPerRingPoly, 
+                                              centroids,
+                                              gpd.qs(activeIdx),
+                                              state->boundsGPU,
+                                              sz,
+                                              (real *)FFT_Qs,Qconversion);
+              break;}
     }    
     CUT_CHECK_ERROR("map_charge_to_grid_cu kernel execution failed");
 
@@ -1311,13 +1631,13 @@ void export_FixChargeEwald() {
               py::args("state", "handle", "groupHandle"))
         )
         .def("setParameters", setParameters_xyz,
-                (py::arg("szx"),py::arg("szy"),py::arg("szz"), py::arg("r_cut")=-1,py::arg("interpolation_order")=3)
+                (py::arg("szx"),py::arg("szy"),py::arg("szz"), py::arg("r_cut")=-1,py::arg("interpolation_order")=5)
           
             )
         .def("setParameters", setParameters_xxx,
-                (py::arg("sz"),py::arg("r_cut")=-1,py::arg("interpolation_order")=3)
+                (py::arg("sz"),py::arg("r_cut")=-1,py::arg("interpolation_order")=5)
             )        
-        .def("setError", &FixChargeEwald::setError, (py::arg("error"), py::arg("rCut")=-1, py::arg("interpolation_order")=3)
+        .def("setError", &FixChargeEwald::setError, (py::arg("error"), py::arg("rCut")=-1, py::arg("interpolation_order")=5)
             )
         .def("setLongRangeInterval", &FixChargeEwald::setLongRangeInterval, (py::arg("interval")=0))
         ;

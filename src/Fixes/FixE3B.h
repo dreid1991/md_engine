@@ -25,17 +25,7 @@ void export_FixE3B();
  */
 
 class FixE3B: public Fix {
-    
-    private:
-   
-
-
-
     public:
-
-        // delete the default constructor
-        FixE3B() = delete;
-
         /* FixE3B constructor
          * -- pointer to state
          * -- handle for the fix
@@ -72,11 +62,11 @@ class FixE3B: public Fix {
          * This function needs to be called after simulation run.
          */
 
-        bool stepInit();
+        bool stepInit() override;
 
-        void singlePointEng(real *);
+        void singlePointEng(real *) override;
 
-        void compute(int);
+        void compute(int) override;
         
         //! Reset parameters to before processing
         /*!
@@ -96,7 +86,7 @@ class FixE3B: public Fix {
         int nMolecules; // waterMolecules.size();
         
         // calls our map
-        void handleLocalData();
+        void handleLocalData() override;
 
         // sets the style
         void setStyle(std::string);
@@ -147,8 +137,8 @@ class FixE3B: public Fix {
         int oldNThreadPerAtom;
         // -- override Fix's methods for takeStateNThreadPerBlock; we do not want state's parameters 
         //    for this fix
-        void takeStateNThreadPerBlock(int);
-        void takeStateNThreadPerAtom(int);
+        void takeStateNThreadPerBlock(int) override;
+        void takeStateNThreadPerAtom(int)  override;
 
         // uncomment this and pertinent stuff in .cu file to get a list of maxNumNeighbors;
         // ---- These functions were used in conjunction with a specified density of 1.6 g/mL and 1800 molecule simulation 

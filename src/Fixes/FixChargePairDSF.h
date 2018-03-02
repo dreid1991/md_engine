@@ -28,11 +28,11 @@ public:
 
     bool prepareForRun();
     void setParameters(real alpha_, real r_cut_);
-    void compute(int);
-    void singlePointEng(real *);
-    void singlePointEngGroupGroup(real *, uint32_t, uint32_t);
+    void compute(int) override;
+    void singlePointEng(real *) override;
+    void singlePointEngGroupGroup(real *, uint32_t, uint32_t) override;
     ChargeEvaluatorDSF generateEvaluator();
-    void setEvalWrapper();
+    void setEvalWrapper() override;
     std::vector<real> getRCuts();
 
 };

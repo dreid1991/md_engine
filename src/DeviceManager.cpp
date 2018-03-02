@@ -12,6 +12,11 @@ bool DeviceManager::setDevice(int i, bool output) {
         //add error handling here
         cudaSetDevice(i);
         cudaDeviceSetCacheConfig(cudaFuncCachePreferL1);
+#ifdef DASH_DOUBLE
+        cudaDeviceSetSharedMemConfig(cudaSharedMemBankSizeEightByte);
+#else
+        cudaDeviceSetSharedMemConfig(cudaSharedMemBankSizeFourByte);
+#endif
         cudaGetDeviceProperties(&prop, i);
         currentDevice = i;
         if (output) {

@@ -22,15 +22,15 @@ public:
 
     FixDihedralOPLS(boost::shared_ptr<State> state_, std::string handle);
 
-    void compute(int);
-    void singlePointEng(real *);
+    void compute(int) override;
+    void singlePointEng(real *) override;
 
     void createDihedral(Atom *, Atom *, Atom *, Atom *, double, double, double, double, int);
     void createDihedralPy(Atom *, Atom *, Atom *, Atom *, boost::python::list, int);
     void setDihedralTypeCoefs(int, boost::python::list);
 
     //std::vector<pair<int, std::vector<int> > > neighborlistExclusions();
-    bool readFromRestart();
+    bool readFromRestart() override;
 
 };
 

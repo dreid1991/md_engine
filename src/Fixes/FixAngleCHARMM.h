@@ -13,18 +13,15 @@ class FixAngleCHARMM : public FixPotentialMultiAtom<AngleVariant, AngleCHARMM, A
 private:
     AngleEvaluatorCHARMM evaluator; 
 public:
-    //DataSet *eng;
-    //DataSet *press;
-
     FixAngleCHARMM(boost::shared_ptr<State> state_, std::string handle);
 
-    void compute(int);
-    void singlePointEng(real *);
+    void compute(int) override;
+    void singlePointEng(real *) override;
 
     void createAngle(Atom *, Atom *, Atom *, double, double, double, double, int type_);
     void setAngleTypeCoefs(double, double, double, double, int);
 
-    bool readFromRestart();
+    bool readFromRestart() override;
 
 };
 

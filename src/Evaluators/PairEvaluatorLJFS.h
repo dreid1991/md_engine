@@ -20,6 +20,7 @@ class EvaluatorLJFS {
                 real p2 = epstimes24*sig6;
                 real r2inv = 1.0/lenSqr;
                 real r6inv = r2inv*r2inv*r2inv;
+                // force scalar is as LJ - f(rc)
                 real forceScalar = (r6inv * r2inv * (p1 * r6inv - p2)-params[3]/sqrt(lenSqr)) * multiplier ;
 
                 return dr * forceScalar;
@@ -45,9 +46,9 @@ class EvaluatorLJFS {
                 // here, the linear term is as params[3] * (sqrt(r_ij*r_ij) - sqrt(rCut * rCut))
                 // and the energy shift to zero at the cutoff is as offsetOver4Eps
                 real u_lj_over_4_eps = (sig6r6inv * (sig6r6inv - 1.0));
-                real u_lj_shift_linear = params[3] * (sqrt(lenSqr) - sqrt(rCutSqr));
+                real u_lj_shift_linear = params[3] * (sqrt(rCutSqr) - sqrt(lenSqr));
                 // the aggregate terms; still need to multiply by 0.5 to account for double counting, and then account for the multiplier (e.g. if a CHARMM 1-3 interaction, etc.)
-                real u_lj = four_eps * (u_lj_over_4_eps - offsetOver4Eps) -  u_lj_shift_linear;
+                real u_lj = four_eps * (u_lj_over_4_eps - offsetOver4Eps) +  u_lj_shift_linear;
                 return (0.5 * u_lj * multiplier);
             }
             return 0.0;

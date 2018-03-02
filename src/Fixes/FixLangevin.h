@@ -32,8 +32,8 @@ public:
     FixLangevin(boost::shared_ptr<State> state_, std::string handle_, std::string groupHandle_, boost::python::list, boost::python::list);
     FixLangevin(boost::shared_ptr<State> state_, std::string handle_, std::string groupHandle_, boost::python::object);
     bool prepareForRun();
-    void compute(int);
-    bool postRun();
+    void compute(int) override;
+    bool postRun() override;
     void setParams(double seed, double gamma);
 };
 

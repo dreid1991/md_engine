@@ -22,14 +22,14 @@ public:
 
     FixDihedralCHARMM(boost::shared_ptr<State> state_, std::string handle);
 
-    void compute(int);
-    void singlePointEng(real *);
+    void compute(int) override;
+    void singlePointEng(real *) override;
 
     void createDihedral(Atom *, Atom *, Atom *, Atom *, double, int, double, int);
     void setDihedralTypeCoefs(int, double, int, double);
 
     //std::vector<pair<int, std::vector<int> > > neighborlistExclusions();
-    bool readFromRestart();
+    bool readFromRestart() override;
 
 };
 

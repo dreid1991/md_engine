@@ -18,10 +18,10 @@ public:
 
     ~FixBondHarmonic(){};
 
-    void compute(int);
-    void singlePointEng(real *);
+    void compute(int) override;
+    void singlePointEng(real *) override;
     std::string restartChunk(std::string format);
-    bool readFromRestart();
+    bool readFromRestart() override;
     BondEvaluatorHarmonic evaluator;
 
     // HEY - NEED TO IMPLEMENT REFRESHATOMS
