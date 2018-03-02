@@ -17,12 +17,16 @@ import numpy as np
 #  Tests:
 #
 #       test_EvaluatorWallLJ126_force()
+#           -last edited: BK, 1 January 2018
 #
 #       test_EvaluatorWallLJ126_force_device()
+#           -last edited: BK, 1 January 2018
 #
 #       test_EvaluatorWallLJ126_energy()
+#           -last edited: BK, 1 January 2018
 #
 #       test_EvaluatorWallLJ126_energy_device()
+#           -last edited: BK, 1 January 2018
 #
 ####################################################################################################
 
@@ -114,7 +118,7 @@ def test_EvaluatorWallLJ126_force(make_state):
         absoluteDifference = (calculatedForce - expectedForce).len()
 
         relativeError      = absoluteDifference / (expectedForce.len())
-        print("{:<30s} {:>18.14f}".format("percent error: ", relativeError * 100.0))
+        print("{:<30s} {:>18.14f}\n".format("percent error: ", relativeError * 100.0))
 
         assert(relativeError <= tolerance)
 
@@ -168,7 +172,7 @@ def test_EvaluatorWallLJ126_force_device(make_state):
         absoluteDifference = (calculatedForce - expectedForce).len()
 
         relativeError      = absoluteDifference / (expectedForce.len())
-        print("{:<30s} {:>18.14f}".format("percent error: ", relativeError * 100.0))
+        print("{:<30s} {:>18.14f}\n".format("percent error: ", relativeError * 100.0))
 
         assert(relativeError <= tolerance)
 
@@ -229,7 +233,7 @@ def test_EvaluatorWallLJ126_energy(make_state):
         absoluteDifference = np.abs(calculatedEnergy - expectedEnergy)
         magnitude = np.abs(expectedEnergy)
         relativeError = absoluteDifference / (np.abs(expectedEnergy))
-        print(formatCode.format("percentError: ", relativeError * 100.0))
+        print("{:<30s} {:>18.14f}\n".format("percentError: ", relativeError * 100.0))
         # even in double, some numerical error occurs!
         if (magnitude > 1e-5):
             tolerance = 1e-10
@@ -298,7 +302,7 @@ def test_EvaluatorWallLJ126_energy_device(make_state):
         absoluteDifference = np.abs(calculatedEnergy - expectedEnergy)
         magnitude = np.abs(expectedEnergy)
         relativeError = absoluteDifference / (np.abs(expectedEnergy))
-        print(formatCode.format("percentError: ", relativeError * 100.0))
+        print("{:<30s} {:>18.14f}\n".format("percentError: ", relativeError * 100.0))
         # even in double, some numerical error occurs!
         if (magnitude > 1e-5):
             tolerance = 1e-10

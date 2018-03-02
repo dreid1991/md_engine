@@ -124,5 +124,6 @@ BOOST_PYTHON_MODULE(DASH) {
     export_EvaluatorWallLJ126();
     export_EvaluatorLJ();
     export_EvaluatorLJFS();
+    export_EvaluatorE3B();
     
 }

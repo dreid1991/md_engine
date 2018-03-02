@@ -11,7 +11,7 @@ import numpy as np
 #  test_1_particle.py
 #
 #  This file considers a series of basic tests with a single particle to verify that the most
-#  basic features are correct.  It is to be run for any update to the master branch.
+#  basic features are correct.
 #  It also verifies that force and energies from wall potentials and external fields are correct.
 #
 #  Author: Brian Keene

@@ -17,12 +17,16 @@ import numpy as np
 #  Tests:
 #
 #       test_EvaluatorWallHarmonic_force()
+#           -last edited: BK, 1 January 2018
 #
 #       test_EvaluatorWallHarmonic_force_device()
+#           -last edited: BK, 1 January 2018
 #
 #       test_EvaluatorWallHarmonic_energy()
+#           -last edited: BK, 1 January 2018
 #
 #       test_EvaluatorWallHarmonic_energy_device()
+#           -last edited: BK, 1 January 2018
 #
 ####################################################################################################
 
@@ -105,7 +109,7 @@ def test_EvaluatorWallHarmonic_force(make_state):
         absoluteDifference = (calculatedForce - expectedForce).len()
 
         relativeError      = absoluteDifference / (expectedForce.len())
-        print("{:<30s} {:>18.14f}".format("percent error: ", relativeError * 100.0))
+        print("{:<30s} {:>18.14f}\n".format("percent error: ", relativeError * 100.0))
 
         assert(relativeError <= tolerance)
 
@@ -149,7 +153,7 @@ def test_EvaluatorWallHarmonic_force_device(make_state):
         absoluteDifference = (calculatedForce - expectedForce).len()
 
         relativeError      = absoluteDifference / (expectedForce.len())
-        print("{:<30s} {:>18.14f}".format("percent error: ", relativeError * 100.0))
+        print("{:<30s} {:>18.14f}\n".format("percent error: ", relativeError * 100.0))
 
         assert(relativeError <= tolerance)
 
@@ -186,7 +190,7 @@ def test_EvaluatorWallHarmonic_energy(make_state):
         absoluteDifference = np.abs(calculatedEnergy - expectedEnergy)
 
         relativeError = absoluteDifference / (np.abs(expectedEnergy))
-        print(formatCode.format("percentError: ", relativeError * 100.0))
+        print((formatCode+"\n").format("percentError: ", relativeError * 100.0))
 
         assert(relativeError <= tolerance)
 
@@ -223,7 +227,7 @@ def test_EvaluatorWallHarmonic_energy_device(make_state):
         absoluteDifference = np.abs(calculatedEnergy - expectedEnergy)
 
         relativeError = absoluteDifference / (np.abs(expectedEnergy))
-        print(formatCode.format("percentError: ", relativeError * 100.0))
+        print((formatCode+"\n").format("percentError: ", relativeError * 100.0))
 
         assert(relativeError <= tolerance)
 

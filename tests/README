@@ -19,6 +19,13 @@ pytest -rs
 
 Clear pass-fail messages will be sent to the terminal in either case.
 
+To only run tests in a specific directory (e.g., the evaluators):
+cd Evaluators
+pytest
+
+The same can be done to other directories
+
+
 Further questions and comments about DASH testing may be sent to 
 bkeene@uchicago.edu
 
