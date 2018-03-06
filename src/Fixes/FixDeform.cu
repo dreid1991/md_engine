@@ -11,17 +11,17 @@ using std::endl;
 
 std::string DeformType = "Deform";
 FixDeform::FixDeform(boost::shared_ptr<State> state_, std::string handle_,
-        std::string groupHandle_, double deformRate_, Vector multiplier_, int applyEvery_) : Fix(state_, handle_, groupHandle_, DeformType, false, false, false, applyEvery_), multiplier(multiplier_) {
+        std::string groupHandle_, double deformRate_, Vector multiplier_, int applyEvery_) : Fix(state_, handle_, groupHandle_, DeformType, false, false, false, applyEvery_), deformRateInterpolator(deformRate_),multiplier(multiplier_) {
     setPtVolume = -1;
 }
 
 FixDeform::FixDeform(boost::shared_ptr<State> state_, std::string handle_,
-        std::string groupHandle_, py::object deformRateFunc_, Vector multiplier_, int applyEvery_) : Fix(state_, handle_, groupHandle_, DeformType, false, false, false, applyEvery_), multiplier(multiplier_)  {
+        std::string groupHandle_, py::object deformRateFunc_, Vector multiplier_, int applyEvery_) : Fix(state_, handle_, groupHandle_, DeformType, false, false, false, applyEvery_), deformRateInterpolator(deformRateFunc_), multiplier(multiplier_)  {
     setPtVolume = -1;
 }
 
 FixDeform::FixDeform(boost::shared_ptr<State> state_, std::string handle_,
-        std::string groupHandle_, py::list intervals_, py::list rates_, Vector multiplier_, int applyEvery_)  : Fix(state_, handle_, groupHandle_, DeformType, false, false, false, applyEvery_), multiplier(multiplier_)  {
+        std::string groupHandle_, py::list intervals_, py::list rates_, Vector multiplier_, int applyEvery_)  : Fix(state_, handle_, groupHandle_, DeformType, false, false, false, applyEvery_), deformRateInterpolator(intervals_, rates_),multiplier(multiplier_)  {
     setPtVolume = -1;
 }
 
@@ -35,6 +35,8 @@ bool FixDeform::prepareForRun() {
 	}
 	*/
 
+    deformRateInterpolator.turnBeginRun = state->runInit;
+    deformRateInterpolator.turnFinishRun = state->runInit + state->runningFor;
     if (setPtVolume != -1) {
         //then override entered rate
         double curVol = state->bounds.volume();
@@ -53,8 +55,8 @@ bool FixDeform::prepareForRun() {
                 multiplier[i] = (state->bounds.rectComponents[i]) / state->bounds.rectComponents[0];
             }
         }
-        rate = -state->bounds.rectComponents[0] * (1-sideLenRatio) / (state->runningFor);
-
+        double rate = -state->bounds.rectComponents[0] * (1-sideLenRatio) / (state->runningFor);
+        deformRateInterpolator = Interpolator(rate);
         
 
     }
@@ -70,12 +72,11 @@ bool FixDeform::stepFinal() {
 	//printf("DENSITY %f\n", density);
 
 
-	//Vector fin = traceBeginRun + multiplier * rate * state->runningFor;
 	//density = (massTotal / (fin[0]*fin[1]*fin[2])) * state->units.toSIDensity;
 
 	//printf("DENSITY CHEAT %f\n", density);
-	
-
+    deformRateInterpolator.computeCurrentVal(state->turn);
+    double rate = deformRateInterpolator.getCurrentVal();
 	Vector totalDeform = multiplier * rate * (state->turn - state->runInit);
 	Vector trace = traceBeginRun + totalDeform;
 	Vector cur = Vector(state->boundsGPU.rectComponents);
@@ -85,8 +86,6 @@ bool FixDeform::stepFinal() {
 	Mod::scaleSystem(state, asFloat3, groupTag);
 
 	/*
-    deformRateInterpolator.computeCurrentVal(state->turn);
-    double rate = deformRateInterpolator.getCurrentVal();
     real3 deltaBounds = (multiplier * rate * state->dt).asreal3();
     real3 newTrace = state->boundsGPU.rectComponents + deltaBounds;
     real3 scaleBy = newTrace / state->boundsGPU.rectComponents;
