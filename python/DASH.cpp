@@ -100,6 +100,7 @@ BOOST_PYTHON_MODULE(DASH) {
     export_FixNVTAndersen();
     export_FixLangevin();
 
+    export_FixPressureMonteCarlo();
     export_FixPressureBerendsen();
 
     export_FixRingPolyPot();

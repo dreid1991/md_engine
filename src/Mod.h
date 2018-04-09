@@ -7,6 +7,7 @@
 #include <random>
 
 #include "Atom.h"
+#include "Bounds.h"
 #include "globalDefs.h"
 #include "Vector.h"
 
@@ -45,6 +46,14 @@ namespace Mod {
     template<bool>
     __global__ void scaleSystemGroup_cu(float4 *xs, int nAtoms, float3 lo, float3 rectLen, float3 scaleBy, uint32_t groupTag, float4 *fs, int *idToIdxs, int *notRigidBody);
     void scaleSystem(State *, float3 scaleBy, uint32_t groupTag=1);
+
+    // FOR PIMD
+    template<bool>
+    __global__ void scaleCentroids_cu(float4 *xs, int nAtoms, int nPerRingPoly, float3 scaleBy,int *idToIdxs,
+            BoundsGPU oldBounds, BoundsGPU newBounds);
+    template<bool>
+    __global__ void scaleCentroidsGroup_cu(float4 *xs, int nAtoms, int nPerRingPoly, float3 scaleBy, uint32_t groupTag,float4 *fs, int *idToIdxs, BoundsGPU oldBounds, BoundsGPU newBounds);
+    void scaleSystemCentroids(State *, float3 scaleBy, uint32_t groupTag=1);
     //__global__ void skewAtomsFromZero(cudaSurfaceObject_t xs, float4 xFinal, float4 yFinal);
     //__global__ void skewAtoms(cudaSurfaceObject_t xs, float4 xOrig, float4 xFinal, float4 yOrig, float4 yFinal);
     //__global__ void skew(SHARED(State), Vector);

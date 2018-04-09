@@ -29,6 +29,7 @@
 #include "FixChargeEwald.h"
 #include "FixWCA.h"
 #include "FixPressureBerendsen.h"
+#include "FixPressureMonteCarlo.h"
 #include "FixLinearMomentum.h"
 #include "FixRigid.h"
 #include "FixExternalHarmonic.h"

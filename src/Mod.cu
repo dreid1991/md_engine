@@ -88,6 +88,113 @@ __global__ void FDotR_cu(int nAtoms, float4 *xs, float4 *fs, Virial *virials) {
 }
 
 template <bool RIGIDBODIES>
+__global__ void Mod::scaleCentroids_cu(float4 *xs, int nAtoms,int nPerRingPoly, float3 scaleBy,
+                                    int* idToIdxs, BoundsGPU oldBounds,BoundsGPU newBounds) {
+
+    int idx     = GETIDX();
+    int rootIdx = threadIdx.x * nPerRingPoly;
+    extern __shared__ float3 deltas[];
+
+    int nRingPoly = nAtoms / nPerRingPoly;
+    if (idx < nRingPoly) {
+        // determine centroid position for this ring polymer
+        int baseIdx = idx*nPerRingPoly;
+        float3 init     = make_float3(xs[baseIdx]);
+        float3 diffSum  = make_float3(0,0,0);
+        deltas[rootIdx] = init; 
+        for (int i = 1;i<nPerRingPoly;i++) {
+            float3 next = make_float3(xs[baseIdx+i]);
+            float3 dx = oldBounds.minImage(next-init);
+            deltas[rootIdx + i] = next; 
+            diffSum += dx;
+        }
+        diffSum /= nPerRingPoly;
+        float3 unwrappedPos = init + diffSum;
+        float3 trace = oldBounds.trace();
+        float3 diffFromLo = unwrappedPos - oldBounds.lo;
+        float3 imgs = floorf(diffFromLo / trace);
+        float3 wrappedPos = unwrappedPos - trace * imgs * oldBounds.periodic;
+
+        // compute the differences from the centroid
+        for (int i = rootIdx;i<rootIdx + nPerRingPoly;i++) {
+            deltas[i] = oldBounds.minImage(deltas[i]-wrappedPos);
+        }
+
+        // now find its scaled position
+        // need new boiunds here!!!!
+        float3 center = newBounds.lo + newBounds.rectComponents * 0.5f;
+        float3 newRel = (wrappedPos - center)*scaleBy;
+
+        // reset the relative positions of the ring polymer based on new centroid
+        for ( int i = 0; i<nPerRingPoly; i++) {
+            float3 newPos = wrappedPos + deltas[rootIdx+i];
+            float3 diffFromLo = newPos - newBounds.lo;
+            newPos       -= trace*floorf(diffFromLo / trace)*newBounds.periodic;
+            float4 posWhole = xs[baseIdx+i];
+            posWhole.x    = newPos.x;
+            posWhole.y    = newPos.y;
+            posWhole.z    = newPos.z;
+            xs[baseIdx+i] = posWhole;
+        }
+    }
+}
+
+template <bool RIGIDBODIES>
+__global__ void Mod::scaleCentroidsGroup_cu(float4 *xs, int nAtoms,int nPerRingPoly, float3 scaleBy,uint32_t groupTag,
+                                    float4 *fs, int* idToIdxs, BoundsGPU oldBounds,BoundsGPU newBounds) {
+
+    int idx     = GETIDX();
+    int rootIdx = threadIdx.x * nPerRingPoly;
+    extern __shared__ float3 deltas[];
+
+    int nRingPoly = nAtoms / nPerRingPoly;
+    if (idx < nRingPoly) {
+        // determine centroid position for this ring polymer
+        int baseIdx = idx*nPerRingPoly;
+        uint32_t tag = * (uint32_t *) &(fs[baseIdx].w);
+        if (tag & groupTag) {
+            float3 init     = make_float3(xs[baseIdx]);
+            float3 diffSum  = make_float3(0,0,0);
+            deltas[rootIdx] = init; 
+            for (int i = 1;i<nPerRingPoly;i++) {
+                float3 next = make_float3(xs[baseIdx+i]);
+                float3 dx = oldBounds.minImage(next-init);
+                deltas[rootIdx + i] = next; 
+                diffSum += dx;
+            }
+            diffSum /= nPerRingPoly;
+            float3 unwrappedPos = init + diffSum;
+            float3 trace = oldBounds.trace();
+            float3 diffFromLo = unwrappedPos - oldBounds.lo;
+            float3 imgs = floorf(diffFromLo / trace);
+            float3 wrappedPos = unwrappedPos - trace * imgs * oldBounds.periodic;
+
+            // compute the differences from the centroid
+            for (int i = rootIdx;i<rootIdx + nPerRingPoly;i++) {
+                deltas[i] = oldBounds.minImage(deltas[i]-wrappedPos);
+            }
+
+            // now find its scaled position
+            // need new boiunds here!!!!
+            float3 center = newBounds.lo + newBounds.rectComponents * 0.5f;
+            float3 newRel = (wrappedPos - center)*scaleBy;
+
+            // reset the relative positions of the ring polymer based on new centroid
+            for ( int i = 0; i<nPerRingPoly; i++) {
+                float3 newPos = wrappedPos + deltas[rootIdx+i];
+                float3 diffFromLo = newPos - newBounds.lo;
+                newPos       -= trace*floorf(diffFromLo / trace)*newBounds.periodic;
+                float4 posWhole = xs[baseIdx+i];
+                posWhole.x    = newPos.x;
+                posWhole.y    = newPos.y;
+                posWhole.z    = newPos.z;
+                xs[baseIdx+i] = posWhole;
+            }
+        }
+    }
+}
+
+template <bool RIGIDBODIES>
 __global__ void Mod::scaleSystem_cu(float4 *xs, int nAtoms, float3 lo, float3 rectLen, float3 scaleBy,
                                     int* idToIdxs, int* notRigidBody) {
     int idx = GETIDX();
@@ -164,6 +271,19 @@ __global__ void Mod::scaleSystemGroup_cu(float4 *xs, int nAtoms, float3 lo, floa
 
             }
         }
+    }
+}
+
+void Mod::scaleSystemCentroids(State *state, float3 scaleBy, uint32_t groupTag) {
+    auto &gpd = state->gpd;
+    BoundsGPU oldBounds = state->boundsGPU;
+    state->boundsGPU.scale(scaleBy);
+    int nRingPoly       = state->atoms.size() / state->nPerRingPoly;
+    int partsPerBlock   = 16*1024 / state->nPerRingPoly  / sizeof(float3);
+    if (groupTag==1) {
+        scaleCentroids_cu<false><<<NBLOCKVAR(nRingPoly,partsPerBlock),partsPerBlock, partsPerBlock*state->nPerRingPoly*sizeof(float3)>>>(gpd.xs.getDevData(), state->atoms.size(),state->nPerRingPoly, scaleBy, gpd.idToIdxs.d_data.data(),oldBounds,state->boundsGPU);
+    } else if (groupTag) {
+        scaleCentroidsGroup_cu<false><<<NBLOCK(state->atoms.size()), PERBLOCK>>>(gpd.xs.getDevData(), state->atoms.size(),state->nPerRingPoly, scaleBy, groupTag,gpd.fs.getDevData(), gpd.idToIdxs.d_data.data(),oldBounds,state->boundsGPU);
     }
 }
 
