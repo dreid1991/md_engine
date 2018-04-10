@@ -27,7 +27,7 @@ __global__ void compute_E3B_force_twobody
          int maxNumNeighbors,
          EvaluatorE3B eval)
 {
-
+#if __CUDACC_VER_MAJOR__ >= 9
     // populate smem_neighborIdxs for this warp
     // blockDim.x gives number of threads in a block in x direction
     // gridDim.x gives number of blocks in a grid in the x direction
@@ -140,7 +140,7 @@ __global__ void compute_E3B_force_twobody
         // write forces to global
         fs[atomsReferenceMolecule.x] = curForce_O;
     }
-
+#endif /* __CUDACC_VER_MAJOR__ >= 9 */
 } // end kernel
 // compute_E3B_force_center computes all of the forces for triplets (i,j,k) 
 // -- where j, k are both on i's neighborlist
@@ -160,7 +160,7 @@ __global__ void compute_E3B_force_center
          int maxNumNeighbors,
          EvaluatorE3B eval)
 {
-
+#if __CUDACC_VER_MAJOR__ >= 9
     // we have one molecule per warp, presumably;
     // store neighborlist as atomIdxsInMolecule
     extern __shared__ real3 smem_neighborAtomPos[];
@@ -198,7 +198,8 @@ __global__ void compute_E3B_force_center
 
     int4 atomsReferenceMolecule;
     real3 pos_a1,pos_b1,pos_c1;
-    int neighborlistSize, maxNumComputes,base_smem_idx,initNlistIdx,base_smem_idx_idxs;
+    int neighborlistSize, base_smem_idx,initNlistIdx,base_smem_idx_idxs;
+    //int maxNumComputes;
     /* we did that because we assign values and do read-writes in separate if statements, 
      * in between __syncwarp() calls */
     // this sum is only for molecule 1; therefore, drop 1 subscript; a,b,c denote O, H1, H2, respectively
@@ -226,7 +227,7 @@ __global__ void compute_E3B_force_center
         pos_c1 = make_real3(pos_c1_whole);
         
         neighborlistSize = neighborCounts[moleculeIdx];
-        maxNumComputes = 0.5 * (neighborlistSize * (neighborlistSize - 1)); // number of unique triplets
+        //maxNumComputes = 0.5 * (neighborlistSize * (neighborlistSize - 1)); // number of unique triplets
         // put the neighbor positions in to shared memory, so that we don't have to consult global memory every time
         // -- here, since we also just traverse the neighborlist the one time, do the two body correction.
         initNlistIdx= threadIdx.x % warpSize; // begins as 0...31
@@ -514,7 +515,7 @@ __global__ void compute_E3B_force_center
         fs[atomsReferenceMolecule.y] = curForce_H1;
         fs[atomsReferenceMolecule.z] = curForce_H2;
     }
-
+#endif
 } // end kernel
 
 
@@ -535,7 +536,7 @@ __global__ void compute_E3B_force_edge
          int maxNumNeighbors,
          EvaluatorE3B eval)
 {
-
+#if __CUDACC_VER_MAJOR__ >= 9
     // we have one molecule per warp, presumably;
     // store neighborlist as atomIdxsInMolecule
     extern __shared__ real3 smem_neighborAtomPos[];
@@ -851,7 +852,7 @@ __global__ void compute_E3B_force_edge
         fs[atomsReferenceMolecule.y] = curForce_H1;
         fs[atomsReferenceMolecule.z] = curForce_H2;
     }
-
+#endif
 } // end kernel
 
   
@@ -870,7 +871,7 @@ __global__ void compute_E3B_energy_twobody
          int maxNumNeighbors,
          EvaluatorE3B eval)
 {
-
+#if __CUDACC_VER_MAJOR__ >= 9
     // we have one molecule per warp, presumably;
     // store neighborlist as atomIdxsInMolecule
     
@@ -947,7 +948,7 @@ __global__ void compute_E3B_energy_twobody
         // write energies to global
         perParticleEng[atomsReferenceMolecule.x] = cur_eng_O;
     }
-
+#endif
 } // end compute_E3B_energy
 
 
@@ -966,7 +967,7 @@ __global__ void compute_E3B_energy_center
          int maxNumNeighbors,
          EvaluatorE3B eval)
 {
-
+#if __CUDACC_VER_MAJOR__ >= 9
     // we have one molecule per warp, presumably;
     // store neighborlist as atomIdxsInMolecule
     extern __shared__ real3 smem_neighborAtomPos[];
@@ -986,7 +987,8 @@ __global__ void compute_E3B_energy_center
     real3 pos_a1, pos_b1, pos_c1;
     real3 pos_a2, pos_b2, pos_c2;
     real3 pos_a3, pos_b3, pos_c3;
-    int neighborlistSize, maxNumComputes,base_smem_idx,initNlistIdx,base_smem_idx_idxs;
+    int neighborlistSize,base_smem_idx,initNlistIdx,base_smem_idx_idxs;
+    //int maxNumComputes;
     // this will be true or false for an entire warp
     if (moleculeIdx < nMolecules) {
 
@@ -1014,7 +1016,7 @@ __global__ void compute_E3B_energy_center
         pos_c1 = make_real3(pos_c1_whole);
         
         neighborlistSize = neighborCounts[moleculeIdx];
-        maxNumComputes = 0.5 * (neighborlistSize * (neighborlistSize - 1)); // number of unique triplets
+        //maxNumComputes = 0.5 * (neighborlistSize * (neighborlistSize - 1)); // number of unique triplets
         //if (threadIdx.x % 32 == 0) printf("moleculeIdx %d neighborlistSize %d\n",moleculeIdx,neighborlistSize);
         // put the neighbor positions in to shared memory, so that we don't have to consult global memory every time
         // -- here, since we also just traverse the neighborlist the one time, do the two body correction.
@@ -1285,7 +1287,7 @@ __global__ void compute_E3B_energy_center
         perParticleEng[atomsReferenceMolecule.y] = cur_eng_H1;
         perParticleEng[atomsReferenceMolecule.z] = cur_eng_H2;
     }
-
+#endif
 } // end compute_E3B_energy
 
 
@@ -1306,7 +1308,7 @@ __global__ void compute_E3B_energy_edge
          int maxNumNeighbors,
          EvaluatorE3B eval)
 {
-
+#if __CUDACC_VER_MAJOR__ >= 9
     // we have one molecule per warp, presumably;
     // store neighborlist as atomIdxsInMolecule
     extern __shared__ real3 smem_neighborAtomPos[];
@@ -1474,7 +1476,7 @@ __global__ void compute_E3B_energy_edge
             int k_idx_j_neighbors = 0; //TODO fix
             int initNlistIdx_jNlist = k_idx_j_neighbors;
             for (int k_idx_j_neighbors = kIdxInWorkGroup; k_idx_j_neighbors < jNeighCounts; k_idx_j_neighbors += workGroupSize) {
-            //while (k_idx_j_neighbors < jNeighCounts) {
+            //while (k_idx_j_neighbors < jNeighCounts) 
                 // get k idx from the actual j neighborlist - first, advance nlistIdx
                 bool compute_ijk = true; // default to true; if we find k on i's nlist, set to false; then, check boolean
 
@@ -1573,7 +1575,7 @@ __global__ void compute_E3B_energy_edge
         perParticleEng[atomsReferenceMolecule.y] = cur_eng_H1;
         perParticleEng[atomsReferenceMolecule.z] = cur_eng_H2;
     }
-
+#endif
 } // end compute_E3B_energy
 
 #endif /* __CUDACC__ */

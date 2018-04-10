@@ -377,7 +377,8 @@ class EvaluatorE3B {
                                                     const real3 &r_b1a3, const real3 &r_c1a3,
                                                     const real3 &r_a2b3, const real3 &r_a2c3,
                                                     const real3 &r_b2a3, const real3 &r_c2a3) {
-                                 
+              
+            /*
             // get the distance scalars associated with the rij vectors
             real r_a1b2_scalar = length(r_a1b2);  // 
             real r_a1c2_scalar = length(r_a1c2);  // 
@@ -397,7 +398,7 @@ class EvaluatorE3B {
             real r_b2a3_scalar = length(r_b2a3);  // 
             real r_c2a3_scalar = length(r_c2a3);  // 
 
-            real fs_scalar = 0.0;
+            //real fs_scalar = 0.0;
             real3 fs_tmp = make_real3(0.0, 0.0, 0.0);
 
             // local sum; add aggregation to fs sums passed in by reference
@@ -410,7 +411,8 @@ class EvaluatorE3B {
             //
             //
             // }
-   
+            */
+        
         }
 
 

@@ -140,7 +140,6 @@ __global__ void twoBody_compute_check(
         int4 atomIdxs = atomsFromMolecule[moleculeIdx];
         real4 vel_O   = vs[atomIdxs.x];
         printf("mass oxygen: %f\n",1.0/vel_O.w);
-        int numNeighbors = neighborCounts[moleculeIdx];
         int baseIdx = baseNeighlistIdxFromRPIndex(cumulSumMaxPerBlock, warpSize, moleculeIdx, warpSize);
 
         real4 pos_o = xs[atomIdxs.x];
@@ -266,7 +265,7 @@ void FixE3B::checkTwoBodyCompute() {
     // get the activeIdx for our local gpdLocal (the molecule-by-molecule stuff);
     int activeIdx = gpdLocal.activeIdx();
     int warpSize = state->devManager.prop.warpSize;
-    bool computeVirials = false;
+    //bool computeVirials = false;
     // else false
     
     GPUData &gpdGlobal = state->gpd;

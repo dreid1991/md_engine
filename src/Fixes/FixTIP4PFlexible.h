@@ -98,6 +98,7 @@ class FixTIP4PFlexible: public Fix {
 
         // see FixBond.h for more details
         void updateForPIMD(int nPerRingPoly);
+        void updateMSitesForPIMD();
 };
 
 #endif /* FIXTIP4PFLEXIBLE */

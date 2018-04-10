@@ -164,6 +164,7 @@ def create_TIP4P_2005(state, oxygenHandle, hydrogenHandle, mSiteHandle, center=N
         state.addAtom(handle=mSiteHandle, pos=center+mSiteOffset, q=-1.1794)
         return state.createMolecule([state.atoms[-4].id, state.atoms[-3].id, state.atoms[-2].id, state.atoms[-1].id])
 
+
 # q-TIP4P/F - see J. Chem. Phys. 131 024501 (2009)
 def create_TIP4P_Flexible(state, oxygenHandle, hydrogenHandle, mSiteHandle, center=None, orientation=None):
     if (center==None):
@@ -205,3 +206,15 @@ def create_TIP4P_Flexible(state, oxygenHandle, hydrogenHandle, mSiteHandle, cent
         state.addAtom(handle=mSiteHandle, pos=center+mSiteOffset, q=qM)
         # and our returned molecule
         return state.createMolecule([state.atoms[-4].id, state.atoms[-3].id, state.atoms[-2].id, state.atoms[-1].id])
+
+    elif orientation=="restart":
+        rO = center[0]
+        rH1= center[1]
+        rH2= center[2]
+        rM = center[3]
+        state.addAtom(handle=oxygenHandle, pos=rO, q=qO)
+        state.addAtom(handle=hydrogenHandle, pos=rH1, q=qH)
+        state.addAtom(handle=hydrogenHandle, pos=rH2, q=qH)
+        state.addAtom(handle=mSiteHandle, pos=rM, q=qM)
+        return state.createMolecule([state.atoms[-4].id, state.atoms[-3].id, state.atoms[-2].id, state.atoms[-1].id])
+

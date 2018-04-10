@@ -23,10 +23,13 @@ endif (DEBUG)
 
 # double precision for 'real' type - default to false;
 set(DASH_DOUBLE_DEFAULT OFF)
-option(DASH_DOUBLE "Double precision may be required for some use cases" ${DASH_DOUBLE_DEFAULT})
+option(DASH_DOUBLE "Double precision may be required for some use cases.  Use -DDASH_DOUBLE=1 to compile DASH in full double precision; DASH compiles to single precision by default." ${DASH_DOUBLE_DEFAULT})
 
 if(DASH_DOUBLE)
     add_definitions(-DDASH_DOUBLE)
+    MESSAGE("\n\nDASH will be compiled in double precision.\n\n")
+else()
+    MESSAGE("\n\nDASH will be compiled in single precision.\n\n")
 endif()
 
 if (CMAKE_BUILD_TYPE MATCHES "RELEASE")

@@ -361,6 +361,8 @@ __global__ void accumulate_gpu_if(K *dest, T *src, int n, int warpSize, C instan
     }
 }
 
+
+#if __CUDACC_VER_MAJOR__ >= 9
 // verified correct
 __inline__ __device__ double3 warpReduceSum(double3 val, int warpSize) {
     // 0xffffffff is bitmask saying all threads participate in warp reduction
@@ -392,6 +394,7 @@ __inline__ __device__ Virial warpReduceSum(Virial val, int warpSize) {
     }
     return val;
 }
+#endif /* #if __CUDACC_VER_MAJOR__ >= 9 */
 
 #endif /* #ifdef __CUDACC__ */
 
