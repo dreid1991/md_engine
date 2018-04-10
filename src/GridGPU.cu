@@ -443,7 +443,11 @@ __global__ void countNumNeighbors(real4 *xs, int nRingPoly,
         //  for ( int j = 0; j<nRingPoly; j++) {printf("my id = %d, # neigh = %d\n",j,neighborCounts[j]);}
         //}
     }
+#ifdef __CUDACC__
+#if __CUDACC_VER_MAJOR__ >= 9
 	__syncwarp(); // reduceByN_NOSYNC assumes warp synchronicity
+#endif
+#endif
     if (MULTITHREADPERATOM) {
         counts_shr[threadIdx.x] = myCount;
         reduceByN_NOSYNC<uint16_t>(counts_shr, nThreadPerRP);
