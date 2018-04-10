@@ -198,7 +198,8 @@ __global__ void compute_E3B_force_center
 
     int4 atomsReferenceMolecule;
     real3 pos_a1,pos_b1,pos_c1;
-    int neighborlistSize, maxNumComputes,base_smem_idx,initNlistIdx,base_smem_idx_idxs;
+    int neighborlistSize, base_smem_idx,initNlistIdx,base_smem_idx_idxs;
+    //int maxNumComputes;
     /* we did that because we assign values and do read-writes in separate if statements, 
      * in between __syncwarp() calls */
     // this sum is only for molecule 1; therefore, drop 1 subscript; a,b,c denote O, H1, H2, respectively
@@ -226,7 +227,7 @@ __global__ void compute_E3B_force_center
         pos_c1 = make_real3(pos_c1_whole);
         
         neighborlistSize = neighborCounts[moleculeIdx];
-        maxNumComputes = 0.5 * (neighborlistSize * (neighborlistSize - 1)); // number of unique triplets
+        //maxNumComputes = 0.5 * (neighborlistSize * (neighborlistSize - 1)); // number of unique triplets
         // put the neighbor positions in to shared memory, so that we don't have to consult global memory every time
         // -- here, since we also just traverse the neighborlist the one time, do the two body correction.
         initNlistIdx= threadIdx.x % warpSize; // begins as 0...31
@@ -986,7 +987,8 @@ __global__ void compute_E3B_energy_center
     real3 pos_a1, pos_b1, pos_c1;
     real3 pos_a2, pos_b2, pos_c2;
     real3 pos_a3, pos_b3, pos_c3;
-    int neighborlistSize, maxNumComputes,base_smem_idx,initNlistIdx,base_smem_idx_idxs;
+    int neighborlistSize,base_smem_idx,initNlistIdx,base_smem_idx_idxs;
+    //int maxNumComputes;
     // this will be true or false for an entire warp
     if (moleculeIdx < nMolecules) {
 
@@ -1014,7 +1016,7 @@ __global__ void compute_E3B_energy_center
         pos_c1 = make_real3(pos_c1_whole);
         
         neighborlistSize = neighborCounts[moleculeIdx];
-        maxNumComputes = 0.5 * (neighborlistSize * (neighborlistSize - 1)); // number of unique triplets
+        //maxNumComputes = 0.5 * (neighborlistSize * (neighborlistSize - 1)); // number of unique triplets
         //if (threadIdx.x % 32 == 0) printf("moleculeIdx %d neighborlistSize %d\n",moleculeIdx,neighborlistSize);
         // put the neighbor positions in to shared memory, so that we don't have to consult global memory every time
         // -- here, since we also just traverse the neighborlist the one time, do the two body correction.

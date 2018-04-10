@@ -358,6 +358,52 @@ void FixTIP4PFlexible::handleBoundsChange() {
 
 }
 
+void FixTIP4PFlexible::updateMSitesForPIMD() {
+
+    // so, loop over the water molecules;
+    // note that we have to do this on the CPU, because there is not yet data on the GPU.
+
+    // here, we remove the velocities from the M-sites, and then set them at their defined position.
+    for (int i = 0; i < waterIds.size(); i++) {
+        int4 thisMolecule = waterIds[i];
+        // note that the molecules already contain id's sorted by replica (see updateForPIMD function below); 
+        // so, no further work to be done here.
+        int idO = thisMolecule.x;
+        int idH1= thisMolecule.y;
+        int idH2= thisMolecule.z;
+        int idM = thisMolecule.w;
+
+        // now get the positions of each of the molecules, which was set already by 
+        // state->preparePIMD();
+        Vector posO = state->atoms[idO].pos;
+        Vector posH1= state->atoms[idH1].pos;
+        Vector posH2= state->atoms[idH2].pos;
+        Vector posM = state->atoms[idM].pos;
+
+        // now, compute minimum images, and re-construct the M-site position
+        // --- same thing we do on the GPU
+        Vector r_OH1 = state->bounds.minImage(posH1 - posO);
+        Vector r_OH2 = state->bounds.minImage(posH2 - posO);
+        
+        // define posH1 and posH2 in terms of their minimum images
+        posH1 = posO + r_OH1;
+        posH2 = posO + r_OH2;
+
+        // define posM in terms of posO, posH1, and posH2
+        Vector r_M  = (posO * gamma) + ((posH1 + posH2) * (0.5 * (1.0 - gamma))) ;
+        
+        state->atoms[idM].pos = r_M;
+
+        // and while we're here, set velocity to zero.
+        Vector thisVel;
+        thisVel[0] = thisVel[1] = thisVel[2] = 0.0;
+        state->atoms[idM].setVel(thisVel);
+
+
+    }
+
+}
+
 void FixTIP4PFlexible::updateForPIMD(int nPerRingPoly) {
 
     // see State.cpp... 
@@ -369,9 +415,8 @@ void FixTIP4PFlexible::updateForPIMD(int nPerRingPoly) {
   
     // so, make a new vector of int4's, and do the same process, and then reset our data structures.
     std::vector<int4> PIMD_waterIds;
+    std::vector<BondVariant> PIMD_bonds;
 
-    // so, overwrite our current array of bonds
-    bonds.clear();
 
     // duplicate each molecule by nPerRingPoly, and stride accordingly
     // --- we need to replicate the /bonds/ as well for PIMD. otherwise there will be trouble.
@@ -390,29 +435,18 @@ void FixTIP4PFlexible::updateForPIMD(int nPerRingPoly) {
             int idM_PIMD  = baseIdxM  * nPerRingPoly + j;
             int4 newMol = make_int4(idO_PIMD, idH1_PIMD, idH2_PIMD, idM_PIMD);
             PIMD_waterIds.push_back(newMol);
-            // add the new molecule to our 'bonds' list (this is just so neighborlisting is 
-            // aware of exclusions
-            //Bond bondOH1;
-            //Bond bondOH2;
-            //Bond bondHH;
             Bond bondOM;
-            //bondOH1.ids = { {newMol.x,newMol.y} };
-            //bondOH2.ids = { {newMol.x,newMol.z} };
-            //bondHH.ids =  { {newMol.y,newMol.z} };
-            bondOM.ids =  { {newMol.x,newMol.w} };
-
-            //bonds.push_back(bondOH1);
-            //bonds.push_back(bondOH2);
-            //bonds.push_back(bondHH);
-            bonds.push_back(bondOM);
-    
+            bondOM.ids = { {idO_PIMD, idM_PIMD } };
+            PIMD_bonds.push_back(bondOM);
         }
     }
     // and now just re-assign waterIds vector; prepareForRun will function as usual
     waterIds = PIMD_waterIds;
-
+    bonds = PIMD_bonds;
+    
+    setStyleBondLengths();
+    updateMSitesForPIMD();
     return;
-
 }
 int FixTIP4PFlexible::removeNDF() {
     int ndf = 0;
