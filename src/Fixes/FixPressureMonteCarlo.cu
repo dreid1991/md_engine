@@ -5,11 +5,12 @@ namespace py = boost::python;
 const std::string MonteCarloType = "MonteCarlo";
 using namespace MD_ENGINE;
 
-FixPressureMonteCarlo::FixPressureMonteCarlo(boost::shared_ptr<State> state_, std::string handle_ , double pressure_, double scale_, int applyEvery_,int tuneFreq_) : Fix(state_, handle_, "all", MonteCarloType, false, false, false, applyEvery_), Interpolator(pressure_), pressureComputer(state, "scalar"), enrgComputer(state, py::list(), "scalar", "all") {
+FixPressureMonteCarlo::FixPressureMonteCarlo(boost::shared_ptr<State> state_, std::string handle_ , double pressure_, double scale_, int applyEvery_,bool tune_,int tuneFreq_) : Fix(state_, handle_, "all", MonteCarloType, false, false, false, applyEvery_), Interpolator(pressure_), pressureComputer(state, "scalar"), enrgComputer(state, py::list(), "scalar", "all") {
     isThermostat = false;
     requiresPerAtomVirials=false;
     scale = scale_;
     tuneFreq = tuneFreq_;
+    tune = tune_;
 };
 
 void FixPressureMonteCarlo::setTempInterpolator() {
@@ -89,13 +90,15 @@ bool FixPressureMonteCarlo::stepFinal() {
 
     if (natt >= tuneFreq) {
         printf("Current Barostat acceptance frequency: %f\n",1.0*nacc/natt);
-        //if (nacc < 0.25*natt) {
-        //    scale *= 0.9;
-        //    printf("Current acceptance frequency is %f, so we are changing to vScale = %f\n",1.0*nacc/natt,vScale);
-        //} else if (natt > 0.75*natt) {
-        //    scale *= 1.1;
-        //    printf("Current acceptance frequency is %f, so we are changing to vScale = %f\n",1.0*nacc/natt,vScale);
-        //}
+        if (tune) {
+            if (double (nacc) < 0.25*natt) {
+                vScale *= 0.95;
+                printf("Decreasing volume-scale factor to %f\n",vScale);
+            } else if (double (nacc) > 0.75*natt) {
+                vScale *= 1.05;
+                printf("Increasing volume-scale factor to %f\n",vScale);
+            }
+        }
         natt = 0;
         nacc = 0;
     }
@@ -110,8 +113,8 @@ bool FixPressureMonteCarlo::postRun() {
 void export_FixPressureMonteCarlo() {
     py::class_<FixPressureMonteCarlo, boost::shared_ptr<FixPressureMonteCarlo>, py::bases<Fix> > (
         "FixPressureMonteCarlo", 
-        py::init<boost::shared_ptr<State>,std::string, double, double, int,int>(
-            py::args("state","handle", "pressure", "scale", "applyEvery","tuneFreq")
+        py::init<boost::shared_ptr<State>,std::string, double, double, int, bool, int>(
+            py::args("state","handle", "pressure", "scale", "applyEvery", "tune", "tuneFreq")
             )
     )
     ;

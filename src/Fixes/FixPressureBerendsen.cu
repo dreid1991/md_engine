@@ -2,7 +2,7 @@
 #include "State.h"
 #include "Mod.h"
 namespace py = boost::python;
-const std::string BerendsenType = "Langevin";
+const std::string BerendsenType = "Berendsen";
 using namespace MD_ENGINE;
 
 FixPressureBerendsen::FixPressureBerendsen(boost::shared_ptr<State> state_, std::string handle_, double pressure_, double period_, int applyEvery_) : Interpolator(pressure_), Fix(state_, handle_, "all", BerendsenType, false, true, false, applyEvery_), pressureComputer(state, "scalar"), period(period_) {

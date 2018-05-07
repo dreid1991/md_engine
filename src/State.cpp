@@ -1083,7 +1083,7 @@ bool State::preparePIMD(double temp) {
             xsNM.push_back(ai.pos* sqrtf( (real) nPerRingPoly));
             for (int k = 1; k < nPerRingPoly; k++) {
                 real omegak = 2.0f * omegaP * sinf( k * twoPiInvP * 0.5);
-                real sigmak = 1.0;
+                real sigmak = 0.0;
                 if (ai.mass > 0.0) {
                     sigmak = sqrtf((real) 1.0  / betaP / ai.mass / units.mvv_to_eng) / omegak; // sigma = sqrt(1/ beta_P * m *omegak^2)
                 }
@@ -1100,7 +1100,7 @@ bool State::preparePIMD(double temp) {
             if (ai.mass > 0.0) {
                 distVel = std::normal_distribution<real>(0.0,sqrt( (real) 1.0 / betaP / ai.mass / units.mvv_to_eng));
             } else {
-                distVel = std::normal_distribution<real>(0.0,sqrt( (real) 1.0 / betaP / 1.0 / units.mvv_to_eng));
+                distVel = std::normal_distribution<real>(0.0,0.0);
             }
 
             // fill in atom copies

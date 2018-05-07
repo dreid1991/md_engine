@@ -17,7 +17,7 @@ namespace MD_ENGINE {
         double natt;
         MD_ENGINE::DataComputerEnergy enrgComputer;
     public: 
-        FixPressureMonteCarlo(boost::shared_ptr<State> state_, std::string handle_, double pressure_, double scale_ = 0.01, int applyEvery_ = 1000, int tuneFreq = 10);
+        FixPressureMonteCarlo(boost::shared_ptr<State> state_, std::string handle_, double pressure_, double scale_ = 0.001, int applyEvery_ = 100, bool tune_= false,int tuneFreq = 1000);
 
         bool prepareFinal();
         bool stepFinal();
@@ -26,6 +26,7 @@ namespace MD_ENGINE {
         void setTempInterpolator();
         real   scale;
         real   vScale;
+        bool tune;
         int tuneFreq;
         Interpolator *tempInterpolator;
 

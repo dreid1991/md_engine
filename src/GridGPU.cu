@@ -947,6 +947,7 @@ void GridGPU::periodicBoundaryConditions(real neighCut, bool forceBuild) {
             computeCentroids<<<NBLOCK(nRingPoly), PERBLOCK>>>(
                 rpCentroids.data(), gpd->xs(activeIdx), nAtoms, nPerRingPoly, boundsUnskewed);
             centroids = rpCentroids.data();
+            periodicWrap<<<NBLOCK(nRingPoly), PERBLOCK>>>(centroids, nRingPoly, boundsUnskewed);
         } else {
 	        centroids = gpd->xs(activeIdx);
 	    }
