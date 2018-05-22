@@ -75,7 +75,9 @@ BOOST_PYTHON_MODULE(DASH) {
     export_FixLinearMomentum();
     export_FixRigid();
     export_FixTIP4PFlexible();
-    export_FixE3B();
+    export_FixE3B_GMX();
+    export_FixE3B_GMX_twobody();
+    export_FixE3B_GMX_threebody();
     export_FixDeform();
 
     export_FixExternal();
@@ -124,6 +126,6 @@ BOOST_PYTHON_MODULE(DASH) {
     export_EvaluatorWallLJ126();
     export_EvaluatorLJ();
     export_EvaluatorLJFS();
-    export_EvaluatorE3B();
+    //export_EvaluatorE3B_GMX();
     
 }

@@ -830,9 +830,11 @@ FixChargeEwald::FixChargeEwald(SHARED(State) state_, std::string handle_, std::s
     prepared = false;
     canOffloadChargePairCalc = true;
     modeIsError = false;
-    sz = make_int3(32, 32, 32);
+    sz = make_int3(64, 64, 64);
     malloced = false;
     longRangeInterval = 1;
+    interpolation_order = 5;
+    r_cut = -1;
     setEvalWrapper();
 }
 
@@ -1043,7 +1045,7 @@ void FixChargeEwald::setGridToErrorTolerance(bool printMsg) {
     }
     //DOESN'T REDUCE GRID SIZE EVER
     if (printMsg) {
-        printf("Using ewald grid of %d %d %d with error %f\n", sz.x, sz.y, sz.z, error);
+        printf("Using ewald grid of %d %d %d with interpolation order %d and error %f\n", sz.x, sz.y, sz.z,interpolation_order, error);
     }
 
     if (!malloced or szOld != sz) {
@@ -1160,9 +1162,11 @@ void FixChargeEwald::calc_potential(cufftComplex *phi_buf){
 }
 
 bool FixChargeEwald::prepareForRun() {
+    if (!malloced)  setParameters(sz.x, sz.y, sz.z, r_cut,interpolation_order);
     virialField = GPUArrayDeviceGlobal<Virial>(1);
     setTotalQ2();
     //TODO these values for comparison are uninitialized - we should see about this
+
 
     handleBoundsChangeInternal(true,true);
     turnInit = state->turn;

@@ -2004,6 +2004,4 @@ extern __device__ real atomicAdd(real* address, real val)
 #endif  /* HAVE_DOUBLE_ATOMIC_ADD */
 #endif /* DASH_DOUBLE */
 #endif /* !defined(__CUDA_ARCH__) || __CUDA_ARCH__ >= 600 */
-
-
 #endif /* CUTIL_MATH_H */

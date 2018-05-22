@@ -33,6 +33,8 @@ public:
     //! Call fixes just after the timestepping
     void stepFinal();
 
+    void preStepFinal();
+
     //! Perform all asynchronous operations
     /*!
      * This function performs all asynchronous operations, such as writing
@@ -98,6 +100,8 @@ public:
     //set runtime tunable parameters for performance
     double tune();
 
+    // gets initial condition for computation of virials
+    bool getInitialVirialMode();
 
     // checks that all fixes now register as 'prepared'
     void verifyPrepared();

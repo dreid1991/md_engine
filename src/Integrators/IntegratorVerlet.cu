@@ -643,9 +643,12 @@ double IntegratorVerlet::run(int numTurns)
     // -- e.g., isotropic pair potentials
     prepareFixes(false);
     
+    // iterates over fixes & data computers, if any 'requireVirials' then true, else false
+    bool initialVirialMode = getInitialVirialMode();
+    
     // iterates and computes forces only from fixes that return (prepared==true); 
-    // computes virials 
-    forceInitial(true);
+    // computes virials, if these are found to be needed
+    forceInitial(initialVirialMode);
     
     // prepare the fixes that require forces to be computed on instantiation;
     // -- e.g., constraints
@@ -662,6 +665,7 @@ double IntegratorVerlet::run(int numTurns)
         setInterpolator();
     }
 
+    std::cout << "about to enter the run loop.." << std::endl;
     verifyPrepared();
     
     int periodicInterval = state->periodicInterval;
@@ -716,7 +720,10 @@ double IntegratorVerlet::run(int numTurns)
         // Perform second half of velocity-Verlet step
         postForce();
 
-        // for NPT rigid body simulations, this is where the bug occurs..
+        // for NPT rigid body simulations - add in the virial correction before a barostat computes the pressure
+        // i.e. we do the velocity correction in this step
+        preStepFinal();
+
         stepFinal();
 
         //HEY - MAKE DATA APPENDING HAPPEN WHILE SOMETHING IS GOING ON THE GPU.  

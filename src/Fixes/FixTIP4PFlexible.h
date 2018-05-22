@@ -75,7 +75,6 @@ class FixTIP4PFlexible: public Fix {
         // add a molecule to the fix
         void addMolecule(int, int, int, int);
 
-        int removeNDF();
 
         // list of the bonds in this fix
         std::vector<BondVariant> *getBonds() {

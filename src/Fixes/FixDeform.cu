@@ -81,9 +81,9 @@ bool FixDeform::stepFinal() {
 	Vector trace = traceBeginRun + totalDeform;
 	Vector cur = Vector(state->boundsGPU.rectComponents);
 	Vector ratio = trace / cur;
-	float3 asFloat3 = ratio.asFloat3();
+	real3 asReal3 = ratio.asreal3();
 	//std::cout << totalDeform << std::endl;	
-	Mod::scaleSystem(state, asFloat3, groupTag);
+	Mod::scaleSystem(state, asReal3, groupTag);
 
 	/*
     real3 deltaBounds = (multiplier * rate * state->dt).asreal3();

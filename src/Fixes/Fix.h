@@ -119,13 +119,9 @@ public:
      */
     virtual bool stepFinal() { return true; }
 
-    //! Counts the reduction in system DOF due to this fix
-    /*!
-     * \return 0 if no constraints, otherwise positive integer quantifying the reduction in DOF
-     *
-     * This function is called by DataComputerTemperature when it is preparing for a run.
-     */
-    virtual int removeNDF() {return 0;}
+
+    virtual bool preStepFinal() { return true; }
+
     //! Apply fix
     /*!
      * \param virialMode Compute virials for this Fix
@@ -136,6 +132,8 @@ public:
      */
     virtual void compute(int virialMode) {}
 
+
+    virtual void updateScaleVariables() {}
     //! Calculate single point energy of this Fix
     /*!
      * \param perParticleEng Pointer to where to store the per-particle energy

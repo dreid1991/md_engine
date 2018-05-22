@@ -95,10 +95,14 @@ __global__ void Mod::scaleSystem_cu(real4 *xs, int nAtoms, real3 lo, real3 rectL
                                     int* idToIdxs, uint* notRigidBody) {
     int idx = GETIDX();
     if (idx < nAtoms) {
+        //printf("found this idx!\n");
         if (RIGIDBODIES) {
             // assigned a value of either 1 or 0 in state->findRigidBodies, which is called iff. 
             // there is a barostat present in the simulation
+            // --- note that notRigidBody[idx] is ordered by id of the atom, and is not 
+            //     shuffled during the course of the simulation.  
             if (notRigidBody[idx]) {
+                //printf("acting on this idx!\n");
                 int thisIdx = idToIdxs[idx];
                 real4 posWhole = xs[thisIdx];
                 real3 pos = make_real3(posWhole);
@@ -179,21 +183,34 @@ void Mod::scaleSystem(State *state, real3 scaleBy, uint32_t groupTag) {
         if (state->rigidBodies) {
 
             scaleSystem_cu<true><<<NBLOCK(state->atoms.size()), PERBLOCK>>>(gpd.xs.getDevData(), state->atoms.size(), state->boundsGPU.lo, state->boundsGPU.rectComponents, scaleBy, gpd.idToIdxs.d_data.data(),state->rigidBodiesMask.d_data.data());
+
+            /*
+            std::cout << "************************************" << std::endl;
+            std::cout << "gpd.xs.size(): " << gpd.xs.size() << std::endl;
+            std::cout << "state->atoms.size(): " << state->atoms.size() << std::endl;
+            std::cout << "gpd.idToIdxs.size(): " << gpd.idToIdxs.size() << std::endl;
+            std::cout << "state->rigidBodiesMask.size(): " << state->rigidBodiesMask.size() << std::endl;
+            std::cout << "************************************" << std::endl;
+            */
+            CUT_CHECK_ERROR("Mod::scaleSystem groupTag==1<true> failed!");
             for (Fix *f: state->fixes)  {
                 f->scaleRigidBodies(scaleBy,groupTag); 
             }
         } else {
             scaleSystem_cu<false><<<NBLOCK(state->atoms.size()), PERBLOCK>>>(gpd.xs.getDevData(), state->atoms.size(), state->boundsGPU.lo, state->boundsGPU.rectComponents, scaleBy, gpd.idToIdxs.d_data.data(),state->rigidBodiesMask.d_data.data());
+            CUT_CHECK_ERROR("Mod::scaleSystem groupTag==1<false> failed!");
         }
     } else if (groupTag) {
         if (state->rigidBodies) {
             scaleSystemGroup_cu<true><<<NBLOCK(state->atoms.size()), PERBLOCK>>>(gpd.xs.getDevData(), state->atoms.size(), state->boundsGPU.lo, state->boundsGPU.rectComponents, scaleBy, groupTag, gpd.fs.getDevData(),gpd.idToIdxs.d_data.data(), state->rigidBodiesMask.d_data.data());
+            CUT_CHECK_ERROR("Mod::scaleSystem groupTag!=1<true> failed!");
             for (Fix *f: state->fixes)  {
                 f->scaleRigidBodies(scaleBy,groupTag); 
             }
 
         } else {
             scaleSystemGroup_cu<false><<<NBLOCK(state->atoms.size()), PERBLOCK>>>(gpd.xs.getDevData(), state->atoms.size(), state->boundsGPU.lo, state->boundsGPU.rectComponents, scaleBy, groupTag, gpd.fs.getDevData(),gpd.idToIdxs.d_data.data(), state->rigidBodiesMask.d_data.data());
+            CUT_CHECK_ERROR("Mod::scaleSystem groupTag!=1<false> failed!");
         }
     }
 }

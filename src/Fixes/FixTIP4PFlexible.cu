@@ -448,14 +448,6 @@ void FixTIP4PFlexible::updateForPIMD(int nPerRingPoly) {
     updateMSitesForPIMD();
     return;
 }
-int FixTIP4PFlexible::removeNDF() {
-    int ndf = 0;
-
-    // the position of the M-site is completely defined, otherwise we have no constraints
-    ndf = 3 * nMolecules;
-
-    return ndf;
-}
 
 void FixTIP4PFlexible::compute_gamma() {
 

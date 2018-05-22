@@ -5,7 +5,6 @@
 #include "AtomParams.h"
 #include "boost_for_export.h"
 #include "State.h"
-#define ARG_DEFAULT -1
 
 namespace py=boost::python;
 
@@ -47,10 +46,10 @@ int AtomParams::typeFromHandle(const std::string &handle) const {
 
 void AtomParams::setValues(std::string handle, double mass, double atomicNum) {
     int idx = typeFromHandle(handle);
-    if (mass != ARG_DEFAULT) {
+    if (mass != -1) {
         masses[idx] = mass;
     }
-    if (atomicNum != ARG_DEFAULT) {
+    if (atomicNum != -1) {
         atomicNums[idx] = atomicNum;
     }
 }
@@ -92,8 +91,8 @@ void export_AtomParams() {
         )
     .def("setValues", &AtomParams::setValues,
             (py::arg("handle"),
-             py::arg("mass")=ARG_DEFAULT,
-             py::arg("atomicNum")=ARG_DEFAULT)
+             py::arg("mass")=-1,
+             py::arg("atomicNum")=-1)
         )
     .def_readwrite("masses", &AtomParams::masses)
     .def_readonly("handles", &AtomParams::handles)//! \todo doesn't work

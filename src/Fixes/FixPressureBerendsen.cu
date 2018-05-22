@@ -40,7 +40,7 @@ bool FixPressureBerendsen::stepFinal() {
     }
 
     Mod::scaleSystem(state, make_real3(dilation, dilation, dilation));
-
+    CUT_CHECK_ERROR("Mod::scaleSystem failed!");
     return true;
 }
 
@@ -62,6 +62,7 @@ void export_FixPressureBerendsen() {
             )
     )
     .def("setParameters", &FixPressureBerendsen::setParameters, (py::arg("maxDilation")=-1))
+    .def_readwrite("bulkModulus",&FixPressureBerendsen::bulkModulus)
     .def_readonly("pressureComputer", &FixPressureBerendsen::pressureComputer)
     ;
 }

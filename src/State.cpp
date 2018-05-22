@@ -742,7 +742,7 @@ bool State::runtimeHostOperation(std::function<void (int64_t )> cb, bool async) 
 
 // this function is called by barostatting methods 
 void State::findRigidBodies() {
-
+    std::cout << "Calling findRigidBodies!" << std::endl;
     if (this->rigidBodies) {
 
         std::vector<int> allRigidAtomIds;
@@ -764,11 +764,11 @@ void State::findRigidBodies() {
         //      if the atom belongs to a rigid body, then the constraint algorithm enforcing the rigidity 
         //      is responsible for scaling & translation of the rigid body, and this mask evaluates to false 
         //      for that atom (and the other atoms within the rigid body).
-        rigidAtoms.reserve(this->atoms.size());
-        for (uint i = 0; i < rigidAtoms.size(); i++) {
-            rigidAtoms[i] = (uint) 1;
-        }
+        //rigidAtoms.reserve(this->atoms.size());
 
+        rigidAtoms = std::vector<uint>(this->atoms.size(),1);
+        
+        std::cout << "allRigidAtomIds.size() : " << allRigidAtomIds.size() << std::endl;
         for (int i = 0; i < allRigidAtomIds.size(); i++) {
             // so, this contains the ids that we tell the barostat should /not/ have their 
             // positions modified by the barostat, but rather by their constraint algorithm
@@ -777,8 +777,13 @@ void State::findRigidBodies() {
         }
     
         // and finally, set the GPUArrayDeviceGlobal to the rigidAtoms array.
+        rigidBodiesMask = GPUArrayGlobal<uint>(this->atoms.size());
         rigidBodiesMask.set(rigidAtoms);
         rigidBodiesMask.dataToDevice();
+
+        std::cout << "this->atoms.size(): " << this->atoms.size() << std::endl;
+        std::cout << "rigidAtoms.size() : " << rigidAtoms.size()  << std::endl;
+        std::cout << "rigidBodiesMask.size(): " << rigidBodiesMask.size() << std::endl;
 
 
     } else {
@@ -786,8 +791,13 @@ void State::findRigidBodies() {
         // nominally set the vector and GPUArrayDeviceGlobal array to some 1-value so that we aren't
         // playing with bad values anywhere
         rigidAtoms.resize(1,true);
-        rigidBodiesMask = GPUArrayGlobal<uint>(1);
+        rigidAtoms.push_back((uint) 1);
+        rigidBodiesMask = GPUArrayGlobal<uint>(rigidAtoms.size());
+        rigidBodiesMask.set(rigidAtoms);
         rigidBodiesMask.dataToDevice();
+        std::cout << "this->atoms.size(): " << this->atoms.size() << std::endl;
+        std::cout << "rigidAtoms.size() : " << rigidAtoms.size()  << std::endl;
+        std::cout << "rigidBodiesMask.size(): " << rigidBodiesMask.size() << std::endl;
         
     }
 }

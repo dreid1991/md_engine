@@ -8,7 +8,7 @@
 template <class PAIR_EVAL, bool COMP_PAIRS, int N_PARAM, bool COMP_VIRIALS, class CHARGE_EVAL, bool COMP_CHARGES, int MULTITHREADPERATOM>
 __global__ void compute_force_iso
         (int nAtoms, 
-	 int nPerRingPoly,
+         int nPerRingPoly,
          const real4 *__restrict__ xs, 
          real4 *__restrict__ fs, 
          const uint16_t *__restrict__ neighborCounts, 
@@ -167,10 +167,6 @@ __global__ void compute_force_iso
             if (computedForce) {
                 forceSum += force;
                 if (COMP_VIRIALS) {
-                    // XXX: next three lines for putting force, dr in single precision for computation of Virial
-                    //real3 thisForce = make_real3(force);
-                    //real3 thisDr = make_real3(dr);
-                    //computeVirial(virialsSum, thisForce, thisDr);
                     computeVirial(virialsSum, force, dr);
                 }
             }

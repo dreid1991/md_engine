@@ -40,6 +40,14 @@ void Integrator::stepInit(bool computeVirials)
     }
 }
 
+void Integrator::preStepFinal()
+{
+    for (Fix *f : state->fixes) {
+        if (state->turn % f->applyEvery == 0) {
+            f->preStepFinal();
+        }
+    }
+}
 void Integrator::stepFinal()
 {
     for (Fix *f : state->fixes) {
@@ -47,6 +55,23 @@ void Integrator::stepFinal()
             f->stepFinal();
         }
     }
+}
+bool Integrator::getInitialVirialMode() {
+    // if any fixes or data sets require the virials, we should compute them in the initial force calls.
+    // else, don't.
+    for (Fix *f : state->fixes) {
+        if (f->requiresVirials) {
+            return true;
+        }
+    }
+
+    for (boost::shared_ptr<MD_ENGINE::DataSetUser> ds : state->dataManager.dataSets) {
+        if (ds->requiresVirials()) {
+            return true;
+        }
+    }
+    return false;
+
 }
 
 void Integrator::asyncOperations() {

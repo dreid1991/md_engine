@@ -134,7 +134,14 @@ def create_TIP4P_long(state, oxygenHandle, hydrogenHandle, mSiteHandle, center=N
     state.addAtom(handle=mSiteHandle, pos=center+mSiteOffset, q=-1.0484)
     return state.createMolecule([state.atoms[-4].id, state.atoms[-3].id, state.atoms[-2].id, state.atoms[-1].id])
 
-def create_TIP4P_2005(state, oxygenHandle, hydrogenHandle, mSiteHandle, center=None, orientation=None):
+def create_TIP4P_2005(state, oxygenHandle, hydrogenHandle, mSiteHandle, center=None, orientation=None,**kwargs):
+    if set(["OPos","H1Pos","H2Pos","MPos"]).issubset(set(kwargs)):
+        state.addAtom(handle=oxygenHandle, pos=kwargs.get("OPos"), q=0.0)
+        state.addAtom(handle=hydrogenHandle, pos=kwargs.get("H1Pos"), q=0.5897)
+        state.addAtom(handle=hydrogenHandle, pos=kwargs.get("H2Pos"), q=0.5897)
+        state.addAtom(handle=mSiteHandle, pos=kwargs.get("MPos"), q=-1.1794)
+        return state.createMolecule([state.atoms[-4].id, state.atoms[-3].id, state.atoms[-2].id, state.atoms[-1].id])
+
     if center==None:
         center = state.Vector(0, 0, 0)
     if orientation==None:

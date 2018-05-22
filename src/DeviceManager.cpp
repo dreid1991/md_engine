@@ -21,6 +21,12 @@ bool DeviceManager::setDevice(int i, bool output) {
         currentDevice = i;
         if (output) {
             std::cout << "Selecting device " << i<<" " << prop.name << std::endl;
+            std::cout << "totalGlobalMem        : " << prop.totalGlobalMem     << std::endl;
+            std::cout << "sharedMemPerBlock     : " << prop.sharedMemPerBlock  << std::endl;
+            std::cout << "regsPerBlock          : " << prop.regsPerBlock       << std::endl;
+            std::cout << "warpSize              : " << prop.warpSize           << std::endl;
+            std::cout << "maxThreadsPerBlock    : " << prop.maxThreadsPerBlock << std::endl;
+            // other properties available as necessary
         }
         return true;
     }

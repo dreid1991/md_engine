@@ -85,30 +85,23 @@ class FixRigid : public Fix {
         // array holding positions
         GPUArrayDeviceGlobal<real4> xs_0;
 
-        GPUArrayDeviceGlobal<double3> velCorrectionStored;
-
         // array holding COM before constraints are applied..
         GPUArrayDeviceGlobal<real4> com;
 
         // vector of booleans that will alert us if a molecule has unsatisfied constraints at the end of the turn
         GPUArrayDeviceGlobal<bool> constraints;
 
-
         std::vector<int4> waterIds;
-
 
         std::vector<BondVariant> bonds;
 
-
         std::vector<real4> invMassSums;
-
 
         // boolean defaulting to false in the constructor, denoting whether this is TIP4P/2005
         bool TIP4P;
 
         // boolean defaulting to false in the constructor, denoting whether this is TIP3P
         bool TIP3P;
-
 
         int nMolecules;
 
@@ -119,6 +112,11 @@ class FixRigid : public Fix {
         double r_HH;
         double r_OM;
         double gamma; 
+ 
+        double alpha;
+        double vscale;
+        double rvscale;
+        double rscale;
 
         // a real 4 of the above measures r_OH, r_HH, r_OM;
         double4 fixedSides;
@@ -131,16 +129,13 @@ class FixRigid : public Fix {
         void setStyleBondLengths();
         // 
     public:
-
-
         //! Constructor
         /*!
         * \param state Pointer to the simulation state
         * \param handle "Name" of the Fix
-        * \param groupHandle String specifying group of atoms this Fix acts on
+        * \param style String specifies the geometry being maintained - e.g., tip4p/2005, tip4p, tip3p, spc/e, etc.
         */
-        FixRigid(SHARED(State), std::string handle_, std::string groupHandle_);
-
+        FixRigid(SHARED(State), std::string handle_, std::string style_);
 
         //! First half step of the integration
         /*!
@@ -154,12 +149,15 @@ class FixRigid : public Fix {
          */
         bool stepFinal();
 
+        bool preStepFinal();
+
         bool postNVE_V();
 
         bool postNVE_X();
         // populate the FixRigidData instance
         void populateRigidData();
 
+        void updateScaleVariables();
         //! Prepare FixRigid for simulation run
         bool prepareForRun();
       
@@ -176,14 +174,16 @@ class FixRigid : public Fix {
         //     will have no effect
         bool solveInitialConstraints;
 
+        // trying to find out instance of nose-hoover thermostat...
+        std::shared_ptr<Fix *> noseHoover;
+
         // permits variants of a given style (e.g., TIP4P, TIP4P/LONG, TIP4P/2005)
         // default styles are TIP3P and TIP4P/2005
-        void setStyle(std::string);
+        //void setStyle(std::string);
 
         std::string restartChunk(std::string format);
 
         bool readFromRestart();
-
         
         std::vector<int> getRigidAtoms();
 
@@ -199,8 +199,6 @@ class FixRigid : public Fix {
         //     Also, check if this is rigorously correct or a valid approximation. \TODO/
         // void handleBoundsChange();
 
-        //! Removes NDF corresponding to the number of water molecules in the fix
-        int removeNDF();
 
         // Create a rigid constraint on a TIP3P water molecule
         /*!

@@ -13,10 +13,10 @@ public:
 
     FixBondFENE(boost::shared_ptr<State> state_, std::string handle);
 
-    void compute(int) override;
-    void singlePointEng(real *) override;
+    virtual void compute(int) override;
+    virtual void singlePointEng(real *) override;
     std::string restartChunk(std::string format);
-    bool readFromRestart() override;
+    virtual bool readFromRestart() override;
     BondEvaluatorFENE evaluator;
 
     // HEY - NEED TO IMPLEMENT REFRESHATOMS
@@ -29,7 +29,7 @@ public:
     const BondFENE getBond(size_t i) {
         return boost::get<BondFENE>(bonds[i]);
     }
-    virtual std::vector<BondVariant> *getBonds() {
+    virtual std::vector<BondVariant> *getBonds() override {
         return &bonds;
     }
 
