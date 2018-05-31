@@ -217,7 +217,10 @@ private:
     size_t n_ys_b;
 
     std::vector<double> weight; //!< Weights for closer approximation
-
+    double initial_volume;
+    double massQ_WInv;
+    std::vector<double> massQ_WInvm;
+    // ---- using double instead of std::vector<> implies it is isotropic.
     //std::vector<double> thermPos; //!< Position (= Energy) of the Nose-Hoover
                                     //!< thermostats
     std::vector<double> thermVel; //!< Velocity of the Nose-Hoover thermostats

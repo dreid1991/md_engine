@@ -109,7 +109,7 @@ public:
                                                             //!< operations
     std::map<std::string, uint32_t> groupTags; //!< Map of group handles and
                                                //!< bitmasks
-    std::map<uint32_t,Group> groups; //!< Map of group handles to a given group
+    std::map<uint32_t,Group> groups; //!< Map of group bitmasks to a given group
     void populateGroupMap(); //!< Populates the data of our Group instances contained in the above map 'groups'
 
     bool is2d; //!< True for 2d simulations, else False

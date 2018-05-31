@@ -27,7 +27,9 @@ namespace MD_ENGINE {
             Virial tempTensor; //if using externaltemp, then these must be set each time you go to compute pressure
             double tempNDF;
             Virial pressureTensor;
+            Virial raw_virial_data; // just the raw virial data; required for computing modified pressure
             //so these are just length 2 arrays.  First value is used for the result of the sum.  Second value is bit-cast to an int and used to cound how many values are present.
+            Virial constraints_virial; // holds virial contribution from constraints
 
             void appendScalar(boost::python::list &);
             void appendVector(boost::python::list &);

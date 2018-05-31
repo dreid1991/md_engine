@@ -20,6 +20,8 @@ std::string NoseHooverType = "NoseHoover";
 // CUDA function to calculate the total kinetic energy
 
 // CUDA function to rescale particle velocities
+
+namespace {
 __global__ void rescale_cu(int nAtoms, uint groupTag, real4 *vs, real4 *fs, real3 scale)
 {
     int idx = GETIDX();
@@ -101,6 +103,7 @@ __global__ void barostat_vel_no_tags_cu(int nAtoms, real4 *vs,
     }
 }
 
+}
 // general constructor; may be a thermostat, or a barostat-thermostat
 FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state_, std::string handle_,
                              std::string groupHandle_)
@@ -117,8 +120,8 @@ FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state_, std::string handle
              ), 
                 kineticEnergy(GPUArrayGlobal<real>(2)),
                 ke_current(0.0), ndf(0),
-                chainLength(20), nTimesteps(1), n_ys(1),
-                pchainLength(20),
+                chainLength(10), nTimesteps(1), n_ys(1),
+                pchainLength(10),
                 nTimesteps_b(1), n_ys_b(1),
                 weight(std::vector<double>(n_ys,1.0)),
                 //thermPos(std::vector<double>(chainLength,0.0)),
@@ -146,7 +149,6 @@ FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state_, std::string handle
     // denote whether or not this is the first time prepareForRun was called
     // --- need this, because we need to initialize this with proper virials
     //firstPrepareCalled = true;
-
 }
 
 
@@ -240,24 +242,24 @@ void FixNoseHoover::setTemperature(py::list intervals, py::list temps, double ti
 bool FixNoseHoover::prepareFinal()
 {
 
-    std::cout << "prepareFinal1;" << std::endl;
     // check if there is an instance of FixRigid in simulation; if so, restrict pchain, tchain length to 1 (as GMX)
     // WARNING: if the string in FixRigid.cu for the type is ever changed, this will break.
+    /*
     for (Fix *f : state->fixes) { 
         if (f->type == "Rigid") {
-            /* TODO
-            chainLength = 1;
-            pchainLength = 1;
-            thermVel   = std::vector<double>(chainLength,0.0);
-            thermForce = std::vector<double>(chainLength,0.0);
-            thermMass  = std::vector<double>(chainLength,0.0);
-            */
+            if (barostatting)  {
+                iterative = true;
+            } else {
+                iterative = false;
+            }
         }
     }
-
+    */
+    // get initial conditions for volume of the box
+    initial_volume = state->boundsGPU.volume();
     // get our boltzmann constant
     boltz = state->units.boltz;
-
+    
     // get number of atoms in the system
     nAtoms = state->atoms.size();
     // Calculate current kinetic energy
@@ -266,7 +268,6 @@ bool FixNoseHoover::prepareFinal()
 
     tempComputer.prepareForRun();
     
-    std::cout << "prepareFinal2;" << std::endl;
     calculateKineticEnergy();
     
     tempInterpolator.computeCurrentVal(state->runInit);
@@ -274,7 +275,6 @@ bool FixNoseHoover::prepareFinal()
     oldSetPointTemperature = setPointTemperature;
 
     updateThermalMasses();
-    std::cout << "prepareFinal3;" << std::endl;
 
     // Update thermostat forces
     double temp = tempInterpolator.getCurrentVal();
@@ -286,7 +286,6 @@ bool FixNoseHoover::prepareFinal()
                 thermVel.at(k-1) - boltz*temp
             ) / thermMass.at(k);
     }
-    std::cout << "prepareFinal4;" << std::endl;
 
     // we now have the temperature set point value and instantaneous value.
     // -- set up the pressure set point value via pressInterpolator, 
@@ -320,7 +319,6 @@ bool FixNoseHoover::prepareFinal()
         // our P_{ext}, the set point pressure; this will need to change when we have 
         // the iso-stress ensemble; but, it suffices for now.
         hydrostaticPressure = pressInterpolator.getCurrentVal();
-        std::cout << "prepareFinal5;" << std::endl;
 
         // using external temperature... so send tempNDF and temperature scalar/tensor 
         // to the pressComputer, then call [computeScalar/computeTensor]_GPU() 
@@ -346,7 +344,6 @@ bool FixNoseHoover::prepareFinal()
 
         // synchronize devices after computing the pressure..
         cudaDeviceSynchronize();
-        std::cout << "prepareFinal6;" << std::endl;
 
         // from GPU data, tell pressComputer to compute pressure on CPU side
         // --- might consider a boolean template argument for inside run() functions
@@ -381,7 +378,6 @@ bool FixNoseHoover::prepareFinal()
             pressForce[i] = 0.0;
         }
 
-        std::cout << "prepareFinal7;" << std::endl;
         // and same for the barostat thermostats
         for (int i = 0; i<pressThermMass.size(); i++) {
             pressThermMass[i] = 0.0;
@@ -395,16 +391,16 @@ bool FixNoseHoover::prepareFinal()
         oldSetPointTemperature = setPointTemperature;
         updateBarostatMasses(false);
         updateBarostatThermalMasses(false);
+
+
         
     }
-
     prepared = true;
 
     // iterate over the fixes, let them know that FixNH has scale variables ready, give them over.
     for (Fix *f : state->fixes) {
         f->updateScaleVariables();
     }
-    std::cout << "prepareFinal8;" << std::endl;
 
     return prepared;
 }
@@ -659,6 +655,7 @@ void FixNoseHoover::updateBarostatMasses(bool stepInit) {
     double kt = boltz * t_external;
     // from MTK 1994
     // this has to be turned in to a \sum 
+
     if (pressMode == PRESSMODE::ISO) {
         for (int i = 0; i < 3; i++) {
         // then we set the masses to case (1)

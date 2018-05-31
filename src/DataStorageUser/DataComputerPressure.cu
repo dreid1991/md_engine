@@ -89,7 +89,6 @@ void DataComputerPressure::computeScalar_CPU() {
     double dim = state->is2d ? 2 : 3;
     double volume = state->boundsGPU.volume();
     pressureScalar = (tempScalar_loc * ndf_loc * boltz + sumVirial) / (dim * volume) * state->units.nktv_to_press;
-    //printf("heyo, scalar %f conv %f\n", pressureScalar, state->units.nktv_to_press);
 }
 
 
@@ -108,6 +107,10 @@ void DataComputerPressure::computeTensor_CPU() {
     }
     pressureTensor = Virial(0, 0, 0, 0, 0, 0);
     Virial sumVirial = * (Virial *) gpuBuffer.h_data.data();
+    raw_virial_data = sumVirial; // do we need this though..?
+    // if we just do += (constraint_virial / volume * state->units.nktv_to_press) it should be equivalent
+    // XXX we do tempTensor_loc + sumVirial... gmx does -sumVirial... ???
+    // ---- should we switch signs on constraint virial? TBD.
     double volume = state->boundsGPU.volume();
     for (int i=0; i<6; i++) {
         pressureTensor[i] = (tempTensor_loc[i] + sumVirial[i]) / volume * state->units.nktv_to_press;

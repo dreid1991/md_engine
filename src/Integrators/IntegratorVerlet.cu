@@ -19,6 +19,7 @@ using std::endl;
 
 namespace py = boost::python;
 
+namespace {
 __global__ void nve_v_cu(int nAtoms, real4 *vs, real4 *fs, real dtf) {
     int idx = GETIDX();
     if (idx < nAtoms) {
@@ -612,6 +613,8 @@ __global__ void postForce_cu(int nAtoms, real4 *vs, real4 *fs, real dtf)
         vs[idx] = vel;
     }
 }
+}
+
 
 IntegratorVerlet::IntegratorVerlet(State *state_)
     : Integrator(state_)

@@ -96,6 +96,7 @@ BOOST_PYTHON_MODULE(DASH) {
     export_FixChargeEwald();
 
     export_FixNoseHoover();
+    export_FixMTTK();
     export_FixNVTRescale();
     export_FixNVTAndersen();
     export_FixLangevin();

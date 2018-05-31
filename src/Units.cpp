@@ -21,7 +21,7 @@ void Units::setReal() {
     boltz = 0.0019872067;
     hbar   = 15.178728314015; // kcal/mol * fs
     mvv_to_eng = 48.88821291 * 48.88821291;
-    nktv_to_press = 68568.415;
+    nktv_to_press = 68568.415; // 1 atm, as kcal/mol/(A^3)
     qqr_to_eng = 332.06371;
     ftm_to_v = 1.0f / (48.88821291 * 48.88821291);
     if (unitType != UNITS::REAL) {

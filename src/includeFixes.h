@@ -19,6 +19,7 @@
 #include "Fix2d.h"
 #include "Fix.h"
 #include "FixNoseHoover.h"
+#include "FixMTTK.h"
 #include "FixE3B_GMX.h"
 #include "FixE3B_GMX_twobody.h"
 #include "FixE3B_GMX_threebody.h"

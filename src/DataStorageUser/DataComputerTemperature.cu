@@ -90,6 +90,10 @@ void DataComputerTemperature::computeVector_CPU() {
     std::vector<uint> &ids = state->gpd.ids.h_data;
     std::vector<int> &idToIdxOnCopy = state->gpd.idToIdxsOnCopy;
     std::vector<Atom> &atoms = state->atoms;
+    
+    Group &thisGroup = state->groups[lastGroupTag];
+
+    ndf = thisGroup.getNDF();
 
     tempVector.erase(tempVector.begin(), tempVector.end());
 
@@ -106,6 +110,10 @@ void DataComputerTemperature::computeVector_CPU() {
 void DataComputerTemperature::computeTensor_CPU() {
     Virial total = *(Virial *) &gpuBuffer.h_data[0];
     total *= (state->units.mvv_to_eng / state->units.boltz);
+    
+    // just so that we have ndf, in case other routines reference it
+    Group &thisGroup = state->groups[lastGroupTag];
+    ndf = thisGroup.getNDF();
     /*
        int n;
        if (lastGroupTag == 1) {

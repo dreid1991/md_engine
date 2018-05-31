@@ -90,7 +90,10 @@ class FixRigid : public Fix {
 
         // vector of booleans that will alert us if a molecule has unsatisfied constraints at the end of the turn
         GPUArrayDeviceGlobal<bool> constraints;
+        
+        GPUArrayDeviceGlobal<Virial> virials_local;
 
+        Virial sumVirial; // sum of virials_local; we'll save the last answer
         std::vector<int4> waterIds;
 
         std::vector<BondVariant> bonds;
@@ -174,12 +177,9 @@ class FixRigid : public Fix {
         //     will have no effect
         bool solveInitialConstraints;
 
-        // trying to find out instance of nose-hoover thermostat...
-        std::shared_ptr<Fix *> noseHoover;
+        // returnFromStep if we were in the default integration step and saved them there
+        Virial velocity_virials(double alpha, double veta, bool returnFromStep=false);
 
-        // permits variants of a given style (e.g., TIP4P, TIP4P/LONG, TIP4P/2005)
-        // default styles are TIP3P and TIP4P/2005
-        //void setStyle(std::string);
 
         std::string restartChunk(std::string format);
 

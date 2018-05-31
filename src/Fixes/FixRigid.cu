@@ -133,7 +133,12 @@ inline __host__ __device__ void invertMatrix(double3 ROW1, double3 ROW2, double3
 }
 
 
+namespace {
 
+static inline double series_sinhx(double x) {
+    double xSqr = x*x;
+    return (1.0 + (xSqr/6.0)*(1.0 + (xSqr/20.0)*(1.0 + (xSqr/42.0)*(1.0 + (xSqr/72.0)*(1.0 + (xSqr/110.0))))));
+}
 // so this is the exact same function as in FixLinearMomentum. 
 __global__ void rigid_remove_COMV(int nAtoms, real4 *vs, real4 *sumData, real3 dims) {
     int idx = GETIDX();
@@ -835,7 +840,7 @@ __global__ void settleVelocities(int4 *waterIds, real4 *xs, real4 *xs_0,
 template <class DATA, bool VIRIALS>
 __global__ void settlePositions(int4 *waterIds, real4 *xs, real4 *xs_0, 
                                real4 *vs, 
-                               real4 *fs, Virial *virials, real4 *comOld, 
+                               real4 *fs, Virial *constr_virials, real4 *comOld, 
                                DATA fixRigidData, int nMolecules, 
                                real dt, real dtf,
                                int *idToIdxs, BoundsGPU bounds, int turn, double invdt,
@@ -1054,7 +1059,6 @@ __global__ void settlePositions(int4 *waterIds, real4 *xs, real4 *xs_0,
         vs[idxH1]= make_real4(newVelH1,velH1_whole.w);
         vs[idxH2]= make_real4(newVelH2,velH2_whole.w);
 
-        /*
         if (VIRIALS) {
 
             // ok, dax, day, daz --> dx_a
@@ -1083,11 +1087,10 @@ __global__ void settlePositions(int4 *waterIds, real4 *xs, real4 *xs_0,
             computeVirial_double(virialH1,init_H1,-mda_H1);
             computeVirial_double(virialH2,init_H2,-mda_H2);
             
-            virials[idxO]  += virialO;
-            virials[idxH1] += virialH1;
-            virials[idxH2] += virialH2;
+            constr_virials[idxO]  += virialO;
+            constr_virials[idxH1] += virialH1;
+            constr_virials[idxH2] += virialH2;
 
-            */
           /*
               mdax = mOs*dax;
               mday = mOs*day;
@@ -1119,6 +1122,7 @@ __global__ void settlePositions(int4 *waterIds, real4 *xs, real4 *xs_0,
     }
 }
 
+} // namespace
 
 // 
 void FixRigid::populateRigidData() {
@@ -1723,7 +1727,10 @@ bool FixRigid::prepareForRun() {
     //printf("number of molecules in waterIds: %d\n", nMolecules);
     waterIdsGPU = GPUArrayDeviceGlobal<int4>(nMolecules);
     waterIdsGPU.set(waterIds.data());
-
+    
+    virials_local = GPUArrayDeviceGlobal<Virial>(state->gpd.virials.size());
+    virials_local.memset(0);
+    gpuBuffer = GPUArrayGlobal<real>(state->atoms.size() * 6);
 
     xs_0 = GPUArrayDeviceGlobal<real4>(3*nMolecules);
     com = GPUArrayDeviceGlobal<real4>(nMolecules);
@@ -1887,17 +1894,6 @@ bool FixRigid::preStepFinal() {
     bool virials = ((virialMode == 1) or (virialMode == 2));
 
 
-    // adding in a few of the v-eta var stuff.. note that we have already adjusted the positions here!
-    if (noseHoover) {
-
-
-    } else {
-
-
-    }
-
-
-
     if (TIP4P) {
         if (virials) {
             distributeMSite<true,true><<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), 
@@ -1918,7 +1914,7 @@ bool FixRigid::preStepFinal() {
         settleVelocities<FixRigidData,true><<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), 
                                                     xs_0.data(), gpd.vs(activeIdx),
                                                     gpd.fs(activeIdx), 
-                                                    gpd.virials.d_data.data(),
+                                                    gpd.virials.d_data.data(), 
                                                     com.data(), fixRigidData, nMolecules, dt, dtf, 
                                                     gpd.idToIdxs.d_data.data(), bounds, (int) state->turn);
     } else {
@@ -1955,6 +1951,56 @@ bool FixRigid::preStepFinal() {
 
 
 
+}
+
+
+Virial FixRigid::velocity_virials(double alpha, double veta, bool returnFromStep) {
+
+    // this is called after 
+    double dt = (double) state->dt;
+    double g = 0.5*veta*dt
+    rscale = std::exp(g)*series_sinhx(g);
+    g = -0.25 * alpha * veta * dt;
+    vscale = std::exp(g)*series_sinhx(g);
+    rvscale = vscale*rscale;
+    
+    // reset virials_local, which we are about to write to (since idxs switch around, can't assume all old data would be overwritten)
+    virials_local.memset(0);
+    gpuBuffer.d_data.memset(0); 
+
+    GPUData &gpd = state->gpd;
+    int activeIdx = gpd.activeIdx();
+    BoundsGPU &bounds = state->boundsGPU;
+    int nAtoms = state->atoms.size();
+    real dtf = 0.5 * state->dt * state->units.ftm_to_v;
+
+    // here, do the thing. get the shake virials, then reduce and return an aggregated quantity.
+    // do not adjust for units - that will be handled elsewhere
+
+    // -- note that we do not want an accumulation class as implemented..
+    settleVelocities<FixRigidData,true><<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), 
+                                                gpd.xs(activeIdx), 
+                                                xs_0.data(), gpd.vs(activeIdx),
+                                                gpd.fs(activeIdx), 
+                                                virials_local.data(), 
+                                                com.data(), fixRigidData, 
+                                                nMolecules,(real) dt, dtf, 
+                                                gpd.idToIdxs.d_data.data(), 
+                                                bounds, (int) state->turn);
+    
+    // ok, we've written to virials_local.data...
+    accumulate_gpu<Virial, Virial, SumVirial, N_DATA_PER_THREAD>  <<<NBLOCK(nAtoms / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*PERBLOCK*sizeof(Virial)>>>
+    (
+         (Virial *) gpuBuffer.getDevData(), virials_local.data(), 
+          nAtoms, state->devManager.prop.warpSize, SumVirial()
+    );    
+     
+    gpuBuffer.dataToHost();
+
+    cudaDeviceSynchronize();
+
+    sumVirial = * (Virial *) gpuBuffer.h_data.data();
+    return sumVirial;
 }
 
 bool FixRigid::stepFinal() {
