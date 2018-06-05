@@ -33,7 +33,9 @@ namespace MD_ENGINE {
             // prepareForRun() function - calls DataComputer::prepareForRun, and sets up auxiliary vectors
             // as required
             void prepareForRun();
-            
+ 
+
+            void postRun() {};
             // engScalar - instantaneous value of the potential energy
             double engScalar;
             

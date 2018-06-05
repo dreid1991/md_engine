@@ -19,13 +19,16 @@ namespace MD_ENGINE {
 
             DataComputerEnergy(State *, boost::python::list, std::string computeMode_, std::string groupHandleB_);
             void prepareForRun();
+            void postRun() {};
+
             double engScalar;
             std::string groupHandleB; //second group if we're doing group-group interactions
             uint32_t groupTagB;
             bool otherIsAll;
             std::vector<double> engVector;
             //so these are just length 2 arrays.  First value is used for the result of the sum.  Second value is bit-cast to an int and used to cound how many values are present.
-
+            bool masslessSites;
+            std::vector<std::shared_ptr<Fix *> > constraint_fixes; // if massless sites are found, the constraint assigns the PPE's as needed.
             std::vector<boost::shared_ptr<Fix> > fixes;
 
             void appendScalar(boost::python::list &);

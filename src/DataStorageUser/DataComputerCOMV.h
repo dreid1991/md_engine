@@ -23,7 +23,9 @@ namespace MD_ENGINE {
             DataComputerCOMV(State *);
 
             void prepareForRun();
-            
+    
+
+            void postRun() {};
             // as from FixLinearMomentum
             GPUArrayGlobal<real4> sumMomentum;
             real4 systemMomentum;

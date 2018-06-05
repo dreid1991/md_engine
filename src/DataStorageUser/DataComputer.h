@@ -48,6 +48,8 @@ namespace MD_ENGINE {
         virtual void appendVector(boost::python::list &) = 0;
         virtual void appendTensor(boost::python::list &) = 0;
 
+        virtual void postRun(boost::python::list &) {} ;
+
         bool requiresVirials;
         bool requiresPerAtomVirials;
 
@@ -57,6 +59,7 @@ namespace MD_ENGINE {
 
         std::string computeMode;
         virtual void prepareForRun();
+
         int dataMultiple;
         void compute_GPU(bool transferToCPU, uint32_t groupTag);
         void compute_CPU();

@@ -44,6 +44,8 @@ class DataManager {
         boost::shared_ptr<MD_ENGINE::DataSetUser> recordEField(double cutoff, int interval, boost::python::object collectGenerator); 
         boost::shared_ptr<MD_ENGINE::DataSetUser> recordHamiltonian(std::string computeMode, int interval, boost::python::object collectGenerator);
 
+        boost::shared_ptr<MD_ENGINE::DataSetUser> recordRDF(std::string species1, std::string species2, double binWidth, int interval, boost::python::object collectGenerator);
+
         void stopRecord(boost::shared_ptr<MD_ENGINE::DataSetUser>);
 
 

@@ -38,6 +38,7 @@ namespace MD_ENGINE {
 
 
             void prepareForRun();
+            void postRun() {};
             boost::shared_ptr<EvaluatorWrapper> evalWrap;
 
     };

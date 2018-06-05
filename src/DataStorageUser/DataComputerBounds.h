@@ -21,6 +21,9 @@ namespace MD_ENGINE {
 
             DataComputerBounds(State *);
             void prepareForRun();
+
+            void postRun() {};
+
             //so these are just length 2 arrays.  First value is used for the result of the sum.  Second value is bit-cast to an int and used to cound how many values are present.
 
             void appendScalar(boost::python::list &);

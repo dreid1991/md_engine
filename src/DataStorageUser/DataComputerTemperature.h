@@ -36,6 +36,7 @@ namespace MD_ENGINE {
             Virial getTensor();
 
             void prepareForRun();
+            void postRun(boost::python::list &) {};
 
     };
 };

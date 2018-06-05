@@ -176,7 +176,7 @@ private:
 
 
     // find all instances of rigid fixes in the simulation
-    std::vector<std::shared_ptr<Fix *> > constraint_fixes;
+    std::vector<Fix *> constraint_fixes;
 
     Interpolator *getInterpolator(std::string);
 

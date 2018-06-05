@@ -10,14 +10,16 @@
 #include "globalDefs.h"
 #include "xml_func.h"
 #include "helpers.h"
+
+
 namespace py = boost::python;
 const std::string rigidType = "Rigid";
 
 FixRigid::FixRigid(boost::shared_ptr<State> state_, std::string handle_, std::string style_) : Fix(state_, handle_, "all", rigidType, true, true, false, 1), style(style_) {
 
     // set both to false initially; using one of the createRigid functions will flip the pertinent flag to true
-    TIP4P = false;
-    TIP3P = false;
+    FOURSITE = false;
+    THREESITE = false;
     printing = false;
     // set flag 'requiresPostNVE_V' to true
     requiresPostNVE_V = true;
@@ -25,9 +27,13 @@ FixRigid::FixRigid(boost::shared_ptr<State> state_, std::string handle_, std::st
     // call prepareForRun()
     requiresForces = true;
     solveInitialConstraints = true;
+    // this is the list of style arguments currently supported.
     if ( style != "TIP4P/2005" && 
-         style != "TIP3P") {
-        mdError("Unsupported style argument passed to the Rigid fix; current, style options are TIP4P/2005 and TIP3P; Please adjust accordingly.");
+         style != "TIP3P"      &&
+         style != "TIP4P"      &&
+         style != "SPC"        && 
+         style != "SPC/E"        ) {
+        mdError("Unsupported style argument passed to the Rigid fix; current, style options are TIP4P, SPC, SPC/E, TIP4P/2005 and TIP3P; Please adjust accordingly.");
     }
 
     readFromRestart();
@@ -134,11 +140,12 @@ inline __host__ __device__ void invertMatrix(double3 ROW1, double3 ROW2, double3
 
 
 namespace {
-
 static inline double series_sinhx(double x) {
     double xSqr = x*x;
     return (1.0 + (xSqr/6.0)*(1.0 + (xSqr/20.0)*(1.0 + (xSqr/42.0)*(1.0 + (xSqr/72.0)*(1.0 + (xSqr/110.0))))));
 }
+
+
 // so this is the exact same function as in FixLinearMomentum. 
 __global__ void rigid_remove_COMV(int nAtoms, real4 *vs, real4 *sumData, real3 dims) {
     int idx = GETIDX();
@@ -153,7 +160,7 @@ __global__ void rigid_remove_COMV(int nAtoms, real4 *vs, real4 *sumData, real3 d
     }
 }
 
-template <class DATA, bool TIP4P>
+template <class DATA, bool FOURSITE>
 __global__ void rigid_scaleSystem_cu(int4* waterIds, real4* xs, int* idToIdxs,
                                      real3 lo, real3 rectLen, BoundsGPU bounds, real3 scaleBy,
                                      DATA fixRigidData, int nMolecules) {
@@ -165,7 +172,7 @@ __global__ void rigid_scaleSystem_cu(int4* waterIds, real4* xs, int* idToIdxs,
         // compute the difference in the positions
         // translate all the individual atoms xs's accordingly, and exit
         // --- we do not need to check groupTags
-        // --- if (TIP4P) { translate M-site position as well }
+        // --- if (FOURSITE) { translate M-site position as well }
         double weightH = fixRigidData.weights.y;
        
         // get the molecule at this idx
@@ -233,7 +240,7 @@ __global__ void rigid_scaleSystem_cu(int4* waterIds, real4* xs, int* idToIdxs,
 
 
 
-template <class DATA, bool TIP4P>
+template <class DATA, bool FOURSITE>
 __global__ void rigid_scaleSystemGroup_cu(int4* waterIds, real4* xs, int* idToIdxs,
                                           real3 lo, real3 rectLen, BoundsGPU bounds, real3 scaleBy,
                                           DATA fixRigidData, int nMolecules, uint32_t groupTag,
@@ -253,7 +260,7 @@ __global__ void rigid_scaleSystemGroup_cu(int4* waterIds, real4* xs, int* idToId
             // ---- check the groupTag of just the oxygen; if 
             //      the oxygen atom is in the group, we will assume that the other atoms are as well
             //      mostly because if they aren't, then something is being done incorrectly by the user
-            // --- if (TIP4P) { translate M-site position as well }
+            // --- if (FOURSITE) { translate M-site position as well }
             double weightO = fixRigidData.weights.x;
             double weightH = fixRigidData.weights.y;
            
@@ -297,7 +304,7 @@ __global__ void rigid_scaleSystemGroup_cu(int4* waterIds, real4* xs, int* idToId
             double3 newRel = (COM_d1 - center) * make_double3(scaleBy);
 #endif
 
-            if (TIP4P) {
+            if (FOURSITE) {
                 int idxM = idToIdxs[atomsFromMolecule.w];
                 real4 posM_whole = xs[idxM];
                 double3 posM = make_double3(posM_whole);
@@ -440,21 +447,26 @@ __global__ void validateConstraints(int4* waterIds, int *idToIdxs,
 }
 
 
-// pretty straightforward - printing out the positions, velocities, and forces of 4 atoms                                   
-__global__ void printGPD_Rigid(uint* ids, real4 *xs, real4 *vs, real4 *fs, int nAtoms) {
+// distribution of m-site potential energy to appropriate atom (oxygen)
+__global__ void distributeMSite_Energy(int nMolecules,
+                                       int4 *waterIds, 
+                                       int* idToIdxs,
+                                       real *perParticleEng) {
+
     int idx = GETIDX();
-    if (idx < nAtoms) {
-        uint id = ids[idx];
-        //if (id < 4) {
-        real4 pos = xs[idx];
-        int type = xs[idx].w;
-        real4 vel = vs[idx];
-        real4 force = fs[idx];
-        //uint groupTag = force.w;
-        printf("atom id %d type %d at coords %f %f %f\n", id, type, pos.x, pos.y, pos.z);
-        printf("atom id %d mass %f with vel  %f %f %f\n", id, vel.w, vel.x, vel.y, vel.z);
-        printf("atom id %d mass %f with force %f %f %f\n", id, vel.w, force.x, force.y, force.z);
-        //}
+    if (idx < nMolecules) {
+        // by construction, the id's of the molecules are ordered as follows in waterIds array
+        // waterIds contains id's; we need idxs
+        int idx_O  = idToIdxs[waterIds[idx].x];
+        int idx_M  = idToIdxs[waterIds[idx].w];
+        
+        real ppe_M = perParticleEng[idx_M];
+        perParticleEng[idx_M] = 0.0;
+        
+        real ppe_O = perParticleEng[idx_O];
+        ppe_O += ppe_M;
+        
+        perParticleEng[idx_O] = ppe_O;
     }
 }
 
@@ -1118,7 +1130,7 @@ __global__ void settlePositions(int4 *waterIds, real4 *xs, real4 *xs_0,
             rmdr[ZZ][XX] -= b4[ow1+2]*mdax + b4[hw2+2]*mdbx + b4[hw3+2]*mdcx;
             rmdr[ZZ][YY] -= b4[ow1+2]*mday + b4[hw2+2]*mdby + b4[hw3+2]*mdcy;
             */
-        //}
+        }
     }
 }
 
@@ -1204,6 +1216,24 @@ void FixRigid::populateRigidData() {
 
 }
 
+void FixRigid::singlePointEng_massless(real *perParticleEng) {
+
+
+    // we want a kernel that 
+    // (1) reads the PPE assigned to the m-site, if there is m sites present..
+    // (2) adds said PPE to the oxygen
+    // (3) sets PPE of m-site to zero
+    if (FOURSITE) {
+        distributeMSite_Energy<<<NBLOCK(nMolecules), PERBLOCK>>>(nMolecules,
+                                                                 waterIdsGPU.data(),
+                                                                 state->gpd.idToIdxs.d_data.data(),
+                                                                 perParticleEng);
+    }
+
+    // if 3-site model, do nothing.
+    return;
+}
+
 bool FixRigid::postNVE_X() {
 
     real dt = state->dt;
@@ -1242,7 +1272,7 @@ bool FixRigid::postNVE_X() {
 
     }
 
-    if (TIP4P) {
+    if (FOURSITE) {
     
         setMSite<FixRigidData><<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), gpd.idToIdxs.d_data.data(), gpd.xs(activeIdx), nMolecules, bounds, fixRigidData);
     
@@ -1338,40 +1368,51 @@ void FixRigid::set_fixed_sides() {
 
 void FixRigid::setStyleBondLengths() {
     
-    if (TIP4P) {
+    if (FOURSITE) {
         // 4-site models here
 
         if (style == "TIP4P/2005") {
             std::cout << "SETTLE algorithm is maintaining a TIP4P/2005 geometry!" << std::endl;
-            sigma_O = 3.15890000;
             r_OH = 0.95720000000;
             r_HH = 1.51390000000;
             r_OM = 0.15460000000;
             // see q-TIP4P/f paper by Manolopoulos et. al., eq. 2; this quantity can be computed from an arbitrary
             // TIP4P/2005 molecule fairly easily and is consistent with the above r_OH, r_HH, r_OM values
             gamma = 0.73612446364836; 
-        } else {
+        } else if (style == "TIP4P") {
+            std::cout << "SETTLE algorithm is maintaining a TIP4P geometry!" << std::endl;
+            r_OH =    0.9572000000;
+            r_HH = 1.51390000000;
+            r_OM = 0.15000000;
             
-            mdError("Only TIP3P and TIP4P/2005 are supported in setStyleBondLengths at the moment.\n");
-
+        } else {
+            // I don't think that this would ever get triggered, since we check in the constructor that a valid style argument was selected..
+            mdError("Only TIP4P and TIP4P/2005 geometries supported for four-site models!");
         }
 
-    } else if (TIP3P) {
+    } else if (THREESITE) {
         // 3-site models here
         
         // set r_OM to 0.0 for completeness
-        r_OM = 0.00000000000;
-        gamma = 0.0000;
+        r_OM  = 0.0;
+        gamma = 0.0;
+
         if (style == "TIP3P") {
             std::cout << "SETTLE algorithm is maintaining a TIP3P geometry!" << std::endl;
-            sigma_O = 3.15890000;
             r_OH = 0.95720000000;
             r_HH = 1.51390000000;
+        } else if (style == "SPC") {
+            std::cout << "SETTLE algorithm is maintaining a SPC geometry!" << std::endl;
+            r_OH = 1.00000000000;
+            r_HH = 1.63300000000
+        } else if (style == "SPC/E") {
+            std::cout << "SETTLE algorithm is maintaining a SPC/E geometry!" << std::endl;
+            r_OH = 1.00000000000;
+            r_HH = 1.63300000000;
         } else {
-
-            mdError("Only TIP3P and TIP4P/2005 are supported in setStyleBondLengths at the moment.\n");
-
+            mdError("Only TIP3P, SPC, and SPC/E geometries supported for three-site models!");
         }
+
     } else {
 
         mdError("Neither 3-site nor 4-site model currently selected in FixRigid.\n");
@@ -1379,8 +1420,7 @@ void FixRigid::setStyleBondLengths() {
     }
 
     if (state->units.unitType == UNITS::LJ) {
-
-        mdError("Currently, real units must be used for simulations of rigid water models.\n");
+        mdError("Currently, real units must be used for simulations of rigid water models.  \nSet state.units.setReal() in your simulation script and adjust all units accordingly.\n");
     }
 
     fixedSides = make_double4(r_OH, r_OH, r_HH, r_OM);
@@ -1389,7 +1429,7 @@ void FixRigid::setStyleBondLengths() {
     fixRigidData.sideLengths = fixedSides;
     fixRigidData.gamma = gamma;
     double invOM = 0.0;
-    if (TIP4P) invOM = 1.0 / r_OM;
+    if (FOURSITE) invOM = 1.0 / r_OM;
 
     double4 invSideLengths = make_double4(1.0/r_OH, 1.0 / r_OH, 1.0 / r_HH, invOM);
     fixRigidData.invSideLengths = invSideLengths;
@@ -1408,7 +1448,7 @@ std::string FixRigid::restartChunk(std::string format) {
 
     ss << "<style type=\'" << style << "\'>\n";
     ss << "</style>\n";
-    if (TIP4P) {
+    if (FOURSITE) {
         ss << "<model fourSite=\'true\'/>\n";
     } else {
         ss << "<model fourSite=\'false\'/>\n";
@@ -1443,9 +1483,9 @@ bool FixRigid::readFromRestart() {
                 printf("In FixRigid::readFromRestart(), found style %s\n", style.c_str());
             } else if (tag == "model") {
                 bool fourSite = boost::lexical_cast<bool>(curr_param.attribute("fourSite").value());
-                // set our class member boolean flags TIP3P & TIP4P
-                TIP4P = fourSite;
-                TIP3P = !fourSite;
+                // set our class member boolean flags THREESITE & FOURSITE
+                FOURSITE = fourSite;
+                THREESITE = !fourSite;
             }
             curr_param = curr_param.next_sibling();
         }
@@ -1464,7 +1504,7 @@ bool FixRigid::readFromRestart() {
         bonds.push_back(bondOH1);
         bonds.push_back(bondOH2);
         bonds.push_back(bondHH);
-        if (TIP4P) {
+        if (FOURSITE) {
             Bond bondOM;
             bondOM.ids = { {waterIds[i].x, waterIds[i].w } };
             bonds.push_back(bondOM);
@@ -1477,8 +1517,8 @@ bool FixRigid::readFromRestart() {
 
 void FixRigid::assignNDF() {
    
-    // if this is TIP3P, assign NDF of 2 to each atom in a given molecule (distribute the reduction equally)
-    if (TIP3P) {
+    // if this is THREESITE, assign NDF of 2 to each atom in a given molecule (distribute the reduction equally)
+    if (THREESITE) {
         for (int i = 0; i < waterIds.size(); i++) {
             int4 thisMolIds = waterIds[i];
             int idO = thisMolIds.x;
@@ -1493,7 +1533,7 @@ void FixRigid::assignNDF() {
         }
     }
     // if this is 4 site model, assign NDF of 2 to each real atom, and 0 to the M-site
-    if (TIP4P) {
+    if (FOURSITE) {
         
         for (int i = 0; i < waterIds.size(); i++) {
             int4 thisMolIds = waterIds[i];
@@ -1518,13 +1558,13 @@ std::vector<int> FixRigid::getRigidAtoms() {
 
     std::vector<int> atomsToReturn;
     // by now, this is prepared. so, we know if it is a 3-site or 4-site model.
-    if (TIP3P) {
+    if (THREESITE) {
         atomsToReturn.reserve(3 * nMolecules);
     } else {
         atomsToReturn.reserve(4 * nMolecules);
     }
 
-    if (TIP3P) {
+    if (THREESITE) {
         for (int i = 0; i < waterIds.size(); i++ ) {
             int4 theseAtomIds = waterIds[i];
             int idO = theseAtomIds.x;
@@ -1584,14 +1624,14 @@ void FixRigid::scaleRigidBodies(real3 scaleBy, uint32_t groupTag) {
     }
 
 
-    if (TIP4P) {
+    if (FOURSITE) {
             setMSite<FixRigidData><<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), gpd.idToIdxs.d_data.data(), gpd.xs(activeIdx), nMolecules, bounds,fixRigidData);
     }
 
 }
 
 void FixRigid::createRigid(int id_a, int id_b, int id_c, int id_d) {
-    TIP4P = true;
+    FOURSITE = true;
     int4 waterMol = make_int4(0,0,0,0);
     Vector a = state->idToAtom(id_a).pos;
     Vector b = state->idToAtom(id_b).pos;
@@ -1644,7 +1684,7 @@ void FixRigid::createRigid(int id_a, int id_b, int id_c, int id_d) {
 }
 
 void FixRigid::createRigid(int id_a, int id_b, int id_c) {
-    TIP3P = true;
+    THREESITE = true;
     int4 waterMol = make_int4(0,0,0,0);
     Vector a = state->idToAtom(id_a).pos;
     Vector b = state->idToAtom(id_b).pos;
@@ -1710,13 +1750,15 @@ bool FixRigid::prepareForRun() {
         state->rigidBodies = true;
     }
     // cannot have more than one water model present
-    if (TIP3P && TIP4P) {
+    if (THREESITE && FOURSITE) {
         mdError("An attempt was made to use both 3-site and 4-site models in a simulation");
     }
 
-    if (!(TIP3P || TIP4P)) {
+    if (!(THREESITE || FOURSITE)) {
         mdError("An attempt was made to use neither 3-site nor 4-site water models with FixRigid in simulation.");
     }
+
+    if (FOURSITE) state->masslessSites = true;
 
     // an instance of FixRigidData
     fixRigidData = FixRigidData();
@@ -1766,12 +1808,6 @@ bool FixRigid::prepareForRun() {
 
     // get our pointer to the NoseHoover thermostat, if it exists; else, nullptr
 
-    noseHoover = nullptr;
-    for (Fix *f : state->fixes) {
-        if (f->type == "NoseHoover") {
-            noseHoover = std::make_shared<Fix *> (f);
-        }
-    }
 
     double rvscale = 1.0; // TODO
     // this prepare is called before NoseHoover's prepare is called; so, 
@@ -1794,7 +1830,7 @@ bool FixRigid::prepareForRun() {
                                                         gpd.idToIdxs.d_data.data(), bounds, (int) state->turn, invdt,rvscale);
         }
 
-        if (TIP4P) {
+        if (FOURSITE) {
             // if we need the virials initially, distribute them; do not distribute forces.
             if (virials) {
                 distributeMSite<true,false><<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), 
@@ -1862,6 +1898,7 @@ bool FixRigid::stepInit() {
 void FixRigid::updateScaleVariables() {
     // if we have an instance of FixNoseHoover, get the scale variable values;
     // else, assign s.t. nothing material happens
+    bool noseHoover = false; // ok, TODO, this line is currently nonsense - tbd for npt water
     if (noseHoover) {
         // ok, so these should have values by now..
         /*
@@ -1894,7 +1931,7 @@ bool FixRigid::preStepFinal() {
     bool virials = ((virialMode == 1) or (virialMode == 2));
 
 
-    if (TIP4P) {
+    if (FOURSITE) {
         if (virials) {
             distributeMSite<true,true><<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), gpd.xs(activeIdx), 
                                                          gpd.vs(activeIdx),  gpd.fs(activeIdx),
@@ -1931,7 +1968,7 @@ bool FixRigid::preStepFinal() {
     // we do this extraneous call so that, in the even the configuration is printed out, the Msite is in the 
     // correct position.
     
-    if (TIP4P) {
+    if (FOURSITE) {
         setMSite<FixRigidData><<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), gpd.idToIdxs.d_data.data(), gpd.xs(activeIdx), nMolecules, bounds,fixRigidData);
     }
 
@@ -1946,11 +1983,6 @@ bool FixRigid::preStepFinal() {
                                                                                    (int) state->turn);
     return true;
 
-
-
-
-
-
 }
 
 
@@ -1958,7 +1990,7 @@ Virial FixRigid::velocity_virials(double alpha, double veta, bool returnFromStep
 
     // this is called after 
     double dt = (double) state->dt;
-    double g = 0.5*veta*dt
+    double g = 0.5*veta*dt;
     rscale = std::exp(g)*series_sinhx(g);
     g = -0.25 * alpha * veta * dt;
     vscale = std::exp(g)*series_sinhx(g);
@@ -1989,6 +2021,7 @@ Virial FixRigid::velocity_virials(double alpha, double veta, bool returnFromStep
                                                 bounds, (int) state->turn);
     
     // ok, we've written to virials_local.data...
+    /*
     accumulate_gpu<Virial, Virial, SumVirial, N_DATA_PER_THREAD>  <<<NBLOCK(nAtoms / (double) N_DATA_PER_THREAD), PERBLOCK, N_DATA_PER_THREAD*PERBLOCK*sizeof(Virial)>>>
     (
          (Virial *) gpuBuffer.getDevData(), virials_local.data(), 
@@ -2000,6 +2033,8 @@ Virial FixRigid::velocity_virials(double alpha, double veta, bool returnFromStep
     cudaDeviceSynchronize();
 
     sumVirial = * (Virial *) gpuBuffer.h_data.data();
+    */
+    sumVirial = Virial(0.0, 0.0, 0.0, 0.0, 0.0,0.0);
     return sumVirial;
 }
 
@@ -2050,6 +2085,8 @@ void export_FixRigid()
     .def_readwrite("solveInitialConstraints", &FixRigid::solveInitialConstraints)
     ;
 }
+
+
 
 
 

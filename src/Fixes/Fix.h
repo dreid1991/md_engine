@@ -8,11 +8,10 @@
 #include <map>
 #include "Interpolator.h"
 #include "Tunable.h"
-
+#include "Virial.h"
 class Atom;
 class State;
 class EvaluatorWrapper;
-
 //! Make class Fix available to Python interface
 void export_Fix();
 
@@ -148,6 +147,7 @@ public:
      */
     virtual void singlePointEng(real *perParticleEng) {}
     virtual void singlePointEngGroupGroup(real *perParticleEng, uint32_t groupTagA, uint32_t groupTagB) {}
+    virtual void singlePointEng_massless(real *perParticleEng) {} // for assigning potential energies of massless particles to the logical real atom
 
     //! Accomodate for new type of Atoms added to the system
     /*!
@@ -158,6 +158,8 @@ public:
      * \DEPRECATED
      */
     virtual void addSpecies(std::string handle) {}
+
+    virtual Virial velocity_virials(double alpha, double veta, bool returnFromStep=false) {return Virial(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);}
 
     //! Recalculate group bitmask from a (possibly changed) handle
     void updateGroupTag();

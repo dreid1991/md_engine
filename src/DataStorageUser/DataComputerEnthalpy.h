@@ -19,6 +19,7 @@ namespace MD_ENGINE {
 
             DataComputerEnthalpy(State *, boost::python::list, std::string computeMode_, std::string groupHandleB_);
             void prepareForRun();
+            void postRun() {};
             double engScalar;
             std::string groupHandleB; //second group if we're doing group-group interactions
             uint32_t groupTagB;

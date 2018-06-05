@@ -19,6 +19,11 @@ void DataSetUser::prepareForRun() {
     computer->prepareForRun();
     
 }
+
+void DataSetUser::postRun() {
+    computer->postRun(vals);
+}
+
 void DataSetUser::computeData() {
     computer->compute_GPU(true, groupTag);
     //if (dataMode == DATAMODE::SCALAR) {

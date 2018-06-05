@@ -11,7 +11,7 @@
 #include "State.h"
 #include "Mod.h"
 #include "Group.h"
-
+#include "Virial.h"
 namespace py = boost::python;
 
 std::string MTTKType = "MTTK";
@@ -115,7 +115,7 @@ __global__ void npt_v_cu(int nAtoms, real4 *vs, real4 *fs, real dtf,
         real3 vel = make_real3(velWhole);
         real3 force = make_real3(forceWhole);
 
-        real3 new_vel = exp_min_g * (exp_min_g * vel + (dtf * invMass * h * force));
+        real3 new_vel = exp_min_g * (exp_min_g * vel + (dtf * invmass * h * force));
         vs[idx] = make_real4(new_vel.x,new_vel.y,new_vel.z,velWhole.w);
 
     }
@@ -132,7 +132,7 @@ __global__ void rescale_no_tags_cu(int nAtoms, real4 *vs, real3 scale)
     }
 }
 
-}
+} // namespace
 
 
 
@@ -389,7 +389,9 @@ void FixMTTK::trotter_integrate_boxv() {
     double current_volume = state->boundsGPU.volume();
         
     // here, add in the virials from constraints (which we should up-to-date)
-    Virial pressureTensor = pressComputer.pressureTensor + (virials_from_constraints / current_volume * state->nktv_to_press) ;
+    Virial pressureTensor = pressComputer.pressureTensor;
+    //TODO XXXX why does this not work???!! "no operator matches these operands..." ???!?
+    //pressureTensor += (virials_from_constraints *( 1.0 /  current_volume * state->units.nktv_to_press ) );
     // partition the pressure;
     
     double pressureScalar = (1.0 / 3.0) * (pressureTensor[0] + pressureTensor[1] + pressureTensor[2]);
@@ -411,9 +413,8 @@ void FixMTTK::trotter_integrate_boxv() {
 // equations of motion are.
 void FixMTTK::initial_iteration() {
 
-    // ok
-    state->gpd.vs.d_data[gpd.activeIdx()].copyToDeviceArray((void *) vs_copy.data());//, rebuildCheckStream);
-
+    // ok - propagate the system forward half a step; store the original velocities before we do anything.
+    state->gpd.vs.d_data[state->gpd.activeIdx()].copyToDeviceArray((void *) vs_copy.data());//, rebuildCheckStream);
 
     alpha = 1.0 + DIMENSIONS / ( (double) tempComputer.ndf);
     real dtf = 0.5 * state->dt * state->units.ftm_to_v;
@@ -424,7 +425,7 @@ void FixMTTK::initial_iteration() {
     double dt = (double) state->dt;
     double g  = 0.25 * dt * alpha * veta;
     double h  = series_sinhx(g);
-    double exp_min_g = std::exp(-1.0 * g)
+    double exp_min_g = std::exp(-1.0 * g);
 
     npt_v_cu<<<NBLOCK(state->atoms.size()), PERBLOCK>>>(
             state->atoms.size(),
@@ -437,8 +438,9 @@ void FixMTTK::initial_iteration() {
 
     virials_from_constraints = Virial(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
 
-    for (Fix *f : constraint_fixes) {
-        virials_from_constraints += (f->velocity_virials(alpha,veta));
+    for (auto f : constraint_fixes) {
+        Virial thisVirial = f->velocity_virials(alpha,veta);
+        virials_from_constraints += thisVirial;
     }
     // finished
     trotter_integrate_barostat();
@@ -466,8 +468,9 @@ void FixMTTK::initial_iteration() {
 
 
     // and at the end, re-set velocities to what they were.
-    vs_copy.copyToDeviceArray((void *) state->gpd.vs.d_data[gpd.activeIdx()]);
-    
+    //vs_copy.copyToDeviceArray((void *) state->gpd.vs.d_data[state->gpd.activeIdx()]);
+    // TODO do I really need to write a kernel by hand to copy the data...
+
     return;
 
 }
@@ -541,9 +544,9 @@ bool FixMTTK::prepareFinal()
     setPointTemperature = tempInterpolator.getCurrentVal();
     oldSetPointTemperature = setPointTemperature;
 
-    xs_copy = GPUArrayDeviceGlobal<real4>(gpd->xs.size());
-    vs_copy = GPUArrayDeviceGlobal<real4>(gpd->vs.size());
-    virials_copy = GPUArrayDeviceGlobal<Virial>(gpd->virials.size()); 
+    xs_copy = GPUArrayDeviceGlobal<real4>(state->gpd.xs.size());
+    vs_copy = GPUArrayDeviceGlobal<real4>(state->gpd.vs.size());
+    virials_copy = GPUArrayDeviceGlobal<Virial>(state->gpd.virials.size()); 
     
     xs_copy.memset(0);
     vs_copy.memset(0);
@@ -565,9 +568,6 @@ bool FixMTTK::prepareFinal()
 
     }
 
-    iterative = false;
-    // if a constraint fix is present, append to our constraint_fixes array (shared_ptrs)
-    constraint_fixes = std::vector<std::shared_ptr<Fix *> > ();
 
     // get our reference temperature, reference pressure (if barostatting)
 
@@ -626,11 +626,16 @@ bool FixMTTK::prepareFinal()
     // -- note that setPointTemperature must be updated!
     if (barostatting) updateBarostatThermalMasses();
     
+    iterative = false;
+    // if a constraint fix is present, append to our constraint_fixes array (shared_ptrs)
+    constraint_fixes = std::vector<Fix * > ();
+    
+    // constraint_fixes remains empty if we are not barostatting, since we do not require iteration.
     if (barostatting) {
         for (Fix *f : state->fixes) {
             if (f->type == "Rigid") {
                 iterative = true;
-                constraint_fixes.push_back(std::make_shared<Fix *>(f));
+                constraint_fixes.push_back(f);
             }
         }
     }
@@ -658,12 +663,6 @@ bool FixMTTK::prepareFinal()
     // if not iterative, we don't need an initial estimate of veta, and can just move in to 
     // our simulation
 
-    
-
-
-    // take a half step to propagate the system forward half a step and get an estimate of 
-    // the virial contribution from constraints.
-    
     prepared = true;
     return prepared;
 }

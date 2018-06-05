@@ -92,6 +92,7 @@ class FixRigid : public Fix {
         GPUArrayDeviceGlobal<bool> constraints;
         
         GPUArrayDeviceGlobal<Virial> virials_local;
+        GPUArrayGlobal<real> gpuBuffer;
 
         Virial sumVirial; // sum of virials_local; we'll save the last answer
         std::vector<int4> waterIds;
@@ -100,17 +101,15 @@ class FixRigid : public Fix {
 
         std::vector<real4> invMassSums;
 
-        // boolean defaulting to false in the constructor, denoting whether this is TIP4P/2005
-        bool TIP4P;
+        // boolean defaulting to false in the constructor, denoting whether this is four-site water model
+        bool FOURSITE;
 
-        // boolean defaulting to false in the constructor, denoting whether this is TIP3P
-        bool TIP3P;
+        // boolean defaulting to false in the constructor, denoting whether this is a three-site water model
+        bool THREESITE;
 
         int nMolecules;
 
         // local constants to be set for assorted supported water models
-        // sigma_O is for scaling of bond lengths if LJ units are used
-        double sigma_O;
         double r_OH;
         double r_HH;
         double r_OM;
@@ -146,6 +145,7 @@ class FixRigid : public Fix {
          */
         bool stepInit();
 
+        void singlePointEng_massless(real *);
         //! Second half step of the integration
         /*!
          * \return Result of FixRigid::stepFinal() call.

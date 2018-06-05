@@ -8,6 +8,7 @@
 #include "DataComputerCOMV.h"
 #include "DataComputerDipolarCoupling.h"
 #include "DataComputerEField.h"
+#include "DataComputerRDF.h"
 #include "DataComputerHamiltonian.h"
 #include "DataSetUser.h"
 using namespace MD_ENGINE;
@@ -15,19 +16,10 @@ using std::set;
 using std::pair;
 
 namespace py = boost::python;
-DataManager::DataManager(State * state_) : state(state_) {
-    //turnLastEngs = state->turn-1;
-}
 
-/*
-//okay - assumption: energies are computed rarely.  I can get away with not computing them in force kernels and just computing them when a data set needs them
-void DataManager::computeEnergy() {
-    if (turnLastEngs != state->turn) {
-        state->integUtil.singlePointEng();
-        turnLastEngs = state->turn;
-    }
+DataManager::DataManager(State * state_) : state(state_) {
+
 }
-*/
 
 
 boost::shared_ptr<DataSetUser> DataManager::createDataSet(boost::shared_ptr<DataComputer> comp, uint32_t groupTag, int interval, py::object collectGenerator) {
@@ -36,7 +28,6 @@ boost::shared_ptr<DataSetUser> DataManager::createDataSet(boost::shared_ptr<Data
     } else {
         return boost::shared_ptr<DataSetUser>(new DataSetUser(state, comp, groupTag, interval));
     }
-
 }
 
 void DataManager::stopRecord(boost::shared_ptr<DataSetUser> dataSet) {
@@ -56,22 +47,24 @@ boost::shared_ptr<DataSetUser> DataManager::recordTemperature(std::string groupH
     boost::shared_ptr<DataSetUser> dataSet = createDataSet(comp, groupTag, interval, collectGenerator);
     dataSets.push_back(dataSet);
     return dataSet;
-
 }
+
 
 boost::shared_ptr<DataSetUser> DataManager::recordEnergy(std::string groupHandle, std::string computeMode, int interval, py::object collectGenerator, py::list fixes, std::string groupHandleB) {
-    int dataType = DATATYPE::ENERGY;
     boost::shared_ptr<DataComputer> comp = boost::shared_ptr<DataComputer> ( (DataComputer *) new DataComputerEnergy(state, fixes, computeMode, groupHandleB) );
     uint32_t groupTag = state->groupTagFromHandle(groupHandle);
-    
     boost::shared_ptr<DataSetUser> dataSet = createDataSet(comp, groupTag, interval, collectGenerator);
     dataSets.push_back(dataSet);
-   
     return dataSet;
-
-
 }
 
+boost::shared_ptr<DataSetUser> DataManager::recordRDF(std::string species1, std::string species2, double binWidth, int interval, py::object collectGenerator) {
+    boost::shared_ptr<DataComputer> comp = boost::shared_ptr<DataComputer> ( (DataComputer *) new DataComputerRDF(state, "vector", species1, species2, binWidth));
+    uint32_t groupTag = state->groupTagFromHandle("all");
+    boost::shared_ptr<DataSetUser> dataSet = createDataSet(comp, groupTag, interval, collectGenerator);
+    dataSets.push_back(dataSet);
+    return dataSet;
+}
 
 boost::shared_ptr<DataSetUser> DataManager::recordHamiltonian(std::string computeMode, int interval, py::object collectGenerator) { 
     std::string groupHandle = "all";
@@ -80,63 +73,51 @@ boost::shared_ptr<DataSetUser> DataManager::recordHamiltonian(std::string comput
     boost::shared_ptr<DataSetUser> dataSet = createDataSet(comp, groupTag, interval, collectGenerator);
     dataSets.push_back(dataSet);
     return dataSet;
-
 }
+
 boost::shared_ptr<DataSetUser> DataManager::recordPressure(std::string groupHandle, std::string computeMode, int interval, py::object collectGenerator) {
-    int dataType = DATATYPE::PRESSURE;
     boost::shared_ptr<DataComputer> comp = boost::shared_ptr<DataComputer> ( (DataComputer *) new DataComputerPressure(state, computeMode) );
     uint32_t groupTag = state->groupTagFromHandle(groupHandle);
     //deal with tensors later
     boost::shared_ptr<DataSetUser> dataSet = createDataSet(comp, groupTag, interval, collectGenerator);
     dataSets.push_back(dataSet);
     return dataSet;
-
-
 }
+
 boost::shared_ptr<DataSetUser> DataManager::recordBounds(int interval, py::object collectGenerator) {
-    int dataType = DATATYPE::BOUNDS;
     boost::shared_ptr<DataComputer> comp = boost::shared_ptr<DataComputer>( (DataComputer *) new DataComputerBounds(state) );
     uint32_t groupTag = 1;
     boost::shared_ptr<DataSetUser> dataSet = createDataSet(comp, groupTag, interval, collectGenerator);
     dataSets.push_back(dataSet);
     return dataSet;
-
 }
 
 boost::shared_ptr<DataSetUser> DataManager::recordCOMV(int interval, py::object collectGenerator) {
-    int dataType = DATATYPE::COMV;
     boost::shared_ptr<DataComputer> comp = boost::shared_ptr<DataComputer>( (DataComputer *) new DataComputerCOMV(state) );
     uint32_t groupTag = 1;
     boost::shared_ptr<DataSetUser> dataSet = createDataSet(comp, groupTag, interval, collectGenerator);
     dataSets.push_back(dataSet);
     return dataSet;
-
 }
 
 //computing coupling for A atoms coupling with atoms in group B
 //magnetogyric ratio should be in rad/(sec*tesla)
 boost::shared_ptr<MD_ENGINE::DataSetUser> DataManager::recordDipolarCoupling(std::string groupHandle, std::string groupHandleB, double magnetoA, double magnetoB, std::string computeMode, int interval, boost::python::object collectGenerator) {
-    int dataType = DATATYPE::DIPOLARCOUPLING;
     boost::shared_ptr<DataComputer> comp = boost::shared_ptr<DataComputer> ( (DataComputer *) new DataComputerDipolarCoupling(state, computeMode, groupHandle, groupHandleB, magnetoA, magnetoB));
     uint32_t groupTag = state->groupTagFromHandle(groupHandle);
-    
     boost::shared_ptr<DataSetUser> dataSet = createDataSet(comp, groupTag, interval, collectGenerator);
     dataSets.push_back(dataSet);
-   
     return dataSet;
-
-
 }
 
 
 boost::shared_ptr<MD_ENGINE::DataSetUser> DataManager::recordEField(double cutoff, int interval, boost::python::object collectGenerator) {
-    int dataType = DATATYPE::EFIELD;
     boost::shared_ptr<DataComputer> comp = boost::shared_ptr<DataComputer> ( (DataComputer *) new DataComputerEField(state, cutoff));
     boost::shared_ptr<DataSetUser> dataSet = createDataSet(comp, 1, interval, collectGenerator);
     dataSets.push_back(dataSet);
     return dataSet;
-   
 }
+
 void DataManager::addVirialTurn(int64_t t, bool perAtomVirials) {
     if (perAtomVirials) {
         clearVirialTurn(t); //to make sure there aren't two entries and that ones with perAtomVirials==true take priority
@@ -166,24 +147,7 @@ void DataManager::clearVirialTurn(int64_t t) {
         virialTurns.erase(it);
     }
 }
-/*
 
-SHARED(DataSet) DataManager::getDataSet(string handle) {
-    for (SHARED(DataSet) d : userSets) {
-        if (d->handle == handle) {
-            return d;
-        }
-    }
-    cout << "Failed to get data set with handle " << handle << endl;
-    cout << "existing sets are " << endl;
-    for (SHARED(DataSet) d : userSets) {
-        cout << d->handle << endl;
-    }
-    assert(false);
-    return SHARED(DataSet) ((DataSet *) NULL);
-}
-
-*/
 void export_DataManager() {
     py::class_<DataManager>(
         "DataManager",
@@ -217,6 +181,13 @@ void export_DataManager() {
         )
     .def("recordCOMV", &DataManager::recordCOMV,
          (py::arg("interval") = 0,
+          py::arg("collectGenerator") = py::object())
+        )
+    .def("recordRDF", &DataManager::recordRDF,
+         (py::arg("species1"),
+          py::arg("species2"),
+          py::arg("binWidth") = 0.01,
+          py::arg("interval") = 0,
           py::arg("collectGenerator") = py::object())
         )
     .def("recordDipolarCoupling", &DataManager::recordDipolarCoupling,

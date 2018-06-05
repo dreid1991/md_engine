@@ -38,6 +38,7 @@ public:
     void prepareForRun();
     void computeData();
     void appendData();
+    void postRun();
 
     void setPyFunc(boost::python::object func_);
     boost::python::object getPyFunc();

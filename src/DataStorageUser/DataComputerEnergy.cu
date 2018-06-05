@@ -74,6 +74,13 @@ void DataComputerEnergy::computeVector_GPU(bool transferToCPU, uint32_t groupTag
         fix->setEvalWrapperMode("offload");
         fix->setEvalWrapper();
     }
+
+    if (state->masslessSites) {
+        for (auto f : state->fixes) {
+            f->singlePointEng_massless(gpuBuffer.getDevData());
+        }
+    }
+
     if (transferToCPU) {
         gpuBuffer.dataToHost();
     }
@@ -130,6 +137,18 @@ void DataComputerEnergy::prepareForRun() {
             }
         }
     }
+
+    // -- needed if we want to compute <E^2> and <E>^2 accurately
+    constraint_fixes = std::vector<std::shared_ptr<Fix *> > ();
+
+    if (state->masslessSites) {
+        for (Fix *f : state->fixes) {
+            if (f->type == "Rigid") {
+                constraint_fixes.push_back(std::make_shared<Fix *> (f));
+            }
+        }
+    }
+
     DataComputer::prepareForRun();
 }
 
