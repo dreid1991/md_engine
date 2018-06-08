@@ -21,7 +21,7 @@ namespace MD_ENGINE {
 
             DataComputerPressure(State *, std::string);
             void prepareForRun();
-            void postRun() {};
+            void postRun(boost::python::list &) {} ;
             double pressureScalar;
             bool usingExternalTemperature;
             double tempScalar; //if using externaltemp, then these must be set each time you go to compute pressure

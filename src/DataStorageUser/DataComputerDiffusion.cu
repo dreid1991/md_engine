@@ -58,7 +58,7 @@ __global__ void computeDisplacementScalar(int nAtoms,
                                        const real4 * __restrict__ xs,
                                        const real4 * __restrict__ xs_init,
                                        real4 * __restrict__ xs_recent,
-                                       real4       * __restrict__ boxes,
+                                       real4       * __restrict__ cumulative_displacement,
                                        real  * __restrict__ diffusion_scalar,
                                        const int* __restrict__ idToIdxs,
                                        BoundsGPU bounds) {
@@ -71,56 +71,26 @@ __global__ void computeDisplacementScalar(int nAtoms,
 
         if (type == species_type) {
 
-            real4 pos_init_whole       = xs_init[id];
-            real4 pos_recent_whole     = xs_recent[id];
-            real4 boxes_traveled_whole = boxes[id];
+            real4 pos_init_whole               = xs_init[id];
+            real4 pos_recent_whole             = xs_recent[id];
+            real4 aggregate_displacement_whole = cumulative_displacement[id];
 
             real3 pos                  = make_real3(pos_whole);
             real3 pos_init             = make_real3(pos_init_whole);
             real3 pos_recent           = make_real3(pos_recent_whole);
-            real3 boxes_traveled       = make_real3(boxes_traveled_whole);
+            real3 aggregate_displacement = make_real3(aggregate_displacement_whole);
 
-            real3 box_displacement     = pos - pos_recent;
+            real3 instantaneous_displacement     = bounds.minImage(pos - pos_recent);
 
-            real3 boxDimensions = bounds.rectComponents;
-            // if it moved half the box length in a given direction, we can safely assume that it 
-            // actually was wrapped around by PBC
-            if (fabsf(box_displacement.x) > (0.5 * boxDimensions.x)) {
-                // if displacement is positive by > 0.5 boxDim, then it was wrapped around to the left
-                if (box_displacement.x > 0) {
-                    boxes_traveled += make_real3(-1.0, 0.0, 0.0);
-                } else {
-                    boxes_traveled += make_real3(1.0, 0.0, 0.0);
-                }
-            }
-            if (fabsf(box_displacement.y) > (0.5 * boxDimensions.y)) {
-                // if displacement is positive by > 0.5 boxDim, then it was wrapped around to the left
-                if (box_displacement.y > 0) {
-                    boxes_traveled += make_real3(0.0, -1.0, 0.0);
-                } else {
-                    boxes_traveled += make_real3(0.0, 1.0, 0.0);
-                }
+            aggregate_displacement += instantaneous_displacement;
 
-            }
-            if (fabsf(box_displacement.z) > (0.5 * boxDimensions.z)) {
-                // if displacement is positive by > 0.5 boxDim, then it was wrapped around to the left
-                if (box_displacement.z > 0) {
-                    boxes_traveled += make_real3(0.0, 0.0, -1.0);
-                } else {
-                    boxes_traveled += make_real3(0.0, 0.0, 1.0);
-                }
-            }
-
-            // ok, we now have our up-to-date boxes_traveled array.
-            real3 unwrapped = boxes_traveled * boxDimensions;
-            real3 unwrapped_vector = pos - pos_init + unwrapped;
-            real dist_sqr = lengthSqr(unwrapped_vector);
+            real dist_sqr = lengthSqr(aggregate_displacement);
             diffusion_scalar[id] = dist_sqr;
             
             // then store pos in xs_recent at the end.
             xs_recent[id] = pos_whole;
             // update our boxes
-            boxes[id] = make_real4(boxes_traveled);
+            cumulative_displacement[id] = make_real4(aggregate_displacement);
         }
     }
 }
@@ -155,7 +125,7 @@ void DataComputerDiffusion::prepareForRun() {
     // we're also always going to do this as id, not idxs - so just pass things as idToIdxs at all times
     xs_init = GPUArrayDeviceGlobal<real4>(state->gpd.xs.size());
     xs_recent = GPUArrayDeviceGlobal<real4>(state->gpd.xs.size());
-    boxes_traveled = GPUArrayDeviceGlobal<real4>(state->gpd.xs.size());
+    cumulative_displacement= GPUArrayDeviceGlobal<real4>(state->gpd.xs.size());
     diffusion_scalar = GPUArrayDeviceGlobal<real>(state->gpd.xs.size()); // array of all displacements @ some time t
     // this is aggregated immediately after, then reset
 
@@ -164,7 +134,7 @@ void DataComputerDiffusion::prepareForRun() {
 
     xs_init.memset(0);
     xs_recent.memset(0);
-    boxes_traveled.memset(0);
+    cumulative_displacement.memset(0);
     diffusion_scalar.memset(0);
 
     GPUData &gpd = state->gpd;
@@ -206,7 +176,7 @@ void DataComputerDiffusion::computeVector_GPU(bool transferToCPU, uint32_t group
                                                            gpd.xs(activeIdx),
                                                            xs_init.data(),
                                                            xs_recent.data(),
-                                                           boxes_traveled.data(),
+                                                           cumulative_displacement.data(),
                                                            diffusion_scalar.data(),
                                                            gpd.idToIdxs.d_data.data(),
                                                            state->boundsGPU);

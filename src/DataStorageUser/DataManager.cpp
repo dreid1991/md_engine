@@ -9,6 +9,7 @@
 #include "DataComputerDipolarCoupling.h"
 #include "DataComputerEField.h"
 #include "DataComputerRDF.h"
+#include "DataComputerDiffusion.h"
 #include "DataComputerHamiltonian.h"
 #include "DataSetUser.h"
 using namespace MD_ENGINE;
@@ -106,6 +107,14 @@ boost::shared_ptr<MD_ENGINE::DataSetUser> DataManager::recordDipolarCoupling(std
     boost::shared_ptr<DataComputer> comp = boost::shared_ptr<DataComputer> ( (DataComputer *) new DataComputerDipolarCoupling(state, computeMode, groupHandle, groupHandleB, magnetoA, magnetoB));
     uint32_t groupTag = state->groupTagFromHandle(groupHandle);
     boost::shared_ptr<DataSetUser> dataSet = createDataSet(comp, groupTag, interval, collectGenerator);
+    dataSets.push_back(dataSet);
+    return dataSet;
+}
+
+boost::shared_ptr<MD_ENGINE::DataSetUser> DataManager::recordDiffusion(std::string species, int interval) {
+    boost::shared_ptr<DataComputer> comp = boost::shared_ptr<DataComputer> ( (DataComputer *) new DataComputerDiffusion(state,"vector",species));
+    boost::python::object collectGenerator = boost::python::object();
+    boost::shared_ptr<DataSetUser> dataSet = createDataSet(comp, 1, interval, collectGenerator);
     dataSets.push_back(dataSet);
     return dataSet;
 }
@@ -209,6 +218,11 @@ void export_DataManager() {
           py::arg("interval") = 0,
           py::arg("collectGenerator") = py::object())
         )
+    .def("recordDiffusion", &DataManager::recordDiffusion,
+         (py::arg("species"),
+          py::arg("interval")=0)
+        )
+
 //boost::shared_ptr<MD_ENGINE::DataSetUser> DataManager::recordDipolarCoupling(std::string groupHandle, std::string computeMode, std::string groupHandleB, double magnetoA, double magnetoB, int interval, boost::python::object collectGenerator) {
    /* 
     .def("stopRecordBounds", &DataManager::stopRecordBounds)

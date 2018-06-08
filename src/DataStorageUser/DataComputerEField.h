@@ -22,7 +22,7 @@ namespace MD_ENGINE {
             DataComputerEField(State *, double cutoff_);
             void prepareForRun();
 
-            void postRun() {};
+            void postRun(boost::python::list &) {} ;
             void appendScalar(boost::python::list &){};
             void appendVector(boost::python::list &); 
             void appendTensor(boost::python::list &){};

@@ -38,7 +38,7 @@ namespace MD_ENGINE {
 
 
             void prepareForRun();
-            void postRun() {};
+            void postRun(boost::python::list &) {} ;
             boost::shared_ptr<EvaluatorWrapper> evalWrap;
 
     };

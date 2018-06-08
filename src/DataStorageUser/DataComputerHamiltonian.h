@@ -35,7 +35,8 @@ namespace MD_ENGINE {
             void prepareForRun();
  
 
-            void postRun() {};
+            
+            void postRun(boost::python::list &) {} ;
             // engScalar - instantaneous value of the potential energy
             double engScalar;
             

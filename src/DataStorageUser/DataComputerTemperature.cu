@@ -9,6 +9,28 @@ namespace py = boost::python;
 using namespace MD_ENGINE;
 const std::string computer_type_ = "temperature";
 
+
+
+namespace { 
+
+__global__ void computePerParticleMVV(int nAtoms, 
+                                  const real4 *__restrict__  vs,
+                                  real * __restrict__ mvv)
+{
+    int idx = GETIDX();
+    if (idx < nAtoms) {
+        real4 vel_whole = vs[idx];
+        real3 vel = make_real3(vel_whole);
+        real invmass = vel_whole.w;
+        if (invmass < INVMASSBOOL) {
+            mvv[idx] = dot(vel,vel) / invmass;
+        } else {
+            mvv[idx] = 0.0;
+        }
+    }
+}
+} // namespace
+
 DataComputerTemperature::DataComputerTemperature(State *state_, std::string computeMode_) : DataComputer(state_, computeMode_, false,computer_type_) {
 
 }
@@ -44,8 +66,25 @@ void DataComputerTemperature::computeVector_GPU(bool transferToCPU, uint32_t gro
     lastGroupTag = groupTag;
     int nAtoms = state->atoms.size();
 
+    /*
     oneToOne_gpu<real, real4, SumVectorSqr3DOverW, 8> <<< NBLOCK(nAtoms / (double) 8), PERBLOCK>>> 
             (gpuBuffer.getDevData(), gpd.vs.getDevData(), nAtoms, SumVectorSqr3DOverW());
+
+    */
+
+    computePerParticleMVV<<<NBLOCK(nAtoms), PERBLOCK>>>(nAtoms,
+                                                        gpd.vs.getDevData(),
+                                                        gpuBuffer.getDevData());
+
+    /*
+    if (state->units.unitType == UNITS::REAL) {
+
+        convertKE<<<NBLOCK(nAtoms),PERBLOCK>>>(nAtoms,
+                                               gpuBuffer.getDevData(),
+
+
+    }
+    */
     if (transferToCPU) {
         gpuBuffer.dataToHost();
         gpd.ids.dataToHost();
@@ -86,11 +125,16 @@ void DataComputerTemperature::computeScalar_CPU() {
 
 void DataComputerTemperature::computeVector_CPU() {
     //appending members in group in no meaningful order
-    std::vector<real> &kes = gpuBuffer.h_data;
-    std::vector<uint> &ids = state->gpd.ids.h_data;
-    std::vector<int> &idToIdxOnCopy = state->gpd.idToIdxsOnCopy;
+    //std::vector<real> &kes = gpuBuffer.h_data;
+    //std::vector<uint> &ids = state->gpd.ids.h_data;
+    //std::vector<int> &idToIdxOnCopy = state->gpd.idToIdxsOnCopy;
     std::vector<Atom> &atoms = state->atoms;
+    //sortToCPUOrder(kes, sorted, ids, state->gpd.idToIdxsOnCopy);
     
+    std::vector<uint> &ids = state->gpd.ids.h_data;
+    std::vector<real> &src = gpuBuffer.h_data;
+    sortToCPUOrder(src, sorted, ids, state->gpd.idToIdxsOnCopy);
+
     Group &thisGroup = state->groups[lastGroupTag];
 
     ndf = thisGroup.getNDF();
@@ -99,10 +143,9 @@ void DataComputerTemperature::computeVector_CPU() {
 
     double conv = state->units.mvv_to_eng / state->units.boltz / 3.0;
 
-    for (int i=0; i<kes.size(); i++) {
-        int idx = idToIdxOnCopy[ids[i]];
-        if (atoms[idx].groupTag & lastGroupTag) {
-            tempVector.push_back(kes[i] * conv);
+    for (int i=0; i<src.size(); i++) {
+        if (atoms[i].groupTag & lastGroupTag) {
+            tempVector.push_back(sorted[i] * conv);
         }
     }
 }

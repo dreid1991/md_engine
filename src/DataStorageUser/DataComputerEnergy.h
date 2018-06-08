@@ -19,7 +19,9 @@ namespace MD_ENGINE {
 
             DataComputerEnergy(State *, boost::python::list, std::string computeMode_, std::string groupHandleB_);
             void prepareForRun();
-            void postRun() {};
+            
+            
+            void postRun(boost::python::list &) {} ;
 
             double engScalar;
             std::string groupHandleB; //second group if we're doing group-group interactions

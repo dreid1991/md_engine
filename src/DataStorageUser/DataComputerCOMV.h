@@ -25,7 +25,7 @@ namespace MD_ENGINE {
             void prepareForRun();
     
 
-            void postRun() {};
+            void postRun(boost::python::list &) {} ;
             // as from FixLinearMomentum
             GPUArrayGlobal<real4> sumMomentum;
             real4 systemMomentum;
