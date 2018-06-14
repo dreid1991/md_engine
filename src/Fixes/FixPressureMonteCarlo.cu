@@ -30,6 +30,12 @@ bool FixPressureMonteCarlo::prepareFinal() {
     enrgComputer.prepareForRun();
     setTempInterpolator();
     vScale   = state->bounds.volume()*scale;       // initial delta volume element, do I know about scale_?
+    // remove degrees of freedom for massless/constrained sites
+    for (Fix *f: state->fixes) {
+        nfake += f->removeNDF();
+    }
+    nfake /= 3;
+    printf("Removing %d from sites in Barostat acceptance criterion\n",nfake);
     prepared = true;
     return prepared;
 }
@@ -53,7 +59,7 @@ bool FixPressureMonteCarlo::stepFinal() {
     double Uold = enrgComputer.engScalar;                  
     
     // PERFORM SYSTEM SCALING
-    double dV       = vScale * 2.0 * (Urand(MTRNG) - 0.5);
+    double dV       = vScale * 2.0 * (Urand(MTRNG) - 0.5);    
     double Vnew     = Vold + dV;                              // new proposed volume
     double posScale = std::pow(Vnew / Vold, 1.0/3.0);
     double invScale;
@@ -72,10 +78,10 @@ bool FixPressureMonteCarlo::stepFinal() {
     // COMPUTE THE ENSEMBLE WEIGHT OF PROPOSED VOLUME CHANGE
     // for direct volume-scaling
     double weight = (Unew - Uold)/nPerRingPoly + target*dV/ state->units.nktv_to_press 
-        - (nAtoms/nPerRingPoly)*kT*log(Vnew / Vold) ; 
+    - ((nAtoms-nfake)/nPerRingPoly)*kT*log(Vnew / Vold) ; 
 
     // EVALUATE WHETHER MOVE IS ACCEPTED 
-    if (weight > 0.0 && Urand(MTRNG) > std::exp(-weight / kT)) {
+    if (weight > 0.0 && Urand(MTRNG) > std::exp(-weight / kT )) {
         // reject move/reset positions
         invScale = 1.0/posScale;
         if (nPerRingPoly > 1) {

@@ -20,6 +20,7 @@ namespace MD_ENGINE {
         bool useY=false;
         bool useZ=false;
         int axisMap [3] = {-1,-1,-1};
+        int nfake=0;
         MD_ENGINE::DataComputerEnergy enrgComputer;
     public: 
         FixAnisoPressureMonteCarlo(boost::shared_ptr<State> state_, std::string handle_, 

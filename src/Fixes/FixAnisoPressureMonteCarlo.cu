@@ -32,6 +32,11 @@ bool FixAnisoPressureMonteCarlo::prepareFinal() {
     if (scale.x > 0.0) { useX = true;  axisMap[naxis] = 0; naxis += 1;}
     if (scale.y > 0.0) { useY = true;  axisMap[naxis] = 1; naxis += 1;}
     if (scale.z > 0.0) { useZ = true;  axisMap[naxis] = 2; naxis += 1;}
+    for (Fix *f: state->fixes) {
+        nfake += f->removeNDF();
+    }
+    nfake /= 3;
+    printf("Removing %d from sites in Barostat acceptance criterion\n",nfake);
     prepared = true;
     return prepared;
 }
@@ -91,7 +96,7 @@ bool FixAnisoPressureMonteCarlo::stepFinal() {
     // COMPUTE THE ENSEMBLE WEIGHT OF PROPOSED VOLUME CHANGE
     // for direct volume-scaling
     double weight = (Unew - Uold)/nPerRingPoly + target*dV/ state->units.nktv_to_press 
-        - (nAtoms/nPerRingPoly)*kT*log(Vnew / Vold) ; 
+        - ((nAtoms-nfake)/nPerRingPoly)*kT*log(Vnew / Vold) ; 
 
     // EVALUATE WHETHER MOVE IS ACCEPTED 
     real3 invScale; 
