@@ -140,11 +140,17 @@ def create_TIP3P_long(state, oxygenHandle, hydrogenHandle, center=None):
     state.addAtom(handle=hydrogenHandle, pos=h2Pos, q=0.4170)
     return state.createMolecule([state.atoms[-3].id, state.atoms[-2].id, state.atoms[-1].id])
 
-def create_TIP4P(state, oxygenHandle, hydrogenHandle, mSiteHandle, center=None):
+def create_TIP4P(state, oxygenHandle, hydrogenHandle, mSiteHandle, center=None, orientation=None,**kwargs):
     theta = 1.824218134
     qh = 0.52
     qm = -2.0 * qh
     dom = 0.15
+    if set(["OPos","H1Pos","H2Pos","MPos"]).issubset(set(kwargs)):
+        state.addAtom(handle=oxygenHandle, pos=kwargs.get("OPos"), q=0.0)
+        state.addAtom(handle=hydrogenHandle, pos=kwargs.get("H1Pos"), q=qh)
+        state.addAtom(handle=hydrogenHandle, pos=kwargs.get("H2Pos"), q=qh)
+        state.addAtom(handle=mSiteHandle, pos=kwargs.get("MPos"), q=qm)
+        return state.createMolecule([state.atoms[-4].id, state.atoms[-3].id, state.atoms[-2].id, state.atoms[-1].id])
     if center==None:
         center = state.Vector(0, 0, 0)
 
