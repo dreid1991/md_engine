@@ -30,11 +30,13 @@ bool FixPressureMonteCarlo::prepareFinal() {
     enrgComputer.prepareForRun();
     setTempInterpolator();
     vScale   = state->bounds.volume()*scale;       // initial delta volume element, do I know about scale_?
-    // remove degrees of freedom for massless/constrained sites
-    for (Fix *f: state->fixes) {
-        nfake += f->removeNDF();
+    nfake = 0;
+
+    for (Atom a : state->atoms)  {
+        if (a.mass < 10e-10 ) {
+            nfake++;
+        }
     }
-    nfake /= 3;
     printf("Removing %d from sites in Barostat acceptance criterion\n",nfake);
     prepared = true;
     return prepared;

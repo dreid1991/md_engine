@@ -32,10 +32,15 @@ bool FixAnisoPressureMonteCarlo::prepareFinal() {
     if (scale.x > 0.0) { useX = true;  axisMap[naxis] = 0; naxis += 1;}
     if (scale.y > 0.0) { useY = true;  axisMap[naxis] = 1; naxis += 1;}
     if (scale.z > 0.0) { useZ = true;  axisMap[naxis] = 2; naxis += 1;}
-    for (Fix *f: state->fixes) {
-        nfake += f->removeNDF();
+    
+    nfake = 0;
+
+    for (Atom a : state->atoms)  {
+        if (a.mass < 10e-10 ) {
+            nfake++;
+        }
     }
-    nfake /= 3;
+
     printf("Removing %d from sites in Barostat acceptance criterion\n",nfake);
     prepared = true;
     return prepared;
