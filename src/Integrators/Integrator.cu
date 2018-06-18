@@ -228,6 +228,12 @@ void Integrator::basicFinish() {
     if (state->asyncData && state->asyncData->joinable()) {
         state->asyncData->join();
     }
+
+    // data computers that do post-processing of aggregations (e.g., RDF computer)
+    for (boost::shared_ptr<MD_ENGINE::DataSetUser> ds : state->dataManager.dataSets) {
+        ds->postRun();
+    }
+
     for (GPUArray *dat : activeData) {
         dat->dataToHost();
     }
@@ -296,6 +302,20 @@ double Integrator::tune() {
             int threadPerBlock = threadPerBlocks[i];
             int threadPerAtom = threadPerAtoms[j];
 
+            // check if this is a valid config NTPB, NTPA given hardware considerations 
+            // for limited smem 
+            bool validConfig = true;
+            for (auto fix : state->fixes) {
+                size_t smem_required = fix->getSmemRequired(threadPerBlock,threadPerAtom);
+                if (smem_required >= state->devManager.prop.sharedMemPerBlock) {
+                    validConfig = false;
+                }
+            }
+            if (!(validConfig)) {
+                timesWithBlock.push_back(DBL_MAX);
+                continue;
+            }
+                    
             int nBlock = NBLOCKTEAM(state->atoms.size(), threadPerBlock, threadPerAtom);
             if (nBlock < 65536) {
                 setParams(threadPerBlock, threadPerAtom);
