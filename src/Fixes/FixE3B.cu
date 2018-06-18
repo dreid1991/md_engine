@@ -19,7 +19,7 @@ FixE3B::FixE3B(boost::shared_ptr<State> state_,
     // set the cutoffs used in this potential
     rf = 5.2; // far cutoff for threebody interactions (Angstroms)
     rs = 5.0; // short cutoff for threebody interactions (Angstroms)
-    rc = 10.0; // cutoff for the neighborlist (we're doing this GMX style)
+    rc = 10.0; // cutoff for the neighborlist 
 
     // ---- dictates that the box must be, at minimum, 2.2nm on a side (rc + padding < half_box_dim)
     // as an aside, we're just going to have the 'positions' of the molecule be the position of the oxygen.
@@ -547,7 +547,7 @@ void FixE3B::createEvaluator() {
             // converting to LJ from kcal/mol
 
         // instantiate the evaluator
-        evaluator = EvaluatorE3B_GMX(rs, rf, E2,
+        evaluator = EvaluatorE3B(rs, rf, E2,
                                      Ea, Eb, Ec,
                                      k2, k3);
         
@@ -573,7 +573,7 @@ void FixE3B::createEvaluator() {
             // converting to LJ from kcal/mol
 
         // instantiate the evaluator
-        evaluator = EvaluatorE3B_GMX(rs, rf, E2,
+        evaluator = EvaluatorE3B(rs, rf, E2,
                                      Ea, Eb, Ec,
                                      k2, k3);
         

@@ -46,8 +46,6 @@ class DataManager {
 
         boost::shared_ptr<MD_ENGINE::DataSetUser> recordRDF(std::string species1, std::string species2, double binWidth, int interval, boost::python::object collectGenerator);
         
-        boost::shared_ptr<MD_ENGINE::DataSetUser> recordDiffusion(std::string species, int interval);
-
         void stopRecord(boost::shared_ptr<MD_ENGINE::DataSetUser>);
 
 

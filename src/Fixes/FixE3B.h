@@ -6,7 +6,7 @@
 #include "Fix.h"
 #include "GPUArrayGlobal.h"
 
-#include "ThreeBodyE3B_GMX.h" // includes EvaluatorE3B
+#include "ThreeBodyE3B.h" // includes EvaluatorE3B
 #include "GridGPU.h"
 #include "Molecule.h"
 #include "GPUData.h"
@@ -49,7 +49,7 @@ class FixE3B: public Fix {
         std::vector<int4> waterIds;
  
         // the evaluator for E3B
-        EvaluatorE3B_GMX evaluator;
+        EvaluatorE3B evaluator;
 
         //!< List of int4 atom idxs for the list of molecules of idxs
         //   The order of this list, and the atom idxs within a given item, change every time \textit{either}: 

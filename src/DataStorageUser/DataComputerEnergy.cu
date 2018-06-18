@@ -21,6 +21,9 @@ DataComputerEnergy::DataComputerEnergy(State *state_, py::list fixes_, std::stri
             }
             fixes.push_back(fixPy);
         }
+    } else {
+        // default to all fixes instead of nothing..
+        fixes = state->fixesShr;
     }
 
 }

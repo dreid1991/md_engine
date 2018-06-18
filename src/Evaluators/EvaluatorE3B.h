@@ -4,7 +4,7 @@
 
 #include "cutils_math.h"
 #include "helpers.h"
-void export_EvaluatorE3B();
+//void export_EvaluatorE3B();
 
 class EvaluatorE3B {
     public:
