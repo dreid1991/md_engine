@@ -33,7 +33,7 @@ void FixWCA::compute(int virialMode) {
 
 
     evalWrap->compute(nAtoms,nPerRingPoly, gpd.xs(activeIdx), gpd.fs(activeIdx),
-                      neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(),
+                      neighborCounts, grid.neighborlist.data(), grid.neighborlistPositions.data(), grid.perBlockArray.d_data.data(),
                       state->devManager.prop.warpSize, paramsCoalesced.data(), numTypes, state->boundsGPU,
                       neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.virials.d_data.data(), gpd.qs(activeIdx), chargeRCut, virialMode, nThreadPerBlock(), nThreadPerAtom());
 

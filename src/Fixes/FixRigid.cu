@@ -261,7 +261,7 @@ __global__ void rigid_scaleSystemGroup_cu(int4* waterIds, real4* xs, int* idToId
             //      the oxygen atom is in the group, we will assume that the other atoms are as well
             //      mostly because if they aren't, then something is being done incorrectly by the user
             // --- if (FOURSITE) { translate M-site position as well }
-            double weightO = fixRigidData.weights.x;
+            //double weightO = fixRigidData.weights.x;
             double weightH = fixRigidData.weights.y;
            
 
@@ -461,12 +461,11 @@ __global__ void distributeMSite_Energy(int nMolecules,
         int idx_M  = idToIdxs[waterIds[idx].w];
         
         real ppe_M = perParticleEng[idx_M];
-        perParticleEng[idx_M] = 0.0;
-        
         real ppe_O = perParticleEng[idx_O];
         ppe_O += ppe_M;
         
         perParticleEng[idx_O] = ppe_O;
+        perParticleEng[idx_M] = 0.0;
     }
 }
 
@@ -541,7 +540,6 @@ __global__ void distributeMSite(int4 *waterIds, real4 *xs, real4 *vs, real4 *fs,
         } 
 
 
-        /*
         if (VIRIALS) {
             Virial virialToDistribute = virials[idx_M];
             
@@ -553,7 +551,6 @@ __global__ void distributeMSite(int4 *waterIds, real4 *xs, real4 *vs, real4 *fs,
             virials[idx_H2] += distribute_H;
             virials[idx_M] = Virial(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
         }
-        */
         // this concludes re-distribution of the forces;
         // we assume nothing needs to be done re: virials; this sum is already tabulated at inner force loop computation
 
@@ -703,8 +700,8 @@ __global__ void settleVelocities(int4 *waterIds, real4 *xs, real4 *xs_0,
      
         //double imO = fixRigidData.invMasses.z;
         //double imH = fixRigidData.invMasses.w;
-        double dOH = fixRigidData.sideLengths.x;
-        double dHH = fixRigidData.sideLengths.z;
+        //double dOH = fixRigidData.sideLengths.x;
+        //double dHH = fixRigidData.sideLengths.z;
         //double invdOH = fixRigidData.invSideLengths.x;
         //double invdHH = fixRigidData.invSideLengths.z;
        
@@ -1376,15 +1373,16 @@ void FixRigid::setStyleBondLengths() {
             r_OH = 0.95720000000;
             r_HH = 1.51390000000;
             r_OM = 0.15460000000;
+            gamma = 0.73612409;
             // see q-TIP4P/f paper by Manolopoulos et. al., eq. 2; this quantity can be computed from an arbitrary
             // TIP4P/2005 molecule fairly easily and is consistent with the above r_OH, r_HH, r_OM values
             gamma = 0.73612446364836; 
         } else if (style == "TIP4P") {
             std::cout << "SETTLE algorithm is maintaining a TIP4P geometry!" << std::endl;
-            r_OH =    0.9572000000;
-            r_HH = 1.51390000000;
-            r_OM = 0.15000000;
-            
+            r_OH  = 0.9572000000;
+            r_HH  = 1.51390000000;
+            r_OM  = 0.15000000;
+            gamma = 0.74397533;
         } else {
             // I don't think that this would ever get triggered, since we check in the constructor that a valid style argument was selected..
             mdError("Only TIP4P and TIP4P/2005 geometries supported for four-site models!");
@@ -1404,7 +1402,7 @@ void FixRigid::setStyleBondLengths() {
         } else if (style == "SPC") {
             std::cout << "SETTLE algorithm is maintaining a SPC geometry!" << std::endl;
             r_OH = 1.00000000000;
-            r_HH = 1.63300000000
+            r_HH = 1.63300000000;
         } else if (style == "SPC/E") {
             std::cout << "SETTLE algorithm is maintaining a SPC/E geometry!" << std::endl;
             r_OH = 1.00000000000;

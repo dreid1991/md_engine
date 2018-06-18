@@ -45,6 +45,7 @@ __global__ void rescale_cu(int nAtoms, uint groupTag, real4 *vs, real4 *fs, real
 }
 
 // copied from integrator verlet; NOTE that we removed the force-to-zero!
+/*
 __global__ void nve_v_cu(int nAtoms, real4 *vs, real4 *fs, real dtf) {
     int idx = GETIDX();
     if (idx < nAtoms) {
@@ -65,7 +66,7 @@ __global__ void nve_v_cu(int nAtoms, real4 *vs, real4 *fs, real dtf) {
         vs[idx] = vel;
     }
 }
-
+*/
 /*
 __global__ void nvt_v_cu(int nAtoms, real4 *vs, real4 *fs, real dtf) {
     int idx = GETIDX();

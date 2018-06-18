@@ -1,19 +1,18 @@
 #pragma once
-#ifndef FIXE3B_GMX_threebody_H
-#define FIXE3B_GMX_threebody_H
+#ifndef FIXE3B_H
+#define FIXE3B_H
 
 #include "globalDefs.h"
 #include "Fix.h"
 #include "GPUArrayGlobal.h"
 
 #include "ThreeBodyE3B_GMX.h" // includes EvaluatorE3B
-#include "E3B_ThreeBodyOnly.h"
 #include "GridGPU.h"
 #include "Molecule.h"
 #include "GPUData.h"
 
 //! Make FixE3B available to the python interface
-void export_FixE3B_GMX_threebody();
+void export_FixE3B();
 
 //! Explicit 3-Body Potential, v3 (E3B) for Water
 /*
@@ -27,7 +26,7 @@ void export_FixE3B_GMX_threebody();
  * with water modeled as TIP4P/2005
  */
 
-class FixE3B_GMX_threebody: public Fix {
+class FixE3B: public Fix {
     private: 
 
         // far cutoff, rf = 5.2 Angstroms; constant, export as readonly
@@ -58,13 +57,18 @@ class FixE3B_GMX_threebody: public Fix {
         //            (2) gpdLocal.idToIdxs changes
         GPUArrayDeviceGlobal<int4> waterIdxsGPU;
 
-        /* Stuff copied from the Gromacs implementation.. */
-        // this will be horribly inefficient on the GPU
         int size; // waterIds.size() * 4 * 10 (4 atoms per molecule, then multiply by 10 (?))
-
-        GPUArrayDeviceGlobal<real4> pairPairForces;    // as 4 * molecules neighborlist
+        // we store explicitly as neighborlist, as opposed to gromacs decomposition;
+        // -- this permits vectorized access, and no arithmetic is required for 
+        //    accessing the forces
+        GPUArrayDeviceGlobal<real4> forces_b2a1;    // as molecules neighborlist size
+        GPUArrayDeviceGlobal<real4> forces_c2a1;
+        GPUArrayDeviceGlobal<real4> forces_b1a2;
+        GPUArrayDeviceGlobal<real4> forces_c1a2;
         GPUArrayDeviceGlobal<real4> pairPairEnergies; // as molecules neighborlist
         GPUArrayDeviceGlobal<real4> pairPairTotal;    // as molecules
+
+        // TODO : redundant compute approach is straightforward, no need for this
         GPUArrayDeviceGlobal<uint>   computeThis;       // size of nlist, set to zero after each computation
         
 
@@ -77,7 +81,7 @@ class FixE3B_GMX_threebody: public Fix {
          *
          *  In the constructor, we set the cutoffs required by this potential.
          */
-        FixE3B_GMX_threebody(boost::shared_ptr<State> state,
+        FixE3B(boost::shared_ptr<State> state,
                   std::string handle,
                   std::string style);
 
@@ -132,6 +136,7 @@ class FixE3B_GMX_threebody: public Fix {
         void createEvaluator();
 
 
+        size_t getSmemRequired(int ntpb, int ntpa);
         void takeStateNThreadPerBlock(int);
         void takeStateNThreadPerAtom(int);
 };
@@ -139,4 +144,3 @@ class FixE3B_GMX_threebody: public Fix {
 
 
 #endif /* FIXE3B_H */
-

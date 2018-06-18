@@ -21,7 +21,6 @@ std::string NoseHooverType = "NoseHoover";
 
 // CUDA function to rescale particle velocities
 
-namespace {
 __global__ void rescale_cu(int nAtoms, uint groupTag, real4 *vs, real4 *fs, real3 scale)
 {
     int idx = GETIDX();
@@ -103,7 +102,6 @@ __global__ void barostat_vel_no_tags_cu(int nAtoms, real4 *vs,
     }
 }
 
-}
 // general constructor; may be a thermostat, or a barostat-thermostat
 FixNoseHoover::FixNoseHoover(boost::shared_ptr<State> state_, std::string handle_,
                              std::string groupHandle_)

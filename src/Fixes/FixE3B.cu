@@ -1,4 +1,4 @@
-#include "FixE3B_GMX_threebody.h"
+#include "FixE3B.h"
 #include "DeviceManager.h"
 
 #include "BoundsGPU.h"
@@ -6,14 +6,14 @@
 #include "boost_for_export.h"
 #include "cutils_math.h" 
 #include "list_macro.h"
-#include <numeric>
+
 const std::string E3BType = "E3B";
 namespace py = boost::python;
 /* Constructor
  * Makes an instance of the E3B fix
  */
 
-FixE3B_GMX_threebody::FixE3B_GMX_threebody(boost::shared_ptr<State> state_,
+FixE3B::FixE3B(boost::shared_ptr<State> state_,
                   std::string handle_,
                   std::string style_): Fix(state_, handle_, "all", E3BType, true, true, false, 1),style(style_) { 
     // set the cutoffs used in this potential
@@ -31,14 +31,14 @@ FixE3B_GMX_threebody::FixE3B_GMX_threebody(boost::shared_ptr<State> state_,
     requiresPerAtomVirials = false;
     prepared = false;
     if (style_ != "E3B3" && style_ != "E3B2") {
-        std::cout << "FixE3B_GMX_threebody received the style argument: " << style << std::endl;
+        std::cout << "FixE3B received the style argument: " << style << std::endl;
         mdError("FixE3B requires the style argument to be either 'E3B3' or 'E3B2'; Aborting.");
     }
 };
 
 // needs to be called whenever we form the molecular or atomic neighborlists, as one or the other 
 // of the idx maps have changed.
-__global__ void updateMoleculeIdxsMap_threebody(int nMolecules, int4 *waterIds, 
+__global__ void updateMoleculeIdxsMap(int nMolecules, int4 *waterIds, 
                                       int4 *waterIdxs, int *mol_idToIdxs, int *idToIdxs) {
 
     int molId = GETIDX();
@@ -64,7 +64,7 @@ __global__ void updateMoleculeIdxsMap_threebody(int nMolecules, int4 *waterIds,
     }
 }
 
-__global__ void update_xs_threebody(int nMolecules, int4 *waterIds, real4 *mol_xs, 
+__global__ void update_xs(int nMolecules, int4 *waterIds, real4 *mol_xs, 
                           real4 *xs, real4 *vs, int *mol_idToIdxs, int *idToIdxs) {
      // --- remember to account for the M-site
     int molId = GETIDX();
@@ -82,7 +82,7 @@ __global__ void update_xs_threebody(int nMolecules, int4 *waterIds, real4 *mol_x
     }
 }
 
-void FixE3B_GMX_threebody::compute(int virialMode) {
+void FixE3B::compute(int virialMode) {
     
     // get the activeIdx for our local gpdLocal (the molecule-by-molecule stuff);
     int activeIdx = gpdLocal.activeIdx();
@@ -130,7 +130,7 @@ void FixE3B_GMX_threebody::compute(int virialMode) {
 
     if (computeVirials) {
         if (multiThreadPerAtom) {
-            compute_E3B_force_twobody_3b<true,true><<<NBLOCKTEAM(nMolecules, NTPB, NTPA),NTPB,smem_twobody_force>>>(nMolecules,
+            compute_E3B_force_twobody<true,true><<<NBLOCKTEAM(nMolecules, NTPB, NTPA),NTPB,smem_twobody_force>>>(nMolecules,
                                     nPerRingPoly,
                                     waterIdxsGPU.data(),                      // atomIdxs for molecule idx
                                     gpdGlobal.xs(globalActiveIdx),            // as atom idxs 
@@ -141,7 +141,10 @@ void FixE3B_GMX_threebody::compute(int virialMode) {
                                     warpSize,
                                     pairPairTotal.data(),
                                     pairPairEnergies.data(),
-                                    pairPairForces.data(),
+                                    forces_b2a1.data(),
+                                    forces_c2a1.data(),
+                                    forces_b1a2.data(),
+                                    forces_c1a2.data(),
                                     computeThis.data(),
                                     NTPA,
                                     state->boundsGPU,
@@ -149,7 +152,7 @@ void FixE3B_GMX_threebody::compute(int virialMode) {
                                     evaluator);
             CUT_CHECK_ERROR("compute_E3B_force failed - twobody, call 1.\n");
         } else {
-            compute_E3B_force_twobody_3b<true,false><<<NBLOCKTEAM(nMolecules, NTPB, NTPA),
+            compute_E3B_force_twobody<true,false><<<NBLOCKTEAM(nMolecules, NTPB, NTPA),
                                                   NTPB,smem_twobody_force>>>(
                                     nMolecules,
                                     nPerRingPoly,
@@ -162,7 +165,10 @@ void FixE3B_GMX_threebody::compute(int virialMode) {
                                     warpSize,
                                     pairPairTotal.data(),
                                     pairPairEnergies.data(),
-                                    pairPairForces.data(),
+                                    forces_b2a1.data(),
+                                    forces_c2a1.data(),
+                                    forces_b1a2.data(),
+                                    forces_c1a2.data(),
                                     computeThis.data(),
                                     NTPA,
                                     state->boundsGPU,
@@ -175,7 +181,7 @@ void FixE3B_GMX_threebody::compute(int virialMode) {
 
             // numBlocks, threadsPerBlock defined in prepareForRun()
         if (multiThreadPerAtom) {
-            compute_E3B_force_twobody_3b<false,true><<<NBLOCKTEAM(nMolecules,NTPB, NTPA),NTPB,smem_twobody_force>>>(
+            compute_E3B_force_twobody<false,true><<<NBLOCKTEAM(nMolecules,NTPB, NTPA),NTPB,smem_twobody_force>>>(
                                     nMolecules,
                                     nPerRingPoly,
                                     waterIdxsGPU.data(),                      // atomIdxs for molecule idx
@@ -187,7 +193,10 @@ void FixE3B_GMX_threebody::compute(int virialMode) {
                                     warpSize,
                                     pairPairTotal.data(),
                                     pairPairEnergies.data(),
-                                    pairPairForces.data(),
+                                    forces_b2a1.data(),
+                                    forces_c2a1.data(),
+                                    forces_b1a2.data(),
+                                    forces_c1a2.data(),
                                     computeThis.data(),
                                     NTPA,
                                     state->boundsGPU,
@@ -195,7 +204,7 @@ void FixE3B_GMX_threebody::compute(int virialMode) {
                                     evaluator);
             CUT_CHECK_ERROR("compute_E3B_force failed - twobody, call 3.\n");
             } else {
-            compute_E3B_force_twobody_3b<false,false><<<NBLOCKTEAM(nMolecules,NTPB,NTPA),NTPB,smem_twobody_force>>>(
+            compute_E3B_force_twobody<false,false><<<NBLOCKTEAM(nMolecules,NTPB,NTPA),NTPB,smem_twobody_force>>>(
                                     nMolecules,
                                     nPerRingPoly,
                                     waterIdxsGPU.data(),                      // atomIdxs for molecule idx
@@ -207,7 +216,10 @@ void FixE3B_GMX_threebody::compute(int virialMode) {
                                     warpSize,
                                     pairPairTotal.data(),
                                     pairPairEnergies.data(),
-                                    pairPairForces.data(),
+                                    forces_b2a1.data(),
+                                    forces_c2a1.data(),
+                                    forces_b1a2.data(),
+                                    forces_c1a2.data(),
                                     computeThis.data(),
                                     NTPA,
                                     state->boundsGPU,
@@ -220,7 +232,7 @@ void FixE3B_GMX_threebody::compute(int virialMode) {
     if (computeVirials) {
             // numBlocks, threadsPerBlock defined in prepareForRun()
         if (multiThreadPerAtom) {
-            compute_E3B_force_threebody_3b<true,true><<<NBLOCKTEAM(nMolecules,NTPB,NTPA),NTPB,smem_threebody_force>>>(
+            compute_E3B_force_threebody<true,true><<<NBLOCKTEAM(nMolecules,NTPB,NTPA),NTPB,smem_threebody_force>>>(
                                     nMolecules,  // nMolecules in E3B potential
                                     nPerRingPoly,
                                     waterIdxsGPU.data(),                      // atomIdxs for molecule idx
@@ -233,14 +245,17 @@ void FixE3B_GMX_threebody::compute(int virialMode) {
                                     state->boundsGPU,
                                     pairPairTotal.data(),
                                     pairPairEnergies.data(),
-                                    pairPairForces.data(),
+                                    forces_b2a1.data(),
+                                    forces_c2a1.data(),
+                                    forces_b1a2.data(),
+                                    forces_c1a2.data(),
                                     computeThis.data(),
                                     gpdGlobal.virials.d_data.data(),          // as atom idxs
                                     NTPA,
                                     evaluator);
             CUT_CHECK_ERROR("compute_E3B_force failed - threebody, call 5.\n");
         } else {
-            compute_E3B_force_threebody_3b<true,false><<<NBLOCKTEAM(nMolecules,NTPB,NTPA),NTPB,smem_threebody_force>>>(
+            compute_E3B_force_threebody<true,false><<<NBLOCKTEAM(nMolecules,NTPB,NTPA),NTPB,smem_threebody_force>>>(
                                     nMolecules,              // nMolecules in E3B potential
                                     nPerRingPoly,
                                     waterIdxsGPU.data(),                      // atomIdxs for molecule idx
@@ -253,7 +268,10 @@ void FixE3B_GMX_threebody::compute(int virialMode) {
                                     state->boundsGPU,
                                     pairPairTotal.data(),
                                     pairPairEnergies.data(),
-                                    pairPairForces.data(),
+                                    forces_b2a1.data(),
+                                    forces_c2a1.data(),
+                                    forces_b1a2.data(),
+                                    forces_c1a2.data(),
                                     computeThis.data(),
                                     gpdGlobal.virials.d_data.data(),          // as atom idxs
                                     NTPA,
@@ -267,7 +285,7 @@ void FixE3B_GMX_threebody::compute(int virialMode) {
 
             // numBlocks, threadsPerBlock defined in prepareForRun()
         if (multiThreadPerAtom) {
-            compute_E3B_force_threebody_3b<false,true><<<NBLOCKTEAM(nMolecules,NTPB,NTPA),NTPB,smem_threebody_force>>>(
+            compute_E3B_force_threebody<false,true><<<NBLOCKTEAM(nMolecules,NTPB,NTPA),NTPB,smem_threebody_force>>>(
                                     nMolecules,              // nMolecules in E3B potential
                                     nPerRingPoly,
                                     waterIdxsGPU.data(),                      // atomIdxs for molecule idx
@@ -280,14 +298,17 @@ void FixE3B_GMX_threebody::compute(int virialMode) {
                                     state->boundsGPU,
                                     pairPairTotal.data(),
                                     pairPairEnergies.data(),
-                                    pairPairForces.data(),
+                                    forces_b2a1.data(),
+                                    forces_c2a1.data(),
+                                    forces_b1a2.data(),
+                                    forces_c1a2.data(),
                                     computeThis.data(),
                                     gpdGlobal.virials.d_data.data(),          // as atom idxs
                                     NTPA,
                                     evaluator);
             CUT_CHECK_ERROR("compute_E3B_force failed - threebody, call 7.\n");
         } else { 
-        compute_E3B_force_threebody_3b<false,false><<<NBLOCKTEAM(nMolecules,NTPB,NTPA),NTPB,smem_threebody_force>>>(
+        compute_E3B_force_threebody<false,false><<<NBLOCKTEAM(nMolecules,NTPB,NTPA),NTPB,smem_threebody_force>>>(
                                     nMolecules,              // nMolecules in E3B potential
                                     nPerRingPoly,
                                     waterIdxsGPU.data(),                      // atomIdxs for molecule idx
@@ -300,7 +321,10 @@ void FixE3B_GMX_threebody::compute(int virialMode) {
                                     state->boundsGPU,
                                     pairPairTotal.data(),
                                     pairPairEnergies.data(),
-                                    pairPairForces.data(),
+                                    forces_b2a1.data(),
+                                    forces_c2a1.data(),
+                                    forces_b1a2.data(),
+                                    forces_c1a2.data(),
                                     computeThis.data(),
                                     gpdGlobal.virials.d_data.data(),          // as atom idxs
                                     NTPA,
@@ -311,22 +335,18 @@ void FixE3B_GMX_threebody::compute(int virialMode) {
     
     cudaDeviceSynchronize();
     
+    // memset to zero
     pairPairTotal.memset(0);
     pairPairEnergies.memset(0);
-    pairPairForces.memset(0);
+    forces_b2a1.memset(0);
+    forces_c2a1.memset(0);
+    forces_b1a2.memset(0);
+    forces_c1a2.memset(0);
     computeThis.memset(0);
-    
-    /*
-    std::cout << "in E3B compute(), after force computation..." << std::endl;
-    std::cout << "pairPairEnergies has size " << pairPairEnergies.size() << std::endl;
-    std::cout << "pairPairForces has size " << pairPairForces.size() << std::endl;
-    std::cout << "computeThis has size " << computeThis.size() << std::endl;
-    std::cout << "pairPairTotal has size " << pairPairTotal.size() << std::endl;
-    */
     CUT_CHECK_ERROR("compute_E3B_force failed.\n");
 }
 
-void FixE3B_GMX_threebody::handleLocalData() {
+void FixE3B::handleLocalData() {
 
     if (prepared) {
         uint activeIdx = gpdLocal.activeIdx();
@@ -335,7 +355,7 @@ void FixE3B_GMX_threebody::handleLocalData() {
         //BoundsGPU &bounds = state->boundsGPU;
 
         // update the molecule positions to be consistent with oxygen atom positions
-        update_xs_threebody<<<NBLOCK(nMolecules), PERBLOCK>>>(nMolecules, 
+        update_xs<<<NBLOCK(nMolecules), PERBLOCK>>>(nMolecules, 
                                                 waterIdsGPU.data(),           
                                                 gpdLocal.xs(activeIdx),        // 
                                                 gpdGlobal.xs(globalActiveIdx), // 
@@ -344,7 +364,7 @@ void FixE3B_GMX_threebody::handleLocalData() {
                                                 gpdGlobal.idToIdxs.d_data.data()
                                                 );
 
-        CUT_CHECK_ERROR("update_xs_threebody failed in handleLocalData!");
+        CUT_CHECK_ERROR("update_xs failed in handleLocalData!");
 
 
         // our grid now operates on the updated molecule xs to get a molecule by molecule neighborlist    
@@ -355,30 +375,38 @@ void FixE3B_GMX_threebody::handleLocalData() {
         // --- this has nothing to do with the positions; this should be called 
         //     every time 
         // grabbing molecule at idx
-        updateMoleculeIdxsMap_threebody<<<NBLOCK(nMolecules),PERBLOCK>>>(nMolecules,
+        updateMoleculeIdxsMap<<<NBLOCK(nMolecules),PERBLOCK>>>(nMolecules,
                                                                waterIdsGPU.data(),
                                                                waterIdxsGPU.data(),
                                                                gpdLocal.idToIdxs.d_data.data(),
                                                                gpdGlobal.idToIdxs.d_data.data());
-        CUT_CHECK_ERROR("updateMoleculeIdxsMap_threebody failed in handleLocalData!");
+        CUT_CHECK_ERROR("updateMoleculeIdxsMap failed in handleLocalData!");
 
+        /* resize  arrays as needed */
         pairPairEnergies.resize(gridGPULocal.neighborlist.size());
-        pairPairForces.resize(4 * gridGPULocal.neighborlist.size());
+        forces_b2a1.resize(gridGPULocal.neighborlist.size());
+        forces_c2a1.resize(gridGPULocal.neighborlist.size());
+        forces_b1a2.resize(gridGPULocal.neighborlist.size());
+        forces_c1a2.resize(gridGPULocal.neighborlist.size());
         computeThis.resize(gridGPULocal.neighborlist.size());
 
+        /* memset to zero */
         pairPairEnergies.memset(0);
-        pairPairForces.memset(0);
+        forces_b2a1.memset(0);
+        forces_c2a1.memset(0);
+        forces_b1a2.memset(0);
+        forces_c1a2.memset(0);
+        pairPairTotal.memset(0);
+        computeThis.memset(0);
 
         // pairPairTotal will have size nMolecules (static through course of simulation)
-        pairPairTotal.memset(0);
         // computeThis has size gridGPULocal.neighborlist.size()
-        computeThis.memset(0);
         CUT_CHECK_ERROR("reallocation and memset of pairPairEnergies, pairPairForces failed in handleLocalData!");
     }
 }
 
-
-bool FixE3B_GMX_threebody::stepInit(){
+// nothing to do here, actually
+bool FixE3B::stepInit(){
     return true;
 }
 
@@ -387,7 +415,7 @@ bool FixE3B_GMX_threebody::stepInit(){
  *
  *
  */
-void FixE3B_GMX_threebody::singlePointEng(real *perParticleEng) {
+void FixE3B::singlePointEng(real *perParticleEng) {
     
     int activeIdx = gpdLocal.activeIdx();
     int warpSize = state->devManager.prop.warpSize;
@@ -400,12 +428,8 @@ void FixE3B_GMX_threebody::singlePointEng(real *perParticleEng) {
     BoundsGPU &bounds = state->boundsGPU;
     size_t smem_twobody_energy    = NTPA > 1 ?  NTPB * (sizeof(real3) + sizeof(real)) : 0 ;
     size_t smem_threebody_energy  = NTPA > 1 ?  NTPB * sizeof(real3) : 0;
-
-    /* malloc XXX */
-    uint *computeData = (uint *) malloc(computeThis.size()*sizeof(uint));
-
     if (multiThreadPerAtom) {
-        compute_E3B_energy_twobody_3b<true><<<NBLOCKTEAM(nMolecules,NTPB,NTPA),NTPB,smem_twobody_energy>>>(nMolecules,              // nMolecules in E3B potential
+        compute_E3B_energy_twobody<true><<<NBLOCKTEAM(nMolecules,NTPB,NTPA),NTPB,smem_twobody_energy>>>(nMolecules,              // nMolecules in E3B potential
                                                                                                                                            nPerRingPoly,
                             waterIdxsGPU.data(),                      // atomIdxs for molecule idx
                             gpdGlobal.xs(globalActiveIdx),            // as atom idxs 
@@ -421,9 +445,7 @@ void FixE3B_GMX_threebody::singlePointEng(real *perParticleEng) {
                             NTPA,
                             evaluator);                               // assumes prepareForRun has been called
         
-
-            computeThis.get(computeData);
-        compute_E3B_energy_threebody_3b<true><<<NBLOCKTEAM(nMolecules,NTPB,NTPA),NTPB,smem_threebody_energy>>>(nMolecules,              // nMolecules in E3B potential
+        compute_E3B_energy_threebody<true><<<NBLOCKTEAM(nMolecules,NTPB,NTPA),NTPB,smem_threebody_energy>>>(nMolecules,              // nMolecules in E3B potential
                                                                                                                                            nPerRingPoly,
                             waterIdxsGPU.data(),                      // atomIdxs for molecule idx
                             gpdGlobal.xs(globalActiveIdx),            // as atom idxs 
@@ -438,7 +460,7 @@ void FixE3B_GMX_threebody::singlePointEng(real *perParticleEng) {
                             NTPA,
                             evaluator);                               // assumes prepareForRun has been called
     } else {
-        compute_E3B_energy_twobody_3b<false><<<NBLOCKTEAM(nMolecules,NTPB,NTPA),NTPB,smem_twobody_energy>>>(nMolecules,              // nMolecules in E3B potential
+        compute_E3B_energy_twobody<false><<<NBLOCKTEAM(nMolecules,NTPB,NTPA),NTPB,smem_twobody_energy>>>(nMolecules,              // nMolecules in E3B potential
                                                                                                                                            nPerRingPoly,
                             waterIdxsGPU.data(),                      // atomIdxs for molecule idx
                             gpdGlobal.xs(globalActiveIdx),            // as atom idxs 
@@ -453,10 +475,7 @@ void FixE3B_GMX_threebody::singlePointEng(real *perParticleEng) {
                             perParticleEng,                           // as atom idxs
                             NTPA,
                             evaluator);                               // assumes prepareForRun has been called
-
-            computeThis.get(computeData);
-
-        compute_E3B_energy_threebody_3b<false><<<NBLOCKTEAM(nMolecules,NTPB,NTPA),NTPB,smem_threebody_energy>>>(nMolecules,              // nMolecules in E3B potential
+        compute_E3B_energy_threebody<false><<<NBLOCKTEAM(nMolecules,NTPB,NTPA),NTPB,smem_threebody_energy>>>(nMolecules,              // nMolecules in E3B potential
                                                                                                                                            nPerRingPoly,
                             waterIdxsGPU.data(),                      // atomIdxs for molecule idx
                             gpdGlobal.xs(globalActiveIdx),            // as atom idxs 
@@ -472,21 +491,28 @@ void FixE3B_GMX_threebody::singlePointEng(real *perParticleEng) {
                             evaluator);                               // assumes prepareForRun has been called
     }
 
-    int sum_computeThis = std::accumulate(computeData,computeData + computeThis.size(),0);
-    std::cout << "pair-pairs found: " << sum_computeThis << std::endl;
-
     CUT_CHECK_ERROR("compute_E3B_energy failed.\n");
     pairPairTotal.memset(0);
     pairPairEnergies.memset(0);
-    pairPairForces.memset(0);
     computeThis.memset(0);
-    /* free XXX */
-    free(computeData);
     return;
 }
 
+size_t FixE3B::getSmemRequired(int ntpb, int ntpa) {
 
-void FixE3B_GMX_threebody::createEvaluator() {
+    // we'll be conservative here and assume we need virials as well.
+    //size_t smem_twobody_force   = ntpa > 1 ? ntpb * (2 * sizeof(real3) + sizeof(Virial))  : 0 ;
+    
+    // so, the kernels are launched separately, and we either need 0 for both, 
+    // or smem_threebody_force has an unambiguously larger smem requirement.
+    // so, no need to compare the two or even compute the twobody requirement
+    size_t smem_threebody_force = ntpa > 1 ? ntpb * (3 * (sizeof(real3) + sizeof(Virial))): 0 ;
+
+    return smem_threebody_force;
+
+}
+
+void FixE3B::createEvaluator() {
     
     // style defaults to E3B3; otherwise, it can be set to E3B2;
     // there are no other options.
@@ -497,6 +523,7 @@ void FixE3B_GMX_threebody::createEvaluator() {
     real k3 = 1.907;
     real E2, Ea, Eb, Ec;
     // default
+        // TODO: add check verifying that molecule is attached to FixRigid with style TIP4P/2005!
     if (style == "E3B3") {
         // as angstroms
 
@@ -521,11 +548,12 @@ void FixE3B_GMX_threebody::createEvaluator() {
 
         // instantiate the evaluator
         evaluator = EvaluatorE3B_GMX(rs, rf, E2,
-                                  Ea, Eb, Ec,
-                                  k2, k3);
+                                     Ea, Eb, Ec,
+                                     k2, k3);
         
    
     // other option
+        // TODO: add check verifying that molecule is attached to FixRigid with style TIP4P!
     } else if (style == "E3B2") {
     
         E2 = 2349000.0; // kj/mol
@@ -546,11 +574,11 @@ void FixE3B_GMX_threebody::createEvaluator() {
 
         // instantiate the evaluator
         evaluator = EvaluatorE3B_GMX(rs, rf, E2,
-                                  Ea, Eb, Ec,
-                                  k2, k3);
+                                     Ea, Eb, Ec,
+                                     k2, k3);
         
     } else {
-        mdError("Unknown style in FixE3B_GMX_threebody.\n");
+        mdError("Unknown style in FixE3B.\n");
     }
 
     std::cout << "Created E3B Evaluator:\n" << std::endl;
@@ -565,7 +593,7 @@ void FixE3B_GMX_threebody::createEvaluator() {
 };
 
 
-bool FixE3B_GMX_threebody::prepareForRun(){
+bool FixE3B::prepareForRun(){
    
     // a style argument should have been passed by now
     // -- if they are not using the default (E3B3), they had to call setStyle('E3B2') in their python script
@@ -662,20 +690,19 @@ bool FixE3B_GMX_threebody::prepareForRun(){
     
     pairPairTotal    = GPUArrayDeviceGlobal<real4>(nMolecules);
     pairPairEnergies = GPUArrayDeviceGlobal<real4>(gridGPULocal.neighborlist.size());
-    pairPairForces   = GPUArrayDeviceGlobal<real4>(4 * gridGPULocal.neighborlist.size());
+    forces_b2a1      = GPUArrayDeviceGlobal<real4>(gridGPULocal.neighborlist.size());
+    forces_c2a1      = GPUArrayDeviceGlobal<real4>(gridGPULocal.neighborlist.size());
+    forces_b1a2      = GPUArrayDeviceGlobal<real4>(gridGPULocal.neighborlist.size());
+    forces_c1a2      = GPUArrayDeviceGlobal<real4>(gridGPULocal.neighborlist.size());
     computeThis      = GPUArrayDeviceGlobal<uint>(gridGPULocal.neighborlist.size());
     pairPairTotal.memset(0);
     pairPairEnergies.memset(0);
-    pairPairForces.memset(0);
+    forces_b2a1.memset(0);
+    forces_c2a1.memset(0);
+    forces_b1a2.memset(0);
+    forces_c1a2.memset(0);
     computeThis.memset(0);   
     
-    /*
-    std::cout << "pairPairEnergies has size " << pairPairEnergies.size() << std::endl;
-    std::cout << "pairPairForces has size " << pairPairForces.size() << std::endl;
-    std::cout << "computeThis has size " << computeThis.size() << std::endl;
-    std::cout << "pairPairTotal has size " << pairPairTotal.size() << std::endl;
-    */
-
     // everything here is prepared; set it true, THEN:  handleLocalData(), which needs to know that 
     // prepared == true; then, return prepared.
     prepared = true;
@@ -687,7 +714,7 @@ bool FixE3B_GMX_threebody::prepareForRun(){
     return prepared;
 }
 
-void FixE3B_GMX_threebody::takeStateNThreadPerBlock(int NTPB) {
+void FixE3B::takeStateNThreadPerBlock(int NTPB) {
     // E3B maintains a constant value of threadsPerBlock.
     if (prepared) {
         //nThreadPerBlock(NTPB);
@@ -695,7 +722,7 @@ void FixE3B_GMX_threebody::takeStateNThreadPerBlock(int NTPB) {
     }
 }
 
-void FixE3B_GMX_threebody::takeStateNThreadPerAtom(int NTPA) {
+void FixE3B::takeStateNThreadPerAtom(int NTPA) {
     // E3B maintains a constant value of threadsPerAtom (molecule, really)
     if (prepared) {
         //nThreadPerAtom(NTPA);
@@ -723,7 +750,7 @@ void FixE3B_GMX_threebody::takeStateNThreadPerAtom(int NTPA) {
 
 
 // the atom ids are presented as the input; assembled into a molecule
-void FixE3B_GMX_threebody::addMolecule(int id_O, int id_H1, int id_H2, int id_M) {
+void FixE3B::addMolecule(int id_O, int id_H1, int id_H2, int id_M) {
     
     // id's are arranged as O, H, H, M
     std::vector<int> localWaterIds;
@@ -748,7 +775,7 @@ void FixE3B_GMX_threebody::addMolecule(int id_O, int id_H1, int id_H2, int id_M)
     if (massH1 != massH2) ordered = false;
     if (!(massH1 > massM)) ordered = false;
 
-    if (! (ordered)) mdError("Ids in FixE3B_GMX_threebody::addMolecule must be as O, H1, H2, M");
+    if (! (ordered)) mdError("Ids in FixE3B::addMolecule must be as O, H1, H2, M");
 
     // assemble them in to a molecule
     Molecule thisWater = Molecule(state, localWaterIds);
@@ -765,26 +792,26 @@ void FixE3B_GMX_threebody::addMolecule(int id_O, int id_H1, int id_H2, int id_M)
 }
 
 
-void export_FixE3B_GMX_threebody() {
-  py::class_<FixE3B_GMX_threebody, boost::shared_ptr<FixE3B_GMX_threebody>, py::bases<Fix> > 
-	("FixE3B_GMX_threebody",
+void export_FixE3B() {
+  py::class_<FixE3B, boost::shared_ptr<FixE3B>, py::bases<Fix> > 
+	("FixE3B",
          py::init<boost::shared_ptr<State>, std::string, std::string> 
 	 (py::args("state", "handle", "style")
 	 )
 	)
     // methods inherited from Fix are already exposed (see export_Fix())
-    .def("addMolecule", &FixE3B_GMX_threebody::addMolecule,
+    .def("addMolecule", &FixE3B::addMolecule,
 	     (py::arg("id_O"), 
           py::arg("id_H1"), 
           py::arg("id_H2"),
           py::arg("id_M")
          )
     )
-    .def("handleLocalData", &FixE3B_GMX_threebody::handleLocalData)
+    .def("handleLocalData", &FixE3B::handleLocalData)
     // the list of molecules
-    .def_readonly("molecules", &FixE3B_GMX_threebody::waterMolecules)
-    .def_readonly("nMolecules", &FixE3B_GMX_threebody::nMolecules)
-    .def_readonly("gridGPU", &FixE3B_GMX_threebody::gridGPULocal)
-    .def_readwrite("prepared", &FixE3B_GMX_threebody::prepared)
+    .def_readonly("molecules", &FixE3B::waterMolecules)
+    .def_readonly("nMolecules", &FixE3B::nMolecules)
+    .def_readonly("gridGPU", &FixE3B::gridGPULocal)
+    .def_readwrite("prepared", &FixE3B::prepared)
     ;
 }

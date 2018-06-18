@@ -159,6 +159,8 @@ public:
      */
     virtual void addSpecies(std::string handle) {}
 
+    virtual size_t getSmemRequired(int NTPB, int NTPA) {size_t size = 0; return size;}
+
     virtual Virial velocity_virials(double alpha, double veta, bool returnFromStep=false) {return Virial(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);}
 
     //! Recalculate group bitmask from a (possibly changed) handle
