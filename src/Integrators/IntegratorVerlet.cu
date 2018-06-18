@@ -93,12 +93,12 @@ __global__ void nve_xPIMD_cu(int nAtoms, int nPerRingPoly, real omegaP, real4 *x
 #ifdef DASH_DOUBLE
 	real invP            = 1.0 / (real) nPerRingPoly;
 	real twoPiInvP       = 2.0 * M_PI * invP;
-	real invSqrtP 	      = sqrt(invP);
+	real invSqrtP 	     = sqrt(invP);
 	real sqrt2           = sqrt(2.0f);
 #else
 	real invP            = 1.0f / (real) nPerRingPoly;
 	real twoPiInvP       = 2.0f * M_PI * invP;
-	real invSqrtP 	      = sqrtf(invP);
+	real invSqrtP 	     = sqrtf(invP);
 	real sqrt2           = sqrtf(2.0f);
 #endif /* DASH_DOUBLE */
 	int   halfP           = nPerRingPoly / 2;	// P must be even for the following transformation!!!
@@ -112,13 +112,17 @@ __global__ void nve_xPIMD_cu(int nAtoms, int nPerRingPoly, real omegaP, real4 *x
     // reduce the result by summation and store that in the final array for generating the positions
 
     // %%%%%%%%%%% POSITIONS %%%%%%%%%%%
+    real4 vWhole;
     if (useThread) {
         real4 xWhole = xs[idx];
-        real4 vWhole = vs[idx];
-        xn = make_real3(xWhole);
-        vn = make_real3(vWhole);
+        vWhole = vs[idx];
         xW = xWhole.w;
         vW = vWhole.w;
+        xn = make_real3(xWhole);
+        vn = make_real3(vWhole);
+        if (vW > INVMASSBOOL) {
+            vn = make_real3(0.0);
+        }
     }
     // k = 0, n = 1,...,P
     tbr[threadIdx.x]  = xn;
@@ -131,9 +135,6 @@ __global__ void nve_xPIMD_cu(int nAtoms, int nPerRingPoly, real omegaP, real4 *x
     xn = wrapped;
     tbr[threadIdx.x] = xn;
     
-
-    if (needSync)    __syncthreads();
-    reduceByN<real3>(tbr, nPerRingPoly, warpSize);
     if (needSync)    __syncthreads();
     reduceByN<real3>(tbr, nPerRingPoly, warpSize);
     if (useThread && amRoot)     {xsNM[threadIdx.x] = tbr[threadIdx.x]*invSqrtP;}
@@ -293,7 +294,11 @@ __global__ void nve_xPIMD_cu(int nAtoms, int nPerRingPoly, real omegaP, real4 *x
         xn *= invSqrtP;
         vn *= invSqrtP;
 	    xs[idx]   = make_real4(xn.x,xn.y,xn.z,xW);
-	    vs[idx]   = make_real4(vn.x,vn.y,vn.z,vW);
+        if ( vWhole.w > INVMASSBOOL) {
+	        vs[idx]   = make_real4(0.0,0.0,0.0,vWhole.w);
+        } else {
+	        vs[idx]   = make_real4(vn.x,vn.y,vn.z,vWhole.w);
+        }
     }
 
 }
@@ -359,6 +364,10 @@ __global__ void preForcePIMD_cu(int nAtoms, int nPerRingPoly, real omegaP, real4
     if (useThread) {
         vWhole = vs[idx];
         real4 force   = fs[idx];
+        if (vWhole.w > INVMASSBOOL) {
+            vs[idx] = make_real4(0.0f, 0.0f, 0.0f,vWhole.w);
+            return;
+        }
         real3 dv      = dtf * vWhole.w * make_real3(force);
         vWhole        += dv;
         fs[idx]        = make_real4(0.0f,0.0f,0.0f,force.w); // reset forces to zero before force calculation
@@ -575,7 +584,11 @@ __global__ void preForcePIMD_cu(int nAtoms, int nPerRingPoly, real omegaP, real4
         xn *= invSqrtP;
         vn *= invSqrtP;
 	    xs[idx]   = make_real4(xn.x,xn.y,xn.z,xW);
-	    vs[idx]   = make_real4(vn.x,vn.y,vn.z,vWhole.w);
+        if ( vWhole.w > INVMASSBOOL) {
+	        vs[idx]   = make_real4(0.0,0.0,0.0,vWhole.w);
+        } else {
+	        vs[idx]   = make_real4(vn.x,vn.y,vn.z,vWhole.w);
+        }
     }
 }
     //if (useThread && amRoot ) {
@@ -786,7 +799,7 @@ void IntegratorVerlet::nve_x() {
     	    state->gpd.xs.getDevData(),
     	    state->gpd.vs.getDevData(),
             state->boundsGPU,
-    	    state->dt); 
+    	    state->dt);
     }
 }
 void IntegratorVerlet::preForce()
@@ -820,7 +833,7 @@ void IntegratorVerlet::preForce()
         	state->gpd.fs.getDevData(),
             state->boundsGPU,
         	state->dt,
-        	dtf ); 
+        	dtf );
     }
 }
 
