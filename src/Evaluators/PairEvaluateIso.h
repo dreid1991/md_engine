@@ -13,7 +13,6 @@ __global__ void compute_force_iso
          real4 *__restrict__ fs, 
          const uint16_t *__restrict__ neighborCounts, 
          const uint *__restrict__ neighborlist, 
-         const real4 *__restrict__ neighborlistPositions,
          const uint32_t * __restrict__ cumulSumMaxPerBlock, 
          int warpSize, 
          const real *__restrict__ parameters, 
@@ -121,10 +120,6 @@ __global__ void compute_force_iso
             real multiplier = multipliers[neighDist];
             //uint otherIdx = otherIdxRaw & EXCL_MASK;
             
-#ifdef NLISTPOSITION
-            real4 otherPosWhole = neighborlistPositions[nlistIdx];
-#else
-            // Extract corresponding index for pair interaction (at same time slice)
             uint otherRPIdx = otherIdxRaw & EXCL_MASK;
 	        uint otherIdx   = nPerRingPoly*otherRPIdx + beadIdx;  // atom = P*ring_polymer + k, k = 0,...,P-1
          //   if (otherIdx >= nAtoms) {
@@ -132,7 +127,6 @@ __global__ void compute_force_iso
           //      continue;
           //  }
             real4 otherPosWhole = xs[otherIdx];
-#endif
             //printf("thread %d nlistidx %d other idx %d\n", idx, nlistIdx, otherIdx);
 
             //type is stored in w component of position

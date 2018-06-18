@@ -1467,7 +1467,7 @@ void FixChargeEwald::compute(int virialMode) {
 
     real *neighborCoefs = state->specialNeighborCoefs;
     evalWrap->compute(nAtoms,nPerRingPoly,gpd.xs(activeIdx), gpd.fs(activeIdx),
-                  neighborCounts, grid.neighborlist.data(), grid.neighborlistPositions.data(), grid.perBlockArray.d_data.data(),
+                  neighborCounts, grid.neighborlist.data(), grid.perBlockArray.d_data.data(),
                   state->devManager.prop.warpSize, nullptr, 0, state->boundsGPU, //PASSING NULLPTR TO GPU MAY CAUSE ISSUES
     //ALTERNATIVELy, COULD JUST GIVE THE PARMS SOME OTHER RANDOM POINTER, AS LONG AS IT'S VALID
                   neighborCoefs[0], neighborCoefs[1], neighborCoefs[2], gpd.virials.d_data.data(), gpd.qs(activeIdx), r_cut, virialMode, nThreadPerBlock(), nThreadPerAtom());

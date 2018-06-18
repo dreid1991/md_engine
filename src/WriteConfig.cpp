@@ -88,7 +88,7 @@ void outputMolecules(std::ofstream &outFile, State *state) {
 
 }
 
-void writeXMLfileBase64(State *state, std::string fnFinal, int64_t turn, bool oneFilePerWrite, uint groupBit) {
+void writeXMLfileBase64(State *state, std::string fnFinal, int64_t turn, bool oneFilePerWrite, uint groupBit, WriteConfig *writer) {
     std::vector<Atom> &atoms = state->atoms;
     std::ofstream outFile;
     Bounds b = state->bounds;
@@ -162,7 +162,7 @@ void writeXMLfileBase64(State *state, std::string fnFinal, int64_t turn, bool on
 }
 
 
-void writeLAMMPSTRJFile(State *state, std::string fn, int64_t turn, bool oneFilePerWrite, uint groupBit) {
+void writeLAMMPSTRJFile(State *state, std::string fn, int64_t turn, bool oneFilePerWrite, uint groupBit, WriteConfig *writer) {
     std::vector<Atom> &atoms = state->atoms;
     AtomParams &params = state->atomParams;
     int count = 0;
@@ -202,7 +202,8 @@ void writeLAMMPSTRJFile(State *state, std::string fn, int64_t turn, bool oneFile
     outFile.close();
 }
 
-void writeXYZFile(State *state, std::string fn, int64_t turn, bool oneFilePerWrite, uint groupBit) {
+// pointer to writer instance..
+void writeXYZFile(State *state, std::string fn, int64_t turn, bool oneFilePerWrite, uint groupBit, WriteConfig *writer) {
     std::vector<Atom> &atoms = state->atoms;
     AtomParams &params = state->atomParams;
     bool useAtomicNums = true;
@@ -236,14 +237,23 @@ void writeXYZFile(State *state, std::string fn, int64_t turn, bool oneFilePerWri
 			} else {
 				atomicNum = a.type;
 			}
-			outFile << std::endl << atomicNum << " " << a.pos[0] << " " << a.pos[1] << " " << a.pos[2];
+            
+			outFile << std::endl << atomicNum ;
+            outFile << " " << a.pos[0] << " " << a.pos[1] << " " << a.pos[2];
+            if (writer->writingVelocities) {
+                outFile << " " << a.vel[0] << " " << a.vel[1] << " " << a.vel[2];
+            }
+            if (writer->writingForces) {
+                outFile << " " << a.force[0] << " " << a.force[1] << " " << a.force[2];
+            }
+
 		}
     }
     outFile << std::endl;
     outFile.close();
 }
 
-void writeXMLfile(State *state, std::string fnFinal, int64_t turn, bool oneFilePerWrite, uint groupBit) {
+void writeXMLfile(State *state, std::string fnFinal, int64_t turn, bool oneFilePerWrite, uint groupBit, WriteConfig *writer) {
     std::vector<Atom> &atoms = state->atoms;
     std::ofstream outFile;
     Bounds b = state->bounds;
@@ -418,14 +428,14 @@ void WriteConfig::write(int64_t turn) {
     if (unwrapMolecules) {
         state->unwrapMolecules();
     }
-    writeFormat(state, getCurrentFn(turn), turn, oneFilePerWrite, groupBit);
+    writeFormat(state, getCurrentFn(turn), turn, oneFilePerWrite, groupBit,this);
 }
 void WriteConfig::writePy() {
     state->atomParams.guessAtomicNumbers();
     if (unwrapMolecules) {
         state->unwrapMolecules();
     }
-    writeFormat(state, getCurrentFn(state->turn), state->turn, oneFilePerWrite, groupBit);
+    writeFormat(state, getCurrentFn(state->turn), state->turn, oneFilePerWrite, groupBit,this);
 }
 
 
@@ -437,6 +447,7 @@ void export_WriteConfig() {
     .def_readwrite("unwrapMolecules", &WriteConfig::unwrapMolecules)
     .def_readonly("handle", &WriteConfig::handle)
     .def("write", &WriteConfig::writePy)
-    .def_readwrite("andVelocities", &WriteConfig::andVelocities)
+    .def_readwrite("writingForces", &WriteConfig::writingForces)
+    .def_readwrite("writingVelocities", &WriteConfig::writingVelocities)
     ;
 }

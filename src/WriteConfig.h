@@ -16,7 +16,7 @@ void export_WriteConfig();
 class WriteConfig {
 
 private:
-    void (*writeFormat)(State *, std::string, int64_t, bool, uint);    
+    void (*writeFormat)(State *, std::string, int64_t, bool, uint, WriteConfig *);    
 
 public:
     State *state;
@@ -27,12 +27,12 @@ public:
     int writeEvery;
 	int groupBit;
     
-    bool andVelocities;
-
     bool isXML;
     bool unwrapMolecules;
     int orderPreference; //just there so I can use same functions as fix for adding/removing
     bool oneFilePerWrite;
+    bool writingVelocities;
+    bool writingForces;
 
 
     WriteConfig(boost::shared_ptr<State>,

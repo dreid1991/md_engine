@@ -118,6 +118,7 @@ public:
     real specialNeighborCoefs[3]; //!< Coefficients for modified neighbor
                                    //!< interactions of bonded atoms (1-2, 1-3,
                                    //!< 1-4 neighbors)
+    bool masslessSites;
     int64_t turn; //!< Step of the simulation
     int runningFor; //!< How long the simulation is currently running
     int nlistBuildCount; //!< number of times we have build nlists

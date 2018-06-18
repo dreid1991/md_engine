@@ -27,13 +27,14 @@ typedef float2       real2;
 typedef float3       real3;
 typedef float4       real4;
 #define HAVE_DASH_REAL
+
 #endif /* HAVE_DASH_REAL */
 #endif /* DASH_DOUBLE */
 #include "Logging.h"
 
 // define inverse of massless particle as arbitrarily large, but finite number
 // define a similarly large (but smaller) number for quick comparison
-#define INVMASSLESS 1.0e20f
+#define INVMASSLESS 1.0e30f
 #define INVMASSBOOL 1.0e18f
 
 #define EXCL_MASK (~(3<<30));

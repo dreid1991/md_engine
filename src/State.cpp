@@ -43,6 +43,7 @@ State::State() : units(&dt) {
     }
     bounds = Bounds(this);
     
+    masslessSites = false;
     //! \todo It would be nice to set verbose true/false in Logging.h and use
     //!       it for mdMessage.
     verbose = true;
