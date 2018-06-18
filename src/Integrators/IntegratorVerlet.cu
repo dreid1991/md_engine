@@ -32,14 +32,13 @@ __global__ void nve_v_cu(int nAtoms, real4 *vs, real4 *fs, real dtf) {
         if (invmass > INVMASSBOOL) {
             vs[idx] = make_real4(0.0, 0.0, 0.0,invmass);
             fs[idx] = make_real4(0.0, 0.0, 0.0,force.w);
-            return;
+        } else {
+            //real3 dv = dtf * invmass * make_real3(force);
+            real3 dv = dtf * invmass * make_real3(force);
+            vel += dv;
+            vs[idx] = vel;
+            fs[idx] = make_real4(0.0, 0.0, 0.0, force.w); 
         }
-
-        //real3 dv = dtf * invmass * make_real3(force);
-        real3 dv = dtf * invmass * make_real3(force);
-        vel += dv;
-        vs[idx] = vel;
-        fs[idx] = make_real4(0.0, 0.0, 0.0, force.w);
     }
 }
 
@@ -668,7 +667,6 @@ double IntegratorVerlet::run(int numTurns)
         setInterpolator();
     }
 
-    std::cout << "about to enter the run loop.." << std::endl;
     verifyPrepared();
     
     int periodicInterval = state->periodicInterval;
@@ -750,7 +748,10 @@ double IntegratorVerlet::run(int numTurns)
     double ptsps = state->atoms.size()*numTurns / (duration.count() - timeTune);
     mdMessage("runtime %f\n%e particle timesteps per second\n",
               duration.count(), ptsps);
+    double simTime = state->dt * numTurns / 1000000.0; // simTime in ns
 
+    double nsDay = simTime / (duration.count()/ (3600.0 * 24.0));
+    mdMessage("est. run time speed %f ns/day\n", nsDay);
     basicFinish();
     return ptsps;
 }
