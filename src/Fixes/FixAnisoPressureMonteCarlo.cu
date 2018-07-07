@@ -86,11 +86,7 @@ bool FixAnisoPressureMonteCarlo::stepFinal() {
     }
     
     // PERFORM SYSTEM SCALING
-    if (nPerRingPoly > 1) {
-        Mod::scaleSystemCentroids(state,posScale);
-    } else {
-        Mod::scaleSystem(state, posScale);
-    }
+    Mod::scaleSystem(state, posScale);
 
     // FIND PROPOSED SYSTEM ENERGY
     enrgComputer.computeScalar_GPU(true, groupTag);
@@ -108,11 +104,7 @@ bool FixAnisoPressureMonteCarlo::stepFinal() {
     if (weight > 0.0 && Urand(MTRNG) > std::exp(-weight / kT)) {
         // reject move/reset positions
         invScale = 1.0/posScale;
-        if (nPerRingPoly > 1) {
-            Mod::scaleSystemCentroids(state,invScale);
-        } else {
-            Mod::scaleSystem(state,invScale);
-        }
+        Mod::scaleSystem(state,invScale);
     } else {
         nacc++;
     }

@@ -65,11 +65,7 @@ bool FixPressureMonteCarlo::stepFinal() {
     double Vnew     = Vold + dV;                              // new proposed volume
     double posScale = std::pow(Vnew / Vold, 1.0/3.0);
     double invScale;
-    if (nPerRingPoly > 1) {
-        Mod::scaleSystemCentroids(state,make_real3(posScale,posScale,posScale));
-    } else {
-        Mod::scaleSystem(state, make_real3(posScale, posScale, posScale));
-    }
+    Mod::scaleSystem(state, make_real3(posScale, posScale, posScale));
 
     // FIND PROPOSED SYSTEM ENERGY
     enrgComputer.computeScalar_GPU(true, groupTag);
@@ -80,17 +76,13 @@ bool FixPressureMonteCarlo::stepFinal() {
     // COMPUTE THE ENSEMBLE WEIGHT OF PROPOSED VOLUME CHANGE
     // for direct volume-scaling
     double weight = (Unew - Uold)/nPerRingPoly + target*dV/ state->units.nktv_to_press 
-    - ((nAtoms-nfake)/nPerRingPoly)*kT*log(Vnew / Vold) ; 
+    - (nAtoms-nfake)*kT*log(Vnew / Vold) ; 
 
     // EVALUATE WHETHER MOVE IS ACCEPTED 
     if (weight > 0.0 && Urand(MTRNG) > std::exp(-weight / kT )) {
         // reject move/reset positions
         invScale = 1.0/posScale;
-        if (nPerRingPoly > 1) {
-            Mod::scaleSystemCentroids(state,make_real3(invScale,invScale,invScale));
-        } else {
-            Mod::scaleSystem(state,make_real3(invScale,invScale,invScale));
-        }
+        Mod::scaleSystem(state,make_real3(invScale,invScale,invScale));
     } else {
         nacc++;
     }
