@@ -97,7 +97,7 @@ bool FixAnisoPressureMonteCarlo::stepFinal() {
     // COMPUTE THE ENSEMBLE WEIGHT OF PROPOSED VOLUME CHANGE
     // for direct volume-scaling
     double weight = (Unew - Uold)/nPerRingPoly + target*dV/ state->units.nktv_to_press 
-        - ((nAtoms-nfake)/nPerRingPoly)*kT*log(Vnew / Vold) ; 
+        - (nAtoms-nfake)*kT*log(Vnew / Vold) ; 
 
     // EVALUATE WHETHER MOVE IS ACCEPTED 
     real3 invScale; 
