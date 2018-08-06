@@ -573,6 +573,8 @@ bool FixTIP4PFlexible::prepareForRun() {
                                                             gpd.virials.d_data.data(),
                                                             nMolecules, gamma, gpd.idToIdxs.d_data.data(), bounds);
     
+    // remove the DOF artificially assigned to the M site
+    assignNDF();
     
     // set the MSite position
     setMSiteFlexible<<<NBLOCK(nMolecules), PERBLOCK>>>(waterIdsGPU.data(), gpd.idToIdxs.d_data.data(), gpd.xs(activeIdx), gamma, nMolecules,  bounds);
@@ -647,6 +649,21 @@ std::string FixTIP4PFlexible::restartChunk(std::string format) {
     return ss.str();
 }
 
+void FixTIP4PFlexible::assignNDF() {
+
+    for (int i = 0; i < waterIds.size(); i++ ) {
+        int4    thisMolIds = waterIds[i];
+        int     idO  = thisMolIds.x;
+        int     idH1 = thisMolIds.y;
+        int     idH2 = thisMolIds.z;
+        int     idM  = thisMolIds.w;
+        Atom &O  = state->atoms[state->idToIdx[idO]];
+        Atom &H1 = state->atoms[state->idToIdx[idH1]];
+        Atom &H2 = state->atoms[state->idToIdx[idH2]];
+        Atom &M  = state->atoms[state->idToIdx[idM]];
+        M.setNDF(0);
+    }
+}
 
 bool FixTIP4PFlexible::readFromRestart() {
     auto restData = getRestartNode();

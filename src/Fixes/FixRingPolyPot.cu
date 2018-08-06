@@ -20,14 +20,19 @@ void __global__ compute_RP_energy_cu(int nAtoms, int nPerRingPoly, real omegaP, 
         uint groupTagAtom = * (uint *) &fs[idx].w;
         // Check if atom is part of the group
         if (groupTagAtom & groupTag) {
-            real mi    = (real) 1.0 / vs[idx].w;
+            real invmass = vs[idx].w;
+            real mi    = (real) 1.0 / invmass;
             int beadIdx = idx% nPerRingPoly; // time slice
             int beadIdp = (beadIdx + 1) % nPerRingPoly;
             real3 ri   = make_real3(xs[idx]);                     // position at i
             real3 rip1 = make_real3(xs[idx+beadIdp-beadIdx]);     // position at i+1
             real3 dr   = bounds.minImage(ri - rip1);               // difference vector b/w i, i+1
             real  dr2  = lengthSqr(dr);                            // difference vector dot product
-            real  eng  = 0.5 * mi * omegaP * omegaP * dr2;         // 0.5*mi*omegaP^2*(ri-rip1)^2 
+            real eng   = 0.0;
+
+            if (invmass < INVMASSBOOL) {
+                eng  = 0.5 * mi * omegaP * omegaP * dr2;         // 0.5*mi*omegaP^2*(ri-rip1)^2 
+            }
                                                                     // note: each atom is assigned one bond
             perParticleEng[idx] += eng * mvv_to_eng;                // add energy contribution
         }

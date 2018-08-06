@@ -66,6 +66,9 @@ class FixTIP4PFlexible: public Fix {
         // prepareForRun
         bool prepareForRun();
 
+        // reduces the NDF for M site atoms
+        void assignNDF();
+
         // stepFinal
         bool stepFinal();
 
